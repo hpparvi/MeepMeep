@@ -144,6 +144,21 @@ def xyz_o5s(t, t0, p, dt, points, cf):
 
 
 @njit(fastmath=True)
+def pd_o5s(t, t0, p, dt, points, cf):
+    """Calculate the projected planet-star center distance for a scalar time for any orbital phase"""
+    epoch = floor((t - t0) / p)
+    tc = t - t0 - epoch * p
+    ix = int(floor(tc / dt + 0.5))
+    tc -= points[ix]
+    tc2 = tc * tc
+    tc3 = tc2 * tc
+    tc4 = tc3 * tc
+    px = cf[ix, 0] + cf[ix, 3] * tc + 0.5 * cf[ix, 6] * tc2 + cf[ix, 9]  * tc3 / 6.0 + cf[ix, 12] * tc4 / 24.
+    py = cf[ix, 1] + cf[ix, 4] * tc + 0.5 * cf[ix, 7] * tc2 + cf[ix, 10] * tc3 / 6.0 + cf[ix, 13] * tc4 / 24.
+    return sqrt(px**2 + py**2)
+
+
+@njit(fastmath=True)
 def z_o5s(t, t0, p, dt, points, cf):
     """Calculate planet's (z) position for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
