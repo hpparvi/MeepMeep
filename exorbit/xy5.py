@@ -21,7 +21,7 @@ from .orbit import ta_newton_s
 
 
 @njit(fastmath=True)
-def solve_xyp_5s(phase, p, a, i, e, w):
+def solve_xy_p5s(phase, p, a, i, e, w):
     """Planet velocity, acceleration, jerk, and snap at mid-transit in [R_star / day]"""
 
     # Time step for central finite difference
@@ -103,18 +103,18 @@ def solve_xyp_5s(phase, p, a, i, e, w):
 
 
 @njit
-def solve_xyo_5s(p, a, i, e, w, npt):
+def solve_xy_o5s(p, a, i, e, w, npt):
     points = linspace(0.0, p, npt)
     dt = points[1] - points[0]
     coeffs = zeros((npt, 10))
     for ix in range(npt-1):
-        coeffs[ix] = solve_xyp_5s(points[ix], p, a, i, e, w)
+        coeffs[ix] = solve_xy_p5s(points[ix], p, a, i, e, w)
     coeffs[-1] = coeffs[0]
     return dt, points, coeffs
 
 
 @njit
-def xyo_5s(t, t0, p, dt, points, coeffs):
+def xy_o5s(t, t0, p, dt, points, coeffs):
     """Calculate planet's (x,y) position for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
@@ -130,20 +130,20 @@ def xyo_5s(t, t0, p, dt, points, coeffs):
 
 
 @njit
-def xyo_5v(times, t0, p, dt, points, coeffs):
+def xy_o5v(times, t0, p, dt, points, coeffs):
     """Calculate planet's (x,y) position for a vector time for any orbital phase"""
     npt = times.size
     xs, ys = zeros(npt), zeros(npt)
 
     for i in range(npt):
-        x, y = xyo_5s(times[i], t0, p, dt, points, coeffs)
+        x, y = xy_o5s(times[i], t0, p, dt, points, coeffs)
         xs[i] = x
         ys[i] = y
     return xs, ys
 
 
 @njit(fastmath=True)
-def xyt_15s(tc, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
+def xy_t15s(tc, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
     """Calculate planet's (x,y) position near transit."""
     epoch = floor((tc - t0 + 0.5 * p) / p)
     t = tc - (t0 + epoch * p)
@@ -156,7 +156,7 @@ def xyt_15s(tc, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
 
 
 @njit(fastmath=True)
-def pdt_15s(tc, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
+def pd_t15s(tc, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
     """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
     epoch = floor((tc - t0 + 0.5 * p) / p)
     t = tc - (t0 + epoch * p)
@@ -169,15 +169,15 @@ def pdt_15s(tc, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
 
 
 @njit(fastmath=True)
-def prdist_15v(times, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
+def pd_t15v(times, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
     z = zeros(times.size)
     for i in range(times.size):
-        z[i] = pdt_15s(times[i], t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy)
+        z[i] = pd_t15s(times[i], t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy)
     return z
 
 
 @njit(fastmath=True)
-def pdt_25s(t, t0, p, dt, v1, v2):
+def pd_t25s(t, t0, p, dt, v1, v2):
     """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
     epoch = floor((t - t0 + 0.5 * p) / p)
     tc = t - (t0 + epoch * p)
@@ -196,8 +196,8 @@ def pdt_25s(t, t0, p, dt, v1, v2):
 
 
 @njit(fastmath=True)
-def pdt_25v(times, t0, p, dt, v1, v2):
+def pd_t25v(times, t0, p, dt, v1, v2):
     z = zeros(times.size)
     for i in range(times.size):
-        z[i] = pdt_25s(times[i], t0, p, dt, v1, v2)
+        z[i] = pd_t25s(times[i], t0, p, dt, v1, v2)
     return z
