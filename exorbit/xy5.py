@@ -15,9 +15,9 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import cos, sin, floor, sqrt, zeros, linspace
+from numpy import cos, sin, floor, sqrt, zeros, linspace, array
 
-from .orbit import ta_newton_s
+from .newton import ta_newton_s
 
 
 @njit(fastmath=True)
@@ -103,6 +103,13 @@ def solve_xy_p5s(phase, p, a, i, e, w):
 
 
 @njit
+def solve_xy_t25(dt, p, a, i, e, w):
+    c1 = array(solve_xy_p5s(-0.5*dt, p, a, i, e, w))
+    c2 = array(solve_xy_p5s(0.5*dt, p, a, i, e, w))
+    return c1, c2
+
+
+@njit
 def solve_xy_o5s(p, a, i, e, w, npt):
     points = linspace(0.0, p, npt)
     dt = points[1] - points[0]
@@ -177,27 +184,57 @@ def pd_t15v(times, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
 
 
 @njit(fastmath=True)
-def pd_t25s(t, t0, p, dt, v1, v2):
-    """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
+def pd_t25s(t, t0, p, dt, c1, c2):
+    """Slower but more accurate (p)rojected planet-star center (d)istance near (t)ransit for scalar time.
+
+    A more accurate version of planet-star center distance calculation that interpolates between two Taylor
+    series expansions around the transit center. Much slower than `pd_t15s` and you're unlikely really going
+    to need the added precision. Use `solve_xy_t25d` to compute the coefficient arrays.
+    """
     epoch = floor((t - t0 + 0.5 * p) / p)
-    tc = t - (t0 + epoch * p)
-    if t < 0.0:
-        x0, y0, vx, vy, ax, ay, jx, jy, sx, sy = v1
-        tc += dt
+    tg = t - (t0 + epoch * p)
+    dt = 0.5*dt
+
+    if tg < dt:
+        t1 = tg + dt
+        t2 = t1 * t1
+        t3 = t2 * t1
+        t4 = t3 * t1
+        px1 = c1[0] + c1[2] * t1 + 0.5 * c1[4] * t2 + c1[6] * t3 / 6.0 + c1[8] * t4 / 24.
+        py1 = c1[1] + c1[3] * t1 + 0.5 * c1[5] * t2 + c1[7] * t3 / 6.0 + c1[9] * t4 / 24.
     else:
-        x0, y0, vx, vy, ax, ay, jx, jy, sx, sy = v2
-        tc -= dt
-    tc2 = tc * tc
-    tc3 = tc2 * tc
-    tc4 = tc3 * tc
-    px = x0 + vx * tc + 0.5 * ax * tc2 + jx * tc3 / 6.0 + sx * tc4 / 24.
-    py = y0 + vy * tc + 0.5 * ay * tc2 + jy * tc3 / 6.0 + sy * tc4 / 24.
-    return sqrt(px ** 2 + py ** 2)
+        px1, py1 = 0.0, 0.0
+
+    if tg > -dt:
+        t1 = tg - dt
+        t2 = t1 * t1
+        t3 = t2 * t1
+        t4 = t3 * t1
+        px2 = c2[0] + c2[2] * t1 + 0.5 * c2[4] * t2 + c2[6] * t3 / 6.0 + c2[8] * t4 / 24.
+        py2 = c2[1] + c2[3] * t1 + 0.5 * c2[5] * t2 + c2[7] * t3 / 6.0 + c2[9] * t4 / 24.
+    else:
+        px2, py2 = 0.0, 0.0
+
+    if tg < -dt:
+        return sqrt(px1 ** 2 + py1 ** 2)
+    elif tg > dt:
+        return sqrt(px2 ** 2 + py2 ** 2)
+    else:
+        a = (tg + dt) / (2 * dt)
+        px = (1 - a) * px1 + a * px2
+        py = (1 - a) * py1 + a * py2
+        return sqrt(px ** 2 + py ** 2)
 
 
 @njit(fastmath=True)
-def pd_t25v(times, t0, p, dt, v1, v2):
+def pd_t25v(times, t0, p, dt, c1, c2):
+    """Slower but more accurate (p)rojected planet-star center (d)istance near (t)ransit for a time array.
+
+    A more accurate version of planet-star center distance calculation that interpolates between two Taylor
+    series expansions around the transit center. Much slower than `pd_t15s` and you're unlikely really going
+    to need the added precision. Use `solve_xy_t25d` to compute the coefficient arrays.
+    """
     z = zeros(times.size)
     for i in range(times.size):
-        z[i] = pd_t25s(times[i], t0, p, dt, v1, v2)
+        z[i] = pd_t25s(times[i], t0, p, dt, c1, c2)
     return z
