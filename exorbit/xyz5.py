@@ -17,7 +17,7 @@
 from numba import njit
 from numpy import cos, sin, floor, sqrt, zeros, linspace
 
-from .orbit import ta_newton_s
+from .newton import ta_newton_s
 
 
 @njit(fastmath=True)
