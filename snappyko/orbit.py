@@ -31,11 +31,11 @@ class Orbit:
         return xyz_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
     @property
-    def cos_alpha(self):
+    def cos_phase(self):
         return cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
     @property
-    def alpha(self):
+    def phase(self):
         return arccos(cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs))
 
     def light_travel_time(self, rstar: float):
