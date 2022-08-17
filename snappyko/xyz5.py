@@ -214,6 +214,13 @@ def cos_alpha_o5s(t, t0, p, dt, points, coeffs):
 
 
 @njit
+def cos_alpha_o5v(times, t0, p, dt, points, coeffs):
+    """Cosine of the phase angle."""
+    x, y, z = xyz_o5v(times, t0, p, dt, points, coeffs)
+    return -z / sqrt(x**2 + y**2 + z**2)
+
+
+@njit
 def zdiff_o5s(t, t0, p, dt, points, coeffs):
     return z_o5s(t, t0, p, dt, points, coeffs) - coeffs[0, 2]
 
@@ -223,3 +230,13 @@ def light_travel_time_o5s(t, t0, p, rstar, dt, points, coeffs):
     """Light travel time in days."""
     s = 2.685885891543453e-05  # ((1 * u.R_sun).to(u.m) / c.c).to('d').value
     return -zdiff_o5s(t, t0, p, dt, points, coeffs) * rstar * s
+
+
+@njit
+def light_travel_time_o5v(times, t0, p, rstar, dt, points, coeffs):
+    """Light travel time in days."""
+    s = 2.685885891543453e-05  # ((1 * u.R_sun).to(u.m) / c.c).to('d').value
+    ltt = zeros(times.size)
+    for i in range(times.size):
+        ltt[i] = -zdiff_o5s(times[i], t0, p, dt, points, coeffs) * rstar * s
+    return ltt

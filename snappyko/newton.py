@@ -1,7 +1,7 @@
 from numba import njit
 from numpy import cos, sin, zeros
 
-from .orbit import mean_anomaly, ta_from_ea_s, ta_from_ea_v, z_from_ta_s, z_from_ta_v
+from .utils import mean_anomaly, ta_from_ea_s, ta_from_ea_v, z_from_ta_s, z_from_ta_v
 
 
 @njit

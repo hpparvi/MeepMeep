@@ -6,13 +6,13 @@ with open("snappyko/version.py") as fp:
 
 setup(name='SnappyKO',
       version=str(version['__version__']),
-      description='Extremely fast Kepler orbit computation using Taylor series.',
+      description='Fast Keplerian orbit computation using Taylor series expansions.',
       author='Hannu Parviainen',
       author_email='hpparvi@gmail.com',
       url='https://github.com/hpparvi/snappyko',
       package_dir={'snappyko':'snappyko'},
       packages=['snappyko'],
-      install_requires=["numpy", "numba", "scipy", "semantic_version", "deprecated"],
+      install_requires=["numpy", "numba", "semantic_version", "deprecated"],
       include_package_data=True,
       license='GPLv3',
       classifiers=[
