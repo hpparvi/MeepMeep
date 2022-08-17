@@ -93,43 +93,6 @@ def mean_anomaly(t, t0, p, e, w):
 
 
 @njit
-def ea_newton_v(t, t0, p, e, w):
-    Ma = mean_anomaly(t, t0, p, e, w)
-    Ea = Ma.copy()
-    for j in range(len(t)):
-        err = 0.05
-        k = 0
-        while abs(err) > 1e-8 and k<1000:
-            err   = Ea[j] - e*sin(Ea[j]) - Ma[j]
-            Ea[j] = Ea[j] - err/(1.0-e*cos(Ea[j]))
-            k += 1
-    return Ea
-
-
-@njit
-def ea_newton_s(t, t0, p, e, w):
-    Ma = mean_anomaly(t, t0, p, e, w)
-    Ea = Ma
-    err = 0.05
-    k = 0
-    while abs(err) > 1e-8 and k<1000:
-        err   = Ea - e*sin(Ea) - Ma
-        Ea = Ea - err/(1.0-e*cos(Ea))
-        k += 1
-    return Ea
-
-
-@njit
-def ta_newton_s(t, t0, p, e, w):
-    return ta_from_ea_s(ea_newton_s(t, t0, p, e, w), e)
-
-
-@njit
-def ta_newton_v(t, t0, p, e, w):
-    return ta_from_ea_v(ea_newton_v(t, t0, p, e, w), e)
-
-
-@njit
 def z_from_ta_s(Ta, a, i, e, w):
     z  = a*(1.0-e**2)/(1.0+e*cos(Ta)) * sqrt(1.0 - sin(w+Ta)**2 * sin(i)**2)
     z *= copysign(1.0, sin(w+Ta))
@@ -141,21 +104,3 @@ def z_from_ta_v(Ta, a, i, e, w):
     z  = a*(1.0-e**2)/(1.0+e*cos(Ta)) * sqrt(1.0 - sin(w+Ta)**2 * sin(i)**2)
     z *= sign(1.0, sin(w+Ta))
     return z
-
-
-@njit
-def z_newton_s(t, pv):
-    """Normalized projected distance for scalar t.
-
-    pv = [t0, p, a, i, e, w]
-    """
-    t0, p, a, i, e, w = pv
-    Ta = ta_newton_s(t, t0, p, e, w)
-    return z_from_ta_s(Ta, a, i, e, w)
-
-
-@njit
-def z_newton_v(ts, pv):
-    t0, p, a, i, e, w = pv
-    Ta = ta_newton_v(ts, t0, p, e, w)
-    return z_from_ta_v(Ta, a, i, e, w)

@@ -16,7 +16,9 @@
 
 from numba import njit
 from numpy import zeros_like, cos, sin, floor, sqrt, zeros, linspace
-from .orbit import eclipse_phase, i_from_baew, ta_newton_s, ta_newton_v
+from .orbit import eclipse_phase, i_from_baew
+from .newton import ta_newton_s, ta_newton_v
+
 
 @njit(fastmath=True)
 def solve_xy5s(phase, p, a, i, e, w):
