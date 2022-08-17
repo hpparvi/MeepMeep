@@ -1,106 +1,61 @@
-#  ExOrbit: fast orbit calculations for exoplanet modelling
-#  Copyright (C) 2022 Hannu Parviainen
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from typing import Optional
+
+from matplotlib.patches import Circle
+from matplotlib.pyplot import subplots, setp
+from numpy import arccos, ndarray
+
+from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v
 
 
-from numba import njit
-from numpy import pi, arctan2, sqrt, sin, cos, arccos, mod, copysign, sign
+class Orbit:
+    def __init__(self, npt: int = 11):
+        self.npt: int = npt
+        self.times: Optional[ndarray] = None
 
-HALF_PI = 0.5*pi
-TWO_PI = 2.0*pi
+        self._dt: Optional[float] = None
+        self._points: Optional[float] = None
+        self._coeffs: Optional[ndarray] = None
+        self._t0: Optional[float] = None
+        self._p: Optional[float] = None
 
+    def set_data(self, times):
+        self.times = times
 
-@njit
-def eclipse_phase(p, i, e, w):
-    """ Phase for the secondary eclipse center.
+    def set_pars(self, t0, p, a, i, e, w):
+        self._t0 = t0
+        self._p = p
+        self._dt, self._points, self._coeffs = solve_xyz_o5s(p, a, i, e, w, self.npt)
 
-    Exact secondary eclipse center phase, good for all eccentricities.
-    """
-    etr = arctan2(sqrt(1. - e**2) * sin(HALF_PI - w), e + cos(HALF_PI - w))
-    eec = arctan2(sqrt(1. - e**2) * sin(HALF_PI + pi - w), e + cos(HALF_PI + pi - w))
-    mtr = etr - e * sin(etr)
-    mec = eec - e * sin(eec)
-    phase = (mec - mtr) * p / TWO_PI
-    return phase if phase > 0. else p + phase
+    @property
+    def xyz(self):
+        return xyz_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
+    @property
+    def cos_alpha(self):
+        return cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
-@njit
-def af_transit(e, w):
-    """Calculates the -- factor during the transit"""
-    return (1.0-e**2)/(1.0 + e*sin(w))
+    @property
+    def alpha(self):
+        return arccos(cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs))
 
+    def light_travel_time(self, rstar: float):
+        return light_travel_time_o5v(self.times, self._t0, self._p, rstar, self._dt, self._points, self._coeffs)
 
-@njit
-def i_from_baew(b, a, e, w):
-    """Orbital inclination from the impact parameter, scaled semi-major axis, eccentricity and argument of periastron
+    def plot(self, figsize=None):
+        x, y, z = self.xyz
+        xl, yl, zl = 1.1 * abs(x).max(), 1.1 * abs(y).max(), 1.1 * abs(z).max()
+        al = max([xl, yl, zl])
+        #TODO: Add truths using Newton's method
 
-    Parameters
-    ----------
-
-      b  : impact parameter       [-]
-      a  : scaled semi-major axis [R_Star]
-      e  : eccentricity           [-]
-      w  : argument of periastron [rad]
-
-    Returns
-    -------
-
-      i  : inclination            [rad]
-    """
-    return arccos(b / (a*af_transit(e, w)))
-
-
-@njit
-def ta_from_ea_v(Ea, e):
-    sta = sqrt(1.0-e**2) * sin(Ea)/(1.0-e*cos(Ea))
-    cta = (cos(Ea)-e)/(1.0-e*cos(Ea))
-    Ta  = arctan2(sta, cta)
-    return Ta
-
-
-@njit
-def ta_from_ea_s(Ea, e):
-    sta = sqrt(1.0-e**2) * sin(Ea)/(1.0-e*cos(Ea))
-    cta = (cos(Ea)-e)/(1.0-e*cos(Ea))
-    Ta  = arctan2(sta, cta)
-    return Ta
-
-
-@njit
-def mean_anomaly_offset(e, w):
-    mean_anomaly_offset = arctan2(sqrt(1.0-e**2) * sin(HALF_PI - w), e + cos(HALF_PI - w))
-    mean_anomaly_offset -= e*sin(mean_anomaly_offset)
-    return mean_anomaly_offset
-
-
-@njit
-def mean_anomaly(t, t0, p, e, w):
-    offset = mean_anomaly_offset(e, w)
-    Ma = mod(TWO_PI * (t - (t0 - offset * p / TWO_PI)) / p, TWO_PI)
-    return Ma
-
-
-@njit
-def z_from_ta_s(Ta, a, i, e, w):
-    z  = a*(1.0-e**2)/(1.0+e*cos(Ta)) * sqrt(1.0 - sin(w+Ta)**2 * sin(i)**2)
-    z *= copysign(1.0, sin(w+Ta))
-    return z
-
-
-@njit(parallel=True)
-def z_from_ta_v(Ta, a, i, e, w):
-    z  = a*(1.0-e**2)/(1.0+e*cos(Ta)) * sqrt(1.0 - sin(w+Ta)**2 * sin(i)**2)
-    z *= sign(1.0, sin(w+Ta))
-    return z
+        fig, axs = subplots(1, 3, figsize=figsize)
+        axs[0].plot(x, y)
+        axs[0].plot(self._coeffs[0, 0], self._coeffs[0, 1], 'ok')
+        axs[1].plot(x, z)
+        axs[1].plot(self._coeffs[0, 0], self._coeffs[0, 2], 'ok')
+        axs[2].plot(z, y)
+        axs[2].plot(self._coeffs[0, 2], self._coeffs[0, 1], 'ok')
+        [ax.add_patch(Circle((0, 0), 1, fc='y', ec='k')) for ax in axs]
+        [ax.set_aspect(1) for ax in axs]
+        setp(axs, xlim=(-al, al), ylim=(-al, al))
+        setp(axs[1:], yticks=[])
+        fig.tight_layout()
