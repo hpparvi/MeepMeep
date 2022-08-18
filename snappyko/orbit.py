@@ -8,7 +8,7 @@ from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v
 
 
 class Orbit:
-    def __init__(self, npt: int = 11):
+    def __init__(self, npt: int = 15):
         self.npt: int = npt
         self.times: Optional[ndarray] = None
 
