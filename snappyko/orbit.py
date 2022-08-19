@@ -1,8 +1,8 @@
 from typing import Optional
 
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Wedge
 from matplotlib.pyplot import subplots, setp
-from numpy import arccos, ndarray
+from numpy import arccos, ndarray, mod, argmin, degrees, linspace
 
 from .newton import xyz_newton_v, ta_newton_v
 from .utils import mean_anomaly_offset, TWO_PI
@@ -62,21 +62,45 @@ class Orbit:
     def light_travel_time(self, rstar: float):
         return light_travel_time_o5v(self.times, self._t0, self._p, rstar, self._dt, self._points, self._coeffs)
 
-    def plot(self, figsize=None):
-        x, y, z = self.xyz
-        xl, yl, zl = 1.1 * abs(x).max(), 1.1 * abs(y).max(), 1.1 * abs(z).max()
+    def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc='k'):
+        tcur = self.times
+        self.set_data(linspace(0, self._p, 1000))
+
+        x, y, z = self.xyz()
+        xl, yl, zl = 1.1*abs(x).max(), 1.1*abs(y).max(), 1.1*abs(z).max()
         al = max([xl, yl, zl])
-        #TODO: Add truths using Newton's method
 
         fig, axs = subplots(1, 3, figsize=figsize)
-        axs[0].plot(x, y)
-        axs[0].plot(self._coeffs[0, 0], self._coeffs[0, 1], 'ok')
-        axs[1].plot(x, z)
-        axs[1].plot(self._coeffs[0, 0], self._coeffs[0, 2], 'ok')
-        axs[2].plot(z, y)
-        axs[2].plot(self._coeffs[0, 2], self._coeffs[0, 1], 'ok')
-        [ax.add_patch(Circle((0, 0), 1, fc='y', ec='k')) for ax in axs]
+        axs[0].plot(x, y, zorder=0)
+        axs[0].add_patch(Circle((self._coeffs[0, 0], self._coeffs[0, 1]), pr, fc=pc, ec='k', zorder=10))
+        axs[1].plot(x, z, zorder=1)
+        axs[1].add_patch(Circle((self._coeffs[0, 0], self._coeffs[0, 2]), pr, fc=pc, ec='k', zorder=11))
+        axs[1].add_patch(Wedge((0, 0), 1.3*sr, 180 - degrees(self._w), 180, fc=pc, ec='k', zorder=-10))
+
+        axs[2].plot(z, y, zorder=2)
+        axs[2].add_patch(Circle((self._coeffs[0, 2], self._coeffs[0, 1]), pr, fc=pc, ec='k', zorder=12))
+
+        di = self.times.size//6
+        for i in range(6):
+            axs[1].arrow(x[i*di], z[i*di], x[i*di + 1] - x[i*di], z[i*di + 1] - z[i*di], shape='full', lw=6,
+                         length_includes_head=True, head_width=.1, color='k')
+
+        m = x < 0.0
+        axs[1].plot((0, x[m][argmin(abs(z[m]))]), (0, 0), 'k', zorder=-10, ls='--')
+        omega_ix = argmin(x**2 + y**2 + z**2)
+        axs[1].plot((0, x[omega_ix]), (0, z[omega_ix]), 'k', zorder=-10, ls='--')
+
+        if show_exact:
+            xt, yt, zt = xyz_newton_v(self.times, self._t0, self._p, self._a, self._i, self._e, self._w)
+            axs[0].plot(xt, yt, 'k--')
+            axs[1].plot(xt, zt, 'k--')
+            axs[2].plot(zt, yt, 'k--')
+
+        [ax.add_patch(Circle((0, 0), sr, fc='y', ec='k')) for ax in axs]
         [ax.set_aspect(1) for ax in axs]
         setp(axs, xlim=(-al, al), ylim=(-al, al))
-        setp(axs[1:], yticks=[])
+        setp(axs[0], xlabel='X', ylabel='Y', title='Front')
+        setp(axs[1], xlabel='X', ylabel='Z', ylim=(al, -al), title='Top')
+        setp(axs[2], xlabel='Z', ylabel='Y', title='Side')
         fig.tight_layout()
+        self.set_data(tcur)
