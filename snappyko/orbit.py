@@ -4,6 +4,8 @@ from matplotlib.patches import Circle
 from matplotlib.pyplot import subplots, setp
 from numpy import arccos, ndarray
 
+from .newton import xyz_newton_v, ta_newton_v
+from .utils import mean_anomaly_offset, TWO_PI
 from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v
 
 
@@ -41,11 +43,19 @@ class Orbit:
     def xyz(self):
         return xyz_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
-    @property
+    def _xyz_error(self):
+        x, y, z = self.xyz()
+        xt, yt, zt = xyz_newton_v(self.times, self._t0, self._p, self._a, self._i, self._e, self._w)
+        return x-xt, y-yt, z-zt
+
     def cos_phase(self):
         return cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
-    @property
+    def _cos_phase_error(self):
+        ta = ta_newton_v(self.times, self._t0, self._p, self._e, self._w)
+        cos_alpha_t = ta
+        return cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs) - cos_alpha_t
+
     def phase(self):
         return arccos(cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs))
 
