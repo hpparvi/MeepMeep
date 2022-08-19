@@ -34,7 +34,10 @@ class Orbit:
         self._w = w
         self._dt, self._points, self._coeffs = solve_xyz_o5s(p, a, i, e, w, self.npt)
 
-    @property
+    def mean_anomaly(self):
+        offset = mean_anomaly_offset(self._e, self._w)
+        return mod(TWO_PI * (self.times - (self._t0 - offset * self._p / TWO_PI)) / self._p, TWO_PI)
+
     def xyz(self):
         return xyz_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
