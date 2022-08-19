@@ -144,6 +144,16 @@ def xyz_o5s(t, t0, p, dt, points, cf):
 
 
 @njit(fastmath=True)
+def xyz_o5v(times, t0, p, dt, points, coeffs):
+    """Calculate planet's (x, y, z) position for a vector time for any orbital phase"""
+    npt = times.size
+    xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
+    for i in range(npt):
+        xs[i], ys[i], zs[i] = xyz_o5s(times[i], t0, p, dt, points, coeffs)
+    return xs, ys, zs
+
+
+@njit(fastmath=True)
 def pd_o5s(t, t0, p, dt, points, cf):
     """Calculate the projected planet-star center distance for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
@@ -170,16 +180,6 @@ def z_o5s(t, t0, p, dt, points, cf):
     tc4 = tc3 * tc
     pz = cf[ix, 2] + cf[ix, 5] * tc + 0.5 * cf[ix, 8] * tc2 + cf[ix, 11] * tc3 / 6.0 + cf[ix, 14] * tc4 / 24.
     return pz
-
-
-@njit(fastmath=True)
-def xyz_o5v(times, t0, p, dt, points, coeffs):
-    """Calculate planet's (x, y, z) position for a vector time for any orbital phase"""
-    npt = times.size
-    xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
-    for i in range(npt):
-        xs[i], ys[i], zs[i] = xyz_o5s(times[i], t0, p, dt, points, coeffs)
-    return xs, ys, zs
 
 
 @njit(fastmath=True)
