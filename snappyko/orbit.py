@@ -17,6 +17,10 @@ class Orbit:
         self._coeffs: Optional[ndarray] = None
         self._t0: Optional[float] = None
         self._p: Optional[float] = None
+        self._a: Optional[float] = None
+        self._i: Optional[float] = None
+        self._e: Optional[float] = None
+        self._w: Optional[float] = None
 
     def set_data(self, times):
         self.times = times
@@ -24,6 +28,10 @@ class Orbit:
     def set_pars(self, t0, p, a, i, e, w):
         self._t0 = t0
         self._p = p
+        self._a = a
+        self._i = i
+        self._e = e
+        self._w = w
         self._dt, self._points, self._coeffs = solve_xyz_o5s(p, a, i, e, w, self.npt)
 
     @property
