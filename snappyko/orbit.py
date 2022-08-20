@@ -62,9 +62,9 @@ class Orbit:
     def light_travel_time(self, rstar: float):
         return light_travel_time_o5v(self.times, self._t0, self._p, rstar, self._dt, self._points, self._coeffs)
 
-    def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc='k'):
+    def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc='k', npt: int = 1000):
         tcur = self.times
-        self.set_data(linspace(0, self._p, 1000))
+        self.set_data(linspace(0, self._p, npt))
 
         x, y, z = self.xyz()
         xl, yl, zl = 1.1*abs(x).max(), 1.1*abs(y).max(), 1.1*abs(z).max()
