@@ -6,7 +6,7 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace
 
 from .newton import xyz_newton_v, ta_newton_v
 from .utils import mean_anomaly_offset, TWO_PI
-from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v
+from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v, vxyz_o5v
 
 
 class Orbit:
@@ -47,6 +47,9 @@ class Orbit:
         x, y, z = self.xyz()
         xt, yt, zt = xyz_newton_v(self.times, self._t0, self._p, self._a, self._i, self._e, self._w)
         return x-xt, y-yt, z-zt
+
+    def vxyz(self):
+        return vxyz_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
     def cos_phase(self):
         return cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
