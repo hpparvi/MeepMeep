@@ -16,10 +16,22 @@
 
 
 from numba import njit
-from numpy import pi, arctan2, sqrt, sin, cos, arccos, mod, copysign, sign
+from numpy import pi, arctan2, sqrt, sin, cos, arccos, mod, copysign, sign, array
 
 HALF_PI = 0.5*pi
 TWO_PI = 2.0*pi
+
+
+@njit
+def eccentricity_vector(a, i, e, w):
+    ae = a*(1. - e**2)
+    ci = cos(i)
+    si = sin(i)
+    r = ae/(1. + e*cos(0.0))
+    ex = -r*cos(w)
+    ey = -r*sin(w)*ci
+    ez =  r*sin(w)*si
+    return array([ex, ey, ez])
 
 
 @njit
