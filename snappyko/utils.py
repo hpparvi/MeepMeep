@@ -23,15 +23,16 @@ TWO_PI = 2.0*pi
 
 
 @njit
-def eccentricity_vector(a, i, e, w):
-    ae = a*(1. - e**2)
-    ci = cos(i)
-    si = sin(i)
-    r = ae/(1. + e*cos(0.0))
-    ex = -r*cos(w)
-    ey = -r*sin(w)*ci
-    ez =  r*sin(w)*si
-    return array([ex, ey, ez])
+def eccentricity_vector(i, e, w):
+    if e > 1e-5:
+        ci = cos(i)
+        si = sin(i)
+        ex = -e*cos(w)
+        ey = -e*sin(w)*ci
+        ez =  e*sin(w)*si
+        return array([ex, ey, ez])
+    else:
+        return array([-1.0, 0.0, 0.0])
 
 
 @njit

@@ -18,6 +18,7 @@ from numba import njit
 from numpy import cos, sin, floor, sqrt, zeros, linspace, arccos, pi
 
 from .newton import ta_newton_s
+from .utils import mean_anomaly
 
 
 @njit(fastmath=True)
@@ -232,18 +233,22 @@ def xyz_t15s(tc, t0, p, x0, y0, z0, vx, vy, vz, ax, ay, az, jx, jy, jz, sx, sy, 
 
 
 @njit
-def true_anomaly_o5v(times, t0, p, ex, ey, ez, dt, points, coeffs):
+def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, points, coeffs):
     npt = times.size
     f = zeros(npt)
-    for i in range(npt):
-        x, y, z = xyz_o5s(times[i], t0, p, dt, points, coeffs)
-        vx, vy, vz = vxyz_o5s(times[i], t0, p, dt, points, coeffs)
-        edp = (x*ex + y*ey + z*ez) / sqrt((x**2 + y**2 + z**2) * (ex**2 + ey**2 + ez**2))
+    if ex <= -0.9999:
+        f[:] = mean_anomaly(times, t0, p, 0.0, w)
+    else:
+        nes = (ex**2 + ey**2 + ez**2)
+        for i in range(npt):
+            x, y, z = xyz_o5s(times[i], t0, p, dt, points, coeffs)
+            vx, vy, vz = vxyz_o5s(times[i], t0, p, dt, points, coeffs)
+            edp = (x*ex + y*ey + z*ez) / sqrt((x**2 + y**2 + z**2) * nes)
 
-        if (x*vx + y*vy + z*vz) > 0.0:
-            f[i] = arccos(edp)
-        else:
-            f[i] = 2.0*pi - arccos(edp)
+            if (x*vx + y*vy + z*vz) > 0.0:
+                f[i] = arccos(edp)
+            else:
+                f[i] = 2.0*pi - arccos(edp)
     return f
 
 @njit

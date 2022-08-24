@@ -41,8 +41,8 @@ class Orbit:
         return mod(TWO_PI * (self.times - (self._t0 - offset * self._p / TWO_PI)) / self._p, TWO_PI)
 
     def true_anomaly(self):
-        ev = eccentricity_vector(self._a, self._i, self._e, self._w)
-        return true_anomaly_o5v(self.times, self._t0, self._p, ev[0], ev[1], ev[2], self._dt, self._points, self._coeffs)
+        ev = eccentricity_vector(self._i, self._e, self._w)
+        return true_anomaly_o5v(self.times, self._t0, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._points, self._coeffs)
 
     def xyz(self):
         return xyz_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
