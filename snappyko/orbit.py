@@ -5,8 +5,8 @@ from matplotlib.pyplot import subplots, setp
 from numpy import arccos, ndarray, mod, argmin, degrees, linspace
 
 from .newton import xyz_newton_v, ta_newton_v
-from .utils import mean_anomaly_offset, TWO_PI
-from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v, vxyz_o5v
+from .utils import mean_anomaly_offset, TWO_PI, eccentricity_vector
+from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v, vxyz_o5v, true_anomaly_o5v
 
 
 class Orbit:
@@ -39,6 +39,10 @@ class Orbit:
     def mean_anomaly(self):
         offset = mean_anomaly_offset(self._e, self._w)
         return mod(TWO_PI * (self.times - (self._t0 - offset * self._p / TWO_PI)) / self._p, TWO_PI)
+
+    def true_anomaly(self):
+        ev = eccentricity_vector(self._a, self._i, self._e, self._w)
+        return true_anomaly_o5v(self.times, self._t0, self._p, ev[0], ev[1], ev[2], self._dt, self._points, self._coeffs)
 
     def xyz(self):
         return xyz_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)

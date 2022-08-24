@@ -15,7 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import cos, sin, floor, sqrt, zeros, linspace
+from numpy import cos, sin, floor, sqrt, zeros, linspace, arccos, pi
 
 from .newton import ta_newton_s
 
@@ -230,6 +230,21 @@ def xyz_t15s(tc, t0, p, x0, y0, z0, vx, vy, vz, ax, ay, az, jx, jy, jz, sx, sy, 
     pz = z0 + vz * t + 0.5 * az * t2 + jz * t3 / 6.0 + sz * t4 / 24.
     return px, py, pz
 
+
+@njit
+def true_anomaly_o5v(times, t0, p, ex, ey, ez, dt, points, coeffs):
+    npt = times.size
+    f = zeros(npt)
+    for i in range(npt):
+        x, y, z = xyz_o5s(times[i], t0, p, dt, points, coeffs)
+        vx, vy, vz = vxyz_o5s(times[i], t0, p, dt, points, coeffs)
+        edp = (x*ex + y*ey + z*ez) / sqrt((x**2 + y**2 + z**2) * (ex**2 + ey**2 + ez**2))
+
+        if (x*vx + y*vy + z*vz) > 0.0:
+            f[i] = arccos(edp)
+        else:
+            f[i] = 2.0*pi - arccos(edp)
+    return f
 
 @njit
 def cos_alpha_o5s(t, t0, p, dt, points, coeffs):
