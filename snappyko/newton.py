@@ -70,3 +70,9 @@ def z_newton_v(time, t0, p, a, i, e, w):
     """
     ta = ta_newton_v(time, t0, p, e, w)
     return z_from_ta_v(ta, a, i, e, w)
+
+
+@njit
+def rv_newton_v(times, k, t0, p, e, w):
+    ta_n = ta_newton_v(times, t0, p, e, w)
+    return k * (cos(w + ta_n) + e * cos(w))

@@ -180,6 +180,28 @@ def vxyz_o5v(times, t0, p, dt, points, coeffs):
 
 
 @njit(fastmath=True)
+def vz_o5s(t, t0, p, dt, points, cf):
+    """Calculate planet's (x, y, z) velocity for a scalar time for any orbital phase"""
+    epoch = floor((t - t0) / p)
+    tc = t - t0 - epoch * p
+    ix = int(floor(tc / dt + 0.5))
+    tc -= points[ix]
+    tc2 = tc * tc
+    tc3 = tc2 * tc
+    return cf[ix, 5] + cf[ix, 8] * tc + 0.5 * cf[ix, 11] * tc2 + cf[ix, 14] * tc3 / 6.0
+
+
+@njit(fastmath=True)
+def vz_o5v(times, t0, p, dt, points, coeffs):
+    """Calculate planet's (x, y, z) position for a vector time for any orbital phase"""
+    npt = times.size
+    vzs = zeros(npt)
+    for i in range(npt):
+        vzs[i] = vz_o5s(times[i], t0, p, dt, points, coeffs)
+    return vzs
+
+
+@njit(fastmath=True)
 def pd_o5s(t, t0, p, dt, points, cf):
     """Calculate the projected planet-star center distance for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
@@ -285,3 +307,19 @@ def light_travel_time_o5v(times, t0, p, rstar, dt, points, coeffs):
     for i in range(times.size):
         ltt[i] = -zdiff_o5s(times[i], t0, p, dt, points, coeffs) * rstar * s
     return ltt
+
+
+@njit
+def rv_o5s(time, k, t0, p, a, i, e, dt, points, coeffs):
+    n = 2*pi/p * (a*sin(i))/sqrt(1-e**2)  # Perryman (2018) Eq. 2.23
+    return vz_o5s(time, t0, p, dt, points, coeffs) / n * k
+
+
+@njit
+def rv_o5v(times, k, t0, p, a, i, e, dt, points, coeffs):
+    npt = times.size
+    rvs = zeros(npt)
+    n = 2*pi/p * (a*sin(i))/sqrt(1-e**2)  # Perryman (2018) Eq. 2.23
+    for i in range(npt):
+        rvs[i] = vz_o5s(times[i], t0, p, dt, points, coeffs) / n * k
+    return rvs
