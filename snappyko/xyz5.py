@@ -274,6 +274,13 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, points, coeffs):
     return f
 
 @njit
+def cos_v_p_angle_o5v(v, times, t0, p, dt, points, coeffs):
+    px, py, pz =  xyz_o5v(times, t0, p, dt, points, coeffs)
+    np = sqrt(px**2 + py**2 + pz**2)
+    nv = sqrt(v[0]**2 + v[1]**2 + v[2]**2)
+    return (px*v[0] + py*v[1] + pz*v[2])/(np*nv)
+
+@njit
 def cos_alpha_o5s(t, t0, p, dt, points, coeffs):
     """Cosine of the phase angle."""
     x, y, z = xyz_o5s(t, t0, p, dt, points, coeffs)
@@ -285,6 +292,24 @@ def cos_alpha_o5v(times, t0, p, dt, points, coeffs):
     """Cosine of the phase angle."""
     x, y, z = xyz_o5v(times, t0, p, dt, points, coeffs)
     return -z / sqrt(x**2 + y**2 + z**2)
+
+
+@njit
+def star_planet_distance_o5v(times, t0, p, dt, points, coeffs):
+    x, y, z =  xyz_o5v(times, t0, p, dt, points, coeffs)
+    return sqrt(x**2 + y**2 + z**2)
+
+
+@njit
+def ev_signal_o5v(alpha, mass_ratio, inc, times, t0, p, dt, points, coeffs):
+    """Ellipsoidal variation signal.
+
+    NOTES: See Eqs. 6-10 in Lillo-Box al. (2014).
+    """
+    x, y, z =  xyz_o5v(times, t0, p, dt, points, coeffs)
+    distance = sqrt(x**2 + y**2 + z**2)
+    theta = arccos(z / distance)
+    return -alpha * mass_ratio * sin(inc)**2 * cos(2*theta) / distance**3
 
 
 @njit

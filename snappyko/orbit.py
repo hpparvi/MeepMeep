@@ -2,11 +2,12 @@ from typing import Optional
 
 from matplotlib.patches import Circle, Wedge
 from matplotlib.pyplot import subplots, setp
-from numpy import arccos, ndarray, mod, argmin, degrees, linspace
+from numpy import arccos, ndarray, mod, argmin, degrees, linspace, array, sqrt, sin, cos
 
 from .newton import xyz_newton_v, ta_newton_v
 from .utils import mean_anomaly_offset, TWO_PI, eccentricity_vector
-from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v, vxyz_o5v, true_anomaly_o5v, rv_o5v
+from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v, vxyz_o5v, true_anomaly_o5v, rv_o5v, \
+    star_planet_distance_o5v, ev_signal_o5v
 
 
 class Orbit:
@@ -44,8 +45,9 @@ class Orbit:
         ev = eccentricity_vector(self._i, self._e, self._w)
         return true_anomaly_o5v(self.times, self._t0, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._points, self._coeffs)
 
-    def xyz(self):
-        return xyz_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
+    def xyz(self, times: Optional[ndarray] = None):
+        times = times or self.times
+        return xyz_o5v(times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
     def _xyz_error(self):
         x, y, z = self.xyz()
@@ -66,11 +68,24 @@ class Orbit:
     def phase(self):
         return arccos(cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs))
 
+    def theta(self):
+        return arccos(-cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._points, self._coeffs))
+
+    def star_planet_distance(self, times: Optional[ndarray] = None):
+        return star_planet_distance_o5v(times or self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
+
     def light_travel_time(self, rstar: float):
         return light_travel_time_o5v(self.times, self._t0, self._p, rstar, self._dt, self._points, self._coeffs)
 
     def radial_velocity(self, k: float):
         return rv_o5v(self.times, k, self._t0, self._p, self._a, self._i, self._e, self._dt, self._points, self._coeffs)
+
+    def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):
+        """Ellipsoidal variation signal.
+
+        NOTES: See Eqs. 6-10 in Lillo-Box al. (2014).
+        """
+        return ev_signal_o5v(alpha, mass_ratio, self._i, times or self.times, self._t0, self._p, self._dt, self._points, self._coeffs)
 
     def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc='k', npt: int = 1000):
         tcur = self.times
