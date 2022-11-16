@@ -117,24 +117,22 @@ def solve_xyz_p5s(phase, p, a, i, e, w):
 
 
 @njit
-def solve_xyz_o5s(p, a, i, e, w, npt):
-    points = linspace(0.0, p, npt)
-    dt = points[1] - points[0]
+def solve_xyz_o5s(knot_times, p, a, i, e, w, npt):
     coeffs = zeros((npt, 15))
     for ix in range(npt-1):
-        coeffs[ix] = solve_xyz_p5s(points[ix], p, a, i, e, w)
+        coeffs[ix] = solve_xyz_p5s(p*knot_times[ix], p, a, i, e, w)
     coeffs[-1] = coeffs[0]
-    return dt, points, coeffs
+    return coeffs
 
 
 @njit(fastmath=True)
-def xyz_o5s(t, t0, p, dt, points, cf):
+def xyz_o5s(t, t0, p, dt, pktable, points, cf):
     """Calculate planet's (x, y, z) position for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
-    ix = int(floor(tc / dt + 0.5))
+    ix = pktable[int(floor(tc / (dt*p)))]
     #cf[ix] = x0, y0, z0, vx, vy, vz, ax, ay, az, jx, jy, jz, sx, sy, sz
-    tc -= points[ix]
+    tc -= points[ix] * p
     tc2 = tc * tc
     tc3 = tc2 * tc
     tc4 = tc3 * tc
@@ -145,12 +143,12 @@ def xyz_o5s(t, t0, p, dt, points, cf):
 
 
 @njit(fastmath=True)
-def xyz_o5v(times, t0, p, dt, points, coeffs):
+def xyz_o5v(times, t0, p, dt, pktable, points, coeffs):
     """Calculate planet's (x, y, z) position for a vector time for any orbital phase"""
     npt = times.size
     xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
-        xs[i], ys[i], zs[i] = xyz_o5s(times[i], t0, p, dt, points, coeffs)
+        xs[i], ys[i], zs[i] = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
     return xs, ys, zs
 
 

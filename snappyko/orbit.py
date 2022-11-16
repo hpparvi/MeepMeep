@@ -4,6 +4,7 @@ from matplotlib.patches import Circle, Wedge
 from matplotlib.pyplot import subplots, setp
 from numpy import arccos, ndarray, mod, argmin, degrees, linspace, array, sqrt, sin, cos
 
+from .knots import create_knots
 from .newton import xyz_newton_v, ta_newton_v
 from .utils import mean_anomaly_offset, TWO_PI, eccentricity_vector
 from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v, vxyz_o5v, true_anomaly_o5v, rv_o5v, \
@@ -11,7 +12,7 @@ from .xyz5 import solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, light_travel_time_o5v, 
 
 
 class Orbit:
-    def __init__(self, npt: int = 15):
+    def __init__(self, npt: int = 14):
         self.npt: int = npt
         self.times: Optional[ndarray] = None
 
@@ -25,6 +26,8 @@ class Orbit:
         self._e: Optional[float] = None
         self._w: Optional[float] = None
 
+        self._points, self._change_times, self._dt, self._tptable = create_knots(npt, 0.2, 'ta')
+
     def set_data(self, times):
         self.times = times
 
@@ -35,7 +38,7 @@ class Orbit:
         self._i = i
         self._e = e
         self._w = w
-        self._dt, self._points, self._coeffs = solve_xyz_o5s(p, a, i, e, w, self.npt)
+        self._coeffs = solve_xyz_o5s(self._points, p, a, i, e, w, self.npt)
 
     def mean_anomaly(self):
         offset = mean_anomaly_offset(self._e, self._w)
@@ -46,8 +49,8 @@ class Orbit:
         return true_anomaly_o5v(self.times, self._t0, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._points, self._coeffs)
 
     def xyz(self, times: Optional[ndarray] = None):
-        times = times or self.times
-        return xyz_o5v(times, self._t0, self._p, self._dt, self._points, self._coeffs)
+        times = times if times is not None else self.times
+        return xyz_o5v(times, self._t0, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def _xyz_error(self):
         x, y, z = self.xyz()
