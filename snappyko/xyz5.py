@@ -18,7 +18,7 @@ from numba import njit
 from numpy import cos, sin, floor, sqrt, zeros, linspace, arccos, pi
 
 from .newton import ta_newton_s
-from .utils import mean_anomaly
+from .utils import mean_anomaly, mean_anomaly_offset
 
 
 @njit(fastmath=True)
@@ -119,8 +119,9 @@ def solve_xyz_p5s(phase, p, a, i, e, w):
 @njit
 def solve_xyz_o5s(knot_times, p, a, i, e, w, npt):
     coeffs = zeros((npt, 15))
+    to = mean_anomaly_offset(e, w)/(2*pi)*p
     for ix in range(npt-1):
-        coeffs[ix] = solve_xyz_p5s(p*knot_times[ix], p, a, i, e, w)
+        coeffs[ix] = solve_xyz_p5s(p*knot_times[ix] - to, p, a, i, e, w)
     coeffs[-1] = coeffs[0]
     return coeffs
 
