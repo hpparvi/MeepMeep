@@ -266,7 +266,11 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, points, coeffs):
             vx, vy, vz = vxyz_o5s(times[i], t0, p, dt, points, coeffs)
             edp = (x*ex + y*ey + z*ez) / sqrt((x**2 + y**2 + z**2) * nes)
 
-            if (x*vx + y*vy + z*vz) > 0.0:
+            if edp <= -1.0:
+                f[i] = pi
+            elif  edp >= 1.0:
+                f[i] = 0.0
+            elif (x*vx + y*vy + z*vz) > 0.0:
                 f[i] = arccos(edp)
             else:
                 f[i] = 2.0*pi - arccos(edp)
