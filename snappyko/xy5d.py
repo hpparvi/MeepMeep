@@ -68,52 +68,51 @@ def dxy_dw(t, t0, p, dcs):
 # Projected distance derivatives
 # ------------------------------
 @njit
-def dpd(xy, times, dcs):
+def dpd(p, xy, times, dcs):
     x, y = xy
     dx, dy = xy_t15as(times, 0.0, p, dcs)
     return (0.5/sqrt(x**2 + y**2))*(2*x*dx + 2*y*dy)
 
 
 @njit
-def pd_derivatives(times, p, a, i, e, w):
-    c0 = array(solve_xy_p5s(0.0, p, a, i, e, w))
+def pd_derivatives(times, p, a, i, e, w, c0):
     xy = xy_t15as(times, 0.0, p, c0)
     dcs = xy_derivative_coeffs(p, a, i, e, w, c0)
     derivatives = zeros((6, times.size))
-    derivatives[0] = dpd(xy, times, dcs[0])
-    derivatives[1] = dpd(xy, times, dcs[1])
-    derivatives[2] = dpd(xy, times, dcs[2])
-    derivatives[3] = dpd(xy, times, dcs[3])
-    derivatives[4] = dpd(xy, times, dcs[4])
-    derivatives[5] = dpd(xy, times, dcs[5])
+    derivatives[0] = dpd(p, xy, times, dcs[0])
+    derivatives[1] = dpd(p, xy, times, dcs[1])
+    derivatives[2] = dpd(p, xy, times, dcs[2])
+    derivatives[3] = dpd(p, xy, times, dcs[3])
+    derivatives[4] = dpd(p, xy, times, dcs[4])
+    derivatives[5] = dpd(p, xy, times, dcs[5])
     return derivatives
 
 
 @njit
-def dpd_dtc(t, xy, dcs):
-    return dpd(xy, t, dcs[0])
+def dpd_dtc(t, p, xy, dcs):
+    return dpd(p, xy, t, dcs[0])
 
 
 @njit
-def dpd_dp(t, xy, dcs):
-    return dpd(xy, t, dcs[1])
+def dpd_dp(t, p, xy, dcs):
+    return dpd(p, xy, t, dcs[1])
 
 
 @njit
-def dpd_da(t, xy, dcs):
-    return dpd(xy, t, dcs[2])
+def dpd_da(t, p, xy, dcs):
+    return dpd(p, xy, t, dcs[2])
 
 
 @njit
-def dpd_di(t, xy, dcs):
-    return dpd(xy, t, dcs[3])
+def dpd_di(t, p, xy, dcs):
+    return dpd(p, xy, t, dcs[3])
 
 
 @njit
-def dpd_de(t, xy, dcs):
-    return dpd(xy, t, dcs[4])
+def dpd_de(t, p, xy, dcs):
+    return dpd(p, xy, t, dcs[4])
 
 
 @njit
-def dpd_dw(t, xy, dcs):
-    return dpd(xy, t, dcs[5])
+def dpd_dw(t, p, xy, dcs):
+    return dpd(p, xy, t, dcs[5])
