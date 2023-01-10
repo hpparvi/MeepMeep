@@ -17,7 +17,7 @@
 from numba import njit, generated_jit, types
 from numpy import cos, sin, floor, sqrt, zeros, linspace, array
 
-from .newton import ta_newton_s
+from ..newton import ta_newton_s
 
 
 @njit(fastmath=True)
@@ -138,6 +138,28 @@ def xy_t15s(tc, t0, p, c):
     return px, py
 
 
+@njit(fastmath=True)
+def xy_t15sc(t, c):
+    """Calculate planet's (x,y) position near transit."""
+    t2 = t * t
+    t3 = t2 * t
+    t4 = t3 * t
+    px = c[0, 0] + c[0, 1] * t + 0.5 * c[0, 2] * t2 + c[0, 3] * t3 / 6.0 + c[0, 4] * t4 / 24.
+    py = c[1, 0] + c[1, 1] * t + 0.5 * c[1, 2] * t2 + c[1, 3] * t3 / 6.0 + c[1, 4] * t4 / 24.
+    return px, py
+
+
+@njit(fastmath=True)
+def xyd_t15s(t, c):
+    """Calculate planet's (x,y) position near transit."""
+    t2 = t * t
+    t3 = t2 * t
+    t4 = t3 * t
+    px = c[0, 0] + c[0, 1] * t + 0.5 * c[0, 2] * t2 + c[0, 3] * t3 / 6.0 + c[0, 4] * t4 / 24.
+    py = c[1, 0] + c[1, 1] * t + 0.5 * c[1, 2] * t2 + c[1, 3] * t3 / 6.0 + c[1, 4] * t4 / 24.
+    return px, py, sqrt(px**2 + py**2)
+
+
 @njit
 def xy_t15v(tc, t0, p, c):
     npt = tc.size
@@ -159,6 +181,13 @@ def xy_t15(tc, t0, p, c):
 def pd_t15(tc, t0, p, c):
     """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
     px, py = xy_t15(tc, t0, p, c)
+    return sqrt(px ** 2 + py ** 2)
+
+
+@njit(fastmath=True)
+def pd_t15sc(tc, t0, p, c):
+    """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
+    px, py = xy_t15sc(tc, t0, p, c)
     return sqrt(px ** 2 + py ** 2)
 
 

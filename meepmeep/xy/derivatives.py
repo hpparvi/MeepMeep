@@ -1,20 +1,15 @@
 from numba import njit
 from numpy import zeros, sqrt
 
-from .xy5 import solve_xy_p5s, xy_t15s
+from .position import solve_xy_p5s, xy_t15s, xy_t15sc
 
 
 @njit
-def xy_derivative_coeffs(p, a, i, e, w, c0):
-    dd = 0.001
+def xy_derivative_coeffs(v, eps, c0):
     cs = zeros((6, 2, 5))
-    cs[0] = solve_xy_p5s(dd, p, a, i, e, w)
-    cs[1] = solve_xy_p5s(0.0, p + dd, a, i, e, w)
-    cs[2] = solve_xy_p5s(0.0, p, a + dd, i, e, w)
-    cs[3] = solve_xy_p5s(0.0, p, a, i - dd, e, w)
-    cs[4] = solve_xy_p5s(0.0, p, a, i, e + dd, w)
-    cs[5] = solve_xy_p5s(0.0, p, a, i, e, w + dd)
-    return (cs - c0)/dd
+    for i in range(6):
+        cs[i] = solve_xy_p5s(v[i, 0], v[i, 1], v[i, 2], v[i, 3], v[i, 4], v[i, 5])
+    return (cs - c0) / eps
 
 
 # Position derivatives
@@ -53,19 +48,19 @@ def dxy_dw(t, t0, p, dcs):
 # Projected distance derivatives
 # ------------------------------
 @njit(fastmath=True)
-def dpd(t, t0, p, x, y, dcs):
-    dx, dy = xy_t15s(t, t0, p, dcs)
+def dpd(t, x, y, dcs):
+    dx, dy = xy_t15sc(t, dcs)
     return (0.5/sqrt(x**2 + y**2))*(2*x*dx + 2*y*dy)
 
 
 @njit(fastmath=True)
-def pd_derivatives_s(t, t0, p, x, y, dcf, res):
-    res[0] = dpd(t, t0, p, x, y, dcf[0])  # 0: Zero epoch
-    res[1] = dpd(t, t0, p, x, y, dcf[1])  # 1: Period
-    res[2] = dpd(t, t0, p, x, y, dcf[2])  # 2: Semi-major axis
-    res[3] = dpd(t, t0, p, x, y, dcf[3])  # 3: Inclination
-    res[4] = dpd(t, t0, p, x, y, dcf[4])  # 4: Eccentricity
-    res[5] = dpd(t, t0, p, x, y, dcf[5])  # 5: Argument of periastron
+def pd_derivatives_s(t, x, y, dcf, res):
+    res[0] = dpd(t, x, y, dcf[0])  # 0: Zero epoch
+    res[1] = dpd(t, x, y, dcf[1])  # 1: Period
+    res[2] = dpd(t, x, y, dcf[2])  # 2: Semi-major axis
+    res[3] = dpd(t, x, y, dcf[3])  # 3: Inclination
+    res[4] = dpd(t, x, y, dcf[4])  # 4: Eccentricity
+    res[5] = dpd(t, x, y, dcf[5])  # 5: Argument of periastron
     return res
 
 
@@ -79,6 +74,15 @@ def pd_with_derivatives_s(t, t0, p, cf, dcf, res):
     res[4] = dpd(t, t0, p, x, y, dcf[3])  # 4: Inclination
     res[5] = dpd(t, t0, p, x, y, dcf[4])  # 5: Eccentricity
     res[6] = dpd(t, t0, p, x, y, dcf[5])  # 6: Argument of periastron
+    return res
+
+
+@njit
+def pd_with_derivatives_v(t, t0, p, cf, dcf):
+    npt = t.size
+    res = zeros((7, npt))
+    for i in range(npt):
+        pd_with_derivatives_s(t[i], t0, p, cf, dcf, res[:, i])
     return res
 
 
