@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from numba import njit
+from numba import njit, generated_jit, types
 from numpy import cos, sin, floor, sqrt, zeros, linspace, array
 
 from .newton import ta_newton_s
@@ -75,31 +75,36 @@ def solve_xy_p5s(phase, p, a, i, e, w):
     y5 = -r5*sin(w + f5)*ci
     y6 = -r6*sin(w + f6)*ci
 
+    cf = zeros((2, 5))
+
+    cf[0, 0] = x3
+    cf[1, 0] = y3
+
     # First time derivative of position: velocity
     # -------------------------------------------
     a, b, c = 1/60, 9/60, 45/60
-    vx = (a*(x6 - x0) + b*(x1 - x5) + c*(x4 - x2))/dt
-    vy = (a*(y6 - y0) + b*(y1 - y5) + c*(y4 - y2))/dt
+    cf[0, 1] = (a*(x6 - x0) + b*(x1 - x5) + c*(x4 - x2))/dt  # vx
+    cf[1, 1] = (a*(y6 - y0) + b*(y1 - y5) + c*(y4 - y2))/dt  # vy
 
     # Second time derivative of position: acceleration
     # ------------------------------------------------
     a, b, c, d = 1/90, 3/20, 3/2, 49/18
-    ax = (a*(x0 + x6) - b*(x1 + x5) + c*(x2 + x4) - d*x3)/dt**2
-    ay = (a*(y0 + y6) - b*(y1 + y5) + c*(y2 + y4) - d*y3)/dt**2
+    cf[0, 2] = (a*(x0 + x6) - b*(x1 + x5) + c*(x2 + x4) - d*x3)/dt**2  # ax
+    cf[1, 2] = (a*(y0 + y6) - b*(y1 + y5) + c*(y2 + y4) - d*y3)/dt**2  # ay
 
     # Third time derivative of position: jerk
     # ---------------------------------------
     a, b, c = 1/8, 1, 13/8
-    jx = (a*(x0 - x6) + b*(x5 - x1) + c*(x2 - x4))/dt**3
-    jy = (a*(y0 - y6) + b*(y5 - y1) + c*(y2 - y4))/dt**3
+    cf[0, 3] = (a*(x0 - x6) + b*(x5 - x1) + c*(x2 - x4))/dt**3
+    cf[1, 3] = (a*(y0 - y6) + b*(y5 - y1) + c*(y2 - y4))/dt**3
 
     # Fourth time derivative of position: snap
     # ----------------------------------------
     a, b, c, d = 1/6, 2, 13/2, 28/3
-    sx = (-a*(x0 + x6) + b*(x1 + x5) - c*(x2 + x4) + d*x3)/dt**4
-    sy = (-a*(y0 + y6) + b*(y1 + y5) - c*(y2 + y4) + d*y3)/dt**4
+    cf[0, 4] = (-a*(x0 + x6) + b*(x1 + x5) - c*(x2 + x4) + d*x3)/dt**4
+    cf[1, 4] = (-a*(y0 + y6) + b*(y1 + y5) - c*(y2 + y4) + d*y3)/dt**4
 
-    return x3, y3, vx, vy, ax, ay, jx, jy, sx, sy
+    return cf
 
 
 @njit
@@ -120,67 +125,41 @@ def solve_xy_o5s(p, a, i, e, w, npt):
     return dt, points, coeffs
 
 
-@njit
-def xy_o5s(t, t0, p, dt, points, coeffs):
-    """Calculate planet's (x,y) position for a scalar time for any orbital phase"""
-    epoch = floor((t - t0) / p)
-    tc = t - t0 - epoch * p
-    ix = int(floor(tc / dt + 0.5))
-    x0, y0, vx, vy, ax, ay, jx, jy, sx, sy = coeffs[ix]
-    tc -= points[ix]
-    tc2 = tc * tc
-    tc3 = tc2 * tc
-    tc4 = tc3 * tc
-    px = x0 + vx * tc + 0.5 * ax * tc2 + jx * tc3 / 6.0 + sx * tc4 / 24.
-    py = y0 + vy * tc + 0.5 * ay * tc2 + jy * tc3 / 6.0 + sy * tc4 / 24.
-    return px, py
-
-
-@njit
-def xy_o5v(times, t0, p, dt, points, coeffs):
-    """Calculate planet's (x,y) position for a vector time for any orbital phase"""
-    npt = times.size
-    xs, ys = zeros(npt), zeros(npt)
-
-    for i in range(npt):
-        x, y = xy_o5s(times[i], t0, p, dt, points, coeffs)
-        xs[i] = x
-        ys[i] = y
-    return xs, ys
-
-
 @njit(fastmath=True)
-def xy_t15s(tc, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
+def xy_t15s(tc, t0, p, c):
     """Calculate planet's (x,y) position near transit."""
     epoch = floor((tc - t0 + 0.5 * p) / p)
     t = tc - (t0 + epoch * p)
     t2 = t * t
     t3 = t2 * t
     t4 = t3 * t
-    px = x0 + vx * t + 0.5 * ax * t2 + jx * t3 / 6.0 + sx * t4 / 24.
-    py = y0 + vy * t + 0.5 * ay * t2 + jy * t3 / 6.0 + sy * t4 / 24.
+    px = c[0, 0] + c[0, 1] * t + 0.5 * c[0, 2] * t2 + c[0, 3] * t3 / 6.0 + c[0, 4] * t4 / 24.
+    py = c[1, 0] + c[1, 1] * t + 0.5 * c[1, 2] * t2 + c[1, 3] * t3 / 6.0 + c[1, 4] * t4 / 24.
     return px, py
 
 
+@njit
+def xy_t15v(tc, t0, p, c):
+    npt = tc.size
+    xs, ys = zeros(npt), zeros(npt)
+    for i in range(npt):
+        xs[i], ys[i] = xy_t15s(tc[i], t0, p, c)
+    return xs, ys
+
+
+@generated_jit
+def xy_t15(tc, t0, p, c):
+    if isinstance(tc, types.Float):
+        return xy_t15s
+    else:
+        return xy_t15v
+
+
 @njit(fastmath=True)
-def pd_t15s(tc, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
+def pd_t15(tc, t0, p, c):
     """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
-    epoch = floor((tc - t0 + 0.5 * p) / p)
-    t = tc - (t0 + epoch * p)
-    t2 = t * t
-    t3 = t2 * t
-    t4 = t3 * t
-    px = x0 + vx * t + 0.5 * ax * t2 + jx * t3 / 6.0 + sx * t4 / 24.
-    py = y0 + vy * t + 0.5 * ay * t2 + jy * t3 / 6.0 + sy * t4 / 24.
+    px, py = xy_t15(tc, t0, p, c)
     return sqrt(px ** 2 + py ** 2)
-
-
-@njit(fastmath=True)
-def pd_t15v(times, t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy):
-    z = zeros(times.size)
-    for i in range(times.size):
-        z[i] = pd_t15s(times[i], t0, p, x0, y0, vx, vy, ax, ay, jx, jy, sx, sy)
-    return z
 
 
 @njit(fastmath=True)
