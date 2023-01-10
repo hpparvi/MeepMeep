@@ -17,6 +17,7 @@
 
 from numba import njit
 from numpy import pi, arctan2, sqrt, sin, cos, arccos, mod, copysign, sign, array
+from scipy.constants import G
 
 HALF_PI = 0.5*pi
 TWO_PI = 2.0*pi
@@ -73,6 +74,24 @@ def i_from_baew(b, a, e, w):
       i  : inclination            [rad]
     """
     return arccos(b / (a*af_transit(e, w)))
+
+
+@njit
+def as_from_rhop(rho, period):
+    """Scaled semi-major axis from the stellar density and planet's orbital period.
+
+    Parameters
+    ----------
+
+      rho    : stellar density [g/cm^3]
+      period : orbital period  [d]
+
+    Returns
+    -------
+
+      as : scaled semi-major axis [R_star]
+    """
+    return (G/(3*pi))**(1/3) * ((period * 86400.0)**2 * 1e3 * rho)**(1 / 3)
 
 
 @njit
