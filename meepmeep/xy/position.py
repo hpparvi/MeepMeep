@@ -185,9 +185,9 @@ def pd_t15(tc, t0, p, c):
 
 
 @njit(fastmath=True)
-def pd_t15sc(tc, t0, p, c):
+def pd_t15sc(tc, c):
     """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
-    px, py = xy_t15sc(tc, t0, p, c)
+    px, py = xy_t15sc(tc, c)
     return sqrt(px ** 2 + py ** 2)
 
 
