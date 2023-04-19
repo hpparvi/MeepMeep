@@ -1,5 +1,5 @@
 [project]
-name = "SnappyKO"
+name = "MeepMeep"
 version = "0.6.0"
 description = 'Fast Keplerian orbit computation using Taylor series expansions.'
 authors=[{name='Hannu Parviainen', email='hpparvi@gmail.com'}]
@@ -16,7 +16,7 @@ keywords = ['astronomy',  'astrophysics',  'exoplanets']
 dependencies = ["numpy", "numba", "scipy"]
 
 [project.urls]
-homepage = 'https://github.com/hpparvi/snappyko'
+homepage = 'https://github.com/hpparvi/meepmeep'
 
 [build-system]
 requires = ["setuptools"]
@@ -26,4 +26,4 @@ build-backend = "setuptools.build_meta"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ['snappyko']
+include = ['meepmeep', 'meepmeep.xy']
