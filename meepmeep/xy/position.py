@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from numba import njit, generated_jit, types
+from numba import njit, types
 from numpy import cos, sin, floor, sqrt, zeros, linspace, array
 
 from ..newton import ta_newton_s
@@ -169,12 +169,11 @@ def xy_t15v(tc, t0, p, c):
     return xs, ys
 
 
-@generated_jit
 def xy_t15(tc, t0, p, c):
     if isinstance(tc, types.Float):
-        return xy_t15s
+        return xy_t15s(tc, t0, p, c)
     else:
-        return xy_t15v
+        return xy_t15v(tc, t0, p, c)
 
 
 @njit(fastmath=True)
