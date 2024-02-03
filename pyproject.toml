@@ -1,6 +1,6 @@
 [project]
 name = "MeepMeep"
-version = "0.6.1"
+version = "0.6.2"
 description = 'Fast Keplerian orbit computation using Taylor series expansions.'
 authors=[{name='Hannu Parviainen', email='hpparvi@gmail.com'}]
 classifiers=[
