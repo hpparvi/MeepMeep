@@ -1,7 +1,7 @@
 from numba import njit
 from numpy import cos, sin, zeros
 
-from .utils import mean_anomaly, ta_from_ea_s, ta_from_ea_v, z_from_ta_s, z_from_ta_v
+from .utils import mean_anomaly, ta_from_ea_s, ta_from_ea_v, z_from_ta_s, z_from_ta_v, eclipse_phase
 
 
 @njit
@@ -76,3 +76,47 @@ def z_newton_v(time, t0, p, a, i, e, w):
 def rv_newton_v(times, k, t0, p, e, w):
     ta_n = ta_newton_v(times, t0, p, e, w)
     return k * (cos(w + ta_n) + e * cos(w))
+
+
+@njit
+def eclipse_light_travel_time(p: float, a: float, i: float, e: float, w: float, rstar: float):
+    """
+    Calculate the light travel time difference between the transit and the secondary eclipse of an exoplanet.
+
+    This function computes the difference in light travel time caused by the displacement of the planet between
+    its transit across the star and its secondary eclipse (when the planet passes behind the star as viewed from Earth).
+
+    Parameters
+    ----------
+    p : float
+        Orbital period in days.
+    a : float
+        Semi-major axis of the planet's orbit in host star radii.
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity.
+    w : float
+        Argument of periastron in radians.
+    rstar : float
+        Radius of the star in solar radii.
+
+    Returns
+    -------
+    float
+        The light travel time difference in days between the transit and secondary eclipse of the exoplanet.
+    """
+    s = 2.685885891543453e-05  # Light travel time for a distance of one solar radius in days
+
+    ae = a * (1. - e ** 2)
+    si = sin(i)
+
+    f = ta_newton_s(0.0, 0.0, p, e, w)
+    r = ae / (1. + e * cos(f))
+    ztr = r * sin(w + f) * si
+
+    f = ta_newton_s(eclipse_phase(p, i, e, w), 0.0, p, e, w)
+    r = ae / (1. + e * cos(f))
+    zec = r * sin(w + f) * si
+
+    return (ztr - zec) * rstar * s
