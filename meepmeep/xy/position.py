@@ -15,7 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit, types
-from numpy import cos, sin, floor, sqrt, zeros, linspace, array
+from numpy import cos, sin, floor, sqrt, zeros, linspace, array, ndarray
 
 from ..newton import ta_newton_s
 
@@ -126,37 +126,71 @@ def solve_xy_o5s(p, a, i, e, w, npt):
 
 
 @njit(fastmath=True)
-def xy_t15s(tc, t0, p, c):
-    """Calculate planet's (x,y) position near transit."""
+def xy_t15s(tc: float, t0: float, p: float, c: ndarray) -> tuple[float, float]:
+    """Calculate planet's (x,y) position using Taylor series expansion.
+
+    Parameters
+    ----------
+    tc : float
+        The current time.
+    t0 : float
+        The Taylor series expansion time.
+    p : float
+        The orbital period.
+    c : numpy.ndarray
+        A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+
+    Returns
+    -------
+    (float, float)
+        The (x, y) position.
+    """
     epoch = floor((tc - t0 + 0.5 * p) / p)
     t = tc - (t0 + epoch * p)
-    t2 = t * t
-    t3 = t2 * t
-    t4 = t3 * t
-    px = c[0, 0] + c[0, 1] * t + 0.5 * c[0, 2] * t2 + c[0, 3] * t3 / 6.0 + c[0, 4] * t4 / 24.
-    py = c[1, 0] + c[1, 1] * t + 0.5 * c[1, 2] * t2 + c[1, 3] * t3 / 6.0 + c[1, 4] * t4 / 24.
+    px = c[0,0] + t*(c[0,1] + t*(c[0,2]/2.0 + t*(c[0, 3]/6.0 + t*c[0,4]/24.0)))
+    py = c[1,0] + t*(c[1,1] + t*(c[1,2]/2.0 + t*(c[1, 3]/6.0 + t*c[1,4]/24.0)))
     return px, py
 
 
 @njit(fastmath=True)
-def xy_t15sc(t, c):
-    """Calculate planet's (x,y) position near transit."""
-    t2 = t * t
-    t3 = t2 * t
-    t4 = t3 * t
-    px = c[0, 0] + c[0, 1] * t + 0.5 * c[0, 2] * t2 + c[0, 3] * t3 / 6.0 + c[0, 4] * t4 / 24.
-    py = c[1, 0] + c[1, 1] * t + 0.5 * c[1, 2] * t2 + c[1, 3] * t3 / 6.0 + c[1, 4] * t4 / 24.
+def xy_t15sc(t: float, c: ndarray) -> tuple[float, float]:
+    """Calculate planet's (x,y) position using Taylor series expansion for t centered on the expansion time.
+
+    Parameters
+    ----------
+    tc : float
+        Time.
+    c : ndarray
+        A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+
+    Returns
+    -------
+    (float, float)
+        The (x, y) position.
+    """
+    px = c[0,0] + t*(c[0,1] + t*(c[0,2]/2.0 + t*(c[0, 3]/6.0 + t*c[0,4]/24.0)))
+    py = c[1,0] + t*(c[1,1] + t*(c[1,2]/2.0 + t*(c[1, 3]/6.0 + t*c[1,4]/24.0)))
     return px, py
 
-
+#TODO: Fix the naming inconsistency with xy_t15s and xy_t15sc
 @njit(fastmath=True)
-def xyd_t15s(t, c):
-    """Calculate planet's (x,y) position near transit."""
-    t2 = t * t
-    t3 = t2 * t
-    t4 = t3 * t
-    px = c[0, 0] + c[0, 1] * t + 0.5 * c[0, 2] * t2 + c[0, 3] * t3 / 6.0 + c[0, 4] * t4 / 24.
-    py = c[1, 0] + c[1, 1] * t + 0.5 * c[1, 2] * t2 + c[1, 3] * t3 / 6.0 + c[1, 4] * t4 / 24.
+def xyd_t15s(t: float, c: ndarray) -> tuple[float, float, float]:
+    """Calculate planet's (x,y) position and the projected distance for t centered on the expansion time.
+
+    Parameters
+    ----------
+    t : float
+        Time.
+    c : ndarray
+        A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+
+    Returns
+    -------
+    (float, float, float)
+        The (x, y) position and the projected star-planet distance.
+    """
+    px = c[0,0] + t*(c[0,1] + t*(c[0,2]/2.0 + t*(c[0, 3]/6.0 + t*c[0,4]/24.0)))
+    py = c[1,0] + t*(c[1,1] + t*(c[1,2]/2.0 + t*(c[1, 3]/6.0 + t*c[1,4]/24.0)))
     return px, py, sqrt(px**2 + py**2)
 
 
