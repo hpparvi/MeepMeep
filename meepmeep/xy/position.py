@@ -21,8 +21,31 @@ from ..newton import ta_newton_s
 
 
 @njit(fastmath=True)
-def solve_xy_p5s(phase, p, a, i, e, w):
-    """Planet velocity, acceleration, jerk, and snap at mid-transit in [R_star / day]"""
+def solve_xy_p5s(phase: float, p: float, a: float, i: float, e: float, w: float) -> ndarray:
+    """ Calculate the x and y orbital velocity, acceleration, jerk, and snap for a given phase angle.
+
+    Calculate the Taylor series expansion of the (x, y) position for a given phase and a set of orbital parameters.
+
+    Parameters
+    ----------
+    phase : float
+        Phase angle for the Taylor series expansion [rad].
+    p : float
+        Orbital period [days].
+    a : float
+        Semi-major axis of the orbit [R_star].
+    i : float
+        Inclination of the orbit [rad].
+    e : float
+        Eccentricity of the orbit.
+    w : float
+        Argument of periastron [rad].
+
+    Returns
+    -------
+    ndarray
+        A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+    """
 
     # Time step for central finite difference
     # ---------------------------------------
@@ -108,14 +131,62 @@ def solve_xy_p5s(phase, p, a, i, e, w):
 
 
 @njit
-def solve_xy_t25(dt, p, a, i, e, w):
+def solve_xy_t25(dt, p, a, i, e, w) -> tuple[ndarray, ndarray]:
+    """Calculate the Taylor series expansion at two points around the transit center.
+
+    Parameters
+    ----------
+    dt : float
+        Time difference between the two points.
+    p : float
+        Orbital parameter.
+    a : float
+        Semi-major axis of the orbit.
+    i : float
+        Orbital inclination.
+    e : float
+        Orbital eccentricity.
+    w : float
+        Argument of periapsis.
+
+    Returns
+    -------
+    (ndarray, ndarray)
+        Two Taylor series coefficient arrays.
+    """
     c1 = array(solve_xy_p5s(-0.5*dt, p, a, i, e, w))
     c2 = array(solve_xy_p5s(0.5*dt, p, a, i, e, w))
     return c1, c2
 
 
 @njit
-def solve_xy_o5s(p, a, i, e, w, npt):
+def solve_xy_o5s(p: float, a: float, i: float, e: float, w: float, npt: int):
+    """Calculate the Taylor series expansion for a Keplerian orbit in npt points along the orbit.
+
+    Parameters
+    ----------
+    p : float
+        Orbital period [days].
+    a : float
+        Semi-major axis [R_star].
+    i : float
+        Inclination [rad].
+    e : float
+        Eccentricity.
+    w : float
+        Argument of periastron [rad].
+    npt : int
+        Number of points.
+
+    Returns
+    -------
+    dt : float
+        Time interval between points.
+    points : ndarray
+        Array of points in the range [0, p].
+    coeffs : ndarray
+        Array of coefficients calculated for each point.
+    """
     points = linspace(0.0, p, npt)
     dt = points[1] - points[0]
     coeffs = zeros((npt, 10))
