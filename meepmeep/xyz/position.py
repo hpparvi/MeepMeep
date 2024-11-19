@@ -17,14 +17,34 @@
 from numba import njit
 from numpy import cos, sin, floor, sqrt, zeros, linspace, arccos, pi
 
-from .newton import ta_newton_s
-from .utils import mean_anomaly, mean_anomaly_offset
+from ..newton import ta_newton_s
+from ..utils import mean_anomaly, mean_anomaly_offset
 
 
 @njit(fastmath=True)
 def solve_xyz_p5s(phase, p, a, i, e, w):
-    """Planet velocity, acceleration, jerk, and snap at mid-transit in [R_star / day]"""
+    """ Calculate the Taylor expansion for the (x, y, z) position around a given phase angle.
 
+    Parameters
+    ----------
+    phase : float
+        Phase angle for the Taylor series expansion [rad].
+    p : float
+        Orbital period [days].
+    a : float
+        Semi-major axis of the orbit [R_star].
+    i : float
+        Inclination of the orbit [rad].
+    e : float
+        Eccentricity of the orbit.
+    w : float
+        Argument of periastron [rad].
+
+    Returns
+    -------
+    ndarray
+        A 3x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+    """
     # Time step for central finite difference
     # ---------------------------------------
     # I've tried to choose a value that is small enough to
@@ -118,6 +138,32 @@ def solve_xyz_p5s(phase, p, a, i, e, w):
 
 @njit
 def solve_xyz_o5s(knot_times, p, a, i, e, w, npt):
+    """Calculate the 3D Taylor series expansion for a Keplerian orbit in npt points along the orbit.
+
+    Parameters
+    ----------
+    p : float
+        Orbital period [days].
+    a : float
+        Semi-major axis [R_star].
+    i : float
+        Inclination [rad].
+    e : float
+        Eccentricity.
+    w : float
+        Argument of periastron [rad].
+    npt : int
+        Number of points.
+
+    Returns
+    -------
+    dt : float
+        Time interval between points.
+    points : ndarray
+        Array of points in the range [0, p].
+    coeffs : ndarray
+        Array of coefficients calculated for each point.
+    """
     coeffs = zeros((npt, 15))
     to = mean_anomaly_offset(e, w)/(2*pi)*p
     for ix in range(npt-1):
@@ -241,7 +287,24 @@ def z_o5v(times, t0, p, dt, points, coeffs):
 
 @njit(fastmath=True)
 def xyz_t15s(tc, t0, p, x0, y0, z0, vx, vy, vz, ax, ay, az, jx, jy, jz, sx, sy, sz):
-    """Calculate planet's (x,y) position near transit."""
+    """Calculate planet's (x, y, z) position using Taylor series expansion.
+
+    Parameters
+    ----------
+    tc : float
+        The current time.
+    t0 : float
+        The Taylor series expansion time.
+    p : float
+        The orbital period.
+    c : numpy.ndarray
+        A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+
+    Returns
+    -------
+    (float, float, float)
+        The (x, y, z) position.
+    """
     epoch = floor((tc - t0 + 0.5 * p) / p)
     t = tc - (t0 + epoch * p)
     t2 = t * t

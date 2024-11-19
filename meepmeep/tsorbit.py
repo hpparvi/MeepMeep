@@ -1,4 +1,4 @@
-#  ExOrbit: fast orbit calculations for exoplanet modelling
+#  MeepMeep: fast orbit calculations for exoplanet modelling
 #  Copyright (C) 2022 Hannu Parviainen
 #
 #  This program is free software: you can redistribute it and/or modify

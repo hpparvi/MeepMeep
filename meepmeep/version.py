@@ -1,5 +1,5 @@
-#  PyTransit: fast and easy exoplanet transit modelling in Python.
-#  Copyright (C) 2010-2019  Hannu Parviainen
+#  MeepMeep: fast and easy exoplanet transit modelling in Python.
+#  Copyright (C) 2022  Hannu Parviainen
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -16,4 +16,4 @@
 
 from semantic_version import Version
 
-__version__ = Version('0.5.10')
+__version__ = Version('0.6.4')

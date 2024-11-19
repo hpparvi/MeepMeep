@@ -1,6 +1,6 @@
 [project]
 name = "MeepMeep"
-version = "0.6.3"
+version = "0.6.4"
 description = 'Fast Keplerian orbit computation using Taylor series expansions.'
 authors=[{name='Hannu Parviainen', email='hpparvi@gmail.com'}]
 classifiers=[
@@ -13,7 +13,7 @@ classifiers=[
   "Programming Language :: Python",
 ]
 keywords = ['astronomy',  'astrophysics',  'exoplanets']
-dependencies = ["numpy", "numba", "scipy"]
+dependencies = ["numpy", "numba", "scipy", "matplotlib", "semantic_version"]
 
 [project.urls]
 homepage = 'https://github.com/hpparvi/meepmeep'
@@ -26,4 +26,4 @@ build-backend = "setuptools.build_meta"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ['meepmeep', 'meepmeep.xy']
+include = ['meepmeep', 'meepmeep.xy', 'meepmeep.xyz']

@@ -1,4 +1,4 @@
-#  ExOrbit: fast orbit calculations for exoplanet modelling
+#  MeepMeep: fast orbit calculations for exoplanet modelling
 #  Copyright (C) 2022 Hannu Parviainen
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -22,9 +22,7 @@ from ..newton import ta_newton_s
 
 @njit(fastmath=True)
 def solve_xy_p5s(phase: float, p: float, a: float, i: float, e: float, w: float) -> ndarray:
-    """ Calculate the x and y orbital velocity, acceleration, jerk, and snap for a given phase angle.
-
-    Calculate the Taylor series expansion of the (x, y) position for a given phase and a set of orbital parameters.
+    """ Calculate the Taylor expansion for the (x, y) position around a given phase angle.
 
     Parameters
     ----------
@@ -161,7 +159,7 @@ def solve_xy_t25(dt, p, a, i, e, w) -> tuple[ndarray, ndarray]:
 
 @njit
 def solve_xy_o5s(p: float, a: float, i: float, e: float, w: float, npt: int):
-    """Calculate the Taylor series expansion for a Keplerian orbit in npt points along the orbit.
+    """Calculate the 2D Taylor series expansion for a Keplerian orbit in npt points along the orbit.
 
     Parameters
     ----------
@@ -198,7 +196,7 @@ def solve_xy_o5s(p: float, a: float, i: float, e: float, w: float, npt: int):
 
 @njit(fastmath=True)
 def xy_t15s(tc: float, t0: float, p: float, c: ndarray) -> tuple[float, float]:
-    """Calculate planet's (x,y) position using Taylor series expansion.
+    """Calculate planet's (x, y) position using Taylor series expansion.
 
     Parameters
     ----------
