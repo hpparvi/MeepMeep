@@ -21,7 +21,7 @@ from .xyz5 import (
 
 
 class Orbit:
-    def __init__(self, npt: int = 14, knot_placement: str = "ea"):
+    def __init__(self, npt: int = 15, knot_placement: str = "ea"):
         self.npt: int = npt
         self.times: Optional[ndarray] = None
 
