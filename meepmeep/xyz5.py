@@ -15,7 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import cos, sin, floor, sqrt, zeros, linspace, arccos, pi
+from numpy import cos, sin, floor, sqrt, zeros, linspace, arccos, pi, ndarray
 
 from .newton import ta_newton_s
 from .utils import mean_anomaly, mean_anomaly_offset
@@ -303,6 +303,66 @@ def star_planet_distance_o5v(times, t0, p, dt, pktable, points, coeffs):
     x, y, z = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
     return sqrt(x**2 + y**2 + z**2)
 
+@njit
+def lambert_phase_curve_o5s(time, ag, a, k, t0, p, dt, pktable, points, coeffs) -> ndarray:
+    """Compute the Lambertian phase curve for a single time value.
+
+    Parameters
+    ----------
+    time : array-like
+        Array of time values for which the phase curve is calculated.
+    ag : float
+        Geometric albedo of the reflecting object.
+    a : float
+        Scaled orbital semi-major axis.
+    k : float
+        Planet-star radius ratio.
+    t0 : float
+        Reference time.
+    p : float
+        Orbital period.
+    dt : float
+        Time resolution or step size for calculations.
+    pktable : array-like
+        Precomputed table of phase coefficients.
+    points : array-like
+        Grid points used for modeling the phase curve.
+    coeffs : array-like
+        Coefficients for Taylor series expansion of the phase curve model.
+
+    Returns
+    -------
+    ndarray
+        Computed Lambertian phase curve values corresponding to the input time array.
+    """
+    amplitude = k**2 * ag / a**2
+    cos_alpha = cos_alpha_o5s(time, t0, p, dt, pktable, points, coeffs)
+    alpha = arccos(cos_alpha)
+    return amplitude * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
+
+@njit
+def lambert_phase_curve_o5v(times, ag, a, k, t0, p, dt, pktable, points, coeffs):
+    npt = times.size
+    res = zeros(npt)
+    amplitude = k**2 * ag / a**2
+    for i in range(npt):
+        cos_alpha = cos_alpha_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        alpha = arccos(cos_alpha)
+        res[i] = amplitude * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
+    return res
+
+@njit
+def lambert_and_emission_o5v(times, ag, fr_night, fr_day, emi_offset, a, k, t0, p, dt, pktable, points, coeffs):
+    npt = times.size
+    ref, emi = zeros(npt), zeros(npt)
+    k2 = k**2
+    aref = k2 * ag / a**2
+    for i in range(npt):
+        cos_alpha = cos_alpha_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        alpha = arccos(cos_alpha)
+        ref[i] = aref * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
+        emi[i] = k2 * (fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cos(alpha + emi_offset)))
+    return ref, emi
 
 @njit
 def ev_signal_o5v(alpha, mass_ratio, inc, times, t0, p, dt, pktable, points, coeffs):

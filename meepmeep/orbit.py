@@ -16,7 +16,7 @@ from .xyz5 import (
     true_anomaly_o5v,
     rv_o5v,
     star_planet_distance_o5v,
-    ev_signal_o5v,
+    ev_signal_o5v, lambert_phase_curve_o5v, lambert_and_emission_o5v,
 )
 
 
@@ -83,42 +83,42 @@ class Orbit:
         return x - xt, y - yt, z - zt
 
     def vxyz(self):
-        return vxyz_o5v(self.times, self._t0, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return vxyz_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def cos_phase(self):
-        return cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return cos_alpha_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def _cos_phase_error(self):
         ta = ta_newton_v(self.times, self._t0, self._p, self._e, self._w)
         cos_alpha_t = ta
         return (
-            cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._tptable, self._points, self._coeffs)
+            cos_alpha_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
             - cos_alpha_t
         )
 
     def phase(self):
-        return arccos(cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._tptable, self._points, self._coeffs))
+        return arccos(cos_alpha_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs))
 
     def theta(self):
         return arccos(
-            -cos_alpha_o5v(self.times, self._t0, self._p, self._dt, self._tptable, self._points, self._coeffs)
+            -cos_alpha_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
         )
 
     def star_planet_distance(self, times: Optional[ndarray] = None):
         return star_planet_distance_o5v(
-            times or self.times, self._t0, self._p, self._dt, self._tptable, self._points, self._coeffs
+            times or self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs
         )
 
     def light_travel_time(self, rstar: float):
         return light_travel_time_o5v(
-            self.times, self._t0, self._p, rstar, self._dt, self._tptable, self._points, self._coeffs
+            self.times, self._tc, self._p, rstar, self._dt, self._tptable, self._points, self._coeffs
         )
 
     def radial_velocity(self, k: float):
         return rv_o5v(
             self.times,
             k,
-            self._t0,
+            self._tc,
             self._p,
             self._a,
             self._i,
@@ -128,6 +128,16 @@ class Orbit:
             self._points,
             self._coeffs,
         )
+
+    def lambert_phase_curve(self, k: float, ag: float, times: ndarray | None = None):
+        return lambert_phase_curve_o5v(times or self.times,
+                                       ag, self._a, k, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
+
+    def lambert_and_emission(self, k: float, ag: float, fr_night, fr_day, times: ndarray | None = None):
+        return lambert_and_emission_o5v(times or self.times,
+                                        ag, fr_night, fr_day, 0.0,
+                                        self._a, k, self._tc, self._p, self._dt,
+                                        self._tptable, self._points, self._coeffs)
 
     def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):
         """Ellipsoidal variation signal.
@@ -139,7 +149,7 @@ class Orbit:
             mass_ratio,
             self._i,
             times or self.times,
-            self._t0,
+            self._tc,
             self._p,
             self._dt,
             self._tptable,
