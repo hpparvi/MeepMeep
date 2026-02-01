@@ -26,4 +26,7 @@ build-backend = "setuptools.build_meta"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ['meepmeep', 'meepmeep.xy', 'meepmeep.xyz']
+include = ['meepmeep', 'meepmeep.xy', 'meepmeep.xyz',
+           'meepmeep.backends', 'meepmeep.backends.numba',
+           'meepmeep.backends.numba.ts2d', 'meepmeep.backends.numba.ts3d',
+           'meepmeep.backends.numba.newton', 'meepmeep.backends.jax']

@@ -17,7 +17,7 @@
 from numba import njit, types
 from numpy import cos, sin, floor, sqrt, zeros, linspace, array, ndarray
 
-from ..newton import ta_newton_s
+from ..newton.newton import ta_newton_s
 
 
 @njit(fastmath=True)

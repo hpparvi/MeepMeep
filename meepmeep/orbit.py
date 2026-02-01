@@ -4,10 +4,10 @@ from matplotlib.patches import Circle, Wedge
 from matplotlib.pyplot import subplots, setp
 from numpy import arccos, ndarray, mod, argmin, degrees, linspace, array, sqrt, sin, cos
 
-from .knots import create_knots
-from .newton import xyz_newton_v, ta_newton_v
-from .utils import mean_anomaly_offset, TWO_PI, eccentricity_vector
-from .xyz5 import (
+from .backends.numba.knots import create_knots
+from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
+from .backends.numba.utils import mean_anomaly_offset, TWO_PI, eccentricity_vector
+from .backends.numba.ts3d.extended import (
     solve_xyz_o5s,
     xyz_o5v,
     cos_alpha_o5v,

@@ -15,16 +15,36 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import cos, sin, floor, sqrt, zeros, linspace, arccos, pi, ndarray
+from numpy import cos, sin, floor, sqrt, zeros, linspace, arccos, pi
 
-from .newton import ta_newton_s
-from .utils import mean_anomaly, mean_anomaly_offset
+from ..newton.newton import ta_newton_s
+from ..utils import mean_anomaly, mean_anomaly_offset
 
 
 @njit(fastmath=True)
 def solve_xyz_p5s(phase, p, a, i, e, w):
-    """Planet velocity, acceleration, jerk, and snap at mid-transit in [R_star / day]"""
+    """ Calculate the Taylor expansion for the (x, y, z) position around a given phase angle.
 
+    Parameters
+    ----------
+    phase : float
+        Phase angle for the Taylor series expansion [rad].
+    p : float
+        Orbital period [days].
+    a : float
+        Semi-major axis of the orbit [R_star].
+    i : float
+        Inclination of the orbit [rad].
+    e : float
+        Eccentricity of the orbit.
+    w : float
+        Argument of periastron [rad].
+
+    Returns
+    -------
+    ndarray
+        A 3x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+    """
     # Time step for central finite difference
     # ---------------------------------------
     # I've tried to choose a value that is small enough to
@@ -118,6 +138,32 @@ def solve_xyz_p5s(phase, p, a, i, e, w):
 
 @njit
 def solve_xyz_o5s(knot_times, p, a, i, e, w, npt):
+    """Calculate the 3D Taylor series expansion for a Keplerian orbit in npt points along the orbit.
+
+    Parameters
+    ----------
+    p : float
+        Orbital period [days].
+    a : float
+        Semi-major axis [R_star].
+    i : float
+        Inclination [rad].
+    e : float
+        Eccentricity.
+    w : float
+        Argument of periastron [rad].
+    npt : int
+        Number of points.
+
+    Returns
+    -------
+    dt : float
+        Time interval between points.
+    points : ndarray
+        Array of points in the range [0, p].
+    coeffs : ndarray
+        Array of coefficients calculated for each point.
+    """
     coeffs = zeros((npt, 15))
     to = mean_anomaly_offset(e, w)/(2*pi)*p
     for ix in range(npt-1):
@@ -132,6 +178,7 @@ def xyz_o5s(t, t0, p, dt, pktable, points, cf):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt*p)))]
+    #cf[ix] = x0, y0, z0, vx, vy, vz, ax, ay, az, jx, jy, jz, sx, sy, sz
     tc -= points[ix] * p
     tc2 = tc * tc
     tc3 = tc2 * tc
@@ -153,12 +200,12 @@ def xyz_o5v(times, t0, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def vxyz_o5s(t, t0, p, dt, pktable, points, cf):
+def vxyz_o5s(t, t0, p, dt, points, cf):
     """Calculate planet's (x, y, z) velocity for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
-    ix = pktable[int(floor(tc / (dt*p)))]
-    tc -= points[ix] * p
+    ix = int(floor(tc / dt + 0.5))
+    tc -= points[ix]
     tc2 = tc * tc
     tc3 = tc2 * tc
     vx = cf[ix, 3] + cf[ix, 6] * tc + 0.5 * cf[ix, 9] * tc2 + cf[ix, 12]  * tc3 / 6.0
@@ -168,44 +215,44 @@ def vxyz_o5s(t, t0, p, dt, pktable, points, cf):
 
 
 @njit(fastmath=True)
-def vxyz_o5v(times, t0, p, dt, pktable, points, coeffs):
+def vxyz_o5v(times, t0, p, dt, points, coeffs):
     """Calculate planet's (x, y, z) position for a vector time for any orbital phase"""
     npt = times.size
     xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
-        xs[i], ys[i], zs[i] = vxyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        xs[i], ys[i], zs[i] = vxyz_o5s(times[i], t0, p, dt, points, coeffs)
     return xs, ys, zs
 
 
 @njit(fastmath=True)
-def vz_o5s(t, t0, p, dt, pktable, points, cf):
+def vz_o5s(t, t0, p, dt, points, cf):
     """Calculate planet's (x, y, z) velocity for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
-    ix = pktable[int(floor(tc / (dt*p)))]
-    tc -= points[ix] * p
+    ix = int(floor(tc / dt + 0.5))
+    tc -= points[ix]
     tc2 = tc * tc
     tc3 = tc2 * tc
     return cf[ix, 5] + cf[ix, 8] * tc + 0.5 * cf[ix, 11] * tc2 + cf[ix, 14] * tc3 / 6.0
 
 
 @njit(fastmath=True)
-def vz_o5v(times, t0, p, dt, pktable, points, coeffs):
+def vz_o5v(times, t0, p, dt, points, coeffs):
     """Calculate planet's (x, y, z) position for a vector time for any orbital phase"""
     npt = times.size
     vzs = zeros(npt)
     for i in range(npt):
-        vzs[i] = vz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        vzs[i] = vz_o5s(times[i], t0, p, dt, points, coeffs)
     return vzs
 
 
 @njit(fastmath=True)
-def pd_o5s(t, t0, p, dt, pktable, points, cf):
+def pd_o5s(t, t0, p, dt, points, cf):
     """Calculate the projected planet-star center distance for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
-    ix = pktable[int(floor(tc / (dt*p)))]
-    tc -= points[ix] * p
+    ix = int(floor(tc / dt + 0.5))
+    tc -= points[ix]
     tc2 = tc * tc
     tc3 = tc2 * tc
     tc4 = tc3 * tc
@@ -215,12 +262,12 @@ def pd_o5s(t, t0, p, dt, pktable, points, cf):
 
 
 @njit(fastmath=True)
-def z_o5s(t, t0, p, dt, pktable, points, cf):
+def z_o5s(t, t0, p, dt, points, cf):
     """Calculate planet's (z) position for a scalar time for any orbital phase"""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
-    ix = pktable[int(floor(tc / (dt*p)))]
-    tc -= points[ix] * p
+    ix = int(floor(tc / dt + 0.5))
+    tc -= points[ix]
     tc2 = tc * tc
     tc3 = tc2 * tc
     tc4 = tc3 * tc
@@ -229,18 +276,35 @@ def z_o5s(t, t0, p, dt, pktable, points, cf):
 
 
 @njit(fastmath=True)
-def z_o5v(times, t0, p, dt, pktable, points, coeffs):
+def z_o5v(times, t0, p, dt, points, coeffs):
     """Calculate planet's (z) position for a vector time for any orbital phase"""
     npt = times.size
     zs = zeros(npt)
     for i in range(npt):
-        zs[i] = z_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        zs[i] = z_o5s(times[i], t0, p, dt, points, coeffs)
     return zs
 
 
 @njit(fastmath=True)
 def xyz_t15s(tc, t0, p, x0, y0, z0, vx, vy, vz, ax, ay, az, jx, jy, jz, sx, sy, sz):
-    """Calculate planet's (x,y) position near transit."""
+    """Calculate planet's (x, y, z) position using Taylor series expansion.
+
+    Parameters
+    ----------
+    tc : float
+        The current time.
+    t0 : float
+        The Taylor series expansion time.
+    p : float
+        The orbital period.
+    c : numpy.ndarray
+        A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+
+    Returns
+    -------
+    (float, float, float)
+        The (x, y, z) position.
+    """
     epoch = floor((tc - t0 + 0.5 * p) / p)
     t = tc - (t0 + epoch * p)
     t2 = t * t
@@ -253,7 +317,7 @@ def xyz_t15s(tc, t0, p, x0, y0, z0, vx, vy, vz, ax, ay, az, jx, jy, jz, sx, sy, 
 
 
 @njit
-def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, points, coeffs):
     npt = times.size
     f = zeros(npt)
     if ex <= -0.9999:
@@ -261,8 +325,8 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     else:
         nes = (ex**2 + ey**2 + ez**2)
         for i in range(npt):
-            x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
-            vx, vy, vz = vxyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+            x, y, z = xyz_o5s(times[i], t0, p, dt, points, coeffs)
+            vx, vy, vz = vxyz_o5s(times[i], t0, p, dt, points, coeffs)
             edp = (x*ex + y*ey + z*ez) / sqrt((x**2 + y**2 + z**2) * nes)
 
             if edp <= -1.0:
@@ -277,138 +341,78 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
 
 
 @njit
-def cos_v_p_angle_o5v(v, times, t0, p, dt, pktable, points, coeffs):
-    px, py, pz = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
+def cos_v_p_angle_o5v(v, times, t0, p, dt, points, coeffs):
+    px, py, pz = xyz_o5v(times, t0, p, dt, points, coeffs)
     np = sqrt(px**2 + py**2 + pz**2)
     nv = sqrt(v[0]**2 + v[1]**2 + v[2]**2)
     return (px*v[0] + py*v[1] + pz*v[2])/(np*nv)
 
 
 @njit
-def cos_alpha_o5s(t, t0, p, dt, pktable, points, coeffs):
+def cos_alpha_o5s(t, t0, p, dt, points, coeffs):
     """Cosine of the phase angle."""
-    x, y, z = xyz_o5s(t, t0, p, dt, pktable, points, coeffs)
+    x, y, z = xyz_o5s(t, t0, p, dt, points, coeffs)
     return -z / sqrt(x**2 + y**2 + z**2)
 
 
 @njit
-def cos_alpha_o5v(times, t0, p, dt, pktable, points, coeffs):
+def cos_alpha_o5v(times, t0, p, dt, points, coeffs):
     """Cosine of the phase angle."""
-    x, y, z = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
+    x, y, z = xyz_o5v(times, t0, p, dt, points, coeffs)
     return -z / sqrt(x**2 + y**2 + z**2)
 
 
 @njit
-def star_planet_distance_o5v(times, t0, p, dt, pktable, points, coeffs):
-    x, y, z = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
+def star_planet_distance_o5v(times, t0, p, dt, points, coeffs):
+    x, y, z = xyz_o5v(times, t0, p, dt, points, coeffs)
     return sqrt(x**2 + y**2 + z**2)
 
-@njit
-def lambert_phase_curve_o5s(time, ag, a, k, t0, p, dt, pktable, points, coeffs) -> ndarray:
-    """Compute the Lambertian phase curve for a single time value.
-
-    Parameters
-    ----------
-    time : array-like
-        Array of time values for which the phase curve is calculated.
-    ag : float
-        Geometric albedo of the reflecting object.
-    a : float
-        Scaled orbital semi-major axis.
-    k : float
-        Planet-star radius ratio.
-    t0 : float
-        Reference time.
-    p : float
-        Orbital period.
-    dt : float
-        Time resolution or step size for calculations.
-    pktable : array-like
-        Precomputed table of phase coefficients.
-    points : array-like
-        Grid points used for modeling the phase curve.
-    coeffs : array-like
-        Coefficients for Taylor series expansion of the phase curve model.
-
-    Returns
-    -------
-    ndarray
-        Computed Lambertian phase curve values corresponding to the input time array.
-    """
-    amplitude = k**2 * ag / a**2
-    cos_alpha = cos_alpha_o5s(time, t0, p, dt, pktable, points, coeffs)
-    alpha = arccos(cos_alpha)
-    return amplitude * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
 
 @njit
-def lambert_phase_curve_o5v(times, ag, a, k, t0, p, dt, pktable, points, coeffs):
-    npt = times.size
-    res = zeros(npt)
-    amplitude = k**2 * ag / a**2
-    for i in range(npt):
-        cos_alpha = cos_alpha_o5s(times[i], t0, p, dt, pktable, points, coeffs)
-        alpha = arccos(cos_alpha)
-        res[i] = amplitude * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
-    return res
-
-@njit
-def lambert_and_emission_o5v(times, ag, fr_night, fr_day, emi_offset, a, k, t0, p, dt, pktable, points, coeffs):
-    npt = times.size
-    ref, emi = zeros(npt), zeros(npt)
-    k2 = k**2
-    aref = k2 * ag / a**2
-    for i in range(npt):
-        cos_alpha = cos_alpha_o5s(times[i], t0, p, dt, pktable, points, coeffs)
-        alpha = arccos(cos_alpha)
-        ref[i] = aref * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
-        emi[i] = k2 * (fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cos(alpha + emi_offset)))
-    return ref, emi
-
-@njit
-def ev_signal_o5v(alpha, mass_ratio, inc, times, t0, p, dt, pktable, points, coeffs):
+def ev_signal_o5v(alpha, mass_ratio, inc, times, t0, p, dt, points, coeffs):
     """Ellipsoidal variation signal.
 
     NOTES: See Eqs. 6-10 in Lillo-Box al. (2014).
     """
-    x, y, z = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
+    x, y, z = xyz_o5v(times, t0, p, dt, points, coeffs)
     distance = sqrt(x**2 + y**2 + z**2)
     theta = arccos(z / distance)
     return -alpha * mass_ratio * sin(inc)**2 * cos(2*theta) / distance**3
 
 
 @njit
-def zdiff_o5s(t, t0, p, dt, pktable, points, coeffs):
-    return z_o5s(t, t0, p, dt, pktable, points, coeffs) - coeffs[0, 2]
+def zdiff_o5s(t, t0, p, dt, points, coeffs):
+    return z_o5s(t, t0, p, dt, points, coeffs) - coeffs[0, 2]
 
 
 @njit
-def light_travel_time_o5s(t, t0, p, rstar, dt, pktable, points, coeffs):
+def light_travel_time_o5s(t, t0, p, rstar, dt, points, coeffs):
     """Light travel time in days."""
     s = 2.685885891543453e-05  # ((1 * u.R_sun).to(u.m) / c.c).to('d').value
-    return -zdiff_o5s(t, t0, p, dt, pktable, points, coeffs) * rstar * s
+    return -zdiff_o5s(t, t0, p, dt, points, coeffs) * rstar * s
 
 
 @njit
-def light_travel_time_o5v(times, t0, p, rstar, dt, pktable, points, coeffs):
+def light_travel_time_o5v(times, t0, p, rstar, dt, points, coeffs):
     """Light travel time in days."""
     s = 2.685885891543453e-05  # ((1 * u.R_sun).to(u.m) / c.c).to('d').value
     ltt = zeros(times.size)
     for i in range(times.size):
-        ltt[i] = -zdiff_o5s(times[i], t0, p, dt, pktable, points, coeffs) * rstar * s
+        ltt[i] = -zdiff_o5s(times[i], t0, p, dt, points, coeffs) * rstar * s
     return ltt
 
 
 @njit
-def rv_o5s(time, k, t0, p, a, i, e, dt, pktable, points, coeffs):
+def rv_o5s(time, k, t0, p, a, i, e, dt, points, coeffs):
     n = 2*pi/p * (a*sin(i))/sqrt(1-e**2)  # Perryman (2018) Eq. 2.23
-    return vz_o5s(time, t0, p, dt, pktable, points, coeffs) / n * k
+    return vz_o5s(time, t0, p, dt, points, coeffs) / n * k
 
 
 @njit
-def rv_o5v(times, k, t0, p, a, i, e, dt, pktable, points, coeffs):
+def rv_o5v(times, k, t0, p, a, i, e, dt, points, coeffs):
     npt = times.size
     rvs = zeros(npt)
     n = 2*pi/p * (a*sin(i))/sqrt(1-e**2)  # Perryman (2018) Eq. 2.23
     for i in range(npt):
-        rvs[i] = vz_o5s(times[i], t0, p, dt, pktable, points, coeffs) / n * k
+        rvs[i] = vz_o5s(times[i], t0, p, dt, points, coeffs) / n * k
     return rvs

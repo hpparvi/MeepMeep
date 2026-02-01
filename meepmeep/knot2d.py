@@ -1,10 +1,10 @@
 from numpy import asarray, zeros, arctan2
 
-from .utils import as_from_rhop, i_from_baew
-from .xy.position import pd_t15, solve_xy_p5s, xy_t15
-from .xy.derivatives import pd_with_derivatives_v, xy_derivative_coeffs
-from .xy.par_direct import diffs as diffs_natural
-from .xy.par_fitting import partial_derivatives as diffs_fitting
+from .backends.numba.utils import as_from_rhop, i_from_baew
+from .backends.numba.ts2d.position import pd_t15, solve_xy_p5s, xy_t15
+from .backends.numba.ts2d.derivatives import pd_with_derivatives_v, xy_derivative_coeffs
+from .backends.numba.ts2d.par_direct import diffs as diffs_natural
+from .backends.numba.ts2d.par_fitting import partial_derivatives as diffs_fitting
 
 class Knot2D:
 

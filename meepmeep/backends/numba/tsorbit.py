@@ -17,7 +17,7 @@
 from numba import njit
 from numpy import zeros_like, cos, sin, floor, sqrt, zeros, linspace
 from .utils import eclipse_phase, i_from_baew
-from .newton import ta_newton_s, ta_newton_v
+from .newton.newton import ta_newton_s, ta_newton_v
 
 
 @njit(fastmath=True)
