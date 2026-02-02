@@ -42,7 +42,8 @@ def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) 
     Returns
     -------
     ndarray
-        A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
+        A 2x5 coefficient matrix where each element is a pre-scaled coefficient for Taylor series expansion.
+        Pre-scaling means that the coefficients are divided by 1, 1, 2, 6, and 24 to improve numerical speed.
     """
 
     # Time step for central finite difference
@@ -110,20 +111,20 @@ def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) 
     # Second time derivative of position: acceleration
     # ------------------------------------------------
     a, b, c, d = 1/90, 3/20, 3/2, 49/18
-    cf[0, 2] = (a*(x0 + x6) - b*(x1 + x5) + c*(x2 + x4) - d*x3)/dt**2  # ax
-    cf[1, 2] = (a*(y0 + y6) - b*(y1 + y5) + c*(y2 + y4) - d*y3)/dt**2  # ay
+    cf[0, 2] = (a*(x0 + x6) - b*(x1 + x5) + c*(x2 + x4) - d*x3)/dt**2  / 2.0 # ax / 2
+    cf[1, 2] = (a*(y0 + y6) - b*(y1 + y5) + c*(y2 + y4) - d*y3)/dt**2  / 2.0 # ay / 2
 
     # Third time derivative of position: jerk
     # ---------------------------------------
     a, b, c = 1/8, 1, 13/8
-    cf[0, 3] = (a*(x0 - x6) + b*(x5 - x1) + c*(x2 - x4))/dt**3
-    cf[1, 3] = (a*(y0 - y6) + b*(y5 - y1) + c*(y2 - y4))/dt**3
+    cf[0, 3] = (a*(x0 - x6) + b*(x5 - x1) + c*(x2 - x4))/dt**3 / 6.0 # jx / 6
+    cf[1, 3] = (a*(y0 - y6) + b*(y5 - y1) + c*(y2 - y4))/dt**3 / 6.0 # jy / 6
 
     # Fourth time derivative of position: snap
     # ----------------------------------------
     a, b, c, d = 1/6, 2, 13/2, 28/3
-    cf[0, 4] = (-a*(x0 + x6) + b*(x1 + x5) - c*(x2 + x4) + d*x3)/dt**4
-    cf[1, 4] = (-a*(y0 + y6) + b*(y1 + y5) - c*(y2 + y4) + d*y3)/dt**4
+    cf[0, 4] = (-a*(x0 + x6) + b*(x1 + x5) - c*(x2 + x4) + d*x3)/dt**4 / 24.0  # sx / 24
+    cf[1, 4] = (-a*(y0 + y6) + b*(y1 + y5) - c*(y2 + y4) + d*y3)/dt**4 / 24.0  # sy / 24
 
     return cf
 
@@ -189,8 +190,8 @@ def xy_t15(tc, t0: float, p: float, c: ndarray):
     """
     epoch = floor((tc - t0 + 0.5 * p) / p)
     t = tc - (t0 + epoch * p)
-    px = c[0,0] + t*(c[0,1] + t*(c[0,2]/2.0 + t*(c[0, 3]/6.0 + t*c[0,4]/24.0)))
-    py = c[1,0] + t*(c[1,1] + t*(c[1,2]/2.0 + t*(c[1, 3]/6.0 + t*c[1,4]/24.0)))
+    px = c[0,0] + t*(c[0,1] + t*(c[0,2] + t*(c[0, 3] + t*c[0,4])))
+    py = c[1,0] + t*(c[1,1] + t*(c[1,2] + t*(c[1, 3] + t*c[1,4])))
     return px, py
 
 
@@ -210,8 +211,8 @@ def xy_t15c(t: float, c: ndarray) -> tuple[float, float]:
     (float, float)
         The (x, y) position.
     """
-    px = c[0,0] + t*(c[0,1] + t*(c[0,2]/2.0 + t*(c[0, 3]/6.0 + t*c[0,4]/24.0)))
-    py = c[1,0] + t*(c[1,1] + t*(c[1,2]/2.0 + t*(c[1, 3]/6.0 + t*c[1,4]/24.0)))
+    px = c[0,0] + t*(c[0,1] + t*(c[0,2] + t*(c[0, 3] + t*c[0,4])))
+    py = c[1,0] + t*(c[1,1] + t*(c[1,2] + t*(c[1, 3] + t*c[1,4])))
     return px, py
 
 
@@ -231,8 +232,8 @@ def xyd_t15c(t: float, c: ndarray) -> tuple[float, float, float]:
     (float, float, float)
         The (x, y) position and the projected star-planet distance.
     """
-    px = c[0,0] + t*(c[0,1] + t*(c[0,2]/2.0 + t*(c[0, 3]/6.0 + t*c[0,4]/24.0)))
-    py = c[1,0] + t*(c[1,1] + t*(c[1,2]/2.0 + t*(c[1, 3]/6.0 + t*c[1,4]/24.0)))
+    px = c[0,0] + t*(c[0,1] + t*(c[0,2] + t*(c[0, 3] + t*c[0,4])))
+    py = c[1,0] + t*(c[1,1] + t*(c[1,2] + t*(c[1, 3] + t*c[1,4])))
     return px, py, sqrt(px**2 + py**2)
 
 
