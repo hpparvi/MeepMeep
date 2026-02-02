@@ -21,7 +21,7 @@ from ..newton.newton import ta_newton_s
 
 
 @njit(fastmath=True)
-def solve_xy_p5s(phase: float, p: float, a: float, i: float, e: float, w: float) -> ndarray:
+def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) -> ndarray:
     """ Calculate the Taylor expansion for the (x, y) position around a given phase angle.
 
     Parameters
@@ -129,36 +129,7 @@ def solve_xy_p5s(phase: float, p: float, a: float, i: float, e: float, w: float)
 
 
 @njit
-def solve_xy_t25(dt, p, a, i, e, w) -> tuple[ndarray, ndarray]:
-    """Calculate the Taylor series expansion at two points around the transit center.
-
-    Parameters
-    ----------
-    dt : float
-        Time difference between the two points.
-    p : float
-        Orbital parameter.
-    a : float
-        Semi-major axis of the orbit.
-    i : float
-        Orbital inclination.
-    e : float
-        Orbital eccentricity.
-    w : float
-        Argument of periapsis.
-
-    Returns
-    -------
-    (ndarray, ndarray)
-        Two Taylor series coefficient arrays.
-    """
-    c1 = array(solve_xy_p5s(-0.5*dt, p, a, i, e, w))
-    c2 = array(solve_xy_p5s(0.5*dt, p, a, i, e, w))
-    return c1, c2
-
-
-@njit
-def solve_xy_o5s(p: float, a: float, i: float, e: float, w: float, npt: int):
+def solve_xy_o5(p: float, a: float, i: float, e: float, w: float, npt: int):
     """Calculate the 2D Taylor series expansion for a Keplerian orbit in npt points along the orbit.
 
     Parameters
@@ -187,32 +158,34 @@ def solve_xy_o5s(p: float, a: float, i: float, e: float, w: float, npt: int):
     """
     points = linspace(0.0, p, npt)
     dt = points[1] - points[0]
-    coeffs = zeros((npt, 10))
+    coeffs = zeros((npt, 2, 5))
     for ix in range(npt-1):
-        coeffs[ix] = solve_xy_p5s(points[ix], p, a, i, e, w)
+        coeffs[ix, :, :] = solve_xy_p5(points[ix], p, a, i, e, w)
     coeffs[-1] = coeffs[0]
     return dt, points, coeffs
 
 
 @njit(fastmath=True)
-def xy_t15s(tc: float, t0: float, p: float, c: ndarray) -> tuple[float, float]:
+def xy_t15(tc, t0: float, p: float, c: ndarray):
     """Calculate planet's (x, y) position using Taylor series expansion.
+
+    Automatically works with both scalar and array time inputs through broadcasting.
 
     Parameters
     ----------
-    tc : float
-        The current time.
+    tc : float or ndarray
+        The current time(s).
     t0 : float
         The Taylor series expansion time.
     p : float
         The orbital period.
-    c : numpy.ndarray
+    c : ndarray
         A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
 
     Returns
     -------
-    (float, float)
-        The (x, y) position.
+    tuple[float, float] or tuple[ndarray, ndarray]
+        The (x, y) position(s). Returns scalars for scalar input, arrays for array input.
     """
     epoch = floor((tc - t0 + 0.5 * p) / p)
     t = tc - (t0 + epoch * p)
@@ -222,13 +195,13 @@ def xy_t15s(tc: float, t0: float, p: float, c: ndarray) -> tuple[float, float]:
 
 
 @njit(fastmath=True)
-def xy_t15sc(t: float, c: ndarray) -> tuple[float, float]:
+def xy_t15c(t: float, c: ndarray) -> tuple[float, float]:
     """Calculate planet's (x,y) position using Taylor series expansion for t centered on the expansion time.
 
     Parameters
     ----------
-    tc : float
-        Time.
+    t : float
+        Time centered on the expansion time.
     c : ndarray
         A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
 
@@ -241,15 +214,15 @@ def xy_t15sc(t: float, c: ndarray) -> tuple[float, float]:
     py = c[1,0] + t*(c[1,1] + t*(c[1,2]/2.0 + t*(c[1, 3]/6.0 + t*c[1,4]/24.0)))
     return px, py
 
-#TODO: Fix the naming inconsistency with xy_t15s and xy_t15sc
+
 @njit(fastmath=True)
-def xyd_t15s(t: float, c: ndarray) -> tuple[float, float, float]:
+def xyd_t15c(t: float, c: ndarray) -> tuple[float, float, float]:
     """Calculate planet's (x,y) position and the projected distance for t centered on the expansion time.
 
     Parameters
     ----------
     t : float
-        Time.
+        Time centered on the expansion time.
     c : ndarray
         A 2x5 coefficient matrix where each element is a coefficient for Taylor series expansion.
 
@@ -263,22 +236,6 @@ def xyd_t15s(t: float, c: ndarray) -> tuple[float, float, float]:
     return px, py, sqrt(px**2 + py**2)
 
 
-@njit
-def xy_t15v(tc, t0, p, c):
-    npt = tc.size
-    xs, ys = zeros(npt), zeros(npt)
-    for i in range(npt):
-        xs[i], ys[i] = xy_t15s(tc[i], t0, p, c)
-    return xs, ys
-
-
-def xy_t15(tc, t0, p, c):
-    if isinstance(tc, types.Float):
-        return xy_t15s(tc, t0, p, c)
-    else:
-        return xy_t15v(tc, t0, p, c)
-
-
 @njit(fastmath=True)
 def pd_t15(tc, t0, p, c):
     """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
@@ -287,67 +244,10 @@ def pd_t15(tc, t0, p, c):
 
 
 @njit(fastmath=True)
-def pd_t15sc(tc, c):
+def pd_t15c(tc, c):
     """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
-    px, py = xy_t15sc(tc, c)
+    px, py = xy_t15c(tc, c)
     return sqrt(px ** 2 + py ** 2)
-
-
-@njit(fastmath=True)
-def pd_t25s(t, t0, p, dt, c1, c2):
-    """Slower but more accurate (p)rojected planet-star center (d)istance near (t)ransit for scalar time.
-
-    A more accurate version of planet-star center distance calculation that interpolates between two Taylor
-    series expansions around the transit center. Much slower than `pd_t15s` and you're unlikely really going
-    to need the added precision. Use `solve_xy_t25d` to compute the coefficient arrays.
-    """
-    epoch = floor((t - t0 + 0.5 * p) / p)
-    tg = t - (t0 + epoch * p)
-    dt = 0.5*dt
-
-    if tg < dt:
-        t1 = tg + dt
-        t2 = t1 * t1
-        t3 = t2 * t1
-        t4 = t3 * t1
-        px1 = c1[0] + c1[2] * t1 + 0.5 * c1[4] * t2 + c1[6] * t3 / 6.0 + c1[8] * t4 / 24.
-        py1 = c1[1] + c1[3] * t1 + 0.5 * c1[5] * t2 + c1[7] * t3 / 6.0 + c1[9] * t4 / 24.
-    else:
-        px1, py1 = 0.0, 0.0
-
-    if tg > -dt:
-        t1 = tg - dt
-        t2 = t1 * t1
-        t3 = t2 * t1
-        t4 = t3 * t1
-        px2 = c2[0] + c2[2] * t1 + 0.5 * c2[4] * t2 + c2[6] * t3 / 6.0 + c2[8] * t4 / 24.
-        py2 = c2[1] + c2[3] * t1 + 0.5 * c2[5] * t2 + c2[7] * t3 / 6.0 + c2[9] * t4 / 24.
-    else:
-        px2, py2 = 0.0, 0.0
-
-    if tg < -dt:
-        return sqrt(px1 ** 2 + py1 ** 2)
-    elif tg > dt:
-        return sqrt(px2 ** 2 + py2 ** 2)
-    else:
-        a = (tg + dt) / (2 * dt)
-        px = (1 - a) * px1 + a * px2
-        py = (1 - a) * py1 + a * py2
-        return sqrt(px ** 2 + py ** 2)
-
-
-@njit(fastmath=True)
-def pd_t25v(times, t0, p, dt, c1, c2):
-    """Slower but more accurate (p)rojected planet-star center (d)istance near (t)ransit for a time array.
-
-    A more accurate version of planet-star center distance calculation that interpolates between two Taylor
-    series expansions around the transit center. Much slower than `pd_t15s` and you're unlikely really going
-    to need the added precision. Use `solve_xy_t25d` to compute the coefficient arrays.
-    """
-    z = zeros(times.size)
-    for i in range(times.size):
-        z[i] = pd_t25s(times[i], t0, p, dt, c1, c2)
-    return z
 
 
 @njit
@@ -387,17 +287,17 @@ def find_contact_point(k: float, point: int, c: ndarray):
     t2 = s*2.0/vx
     t1 = 0.5*t2
 
-    z0 = pd_t15sc(t0, c) - zt
-    z1 = pd_t15sc(t1, c) - zt
+    z0 = pd_t15c(t0, c) - zt
+    z1 = pd_t15c(t1, c) - zt
 
     i = 0
     while abs(t2 - t0) > 1e-6 and i < 100:
         if z0*z1 < 0.0:
             t1, t2 = 0.5*(t0 + t1), t1
-            z1, z2 = pd_t15sc(t1, c) - zt, z1
+            z1, z2 = pd_t15c(t1, c) - zt, z1
         else:
             t0, t1 = t1, 0.5*(t1 + t2)
-            z0, z1 = z1, pd_t15sc(t1, c) - zt
+            z0, z1 = z1, pd_t15c(t1, c) - zt
         i += 1
     return t1
 

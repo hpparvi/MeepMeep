@@ -5,7 +5,7 @@ from numpy import zeros, arctan2, array, atleast_1d, asarray
 from scipy.constants import G
 
 from ..utils import as_from_rhop, i_from_baew
-from .position import solve_xy_p5s
+from .position import solve_xy_p5
 from .derivatives import xy_derivative_coeffs, loc_and_der_coeffs
 
 
@@ -109,7 +109,7 @@ def coeffs_old(phase, p, rho, b, secw, sesw):
     w = arctan2(sesw, secw)
     i = i_from_baew(b, a, e, w)
 
-    coeffs = solve_xy_p5s(phase, p, a, i, e, w)
+    coeffs = solve_xy_p5(phase, p, a, i, e, w)
     pds = partial_derivatives(p, rho, b, secw, sesw)
     dcoeffs = xy_derivative_coeffs(0.0, p, a, i, e, w, pds, coeffs, 1e-4)
     return coeffs, dcoeffs

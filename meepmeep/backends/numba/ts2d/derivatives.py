@@ -3,7 +3,7 @@ from math import isfinite
 from numba import njit
 from numpy import zeros, sqrt, nan
 
-from .position import solve_xy_p5s, xy_t15s, xy_t15sc
+from .position import solve_xy_p5, xy_t15, xy_t15c
 
 
 @njit
@@ -11,7 +11,7 @@ def xy_derivative_coeffs(phase, p, a, i, e, w, pds, c0, eps):
     cs = zeros((6, 2, 5))
     for j in range(6):
         v = pds[j]*eps
-        cs[j, :, :] = solve_xy_p5s(phase+v[0], p+v[1], a+v[2], i+v[3], e+v[4], w+v[5])
+        cs[j, :, :] = solve_xy_p5(phase+v[0], p+v[1], a+v[2], i+v[3], e+v[4], w+v[5])
     return (cs - c0) / eps
 
 
@@ -31,7 +31,7 @@ def loc_and_der_coeffs(phase, p, a, i, e, w, diffs):
     cfs = zeros((nor, 2, 5))
     for j in range(nor):
         if a[j] > 1.0 and e[j] < 0.99:
-            cfs[j, :, :] = solve_xy_p5s(phase, p[j], a[j], i[j], e[j], w[j])
+            cfs[j, :, :] = solve_xy_p5(phase, p[j], a[j], i[j], e[j], w[j])
         else:
             cfs[j, :, :] = nan
 
@@ -52,39 +52,39 @@ def loc_and_der_coeffs(phase, p, a, i, e, w, diffs):
 
 @njit
 def dxy_dtc(t, t0, p, dcs):
-    return xy_t15s(t, t0, p, dcs[0])
+    return xy_t15(t, t0, p, dcs[0])
 
 
 @njit
 def dxy_dp(t, t0, p, dcs):
-    return xy_t15s(t, t0, p, dcs[1])
+    return xy_t15(t, t0, p, dcs[1])
 
 
 @njit
 def dxy_da(t, t0, p, dcs):
-    return xy_t15s(t, t0, p, dcs[2])
+    return xy_t15(t, t0, p, dcs[2])
 
 
 @njit
 def dxy_di(t, t0, p, dcs):
-    return xy_t15s(t, t0, p, dcs[3])
+    return xy_t15(t, t0, p, dcs[3])
 
 
 @njit
 def dxy_de(t, t0, p, dcs):
-    return xy_t15s(t, t0, p, dcs[4])
+    return xy_t15(t, t0, p, dcs[4])
 
 
 @njit
 def dxy_dw(t, t0, p, dcs):
-    return xy_t15s(t, t0, p, dcs[5])
+    return xy_t15(t, t0, p, dcs[5])
 
 
 # Projected distance derivatives
 # ------------------------------
 @njit(fastmath=True)
 def dpd(t, x, y, dcs):
-    dx, dy = xy_t15sc(t, dcs)
+    dx, dy = xy_t15c(t, dcs)
     return (0.5/sqrt(x**2 + y**2))*(2*x*dx + 2*y*dy)
 
 
@@ -101,7 +101,7 @@ def pd_derivatives_s(t, x, y, dcf, res):
 
 @njit(fastmath=True)
 def pd_with_derivatives_s(t, cf, dcf, res):
-    x, y = xy_t15sc(t, cf)
+    x, y = xy_t15c(t, cf)
     res[0] = sqrt(x**2 + y**2)        # 0: Projected distance [R_Sun]
     res[1] = dpd(t, x, y, dcf[0])     # 1: Zero epoch
     res[2] = dpd(t, x, y, dcf[1])     # 2: Period
