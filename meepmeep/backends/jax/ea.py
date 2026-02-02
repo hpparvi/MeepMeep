@@ -31,5 +31,5 @@ def eccentric_anomaly_jvp(primals, tangents):
     dea_dma = 1.0 / denom
     dea_decc = jnp.sin(ea) / denom
 
-    dE = dea_dma * dma + dea_decc * decc
-    return ea, dE
+    dea = dea_dma * dma + dea_decc * decc
+    return ea, dea
