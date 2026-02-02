@@ -15,10 +15,12 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit, types
-from numpy import cos, sin, floor, sqrt, zeros, linspace, array, ndarray
+from numpy import cos, sin, floor, sqrt, zeros, linspace, array, ndarray, pi
 
-from ..newton.newton import ta_newton_s
+from ..newton.newton import ea_from_ma
+from ..utils import mean_anomaly_offset
 
+TWO_PI = 2.0 * pi
 
 @njit(fastmath=True)
 def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) -> ndarray:
@@ -27,7 +29,7 @@ def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) 
     Parameters
     ----------
     phase : float
-        Phase angle for the Taylor series expansion [rad].
+        Phase angle (time) for the Taylor series expansion [days].
     p : float
         Orbital period [days].
     a : float
@@ -45,86 +47,104 @@ def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) 
         A 2x5 coefficient matrix where each element is a pre-scaled coefficient for Taylor series expansion.
         Pre-scaling means that the coefficients are divided by 1, 1, 2, 6, and 24 to improve numerical speed.
     """
+    # Analytic differentiation of Keplerian motion
+    # --------------------------------------------
 
-    # Time step for central finite difference
-    # ---------------------------------------
-    # I've tried to choose a value that is small enough to
-    # work with ultra-short-period orbits and large enough
-    # not to cause floating point problems with the fourth
-    # derivative (anything much smaller starts hitting the
-    # double precision limit.)
-    dt = 2e-2
+    # Constants
+    n = TWO_PI / p
+    mu = n**2 * a**3  # Standard gravitational parameter [R_star^3 / day^2]
 
-    ae = a*(1. - e**2)
+    sqe2 = sqrt(1.0 - e**2)
     ci = cos(i)
+    cw = cos(w)
+    sw = sin(w)
 
-    # Calculation of X and Y positions
-    # --------------------------------
-    # These could just as well be calculated with a single
-    # loop with X and Y as arrays, but I've decided to
-    # manually unroll it because it seems to give a small
-    # speed advantage with numba.
+    # 1. Calculate Mean Anomaly and Eccentric Anomaly
+    # -----------------------------------------------
+    # Matches the phase definition in utils.mean_anomaly for t0=0
+    offset = mean_anomaly_offset(e, w)
+    ma = (TWO_PI * (phase - (-offset * p / TWO_PI)) / p) % TWO_PI
 
-    f0 = ta_newton_s(phase-3 * dt, 0.0, p, e, w)
-    f1 = ta_newton_s(phase-2 * dt, 0.0, p, e, w)
-    f2 = ta_newton_s(phase-dt, 0.0, p, e, w)
-    f3 = ta_newton_s(phase, 0.0, p, e, w)
-    f4 = ta_newton_s(phase+dt, 0.0, p, e, w)
-    f5 = ta_newton_s(phase+2 * dt, 0.0, p, e, w)
-    f6 = ta_newton_s(phase+3 * dt, 0.0, p, e, w)
+    ea = ea_from_ma(ma, e)
+    sea = sin(ea)
+    cea = cos(ea)
 
-    r0 = ae/(1. + e*cos(f0))
-    r1 = ae/(1. + e*cos(f1))
-    r2 = ae/(1. + e*cos(f2))
-    r3 = ae/(1. + e*cos(f3))
-    r4 = ae/(1. + e*cos(f4))
-    r5 = ae/(1. + e*cos(f5))
-    r6 = ae/(1. + e*cos(f6))
+    # 2. Orbital Plane Position & Velocity
+    # ------------------------------------
+    # r vector components in orbital plane (xi points to periastron)
+    r_val = a * (1.0 - e * cea)
+    xi = a * (cea - e)
+    eta = a * sqe2 * sea
 
-    x0 = -r0*cos(w + f0)
-    x1 = -r1*cos(w + f1)
-    x2 = -r2*cos(w + f2)
-    x3 = -r3*cos(w + f3)
-    x4 = -r4*cos(w + f4)
-    x5 = -r5*cos(w + f5)
-    x6 = -r6*cos(w + f6)
+    # Derivatives of E w.r.t time: E_dot = n * a / r
+    ea_dot = n * a / r_val
 
-    y0 = -r0*sin(w + f0)*ci
-    y1 = -r1*sin(w + f1)*ci
-    y2 = -r2*sin(w + f2)*ci
-    y3 = -r3*sin(w + f3)*ci
-    y4 = -r4*sin(w + f4)*ci
-    y5 = -r5*sin(w + f5)*ci
-    y6 = -r6*sin(w + f6)*ci
+    # Velocity components in orbital plane
+    v_xi = -a * sea * ea_dot
+    v_eta = a * sqe2 * cea * ea_dot
+
+    # 3. Higher Order Derivatives (Acceleration, Jerk, Snap)
+    # ------------------------------------------------------
+    # Based on recursive differentiation of a = -mu * r / |r|^3
+
+    r2 = r_val**2
+    v2 = v_xi**2 + v_eta**2
+    rv = xi * v_xi + eta * v_eta  # Dot product r . v
+
+    # u = -mu / r^3
+    inv_r3 = 1.0 / (r2 * r_val)
+    inv_r5 = inv_r3 / r2
+    inv_r7 = inv_r5 / r2
+
+    u = -mu * inv_r3
+    u_dot = 3.0 * mu * rv * inv_r5
+    u_ddot = 3.0 * mu * (v2 * inv_r5 - 5.0 * rv**2 * inv_r7) - 3.0 * u**2
+
+    # Acceleration components
+    a_xi = u * xi
+    a_eta = u * eta
+
+    # Jerk components
+    j_xi = u_dot * xi + u * v_xi
+    j_eta = u_dot * eta + u * v_eta
+
+    # Snap components
+    s_coeff = u_ddot + u**2
+    s_xi = s_coeff * xi + 2.0 * u_dot * v_xi
+    s_eta = s_coeff * eta + 2.0 * u_dot * v_eta
+
+    # 4. Rotation to Sky Plane and Coefficient Filling
+    # ------------------------------------------------
+    # X = -xi * cw + eta * sw
+    # Y = (-xi * sw - eta * cw) * ci
+
+    # Rotation matrix elements
+    m00 = -cw
+    m01 = sw
+    m10 = -sw * ci
+    m11 = -cw * ci
 
     cf = zeros((2, 5))
 
-    cf[0, 0] = x3
-    cf[1, 0] = y3
+    # Position (0th derivative)
+    cf[0, 0] = m00 * xi + m01 * eta
+    cf[1, 0] = m10 * xi + m11 * eta
 
-    # First time derivative of position: velocity
-    # -------------------------------------------
-    a, b, c = 1/60, 9/60, 45/60
-    cf[0, 1] = (a*(x6 - x0) + b*(x1 - x5) + c*(x4 - x2))/dt  # vx
-    cf[1, 1] = (a*(y6 - y0) + b*(y1 - y5) + c*(y4 - y2))/dt  # vy
+    # Velocity (1st derivative)
+    cf[0, 1] = m00 * v_xi + m01 * v_eta
+    cf[1, 1] = m10 * v_xi + m11 * v_eta
 
-    # Second time derivative of position: acceleration
-    # ------------------------------------------------
-    a, b, c, d = 1/90, 3/20, 3/2, 49/18
-    cf[0, 2] = (a*(x0 + x6) - b*(x1 + x5) + c*(x2 + x4) - d*x3)/dt**2  / 2.0 # ax / 2
-    cf[1, 2] = (a*(y0 + y6) - b*(y1 + y5) + c*(y2 + y4) - d*y3)/dt**2  / 2.0 # ay / 2
+    # Acceleration / 2
+    cf[0, 2] = (m00 * a_xi + m01 * a_eta) * 0.5
+    cf[1, 2] = (m10 * a_xi + m11 * a_eta) * 0.5
 
-    # Third time derivative of position: jerk
-    # ---------------------------------------
-    a, b, c = 1/8, 1, 13/8
-    cf[0, 3] = (a*(x0 - x6) + b*(x5 - x1) + c*(x2 - x4))/dt**3 / 6.0 # jx / 6
-    cf[1, 3] = (a*(y0 - y6) + b*(y5 - y1) + c*(y2 - y4))/dt**3 / 6.0 # jy / 6
+    # Jerk / 6
+    cf[0, 3] = (m00 * j_xi + m01 * j_eta) / 6.0
+    cf[1, 3] = (m10 * j_xi + m11 * j_eta) / 6.0
 
-    # Fourth time derivative of position: snap
-    # ----------------------------------------
-    a, b, c, d = 1/6, 2, 13/2, 28/3
-    cf[0, 4] = (-a*(x0 + x6) + b*(x1 + x5) - c*(x2 + x4) + d*x3)/dt**4 / 24.0  # sx / 24
-    cf[1, 4] = (-a*(y0 + y6) + b*(y1 + y5) - c*(y2 + y4) + d*y3)/dt**4 / 24.0  # sy / 24
+    # Snap / 24
+    cf[0, 4] = (m00 * s_xi + m01 * s_eta) / 24.0
+    cf[1, 4] = (m10 * s_xi + m11 * s_eta) / 24.0
 
     return cf
 
