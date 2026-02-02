@@ -1,7 +1,24 @@
 from numba import njit
-from numpy import cos, sin, zeros
+from numpy import cos, sin, zeros, pi
 
 from ..utils import mean_anomaly, ta_from_ea_s, ta_from_ea_v, z_from_ta_s, z_from_ta_v, eclipse_phase
+
+
+@njit(fastmath=True)
+def ea_from_ma(ma, ecc):
+    """Solve Kepler's equation E - e*sin(E) = M to high precision."""
+    ea = ma
+    if ecc > 0.8:
+        ea = pi
+
+    for _ in range(50):
+        f = ea - ecc * sin(ea) - ma
+        df = 1.0 - ecc * cos(ea)
+        dea = -f / df
+        ea += dea
+        if abs(dea) < 1e-13:
+            break
+    return ea
 
 
 @njit
