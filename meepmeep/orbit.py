@@ -6,7 +6,7 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, array, sqrt, 
 
 from .backends.numba.knots import create_knots
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
-from .backends.numba.utils import mean_anomaly_offset, TWO_PI, eccentricity_vector
+from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector
 from .backends.numba.ts3d.extended import (
     solve_xyz_o5s,
     xyz_o5v,
@@ -47,11 +47,11 @@ class Orbit:
         self._i = i
         self._e = e
         self._w = w
-        self._tc = t0 - mean_anomaly_offset(e, w) / TWO_PI * p
+        self._tc = t0 - mean_anomaly_at_transit(e, w) / TWO_PI * p
         self._coeffs = solve_xyz_o5s(self._points, p, a, i, e, w, self.npt)
 
     def mean_anomaly(self):
-        offset = mean_anomaly_offset(self._e, self._w)
+        offset = mean_anomaly_at_transit(self._e, self._w)
         return mod(TWO_PI * (self.times - (self._t0 - offset * self._p / TWO_PI)) / self._p, TWO_PI)
 
     def true_anomaly(self, exact: bool = False):

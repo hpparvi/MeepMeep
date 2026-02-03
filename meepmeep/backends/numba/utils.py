@@ -111,7 +111,7 @@ def ta_from_ea_s(Ea, e):
 
 
 @njit
-def mean_anomaly_offset(e, w):
+def mean_anomaly_at_transit(e, w):
     mean_anomaly_offset = arctan2(sqrt(1.0-e**2) * sin(HALF_PI - w), e + cos(HALF_PI - w))
     mean_anomaly_offset -= e*sin(mean_anomaly_offset)
     return mean_anomaly_offset
@@ -119,7 +119,7 @@ def mean_anomaly_offset(e, w):
 
 @njit
 def mean_anomaly(t, t0, p, e, w):
-    offset = mean_anomaly_offset(e, w)
+    offset = mean_anomaly_at_transit(e, w)
     Ma = mod(TWO_PI * (t - (t0 - offset * p / TWO_PI)) / p, TWO_PI)
     return Ma
 

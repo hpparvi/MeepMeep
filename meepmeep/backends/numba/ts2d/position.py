@@ -18,7 +18,7 @@ from numba import njit, types
 from numpy import cos, sin, floor, sqrt, zeros, linspace, array, ndarray, pi
 
 from ..newton.newton import ea_from_ma
-from ..utils import mean_anomaly_offset
+from ..utils import mean_anomaly_at_transit
 
 TWO_PI = 2.0 * pi
 
@@ -62,7 +62,7 @@ def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) 
     # 1. Calculate Mean Anomaly and Eccentric Anomaly
     # -----------------------------------------------
     # Matches the phase definition in utils.mean_anomaly for t0=0
-    offset = mean_anomaly_offset(e, w)
+    offset = mean_anomaly_at_transit(e, w)
     ma = (TWO_PI * (phase - (-offset * p / TWO_PI)) / p) % TWO_PI
 
     ea = ea_from_ma(ma, e)
