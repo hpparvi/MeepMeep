@@ -25,6 +25,41 @@ TWO_PI = 2.0*pi
 
 @njit
 def eccentricity_vector(i, e, w):
+    """
+    Compute the 3D eccentricity vector in the observer's coordinate system.
+
+    The eccentricity vector points toward periastron with a magnitude equal
+    to the eccentricity. This function rotates that vector from the orbital
+    plane into the observer's frame based on the inclination.
+
+    Parameters
+    ----------
+    i : float
+        Orbital inclination in radians. An inclination of pi/2 (90 degrees)
+        corresponds to an edge-on orbit relative to the observer.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians. Defines the orientation of the
+        ellipse within the orbital plane.
+
+    Returns
+    -------
+    vec : ndarray
+        A 1D float array of shape (3,) representing the [ex, ey, ez]
+        components of the eccentricity vector. If e < 1e-5, returns
+        [-1.0, 0.0, 0.0] as a stable reference for circular orbits.
+
+    Notes
+    -----
+    The coordinate system is typically defined such that the z-axis points
+    along the line of sight toward the observer. The components are
+    calculated as:
+
+    * ex = -e * cos(w)
+    * ey = -e * sin(w) * cos(i)
+    * ez =  e * sin(w) * sin(i)
+    """
     if e > 1e-5:
         ci = cos(i)
         si = sin(i)
@@ -38,9 +73,38 @@ def eccentricity_vector(i, e, w):
 
 @njit
 def eclipse_phase(p, i, e, w):
-    """ Phase for the secondary eclipse center.
+    """
+        Calculate the time phase of the secondary eclipse relative to the primary transit.
 
-    Exact secondary eclipse center phase, good for all eccentricities.
+        For eccentric orbits, the secondary eclipse does not occur at exactly 0.5 phase.
+        This function computes the exact time offset using Keplerian dynamics,
+        accounting for the non-uniform orbital velocity of the planet.
+
+        Parameters
+        ----------
+        p : float
+            Orbital period in units of time (e.g., days).
+        i : float
+            Orbital inclination in radians. Note: While 'i' is an input, it is
+            not explicitly used in the calculation as the center of eclipse
+            depends primarily on the longitudinal geometry (e, w).
+        e : float
+            Orbital eccentricity (0 <= e < 1).
+        w : float
+            Argument of periastron in radians.
+
+        Returns
+        -------
+        phase : float
+            The time elapsed between the primary transit center and the
+            secondary eclipse center, in the same units as `p`.
+            The result is bounded between [0, p].
+
+        Notes
+        -----
+        The function solves Kepler's equation for both the transit and eclipse
+        positions. The transit center is assumed to occur at a true anomaly of
+        f = pi/2 - w.
     """
     etr = arctan2(sqrt(1. - e**2) * sin(HALF_PI - w), e + cos(HALF_PI - w))
     eec = arctan2(sqrt(1. - e**2) * sin(HALF_PI + pi - w), e + cos(HALF_PI + pi - w))
@@ -51,126 +115,454 @@ def eclipse_phase(p, i, e, w):
 
 
 @njit
-def af_transit(e, w):
-    """Calculates the -- factor during the transit"""
+def transit_distance_factor(e, w):
+    """
+    Calculate the dimensionless distance factor at the time of primary transit.
+
+    This represents the ratio of the planet-star separation at transit (r_tr)
+    to the semi-major axis (a), specifically (r_tr / a). It accounts for
+    the "foreshortening" or "stretching" of the transit duration caused
+    by orbital eccentricity and orientation.
+
+    Parameters
+    ----------
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    factor : float
+        The ratio (1 - e^2) / (1 + e * sin(w)). This is the transverse
+        distance factor used in transit duration and velocity calculations.
+
+    Notes
+    -----
+    In a circular orbit (e=0), this factor is exactly 1.0.
+    In an eccentric orbit:
+    * If w = pi/2 (periastron at transit), the factor is (1 - e), meaning
+      the planet is closer to the star and moving faster.
+    * If w = 3pi/2 (apoastron at transit), the factor is (1 + e), meaning
+      the planet is further and moving slower.
+    """
     return (1.0-e**2)/(1.0 + e*sin(w))
 
 
 @njit
 def i_from_baew(b, a, e, w):
-    """Orbital inclination from the impact parameter, scaled semi-major axis, eccentricity and argument of periastron
+    """
+    Compute the orbital inclination from the impact parameter and orbital elements.
+
+    This function inverts the standard relation for the impact parameter 'b'
+    to find the required inclination 'i'. It accounts for the non-circular
+    geometry of the orbit at the moment of transit.
 
     Parameters
     ----------
-
-      b  : impact parameter       [-]
-      a  : scaled semi-major axis [R_Star]
-      e  : eccentricity           [-]
-      w  : argument of periastron [rad]
+    b : float
+        Impact parameter (dimensionless). The projected distance between the
+        planet and star centers at the moment of transit, in units of the
+        stellar radius.
+    a : float
+        Scaled semi-major axis (a/R_star). The semi-major axis expressed
+        in units of the stellar radius.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
 
     Returns
     -------
+    i : float
+        Orbital inclination in radians.
 
-      i  : inclination            [rad]
+    Notes
+    -----
+    The impact parameter is defined as:
+    b = (a / R_star) * (r_tr / a) * cos(i)
+
+    Where (r_tr / a) is the 'transit_distance_factor'. This function
+    rearranges the formula to solve for i:
+    i = arccos( b / (a * factor) )
     """
-    return arccos(b / (a*af_transit(e, w)))
+    return arccos(b / (a * transit_distance_factor(e, w)))
 
 
 @njit
 def as_from_rhop(rho, period):
-    """Scaled semi-major axis from the stellar density and planet's orbital period.
+    """
+    Compute the scaled semi-major axis (a/R_star) from stellar density and orbital period.
+
+    This calculation is derived from Kepler's Third Law, assuming the planet's
+    mass is negligible compared to the stellar mass ($M_p \ll M_*$). It relates
+    the geometry of the orbit directly to the physical properties of the star.
 
     Parameters
     ----------
-
-      rho    : stellar density [g/cm^3]
-      period : orbital period  [d]
+    rho : float
+        Mean stellar density in g/cm^3.
+    period : float
+        Orbital period in days.
 
     Returns
     -------
+    as_scaled : float
+        The scaled semi-major axis (a/R_star), representing the distance
+        in units of the stellar radius.
 
-      as : scaled semi-major axis [R_star]
+    Notes
+    -----
+    The relationship is based on the following form of Kepler's Third Law:
+    $$ \frac{a}{R_star} = \left( \frac{G \cdot \rho \cdot P^2}{3\pi} \right)^{1/3} $$
+
+    The constant 86400.0 converts days to seconds, and 1e3 is used to
+    convert the density from g/cm^3 to the kg/m^3 required for SI units
+    if $G$ is in $m^3 kg^{-1} s^{-2}$.
     """
     return (G/(3*pi))**(1/3) * ((period * 86400.0)**2 * 1e3 * rho)**(1 / 3)
 
 
 @njit
-def ta_from_ea_v(Ea, e):
-    sta = sqrt(1.0-e**2) * sin(Ea)/(1.0-e*cos(Ea))
-    cta = (cos(Ea)-e)/(1.0-e*cos(Ea))
+def ta_from_ea_v(e, ecc):
+    """
+    Convert Eccentric Anomaly to True Anomaly.
+
+    This function calculates the position of the body along its orbit (True
+    Anomaly) given its position relative to the auxiliary circle (Eccentric
+    Anomaly).
+
+    Parameters
+    ----------
+    e : float or ndarray
+        Eccentric Anomaly in radians.
+    ecc : float
+        Orbital eccentricity (0 <= e < 1).
+
+    Returns
+    -------
+    f : float or ndarray
+        True Anomaly in radians.
+
+    Notes
+    -----
+    The relationship is derived from the geometry of the ellipse:
+    $$ \cos(f) = \frac{\cos(E) - e}{1 - e \cos(E)} $$
+    $$ \sin(f) = \frac{\sqrt{1 - e^2} \sin(E)}{1 - e \cos(E)} $$
+    Using arctan2 ensures the True Anomaly is placed in the correct quadrant.
+    """
+    sta = sqrt(1.0 - ecc ** 2) * sin(e) / (1.0 - ecc * cos(e))
+    cta = (cos(e) - ecc) / (1.0 - ecc * cos(e))
+    return arctan2(sta, cta)
+
+
+@njit
+def ta_from_ea_s(e, ecc):
+    """
+    Convert Eccentric Anomaly to True Anomaly.
+
+    This function calculates the position of the body along its orbit (True
+    Anomaly) given its position relative to the auxiliary circle (Eccentric
+    Anomaly).
+
+    Parameters
+    ----------
+    e : float or ndarray
+        Eccentric Anomaly in radians.
+    ecc : float
+        Orbital eccentricity (0 <= e < 1).
+
+    Returns
+    -------
+    f : float or ndarray
+        True Anomaly in radians.
+
+    Notes
+    -----
+    The relationship is derived from the geometry of the ellipse:
+    $$ \cos(f) = \frac{\cos(E) - e}{1 - e \cos(E)} $$
+    $$ \sin(f) = \frac{\sqrt{1 - e^2} \sin(E)}{1 - e \cos(E)} $$
+    Using arctan2 ensures the True Anomaly is placed in the correct quadrant.
+    """
+    sta = sqrt(1.0 - ecc ** 2) * sin(e) / (1.0 - ecc * cos(e))
+    cta = (cos(e) - ecc) / (1.0 - ecc * cos(e))
     Ta  = arctan2(sta, cta)
     return Ta
 
 
 @njit
-def ta_from_ea_s(Ea, e):
-    sta = sqrt(1.0-e**2) * sin(Ea)/(1.0-e*cos(Ea))
-    cta = (cos(Ea)-e)/(1.0-e*cos(Ea))
-    Ta  = arctan2(sta, cta)
-    return Ta
+def mean_anomaly_at_transit(ecc, w):
+    """
+    Compute the Mean Anomaly at the moment of primary transit.
+
+    For an eccentric orbit, the transit center does not occur at a Mean
+    Anomaly of zero (unless e=0). This function calculates the angular
+    time-offset required to align the transit event with the orbital clock.
+
+    Parameters
+    ----------
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    m_at_transit : float
+        The Mean Anomaly at transit center in radians.
+
+    Notes
+    -----
+    The function first finds the Eccentric Anomaly (E) by relating the
+    geometry of the transit (where true anomaly f = pi/2 - w) to the
+    eccentricity vector. It then solves Kepler's Equation:
+    $$ M = E - e \sin(E) $$
+    """
+    m_at_transit = arctan2(sqrt(1.0 - ecc ** 2) * sin(HALF_PI - w), ecc + cos(HALF_PI - w))
+    m_at_transit -= ecc * sin(m_at_transit)
+    return m_at_transit
 
 
-@njit
-def mean_anomaly_at_transit(e, w):
-    mean_anomaly_offset = arctan2(sqrt(1.0-e**2) * sin(HALF_PI - w), e + cos(HALF_PI - w))
-    mean_anomaly_offset -= e*sin(mean_anomaly_offset)
-    return mean_anomaly_offset
+@njit(fastmath=True)
+def mean_anomaly_at_transit_with_derivatives(ecc, w):
+    """
+    Compute the Mean Anomaly at transit and its derivatives w.r.t. e and w.
+
+    Parameters
+    ----------
+    ecc : float
+        Orbital eccentricity (0 <= ecc < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    m_tr : float
+        Mean Anomaly at the moment of primary transit in radians.
+    dm_tr_de : float
+        Partial derivative of the Mean Anomaly w.r.t. eccentricity.
+    dm_tr_dw : float
+        Partial derivative of the Mean Anomaly w.r.t. argument of periastron.
+    """
+    sqe2 = sqrt(1.0 - ecc ** 2)
+    cw = cos(w)
+    sw = sin(w)
+    y_e = sqe2 * cw
+    x_e = ecc + sw
+    e_off = arctan2(y_e, x_e)
+    se = sin(e_off)
+    ce = cos(e_off)
+    m_at_transit = e_off - ecc * se
+    denom = x_e**2 + y_e**2
+    de_off_de = (x_e * (-ecc / sqe2) * cw - y_e * 1.0) / denom
+    de_off_dw = (x_e * (-sqe2 * sw) - y_e * cw) / denom
+    dm_tr_de = de_off_de * (1.0 - ecc * ce) - se
+    dm_tr_dw = de_off_dw * (1.0 - ecc * ce)
+    return m_at_transit, dm_tr_de, dm_tr_dw
 
 
 @njit
 def mean_anomaly(t, t0, p, e, w):
+    """
+    Calculate the Mean Anomaly at time t, bounded between [0, 2pi].
+
+    Parameters
+    ----------
+    t : float
+        Observation time.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period in the same units as t.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    m : float
+        Mean Anomaly in radians, wrapped to the interval [0, 2pi].
+    """
     offset = mean_anomaly_at_transit(e, w)
-    Ma = mod(TWO_PI * (t - (t0 - offset * p / TWO_PI)) / p, TWO_PI)
-    return Ma
+    return mod(TWO_PI * (t - (t0 - offset * p / TWO_PI)) / p, TWO_PI)
+
+
+@njit(fastmath=True)
+def mean_anomaly_with_derivatives(t, t0, p, ecc, w):
+    """
+    Calculate the Mean Anomaly and its partial derivatives w.r.t. t0, p, e, and w.
+
+    Parameters
+    ----------
+    t : float
+        Observation time.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period in the same units as t.
+    ecc : float
+        Orbital eccentricity (0 <= ecc < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    m : float
+        Mean Anomaly in radians.
+    dm_dt0 : float
+        Partial derivative of m w.r.t. transit center time.
+    dm_dp : float
+        Partial derivative of m w.r.t. orbital period.
+    dm_de : float
+        Partial derivative of m w.r.t. eccentricity.
+    dm_dw : float
+        Partial derivative of m w.r.t. argument of periastron.
+    """
+    m_tr, dm_tr_de, dm_tr_dw = mean_anomaly_at_transit_with_derivatives(ecc, w)
+    dt = t - t0
+    mean_motion = TWOPI / p
+    m = mean_motion * dt + m_tr
+    dm_dt0 = -mean_motion
+    dm_dp  = -TWOPI * dt / (p**2)
+    dm_de  = dm_tr_de
+    dm_dw  = dm_tr_dw
+    return m, dm_dt0, dm_dp, dm_de, dm_dw
 
 
 @njit
-def z_from_ta_s(Ta, a, i, e, w):
-    z  = a*(1.0-e**2)/(1.0+e*cos(Ta)) * sqrt(1.0 - sin(w+Ta)**2 * sin(i)**2)
-    z *= copysign(1.0, sin(w+Ta))
+def z_from_ta_s(f, a, i, e, w):
+    """
+    Compute the sky-projected separation (Scalar version).
+
+    Parameters
+    ----------
+    f : float
+        True anomaly in radians.
+    a : float
+        Scaled semi-major axis (a/R_star).
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    z : float
+        Projected separation between the planet and star centers in units
+        of stellar radii. Positive values indicate the planet is in
+        front of the star (transit), negative values indicate eclipse.
+    """
+    z  = a * (1.0-e**2) / (1.0 + e * cos(f)) * sqrt(1.0 - sin(w + f) ** 2 * sin(i) ** 2)
+    z *= copysign(1.0, sin(w + f))
     return z
 
 
 @njit(parallel=True)
-def z_from_ta_v(Ta, a, i, e, w):
-    z  = a*(1.0-e**2)/(1.0+e*cos(Ta)) * sqrt(1.0 - sin(w+Ta)**2 * sin(i)**2)
-    z *= sign(1.0, sin(w+Ta))
+def z_from_ta_v(f, a, i, e, w):
+    """
+    Compute the sky-projected separation (Vectorized version).
+
+    Parameters
+    ----------
+    f : ndarray
+        True anomalies in radians.
+    a : float
+        Scaled semi-major axis (a/R_star).
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    z : ndarray
+        Projected separations in units of stellar radii.
+    """
+    z  = a * (1.0-e**2) / (1.0 + e * cos(f)) * sqrt(1.0 - sin(w + f) ** 2 * sin(i) ** 2)
+    z *= sign(1.0, sin(w + f))
     return z
 
 
 @njit
 def impact_parameter(a, i):
+    """
+    Calculate the impact parameter for a circular orbit.
+
+    Parameters
+    ----------
+    a : float
+        Scaled semi-major axis (a/R_star).
+    i : float
+        Orbital inclination in radians.
+
+    Returns
+    -------
+    b : float
+        Impact parameter (separation at transit center) in units of R_star.
+    """
     return a * cos(i)
 
 
 @njit
 def impact_parameter_ec(a, i, e, w, tr_sign):
+    """
+    Calculate the impact parameter for an eccentric orbit.
+
+    Parameters
+    ----------
+    a : float
+        Scaled semi-major axis (a/R_star).
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+    tr_sign : float
+        Sign of the event: 1.0 for primary transit, -1.0 for secondary eclipse.
+
+    Returns
+    -------
+    b : float
+        Impact parameter in units of R_star, corrected for eccentricity.
+    """
     return a * cos(i) * ((1.-e**2) / (1.+tr_sign*e*sin(w)))
 
 @njit
 def d_from_pkaiews(p, k, a, i, e, w, tr_sign, kind=14):
-    """Transit duration (T14 or T23) from p, k, a, i, e, w, and the transit sign.
+    """
+    Calculate the transit/eclipse duration (T14 or T23).
 
-    Calculates the transit duration (T14) from the orbital period, planet-star radius ratio, scaled semi-major axis,
-    orbital inclination, eccentricity, argument of periastron, and the sign of the transit (transit:1, eclipse: -1).
+    Parameters
+    ----------
+    p : float
+        Orbital period in days.
+    k : float
+        Radius ratio (R_planet / R_star).
+    a : float
+        Scaled semi-major axis (a / R_star).
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+    tr_sign : float
+        Sign of the event: 1.0 for transit, -1.0 for eclipse.
+    kind : int, optional
+        14 for full duration (first to fourth contact),
+        23 for total duration (second to third contact). Default is 14.
 
-     Parameters
-     ----------
-
-       p  : orbital period         [d]
-       k  : radius ratio           [R_Star]
-       a  : scaled semi-major axis [R_star]
-       i  : orbital inclination    [rad]
-       e  : eccentricity           [-]
-       w  : argument of periastron [rad]
-       tr_sign : transit sign, 1 for a transit, -1 for an eclipse
-       kind: either 14 for full transit duration or 23 for total transit duration
-
-     Returns
-     -------
-
-       d  : transit duration T14  [d]
-     """
+    Returns
+    -------
+    d : float
+        Duration in days.
+    """
     b  = impact_parameter_ec(a, i, e, w, tr_sign)
     ae = sqrt(1.-e**2)/(1.+tr_sign*e*sin(w))
     ds = 1. if kind == 14 else -1.
