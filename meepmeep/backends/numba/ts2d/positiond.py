@@ -15,7 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import cos, sin, sqrt, zeros, ndarray, pi, arctan2
+from numpy import cos, sin, floor, sqrt, zeros, ndarray, pi, arctan2
 
 from ..newton.newton import ea_from_ma
 from ..utils import mean_anomaly_at_transit_with_derivatives
@@ -303,3 +303,78 @@ def solve_xy_p5_d(phase, p, a, i, e, w):
             dcf[k, 1, col] = (dm10[k] * qx + m10 * dqx + dm11[k] * qe + m11 * dqe) * s
 
     return cf, dcf
+
+
+@njit(fastmath=True)
+def xy_t15_d(tc, t0, p, c, dc):
+    """Calculate planet's (x, y) position and parameter derivatives using Taylor series.
+
+    Parameters
+    ----------
+    tc : float
+        The current time.
+    t0 : float
+        The Taylor series expansion time.
+    p : float
+        The orbital period.
+    c : ndarray (2, 5)
+        Position Taylor coefficients from solve_xy_p5.
+    dc : ndarray (6, 2, 5)
+        Parameter derivative coefficients from solve_xy_p5_d.
+
+    Returns
+    -------
+    px : float
+        Sky-plane x position.
+    py : float
+        Sky-plane y position.
+    dpx : ndarray (6,)
+        Derivatives of px w.r.t. (phase, p, a, i, e, w).
+    dpy : ndarray (6,)
+        Derivatives of py w.r.t. (phase, p, a, i, e, w).
+    """
+    epoch = floor((tc - t0 + 0.5 * p) / p)
+    t = tc - (t0 + epoch * p)
+
+    px = c[0, 0] + t * (c[0, 1] + t * (c[0, 2] + t * (c[0, 3] + t * c[0, 4])))
+    py = c[1, 0] + t * (c[1, 1] + t * (c[1, 2] + t * (c[1, 3] + t * c[1, 4])))
+
+    dpx = zeros(6)
+    dpy = zeros(6)
+    for k in range(6):
+        dpx[k] = dc[k, 0, 0] + t * (dc[k, 0, 1] + t * (dc[k, 0, 2] + t * (dc[k, 0, 3] + t * dc[k, 0, 4])))
+        dpy[k] = dc[k, 1, 0] + t * (dc[k, 1, 1] + t * (dc[k, 1, 2] + t * (dc[k, 1, 3] + t * dc[k, 1, 4])))
+
+    return px, py, dpx, dpy
+
+
+@njit(fastmath=True)
+def pd_t15_d(tc, t0, p, c, dc):
+    """Calculate projected planet-star distance and its parameter derivatives.
+
+    Parameters
+    ----------
+    tc : float
+        The current time.
+    t0 : float
+        The Taylor series expansion time.
+    p : float
+        The orbital period.
+    c : ndarray (2, 5)
+        Position Taylor coefficients from solve_xy_p5.
+    dc : ndarray (6, 2, 5)
+        Parameter derivative coefficients from solve_xy_p5_d.
+
+    Returns
+    -------
+    d : float
+        Projected planet-star distance.
+    dd : ndarray (6,)
+        Derivatives of d w.r.t. (phase, p, a, i, e, w).
+    """
+    px, py, dpx, dpy = xy_t15_d(tc, t0, p, c, dc)
+    d = sqrt(px ** 2 + py ** 2)
+    dd = zeros(6)
+    for k in range(6):
+        dd[k] = (px * dpx[k] + py * dpy[k]) / d
+    return d, dd
