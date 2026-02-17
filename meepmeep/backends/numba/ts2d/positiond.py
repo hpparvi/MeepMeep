@@ -18,52 +18,10 @@ from numba import njit
 from numpy import cos, sin, sqrt, zeros, ndarray, pi, arctan2
 
 from ..newton.newton import ea_from_ma
+from ..utils import mean_anomaly_at_transit_with_derivatives
 
 TWO_PI = 2.0 * pi
 HALF_PI = 0.5 * pi
-
-
-@njit(fastmath=True)
-def mean_anomaly_offset_d(e, w):
-    """Compute the mean anomaly offset and its derivatives w.r.t. e and w.
-
-    Returns
-    -------
-    offset : float
-    d_offset_de : float
-    d_offset_dw : float
-    """
-    sqe2 = sqrt(1.0 - e**2)
-    cw = cos(w)
-    sw = sin(w)
-
-    # E_off = atan2(sqe2 * cw, e + sw)
-    y_E = sqe2 * cw
-    x_E = e + sw
-    E_off = arctan2(y_E, x_E)
-    sE = sin(E_off)
-    cE = cos(E_off)
-
-    # offset = E_off - e * sin(E_off)
-    offset = E_off - e * sE
-
-    # Derivatives of E_off via atan2:
-    # dE_off/dq = (x_E * dy_E/dq - y_E * dx_E/dq) / (x_E^2 + y_E^2)
-    denom = x_E**2 + y_E**2
-
-    # dy_E/de = (-e/sqe2) * cw,  dx_E/de = 1
-    dE_off_de = (x_E * (-e / sqe2) * cw - y_E * 1.0) / denom
-
-    # dy_E/dw = -sqe2 * sw,  dx_E/dw = cw
-    dE_off_dw = (x_E * (-sqe2 * sw) - y_E * cw) / denom
-
-    # d(offset)/de = dE_off/de * (1 - e*cos(E_off)) - sin(E_off)
-    d_offset_de = dE_off_de * (1.0 - e * cE) - sE
-
-    # d(offset)/dw = dE_off/dw * (1 - e*cos(E_off))
-    d_offset_dw = dE_off_dw * (1.0 - e * cE)
-
-    return offset, d_offset_de, d_offset_dw
 
 
 @njit(fastmath=True)
@@ -128,7 +86,7 @@ def solve_xy_p5_d(phase, p, a, i, e, w):
     # ================================================================
     # Step 2: Mean anomaly offset and its derivatives
     # ================================================================
-    offset, d_offset_de, d_offset_dw = mean_anomaly_offset_d(e, w)
+    offset, d_offset_de, d_offset_dw = mean_anomaly_at_transit_with_derivatives(e, w)
     doffset = zeros(6)
     doffset[4] = d_offset_de
     doffset[5] = d_offset_dw
