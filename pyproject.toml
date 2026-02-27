@@ -29,4 +29,5 @@ include-package-data = true
 include = ['meepmeep', 'meepmeep.xy', 'meepmeep.xyz',
            'meepmeep.backends', 'meepmeep.backends.numba',
            'meepmeep.backends.numba.ts2d', 'meepmeep.backends.numba.ts3d',
+           'meepmeep.backends.jax.ts2d',
            'meepmeep.backends.numba.newton', 'meepmeep.backends.jax']
