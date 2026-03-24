@@ -15,7 +15,7 @@ from meepmeep.backends.numba.ts2d.position import (xy_t15,
     find_contact_point,
     bounding_box,
 )
-from meepmeep.backends.numba.taylor.solve2d import solve_xy_p5
+from meepmeep.backends.numba.taylor.solve2d import solve2d
 from meepmeep.backends.numba.newton.newton import xy_newton_v, z_newton_v
 
 
@@ -73,13 +73,13 @@ class TestSolveXYP5S:
 
     def test_output_shape(self, circular_orbit):
         """Test that output has correct shape (2x5)."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         assert coeffs.shape == (2, 5), f"Expected shape (2, 5), got {coeffs.shape}"
 
     def test_circular_orbit_at_transit(self, circular_orbit):
         """Test Taylor expansion at transit center for circular orbit."""
         phase = 0.0  # transit center
-        coeffs = solve_xy_p5(phase, **circular_orbit)
+        coeffs = solve2d(phase, **circular_orbit)
 
         # At transit center for circular orbit, x should be small, y should be close to -a
         # Position coefficients (column 0)
@@ -91,21 +91,21 @@ class TestSolveXYP5S:
 
     def test_coefficients_finite(self, eccentric_orbit):
         """Test that all coefficients are finite."""
-        coeffs = solve_xy_p5(0.0, **eccentric_orbit)
+        coeffs = solve2d(0.0, **eccentric_orbit)
         assert np.all(np.isfinite(coeffs)), "All coefficients should be finite"
 
     def test_different_phases(self, circular_orbit):
         """Test expansion at different orbital phases."""
         phases = np.linspace(0, circular_orbit["p"], 10)
         for phase in phases:
-            coeffs = solve_xy_p5(phase, **circular_orbit)
+            coeffs = solve2d(phase, **circular_orbit)
             assert coeffs.shape == (2, 5)
             assert np.all(np.isfinite(coeffs))
 
     def test_symmetry_circular_orbit(self, circular_orbit):
         """Test symmetry properties for circular orbit."""
         # For circular orbit centered at transit, y-velocity should be zero
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
 
         # At transit center for circular orbit, y-velocity should be very small
         assert abs(coeffs[1, 1]) < 1e-6, "Y velocity should be near zero at transit center"
@@ -136,7 +136,7 @@ class TestXYT15Functions:
     def test_xy_t15_scalar(self, circular_orbit):
         """Test scalar version of xy_t15."""
         # Get coefficients at transit center
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
 
         # Evaluate at a small time offset
         t = 0.01
@@ -150,7 +150,7 @@ class TestXYT15Functions:
     def test_xy_t15_accuracy_vs_newton(self, circular_orbit):
         """Test accuracy of Taylor approximation vs Newton-Raphson."""
         # Get coefficients at transit center
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
 
         # Test at small time offsets where Taylor series should be very accurate
         times = np.linspace(-0.02, 0.02, 10)
@@ -172,7 +172,7 @@ class TestXYT15Functions:
 
     def test_xy_t15c_centered(self, circular_orbit):
         """Test xy_t15c (centered version)."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         t = 0.01
 
         x, y = xy_t15c(t, coeffs)
@@ -182,7 +182,7 @@ class TestXYT15Functions:
 
     def test_xyd_t15c_includes_distance(self, circular_orbit):
         """Test xyd_t15c returns position and distance."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         t = 0.01
 
         x, y, d = xyd_t15c(t, coeffs)
@@ -197,7 +197,7 @@ class TestProjectedDistance:
 
     def test_pd_t15c_scalar(self, circular_orbit):
         """Test pd_t15c (centered version) for scalar input."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         t = 0.01
 
         d = pd_t15c(t, coeffs)
@@ -208,7 +208,7 @@ class TestProjectedDistance:
 
     def test_pd_t15c_matches_xy(self, eccentric_orbit):
         """Test that pd_t15c matches distance from xy_t15c."""
-        coeffs = solve_xy_p5(0.0, **eccentric_orbit)
+        coeffs = solve2d(0.0, **eccentric_orbit)
         t = 0.02
 
         x, y = xy_t15c(t, coeffs)
@@ -220,7 +220,7 @@ class TestProjectedDistance:
 
     def test_pd_t15c_accuracy_vs_newton(self, circular_orbit):
         """Test projected distance accuracy vs Newton method."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         times = np.array([0.0, 0.01, 0.02])
 
         # Taylor approximation using centered version
@@ -242,7 +242,7 @@ class TestContactPoints:
 
     def test_find_contact_point_returns_finite(self, circular_orbit):
         """Test that find_contact_point returns finite values."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         k = 0.1  # planet-to-star radius ratio
 
         for point in [1, 2, 3, 4]:
@@ -251,7 +251,7 @@ class TestContactPoints:
 
     def test_contact_points_order(self, circular_orbit):
         """Test that contact points are in correct time order."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         k = 0.1
 
         t1 = find_contact_point(k, 1, coeffs)
@@ -267,7 +267,7 @@ class TestContactPoints:
 
     def test_contact_points_symmetry_circular(self, circular_orbit):
         """Test contact point symmetry for circular orbit."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         k = 0.1
 
         t1 = find_contact_point(k, 1, coeffs)
@@ -278,7 +278,7 @@ class TestContactPoints:
 
     def test_bounding_box(self, circular_orbit):
         """Test bounding box calculation."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
         k = 0.1
 
         t1, t4 = bounding_box(k, coeffs)
@@ -290,7 +290,7 @@ class TestContactPoints:
 
     def test_larger_planet_wider_box(self, circular_orbit):
         """Test that larger planet gives wider bounding box."""
-        coeffs = solve_xy_p5(0.0, **circular_orbit)
+        coeffs = solve2d(0.0, **circular_orbit)
 
         k_small = 0.05
         k_large = 0.15
@@ -318,7 +318,7 @@ class TestAccuracyVsNewton:
             "w": 0.5,
         }
 
-        coeffs = solve_xy_p5(0.0, **params)
+        coeffs = solve2d(0.0, **params)
 
         # Test near expansion point
         times = np.linspace(-0.01, 0.01, 20)
@@ -337,7 +337,7 @@ class TestAccuracyVsNewton:
 
     def test_degradation_far_from_expansion(self, eccentric_orbit):
         """Test that accuracy degrades away from expansion point."""
-        coeffs = solve_xy_p5(0.0, **eccentric_orbit)
+        coeffs = solve2d(0.0, **eccentric_orbit)
 
         # Near expansion point
         t_near = 0.01
@@ -369,7 +369,7 @@ class TestEdgeCases:
     def test_zero_eccentricity(self):
         """Test with perfectly circular orbit (e=0)."""
         params = {"p": 3.0, "a": 10.0, "i": 1.5, "e": 0.0, "w": 0.0}
-        coeffs = solve_xy_p5(0.0, **params)
+        coeffs = solve2d(0.0, **params)
 
         assert coeffs.shape == (2, 5)
         assert np.all(np.isfinite(coeffs))
@@ -377,7 +377,7 @@ class TestEdgeCases:
     def test_high_eccentricity(self):
         """Test with high eccentricity (e=0.9)."""
         params = {"p": 5.0, "a": 15.0, "i": 1.5, "e": 0.9, "w": 0.5}
-        coeffs = solve_xy_p5(0.0, **params)
+        coeffs = solve2d(0.0, **params)
 
         assert coeffs.shape == (2, 5)
         assert np.all(np.isfinite(coeffs))
@@ -385,7 +385,7 @@ class TestEdgeCases:
     def test_edge_on_inclination(self):
         """Test with edge-on orbit (i = π/2)."""
         params = {"p": 3.0, "a": 10.0, "i": np.pi/2, "e": 0.1, "w": 0.3}
-        coeffs = solve_xy_p5(0.0, **params)
+        coeffs = solve2d(0.0, **params)
 
         assert coeffs.shape == (2, 5)
         assert np.all(np.isfinite(coeffs))
@@ -396,7 +396,7 @@ class TestEdgeCases:
     def test_very_short_period(self):
         """Test with ultra-short period orbit."""
         params = {"p": 0.5, "a": 5.0, "i": 1.5, "e": 0.0, "w": 0.0}
-        coeffs = solve_xy_p5(0.0, **params)
+        coeffs = solve2d(0.0, **params)
 
         assert coeffs.shape == (2, 5)
         assert np.all(np.isfinite(coeffs))
@@ -404,7 +404,7 @@ class TestEdgeCases:
     def test_very_long_period(self):
         """Test with long period orbit."""
         params = {"p": 100.0, "a": 50.0, "i": 1.5, "e": 0.2, "w": 0.5}
-        coeffs = solve_xy_p5(0.0, **params)
+        coeffs = solve2d(0.0, **params)
 
         assert coeffs.shape == (2, 5)
         assert np.all(np.isfinite(coeffs))

@@ -1,7 +1,7 @@
 from numba import njit
 from numpy import ndarray
 
-from .position3d import pd_t15c
+from .position3d import d3dc
 
 
 @njit
@@ -41,17 +41,17 @@ def find_contact_point(k: float, point: int, c: ndarray):
     t2 = s * 2.0 / vx
     t1 = 0.5 * t2
 
-    z0 = pd_t15c(t0, c) - zt
-    z1 = pd_t15c(t1, c) - zt
+    z0 = d3dc(t0, c) - zt
+    z1 = d3dc(t1, c) - zt
 
     j = 0
     while abs(t2 - t0) > 1e-6 and j < 100:
         if z0 * z1 < 0.0:
             t1, t2 = 0.5 * (t0 + t1), t1
-            z1, z2 = pd_t15c(t1, c) - zt, z1
+            z1, z2 = d3dc(t1, c) - zt, z1
         else:
             t0, t1 = t1, 0.5 * (t1 + t2)
-            z0, z1 = z1, pd_t15c(t1, c) - zt
+            z0, z1 = z1, d3dc(t1, c) - zt
         j += 1
     return t1
 

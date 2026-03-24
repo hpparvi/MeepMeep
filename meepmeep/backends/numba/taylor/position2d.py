@@ -17,11 +17,10 @@
 from numba import njit
 from numpy import floor, sqrt, ndarray, pi
 
-TWO_PI = 2.0 * pi
-
+from ..utils import TWO_PI, HALF_PI
 
 @njit(fastmath=True)
-def xy_t15(tc, t0: float, p: float, c: ndarray):
+def p2d(tc, t0: float, p: float, c: ndarray):
     """Calculate planet's (x, y) position using Taylor series expansion.
 
     Automatically works with both scalar and array time inputs through broadcasting.
@@ -50,7 +49,7 @@ def xy_t15(tc, t0: float, p: float, c: ndarray):
 
 
 @njit(fastmath=True)
-def xy_t15c(t: float, c: ndarray) -> tuple[float, float]:
+def p2dc(t: float, c: ndarray) -> tuple[float, float]:
     """Calculate planet's (x,y) position using Taylor series expansion for t centered on the expansion time.
 
     Parameters
@@ -71,7 +70,21 @@ def xy_t15c(t: float, c: ndarray) -> tuple[float, float]:
 
 
 @njit(fastmath=True)
-def xyd_t15c(t: float, c: ndarray) -> tuple[float, float, float]:
+def d2d(tc, t0, p, c):
+    """Calculate the projected planet-star center (d)istance near transit."""
+    px, py = p2d(tc, t0, p, c)
+    return sqrt(px ** 2 + py ** 2)
+
+
+@njit(fastmath=True)
+def d2dc(tc, c):
+    """Calculate the projected planet-star center (d)istance near transit."""
+    px, py = p2dc(tc, c)
+    return sqrt(px ** 2 + py ** 2)
+
+
+@njit(fastmath=True)
+def pd2d(t: float, c: ndarray) -> tuple[float, float, float]:
     """Calculate planet's (x,y) position and the projected distance for t centered on the expansion time.
 
     Parameters
@@ -89,19 +102,4 @@ def xyd_t15c(t: float, c: ndarray) -> tuple[float, float, float]:
     px = c[0,0] + t*(c[0,1] + t*(c[0,2] + t*(c[0, 3] + t*c[0,4])))
     py = c[1,0] + t*(c[1,1] + t*(c[1,2] + t*(c[1, 3] + t*c[1,4])))
     return px, py, sqrt(px**2 + py**2)
-
-
-@njit(fastmath=True)
-def pd_t15(tc, t0, p, c):
-    """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
-    px, py = xy_t15(tc, t0, p, c)
-    return sqrt(px ** 2 + py ** 2)
-
-
-@njit(fastmath=True)
-def pd_t15c(tc, c):
-    """Calculate the (p)rojected planet-star center (d)istance near (t)ransit."""
-    px, py = xy_t15c(tc, c)
-    return sqrt(px ** 2 + py ** 2)
-
 

@@ -2,13 +2,11 @@ from numba import njit
 from numpy import ndarray, sqrt, cos, sin, zeros, linspace, pi
 
 from ..newton.newton import ea_from_ma
-from ..utils import mean_anomaly_at_transit
-
-TWO_PI = 2.0 * pi
+from ..utils import mean_anomaly_at_transit, TWO_PI
 
 
 @njit(fastmath=True)
-def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) -> ndarray:
+def solve2d(phase: float, p: float, a: float, i: float, e: float, w: float) -> ndarray:
     """ Calculate the Taylor expansion for the (x, y) position around a given phase angle.
 
     Parameters
@@ -133,39 +131,3 @@ def solve_xy_p5(phase: float, p: float, a: float, i: float, e: float, w: float) 
 
     return cf
 
-
-@njit
-def solve_xy_o5(p: float, a: float, i: float, e: float, w: float, npt: int):
-    """Calculate the 2D Taylor series expansion for a Keplerian orbit in npt points along the orbit.
-
-    Parameters
-    ----------
-    p : float
-        Orbital period [days].
-    a : float
-        Semi-major axis [R_star].
-    i : float
-        Inclination [rad].
-    e : float
-        Eccentricity.
-    w : float
-        Argument of periastron [rad].
-    npt : int
-        Number of points.
-
-    Returns
-    -------
-    dt : float
-        Time interval between points.
-    points : ndarray
-        Array of points in the range [0, p].
-    coeffs : ndarray
-        Array of coefficients calculated for each point.
-    """
-    points = linspace(0.0, p, npt)
-    dt = points[1] - points[0]
-    coeffs = zeros((npt, 2, 5))
-    for ix in range(npt-1):
-        coeffs[ix, :, :] = solve_xy_p5(points[ix], p, a, i, e, w)
-    coeffs[-1] = coeffs[0]
-    return dt, points, coeffs

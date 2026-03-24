@@ -3,13 +3,11 @@ from numpy import zeros, sqrt, cos, sin, pi
 from numpy.typing import NDArray
 
 from ..newton.newton import ea_from_ma
-from ..utils import mean_anomaly_at_transit_with_derivatives
-
-TWO_PI = 2.0 * pi
+from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 
 @njit(fastmath=True)
-def solve_d(phase, p, a, i, e, w) -> tuple[NDArray, NDArray]:
+def solve3d_d(phase, p, a, i, e, w) -> tuple[NDArray, NDArray]:
     """Calculate Taylor expansion coefficients and their parameter derivatives for 3D position.
 
     Parameters

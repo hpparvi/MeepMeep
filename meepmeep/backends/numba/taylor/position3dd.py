@@ -15,13 +15,12 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import floor, sqrt, zeros, pi
-
-TWO_PI = 2.0 * pi
+from numpy import floor, sqrt, zeros
+from numpy.typing import NDArray
 
 
 @njit(fastmath=True)
-def xyz_t15c_d(t, c, dc):
+def p3dc_d(t, c, dc):
     """Calculate planet's (x, y, z) position and parameter derivatives using Taylor series.
 
     Parameters
@@ -56,7 +55,7 @@ def xyz_t15c_d(t, c, dc):
 
 
 @njit(fastmath=True)
-def xyz_t15_d(t, t0, p, c, dc):
+def p3d_d(t, t0, p, c, dc):
     """Calculate planet's (x, y, z) position and parameter derivatives using Taylor series.
 
     Parameters
@@ -80,11 +79,11 @@ def xyz_t15_d(t, t0, p, c, dc):
         Derivatives of (px, py, pz) w.r.t. (phase, p, a, i, e, w).
     """
     epoch = floor((t - t0 + 0.5 * p) / p)
-    return xyz_t15c_d(t - (t0 + epoch * p), c, dc)
+    return p3dc_d(t - (t0 + epoch * p), c, dc)
 
 
 @njit(fastmath=True)
-def pd_t15c_d(t, c, dc):
+def d3dc_d(t, c, dc):
     """Calculate projected planet-star distance and its parameter derivatives.
 
     Parameters
@@ -103,8 +102,8 @@ def pd_t15c_d(t, c, dc):
     dd : ndarray (6,)
         Derivatives of d w.r.t. (phase, p, a, i, e, w).
     """
-    px, py, pz, dpx, dpy, dpz = xyz_t15c_d(t, c, dc)
-    d = sqrt(px**2 + py**2)
+    px, py, pz, dpx, dpy, dpz = p3dc_d(t, c, dc)
+    d = sqrt(px ** 2 + py ** 2)
     dd = zeros(6)
     for k in range(6):
         dd[k] = (px * dpx[k] + py * dpy[k]) / d
@@ -112,7 +111,7 @@ def pd_t15c_d(t, c, dc):
 
 
 @njit(fastmath=True)
-def pd_t15_d(tc, t0, p, c, dc):
+def d3d_d(tc, t0, p, c, dc):
     """Calculate projected planet-star distance and its parameter derivatives.
 
     Parameters
@@ -136,4 +135,59 @@ def pd_t15_d(tc, t0, p, c, dc):
         Derivatives of d w.r.t. (phase, p, a, i, e, w).
     """
     epoch = floor((tc - t0 + 0.5 * p) / p)
-    return pd_t15c_d(tc - (t0 + epoch * p), c, dc)
+    return d3dc_d(tc - (t0 + epoch * p), c, dc)
+
+
+@njit(fastmath=True)
+def z3dc_d(t: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+    """Calculate planet's z position and its parameter derivatives.
+
+    Parameters
+    ----------
+    t : float
+        Time centered on the expansion time.
+    c : ndarray (3, 5)
+        Position Taylor coefficients from solve_xyz_p5.
+    dc : ndarray (6, 3, 5)
+        Parameter derivative coefficients from solve_xyz_p5_d.
+
+    Returns
+    -------
+    pz : float
+        The z position.
+    dpz : ndarray (6,)
+        Derivatives of pz w.r.t. (phase, p, a, i, e, w).
+    """
+    pz = c[2, 0] + t * (c[2, 1] + t * (c[2, 2] + t * (c[2, 3] + t * c[2, 4])))
+    dpz = zeros(6)
+    for k in range(6):
+        dpz[k] = dc[k, 2, 0] + t * (dc[k, 2, 1] + t * (dc[k, 2, 2] + t * (dc[k, 2, 3] + t * dc[k, 2, 4])))
+    return pz, dpz
+
+
+@njit(fastmath=True)
+def z3d_d(tc: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+    """Calculate planet's z position and its parameter derivatives.
+
+    Parameters
+    ----------
+    tc : float
+        The current time.
+    t0 : float
+        The Taylor series expansion time.
+    p : float
+        The orbital period.
+    c : ndarray (3, 5)
+        Position Taylor coefficients from solve_xyz_p5.
+    dc : ndarray (6, 3, 5)
+        Parameter derivative coefficients from solve_xyz_p5_d.
+
+    Returns
+    -------
+    pz : float
+        The z position.
+    dpz : ndarray (6,)
+        Derivatives of pz w.r.t. (phase, p, a, i, e, w).
+    """
+    epoch = floor((tc - t0 + 0.5 * p) / p)
+    return z3dc_d(tc - (t0 + epoch * p), c, dc)

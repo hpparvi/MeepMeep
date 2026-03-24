@@ -2,7 +2,7 @@ from numpy import asarray, zeros, arctan2
 
 from .backends.numba.utils import as_from_rhop, i_from_baew
 from .backends.numba.ts2d.position import pd_t15, xy_t15
-from .backends.numba.taylor.solve2d import solve_xy_p5
+from .backends.numba.taylor.solve2d import solve2d
 from .backends.numba.ts2d.derivatives import pd_with_derivatives_v, xy_derivative_coeffs
 from .backends.numba.ts2d.par_direct import diffs as diffs_natural
 from .backends.numba.ts2d.par_fitting import partial_derivatives as diffs_fitting
@@ -20,7 +20,7 @@ class Knot2D:
         self.e = e
         self.w = w
 
-        self._coeffs = solve_xy_p5(phase, p, a, i, e, w)
+        self._coeffs = solve2d(phase, p, a, i, e, w)
         if derivatives:
             self._c_derivative_coeffs()
 
@@ -40,13 +40,13 @@ class Knot2D:
     def _pd_numerical_derivatives(self, t, e=1e-4):
         t = asarray(t)
         res = zeros((6, t.size))
-        r0 = pd_t15(t, self.t0, self.p, solve_xy_p5(self.phase, self.p, self.a, self.i, self.e, self.w))
-        res[0] = pd_t15(t, self.t0, self.p, solve_xy_p5(self.phase + e, self.p, self.a, self.i, self.e, self.w))
-        res[1] = pd_t15(t, self.t0, self.p + e, solve_xy_p5(self.phase, self.p + e, self.a, self.i, self.e, self.w))
-        res[2] = pd_t15(t, self.t0, self.p, solve_xy_p5(self.phase, self.p, self.a + e, self.i, self.e, self.w))
-        res[3] = pd_t15(t, self.t0, self.p, solve_xy_p5(self.phase, self.p, self.a, self.i + e, self.e, self.w))
-        res[4] = pd_t15(t, self.t0, self.p, solve_xy_p5(self.phase, self.p, self.a, self.i, self.e + e, self.w))
-        res[5] = pd_t15(t, self.t0, self.p, solve_xy_p5(self.phase, self.p, self.a, self.i, self.e, self.w + e))
+        r0 = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i, self.e, self.w))
+        res[0] = pd_t15(t, self.t0, self.p, solve2d(self.phase + e, self.p, self.a, self.i, self.e, self.w))
+        res[1] = pd_t15(t, self.t0, self.p + e, solve2d(self.phase, self.p + e, self.a, self.i, self.e, self.w))
+        res[2] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a + e, self.i, self.e, self.w))
+        res[3] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i + e, self.e, self.w))
+        res[4] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i, self.e + e, self.w))
+        res[5] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i, self.e, self.w + e))
         res = (res - r0) / e
         return res
 

@@ -2,13 +2,11 @@ from numba import njit
 from numpy import zeros, sqrt, cos, sin, pi
 
 from ..newton.newton import ea_from_ma
-from ..utils import mean_anomaly_at_transit_with_derivatives
-
-TWO_PI = 2.0 * pi
+from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 
 @njit(fastmath=True)
-def solve_xy_p5_d(phase, p, a, i, e, w):
+def solve2d_d(phase, p, a, i, e, w):
     """Calculate Taylor expansion coefficients and their parameter derivatives.
 
     Parameters
