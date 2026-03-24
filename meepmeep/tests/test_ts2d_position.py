@@ -7,9 +7,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.ts2d.position import (
-    solve_xy_p5,
-    xy_t15,
+from meepmeep.backends.numba.ts2d.position import (xy_t15,
     xy_t15c,
     xyd_t15c,
     pd_t15,
@@ -17,6 +15,7 @@ from meepmeep.backends.numba.ts2d.position import (
     find_contact_point,
     bounding_box,
 )
+from meepmeep.backends.numba.taylor.solve2d import solve_xy_p5
 from meepmeep.backends.numba.newton.newton import xy_newton_v, z_newton_v
 
 

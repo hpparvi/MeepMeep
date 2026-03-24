@@ -1,32 +1,16 @@
-#  MeepMeep: fast orbit calculations for exoplanet modelling
-#  Copyright (C) 2022 Hannu Parviainen
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 from numba import njit
-from numpy import cos, sin, floor, sqrt, zeros, ndarray, pi, arctan2
+from numpy import zeros, sqrt, cos, sin, pi
+from numpy.typing import NDArray
 
 from ..newton.newton import ea_from_ma
 from ..utils import mean_anomaly_at_transit_with_derivatives
 
 TWO_PI = 2.0 * pi
-HALF_PI = 0.5 * pi
 
 
 @njit(fastmath=True)
-def solve_xy_p5_d(phase, p, a, i, e, w):
-    """Calculate Taylor expansion coefficients and their parameter derivatives.
+def solve_d(phase, p, a, i, e, w) -> tuple[NDArray, NDArray]:
+    """Calculate Taylor expansion coefficients and their parameter derivatives for 3D position.
 
     Parameters
     ----------
@@ -45,9 +29,9 @@ def solve_xy_p5_d(phase, p, a, i, e, w):
 
     Returns
     -------
-    cf : ndarray (2, 5)
-        Position Taylor coefficients (identical to solve_xy_p5 output).
-    dcf : ndarray (6, 2, 5)
+    cf : ndarray (3, 5)
+        Position Taylor coefficients (identical to solve_xyz_p5 output).
+    dcf : ndarray (6, 3, 5)
         Parameter derivative coefficients. dcf[k] = d(cf)/d(theta_k)
         for theta = (phase, p, a, i, e, w).
     """
@@ -187,7 +171,6 @@ def solve_xy_p5_d(phase, p, a, i, e, w):
     inv_r5 = inv_r3 / r2
     inv_r7 = inv_r5 / r2
 
-    # d(r^(-n))/dq = -n * r^(-n-1) * dr/dq = -n * r^(-n) * dr/dq / r
     dinv_r3 = zeros(6)
     dinv_r5 = zeros(6)
     dinv_r7 = zeros(6)
@@ -259,27 +242,42 @@ def solve_xy_p5_d(phase, p, a, i, e, w):
     # ================================================================
     # Step 6: Rotation matrix and its derivatives
     # ================================================================
+    # X = -xi * cw + eta * sw          (toward observer)
+    # Y = (-xi * sw - eta * cw) * ci   (sky plane)
+    # Z = (xi * sw + eta * cw) * si    (above sky plane)
+
     m00 = -cw
     m01 = sw
     m10 = -sw * ci
     m11 = -cw * ci
+    m20 = sw * si
+    m21 = cw * si
 
     dm00 = zeros(6)
     dm01 = zeros(6)
     dm10 = zeros(6)
     dm11 = zeros(6)
+    dm20 = zeros(6)
+    dm21 = zeros(6)
+
     dm00[5] = sw
     dm01[5] = cw
+
     dm10[3] = sw * si
     dm10[5] = -cw * ci
     dm11[3] = cw * si
     dm11[5] = sw * ci
 
+    dm20[3] = sw * ci
+    dm20[5] = cw * si
+    dm21[3] = cw * ci
+    dm21[5] = -sw * si
+
     # ================================================================
     # Step 7: Assemble output
     # ================================================================
-    cf = zeros((2, 5))
-    dcf = zeros((6, 2, 5))
+    cf = zeros((3, 5))
+    dcf = zeros((6, 3, 5))
 
     # Orbital plane quantities grouped by Taylor order
     q_xi = (xi, v_xi, a_xi, j_xi, s_xi)
@@ -288,141 +286,22 @@ def solve_xy_p5_d(phase, p, a, i, e, w):
     dq_eta = (deta, dv_eta, da_eta, dj_eta, ds_eta)
     scale = (1.0, 1.0, 0.5, 1.0/6.0, 1.0/24.0)
 
+    # Row rotation elements: (m_row0, m_row1, dm_row0, dm_row1) for each row
+    m_rows = ((m00, m01, dm00, dm01),
+              (m10, m11, dm10, dm11),
+              (m20, m21, dm20, dm21))
+
     for col in range(5):
         qx = q_xi[col]
         qe = q_eta[col]
         s = scale[col]
 
-        cf[0, col] = (m00 * qx + m01 * qe) * s
-        cf[1, col] = (m10 * qx + m11 * qe) * s
-
-        for k in range(6):
-            dqx = dq_xi[col][k]
-            dqe = dq_eta[col][k]
-            dcf[k, 0, col] = (dm00[k] * qx + m00 * dqx + dm01[k] * qe + m01 * dqe) * s
-            dcf[k, 1, col] = (dm10[k] * qx + m10 * dqx + dm11[k] * qe + m11 * dqe) * s
+        for row in range(3):
+            mr0, mr1, dmr0, dmr1 = m_rows[row]
+            cf[row, col] = (mr0 * qx + mr1 * qe) * s
+            for k in range(6):
+                dqx = dq_xi[col][k]
+                dqe = dq_eta[col][k]
+                dcf[k, row, col] = (dmr0[k] * qx + mr0 * dqx + dmr1[k] * qe + mr1 * dqe) * s
 
     return cf, dcf
-
-@njit(fastmath=True)
-def xy_t15c_d(t, c, dc):
-    """Calculate planet's (x, y) position and parameter derivatives using Taylor series.
-
-    Parameters
-    ----------
-    t : float
-        The current time.
-    c : ndarray (2, 5)
-        Position Taylor coefficients from solve_xy_p5.
-    dc : ndarray (6, 2, 5)
-        Parameter derivative coefficients from solve_xy_p5_d.
-
-    Returns
-    -------
-    px : float
-        Sky-plane x position.
-    py : float
-        Sky-plane y position.
-    dpx : ndarray (6,)
-        Derivatives of px w.r.t. (phase, p, a, i, e, w).
-    dpy : ndarray (6,)
-        Derivatives of py w.r.t. (phase, p, a, i, e, w).
-    """
-    px = c[0, 0] + t * (c[0, 1] + t * (c[0, 2] + t * (c[0, 3] + t * c[0, 4])))
-    py = c[1, 0] + t * (c[1, 1] + t * (c[1, 2] + t * (c[1, 3] + t * c[1, 4])))
-
-    dpx = zeros(6)
-    dpy = zeros(6)
-    for k in range(6):
-        dpx[k] = dc[k, 0, 0] + t * (dc[k, 0, 1] + t * (dc[k, 0, 2] + t * (dc[k, 0, 3] + t * dc[k, 0, 4])))
-        dpy[k] = dc[k, 1, 0] + t * (dc[k, 1, 1] + t * (dc[k, 1, 2] + t * (dc[k, 1, 3] + t * dc[k, 1, 4])))
-
-    return px, py, dpx, dpy
-
-
-@njit(fastmath=True)
-def xy_t15_d(t, t0, p, c, dc):
-    """Calculate planet's (x, y) position and parameter derivatives using Taylor series.
-
-    Parameters
-    ----------
-    t : float
-        The current time.
-    t0 : float
-        The Taylor series expansion time.
-    p : float
-        The orbital period.
-    c : ndarray (2, 5)
-        Position Taylor coefficients from solve_xy_p5.
-    dc : ndarray (6, 2, 5)
-        Parameter derivative coefficients from solve_xy_p5_d.
-
-    Returns
-    -------
-    px : float
-        Sky-plane x position.
-    py : float
-        Sky-plane y position.
-    dpx : ndarray (6,)
-        Derivatives of px w.r.t. (phase, p, a, i, e, w).
-    dpy : ndarray (6,)
-        Derivatives of py w.r.t. (phase, p, a, i, e, w).
-    """
-    epoch = floor((t - t0 + 0.5 * p) / p)
-    return xy_t15c_d(tc - (t0 + epoch * p), c, dc)
-
-
-@njit(fastmath=True)
-def pd_t15c_d(t, c, dc):
-    """Calculate projected planet-star distance and its parameter derivatives.
-
-    Parameters
-    ----------
-    tc : float
-        The current time.
-    c : ndarray (2, 5)
-        Position Taylor coefficients from solve_xy_p5.
-    dc : ndarray (6, 2, 5)
-        Parameter derivative coefficients from solve_xy_p5_d.
-
-    Returns
-    -------
-    d : float
-        Projected planet-star distance.
-    dd : ndarray (6,)
-        Derivatives of d w.r.t. (phase, p, a, i, e, w).
-    """
-    px, py, dpx, dpy = xy_t15c_d(t, c, dc)
-    d = sqrt(px ** 2 + py ** 2)
-    dd = zeros(6)
-    for k in range(6):
-        dd[k] = (px * dpx[k] + py * dpy[k]) / d
-    return d, dd
-
-
-@njit(fastmath=True)
-def pd_t15_d(tc, t0, p, c, dc):
-    """Calculate projected planet-star distance and its parameter derivatives.
-
-    Parameters
-    ----------
-    tc : float
-        The current time.
-    t0 : float
-        The Taylor series expansion time.
-    p : float
-        The orbital period.
-    c : ndarray (2, 5)
-        Position Taylor coefficients from solve_xy_p5.
-    dc : ndarray (6, 2, 5)
-        Parameter derivative coefficients from solve_xy_p5_d.
-
-    Returns
-    -------
-    d : float
-        Projected planet-star distance.
-    dd : ndarray (6,)
-        Derivatives of d w.r.t. (phase, p, a, i, e, w).
-    """
-    epoch = floor((t - t0 + 0.5 * p) / p)
-    return pd_t15c_d(tc - (t0 + epoch * p), c, dc)

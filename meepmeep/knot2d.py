@@ -1,7 +1,8 @@
 from numpy import asarray, zeros, arctan2
 
 from .backends.numba.utils import as_from_rhop, i_from_baew
-from .backends.numba.ts2d.position import pd_t15, solve_xy_p5, xy_t15
+from .backends.numba.ts2d.position import pd_t15, xy_t15
+from .backends.numba.taylor.solve2d import solve_xy_p5
 from .backends.numba.ts2d.derivatives import pd_with_derivatives_v, xy_derivative_coeffs
 from .backends.numba.ts2d.par_direct import diffs as diffs_natural
 from .backends.numba.ts2d.par_fitting import partial_derivatives as diffs_fitting
