@@ -129,13 +129,3 @@ def solve3d(phase: float, p: float, a: float, i: float, e: float, w: float) -> N
     cf[2, 4] = (m20 * s_xi + m21 * s_eta) / 24.0
 
     return cf
-
-
-@njit
-def solve3d_o(knot_times, p, a, i, e, w, npt):
-    coeffs = zeros((npt, 3, 5))
-    to = mean_anomaly_at_transit(e, w) / (2 * pi) * p
-    for ix in range(npt-1):
-        coeffs[ix, :, :] = solve3d(p*knot_times[ix] - to, p, a, i, e, w)
-    coeffs[-1, :, :] = coeffs[0, :, :]
-    return coeffs
