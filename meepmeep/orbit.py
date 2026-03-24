@@ -7,8 +7,8 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, array, sqrt, 
 from .backends.numba.knots import create_knots
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
 from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector
-from .backends.numba.ts3d.extended import (
-    solve_xyz_o5s,
+from .backends.numba.taylor.orbit3d import solve3d_orbit as solve_xyz_o5s
+from .backends.numba.taylor.extended3d import (
     xyz_o5v,
     cos_alpha_o5v,
     light_travel_time_o5v,
