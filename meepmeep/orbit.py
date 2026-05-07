@@ -2,7 +2,7 @@ from typing import Optional
 
 from matplotlib.patches import Circle, Wedge
 from matplotlib.pyplot import subplots, setp
-from numpy import arccos, ndarray, mod, argmin, degrees, linspace, array, sqrt, sin, cos
+from numpy import arccos, ndarray, mod, argmin, degrees, linspace
 
 from .backends.numba.knots import create_knots
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
@@ -11,7 +11,6 @@ from .backends.numba.taylor.orbit3d import solve3d_orbit as solve_xyz_o5s
 from .backends.numba.taylor.extended3d import (
     xyz_o5v,
     cos_alpha_o5v,
-    light_travel_time_o5v,
     vxyz_o5v,
     true_anomaly_o5v,
     rv_o5v,
@@ -110,9 +109,10 @@ class Orbit:
         )
 
     def light_travel_time(self, rstar: float):
-        return light_travel_time_o5v(
-            self.times, self._tc, self._p, rstar, self._dt, self._tptable, self._points, self._coeffs
-        )
+        raise NotImplementedError("Light travel time not implemented for Orbit class.")
+        #return light_travel_time_o5v(
+        #    self.times, self._tc, self._p, rstar, self._dt, self._tptable, self._points, self._coeffs
+        #)
 
     def radial_velocity(self, k: float):
         return rv_o5v(
