@@ -14,6 +14,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from semantic_version import Version
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
-__version__ = Version('0.8.0')
+try:
+    __version__ = _pkg_version("MeepMeep")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
