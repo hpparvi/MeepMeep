@@ -1,8 +1,6 @@
 from numba import njit
-from numpy import ndarray, floor, pi, sqrt, sin, zeros
+from numpy import ndarray, floor, pi, sqrt, sin
 from numpy.typing import NDArray
-
-from meepmeep.backends.numba.taylor.orbit3d import knot_ix
 
 
 @njit(fastmath=True)
@@ -52,18 +50,5 @@ def rv(t, k, t0, p, a, i, e, c):
     """Calculate radial velocity induced by the planet."""
     n = 2 * pi / p * (a * sin(i)) / sqrt(1 - e ** 2)
     return vz(t, t0, p, c) / n * k
-
-
-@njit
-def rvo(times, k, t0, p, a, i, e, dt, pktable, points, coeffs):
-    """Calculate radial velocity induced by the planet."""
-    npt = times.size
-    rvs = zeros(npt)
-    n = 2*pi/p * (a*sin(i))/sqrt(1-e**2)
-    for i in range(npt):
-        ix = knot_ix(times[i], t0, p, dt, pktable)
-        t0 -= points[ix] * p
-        rvs[i] = vz(times[i], t0, p, coeffs[ix]) / n * k
-    return rvs
 
 
