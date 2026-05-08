@@ -41,7 +41,14 @@ from ..utils import mean_anomaly, mean_anomaly_at_transit
 
 @njit
 def solve3d_orbit(knot_times, p, a, i, e, w, npt):
-    """Pre-compute Taylor coefficients at every knot of one orbit."""
+    """Pre-compute Taylor coefficients at every knot of one orbit.
+
+    Requires ``knot_times[-1]`` to be the periodic image of ``knot_times[0]``
+    (i.e. one full period later in normalised phase). ``knots.create_knots``
+    enforces this; if you build ``knot_times`` by hand, ensure the contract
+    holds — the last knot's coefficients are copied from the first instead
+    of being recomputed.
+    """
     coeffs = zeros((npt, 3, 5))
     to = mean_anomaly_at_transit(e, w) / (2 * pi) * p
     for ix in range(npt - 1):
@@ -160,15 +167,25 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     """True anomaly from the angle between the position and the eccentricity vector."""
     npt = times.size
     f = zeros(npt)
-    if ex <= -0.9999:
-        # Circular-orbit fallback: true anomaly == mean anomaly.
+    nes = ex * ex + ey * ey + ez * ez
+    # Circular-orbit fast path: ``utils.eccentricity_vector`` returns the
+    # sentinel ``[-1, 0, 0]`` when ``e < 1e-5``. Detecting it here lets us
+    # short-circuit to mean anomaly (which equals true anomaly for a
+    # circular orbit) and avoid the geometric path's noisy small-``nes``
+    # arithmetic.
+    if ex <= -0.9999 and nes > 0.99:
         f[:] = mean_anomaly(times, t0, p, 0.0, w)
     else:
-        nes = ex ** 2 + ey ** 2 + ez ** 2
         for i in range(npt):
-            x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
-            vx, vy, vz = vxyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
-            edp = (x * ex + y * ey + z * ez) / sqrt((x ** 2 + y ** 2 + z ** 2) * nes)
+            t = times[i]
+            epoch = floor((t - t0) / p)
+            tc = t - t0 - epoch * p
+            ix = pktable[int(floor(tc / (dt * p)))]
+            tcc = tc - points[ix] * p
+            c = coeffs[ix]
+            x, y, z = p3dc(tcc, c)
+            vx, vy, vz = v3dc(tcc, c)
+            edp = (x * ex + y * ey + z * ez) / sqrt((x * x + y * y + z * z) * nes)
 
             if edp <= -1.0:
                 f[i] = pi
@@ -181,93 +198,133 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     return f
 
 
-@njit
+@njit(fastmath=True)
 def cos_v_p_angle_o5v(v, times, t0, p, dt, pktable, points, coeffs):
     """Cosine of the angle between the planet position and a fixed reference vector `v`."""
-    px, py, pz = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
-    np_ = sqrt(px ** 2 + py ** 2 + pz ** 2)
-    nv = sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
-    return (px * v[0] + py * v[1] + pz * v[2]) / (np_ * nv)
+    n = times.size
+    out = zeros(n)
+    inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+    for i in range(n):
+        x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        out[i] = (x * v[0] + y * v[1] + z * v[2]) * inv_nv / sqrt(x * x + y * y + z * z)
+    return out
 
 
-@njit
+@njit(fastmath=True)
 def cos_alpha_o5s(t, t0, p, dt, pktable, points, coeffs):
     """Cosine of the phase angle at scalar time `t`."""
     x, y, z = xyz_o5s(t, t0, p, dt, pktable, points, coeffs)
-    return -z / sqrt(x ** 2 + y ** 2 + z ** 2)
+    return -z / sqrt(x * x + y * y + z * z)
 
 
-@njit
+@njit(fastmath=True)
 def cos_alpha_o5v(times, t0, p, dt, pktable, points, coeffs):
     """Cosine of the phase angle at an array of times."""
-    x, y, z = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
-    return -z / sqrt(x ** 2 + y ** 2 + z ** 2)
+    n = times.size
+    out = zeros(n)
+    for i in range(n):
+        x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        out[i] = -z / sqrt(x * x + y * y + z * z)
+    return out
 
 
-@njit
+@njit(fastmath=True)
 def star_planet_distance_o5v(times, t0, p, dt, pktable, points, coeffs):
     """3D star-planet distance at an array of times."""
-    x, y, z = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
-    return sqrt(x ** 2 + y ** 2 + z ** 2)
+    n = times.size
+    out = zeros(n)
+    for i in range(n):
+        x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        out[i] = sqrt(x * x + y * y + z * z)
+    return out
 
 
 # ---------------------------------------------------------------------------
 # Photometric/RV signals
 # ---------------------------------------------------------------------------
 
-@njit
+@njit(fastmath=True)
+def _lambert_kernel(cos_alpha):
+    """Lambertian phase function evaluated at a cosine of the phase angle.
+
+    Equivalent to ``(sin(arccos(c)) + (pi - arccos(c)) * c) / pi`` but uses
+    ``sqrt(1 - c**2)`` instead of ``sin(arccos(c))`` to skip one trig call,
+    and clamps ``c`` to ``[-1, 1]`` so a Taylor-rounding overshoot can't
+    produce a NaN from ``arccos``.
+    """
+    if cos_alpha > 1.0:
+        cos_alpha = 1.0
+    elif cos_alpha < -1.0:
+        cos_alpha = -1.0
+    sin_alpha = sqrt(1.0 - cos_alpha * cos_alpha)
+    alpha = arccos(cos_alpha)
+    return (sin_alpha + (pi - alpha) * cos_alpha) / pi, alpha
+
+
+@njit(fastmath=True)
 def lambert_phase_curve_o5s(time, ag, a, k, t0, p, dt, pktable, points, coeffs):
     """Lambertian phase-curve flux contribution at a scalar time."""
-    amplitude = k ** 2 * ag / a ** 2
+    amplitude = k * k * ag / (a * a)
     cos_alpha = cos_alpha_o5s(time, t0, p, dt, pktable, points, coeffs)
-    alpha = arccos(cos_alpha)
-    return amplitude * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
+    phase, _ = _lambert_kernel(cos_alpha)
+    return amplitude * phase
 
 
-@njit
+@njit(fastmath=True)
 def lambert_phase_curve_o5v(times, ag, a, k, t0, p, dt, pktable, points, coeffs):
     """Lambertian phase-curve flux contribution at an array of times."""
-    npt = times.size
-    res = zeros(npt)
-    amplitude = k ** 2 * ag / a ** 2
-    for i in range(npt):
+    n = times.size
+    res = zeros(n)
+    amplitude = k * k * ag / (a * a)
+    for i in range(n):
         cos_alpha = cos_alpha_o5s(times[i], t0, p, dt, pktable, points, coeffs)
-        alpha = arccos(cos_alpha)
-        res[i] = amplitude * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
+        phase, _ = _lambert_kernel(cos_alpha)
+        res[i] = amplitude * phase
     return res
 
 
-@njit
+@njit(fastmath=True)
 def lambert_and_emission_o5v(times, ag, fr_night, fr_day, emi_offset, a, k,
                              t0, p, dt, pktable, points, coeffs):
     """Lambertian reflection plus a simple cosine-emission day/night model."""
-    npt = times.size
-    ref, emi = zeros(npt), zeros(npt)
-    k2 = k ** 2
-    aref = k2 * ag / a ** 2
-    for i in range(npt):
+    n = times.size
+    ref, emi = zeros(n), zeros(n)
+    k2 = k * k
+    aref = k2 * ag / (a * a)
+    for i in range(n):
         cos_alpha = cos_alpha_o5s(times[i], t0, p, dt, pktable, points, coeffs)
-        alpha = arccos(cos_alpha)
-        ref[i] = aref * (sin(alpha) + (pi - alpha) * cos_alpha) / pi
+        phase, alpha = _lambert_kernel(cos_alpha)
+        ref[i] = aref * phase
         emi[i] = k2 * (fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cos(alpha + emi_offset)))
     return ref, emi
 
 
-@njit
+@njit(fastmath=True)
 def ev_signal_o5v(alpha, mass_ratio, inc, times, t0, p, dt, pktable, points, coeffs):
-    """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6–10)."""
-    x, y, z = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
-    distance = sqrt(x ** 2 + y ** 2 + z ** 2)
-    theta = arccos(z / distance)
-    return -alpha * mass_ratio * sin(inc) ** 2 * cos(2 * theta) / distance ** 3
+    """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6–10).
+
+    Uses the identity ``cos(2*arccos(u)) = 2*u**2 - 1`` to avoid a redundant
+    arccos/cos pair.
+    """
+    n = times.size
+    out = zeros(n)
+    sin2_inc = sin(inc) ** 2
+    pre = -alpha * mass_ratio * sin2_inc
+    for i in range(n):
+        x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        d2 = x * x + y * y + z * z
+        d = sqrt(d2)
+        cz = z / d
+        out[i] = pre * (2.0 * cz * cz - 1.0) / (d2 * d)
+    return out
 
 
-@njit
+@njit(fastmath=True)
 def rv_o5v(times, k, t0, p, a, i, e, dt, pktable, points, coeffs):
     """Radial velocity at an array of times (Perryman 2018, Eq. 2.23)."""
-    npt = times.size
-    rvs = zeros(npt)
-    n = 2 * pi / p * (a * sin(i)) / sqrt(1 - e ** 2)
-    for j in range(npt):
-        rvs[j] = vz_o5s(times[j], t0, p, dt, pktable, points, coeffs) / n * k
+    n = times.size
+    rvs = zeros(n)
+    scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
+    for j in range(n):
+        rvs[j] = vz_o5s(times[j], t0, p, dt, pktable, points, coeffs) * scale
     return rvs

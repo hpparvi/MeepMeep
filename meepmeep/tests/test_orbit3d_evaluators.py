@@ -216,5 +216,36 @@ class TestOrbitClass:
         assert np.all(np.isfinite(ev))
 
 
+class TestContracts:
+    """Lock down implicit contracts that other code relies on."""
+
+    def test_solve3d_orbit_periodic_boundary(self, test_orbital_params):
+        """``solve3d_orbit`` copies the first knot's coefficients to the last
+        slot — but that's only correct if ``knot_times[-1]`` is the periodic
+        image of ``knot_times[0]``. Pin the contract so a future change to
+        ``create_knots`` can't silently break the wrap-around."""
+        pars = test_orbital_params["eccentric"]
+        knot_times, _, _, _ = create_knots(NPT, pars["e"], "ea")
+        # Phase-domain check: knot_times spans exactly one period.
+        assert knot_times[0] == 0.0
+        assert knot_times[-1] == 1.0
+        coeffs = solve3d_orbit(knot_times, **pars, npt=NPT)
+        assert_allclose(coeffs[-1], coeffs[0], rtol=1e-12)
+
+    def test_true_anomaly_circular_no_nan(self, test_orbital_params):
+        """``true_anomaly_o5v`` must produce finite values for orbits with
+        e at or below the ``eccentricity_vector`` sentinel cutoff (1e-5)."""
+        pars = dict(test_orbital_params["circular"])
+        for e in [0.0, 1e-7, 1e-6]:
+            pars["e"] = e
+            times, tc, dt, pkt, pts, c = _setup(pars)
+            ev = eccentricity_vector(pars["i"], pars["e"], pars["w"])
+            f = true_anomaly_o5v(times, tc, pars["p"], ev[0], ev[1], ev[2],
+                                 pars["w"], dt, pkt, pts, c)
+            assert np.all(np.isfinite(f)), f"NaN in true anomaly for e={e}"
+            # For a circular orbit it should equal mean anomaly mod 2*pi.
+            assert np.all((f >= 0.0) & (f < 2 * np.pi + 1e-9))
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
