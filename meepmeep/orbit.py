@@ -23,32 +23,13 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 from .backends.numba.knots import create_knots
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
 from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector
-from .backends.numba.taylor.orbit3d import (
-    solve3d_orbit as solve_xyz_o5s,
-    xyz_o5v,
-    cos_alpha_o5v,
-    vxyz_o5v,
-    true_anomaly_o5v,
-    rv_o5v,
-    star_planet_distance_o5v,
-    ev_signal_o5v,
-    lambert_phase_curve_o5v,
-    lambert_and_emission_o5v,
-    light_travel_time_o5v,
-)
-from .backends.numba.taylor.orbit3dd import (
-    solve3d_orbit_d,
-    xyz_o5v_d,
-    cos_alpha_o5v_d,
-    vxyz_o5v_d,
-    true_anomaly_o5v_d,
-    rv_o5v_d,
-    star_planet_distance_o5v_d,
-    ev_signal_o5v_d,
-    lambert_phase_curve_o5v_d,
-    lambert_and_emission_o5v_d,
-    light_travel_time_o5v_d,
-)
+from .backends.numba.taylor.orbit3d import (solve3d_orbit as solve_xyz_o5s, xyz_o5v, cos_alpha_o5v, vxyz_o5v,
+                                            true_anomaly_o5v, rv_o5v, star_planet_distance_o5v, ev_signal_o5v,
+                                            lambert_phase_curve_o5v, lambert_and_emission_o5v, light_travel_time_o5v, )
+from .backends.numba.taylor.orbit3dd import (solve3d_orbit_d, xyz_o5v_d, cos_alpha_o5v_d, vxyz_o5v_d,
+                                             true_anomaly_o5v_d, rv_o5v_d, star_planet_distance_o5v_d, ev_signal_o5v_d,
+                                             lambert_phase_curve_o5v_d, lambert_and_emission_o5v_d,
+                                             light_travel_time_o5v_d, )
 
 
 class Orbit:
@@ -118,33 +99,22 @@ class Orbit:
 
     def true_anomaly(self, exact: bool = False):
         if exact and self._derivatives:
-            raise NotImplementedError(
-                "exact=True is incompatible with derivatives — Newton-Raphson "
-                "reference does not provide parameter derivatives."
-            )
+            raise NotImplementedError("exact=True is incompatible with derivatives — Newton-Raphson "
+                                      "reference does not provide parameter derivatives.")
         if exact:
             return ta_newton_v(self.times, self._t0, self._p, self._e, self._w)
         ev = eccentricity_vector(self._i, self._e, self._w)
         if self._derivatives:
-            return true_anomaly_o5v_d(
-                self.times, self._tc, self._p,
-                ev[0], ev[1], ev[2], self._w,
-                self._dt, self._tptable, self._points,
-                self._coeffs, self._dcoeffs,
-            )
-        return true_anomaly_o5v(
-            self.times, self._tc, self._p,
-            ev[0], ev[1], ev[2], self._w,
-            self._dt, self._tptable, self._points, self._coeffs,
-        )
+            return true_anomaly_o5v_d(self.times, self._tc, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
+                self._tptable, self._points, self._coeffs, self._dcoeffs, )
+        return true_anomaly_o5v(self.times, self._tc, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._tptable,
+            self._points, self._coeffs, )
 
     def xyz(self, times: Optional[ndarray] = None):
         times = times if times is not None else self.times
         if self._derivatives:
-            return xyz_o5v_d(
-                times, self._tc, self._p, self._dt, self._tptable,
-                self._points, self._coeffs, self._dcoeffs,
-            )
+            return xyz_o5v_d(times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs,
+                self._dcoeffs, )
         return xyz_o5v(times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def _xyz_error(self):
@@ -158,21 +128,15 @@ class Orbit:
 
     def vxyz(self):
         if self._derivatives:
-            return vxyz_o5v_d(
-                self.times, self._tc, self._p, self._dt, self._tptable,
-                self._points, self._coeffs, self._dcoeffs,
-            )
+            return vxyz_o5v_d(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs,
+                self._dcoeffs, )
         return vxyz_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def cos_phase(self):
         if self._derivatives:
-            return cos_alpha_o5v_d(
-                self.times, self._tc, self._p, self._dt, self._tptable,
-                self._points, self._coeffs, self._dcoeffs,
-            )
-        return cos_alpha_o5v(
-            self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs
-        )
+            return cos_alpha_o5v_d(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs,
+                self._dcoeffs, )
+        return cos_alpha_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def _cos_phase_error(self):
         ta = ta_newton_v(self.times, self._t0, self._p, self._e, self._w)
@@ -196,18 +160,14 @@ class Orbit:
         clamped points.
         """
         if self._derivatives:
-            ca, dca = cos_alpha_o5v_d(
-                self.times, self._tc, self._p, self._dt, self._tptable,
-                self._points, self._coeffs, self._dcoeffs,
-            )
+            ca, dca = cos_alpha_o5v_d(self.times, self._tc, self._p, self._dt, self._tptable, self._points,
+                self._coeffs, self._dcoeffs, )
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             ph = arccos(ca_c)
             inv_s = -1.0 / sqrt(1.0 - ca_c * ca_c)
             dph = inv_s[:, None] * dca
             return ph, dph
-        return arccos(cos_alpha_o5v(
-            self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs
-        ))
+        return arccos(cos_alpha_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs))
 
     def theta(self):
         """Angle ``arccos(-cos_alpha)``.
@@ -218,30 +178,23 @@ class Orbit:
         ``|cα| = 1`` extrema.
         """
         if self._derivatives:
-            ca, dca = cos_alpha_o5v_d(
-                self.times, self._tc, self._p, self._dt, self._tptable,
-                self._points, self._coeffs, self._dcoeffs,
-            )
+            ca, dca = cos_alpha_o5v_d(self.times, self._tc, self._p, self._dt, self._tptable, self._points,
+                self._coeffs, self._dcoeffs, )
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             th = arccos(-ca_c)
             # d(arccos(-c))/dθ = +dc/dθ / sqrt(1 - c²)
             inv_s = 1.0 / sqrt(1.0 - ca_c * ca_c)
             dth = inv_s[:, None] * dca
             return th, dth
-        return arccos(-cos_alpha_o5v(
-            self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs
-        ))
+        return arccos(
+            -cos_alpha_o5v(self.times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs))
 
     def star_planet_distance(self, times: Optional[ndarray] = None):
         times = times if times is not None else self.times
         if self._derivatives:
-            return star_planet_distance_o5v_d(
-                times, self._tc, self._p, self._dt, self._tptable,
-                self._points, self._coeffs, self._dcoeffs,
-            )
-        return star_planet_distance_o5v(
-            times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs
-        )
+            return star_planet_distance_o5v_d(times, self._tc, self._p, self._dt, self._tptable, self._points,
+                self._coeffs, self._dcoeffs, )
+        return star_planet_distance_o5v(times, self._tc, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def light_travel_time(self, rstar: float):
         """Light-travel-time correction, referenced to primary transit.
@@ -252,49 +205,33 @@ class Orbit:
         returned (per spec); only the 6 orbital parameter derivatives.
         """
         if self._derivatives:
-            return light_travel_time_o5v_d(
-                self.times, self._tc, self._p, self._e, self._w, rstar,
-                self._dt, self._tptable, self._points, self._coeffs, self._dcoeffs,
-            )
-        return light_travel_time_o5v(
-            self.times, self._tc, self._p, self._e, self._w, rstar,
-            self._dt, self._tptable, self._points, self._coeffs,
-        )
+            return light_travel_time_o5v_d(self.times, self._tc, self._p, self._e, self._w, rstar, self._dt,
+                self._tptable, self._points, self._coeffs, self._dcoeffs, )
+        return light_travel_time_o5v(self.times, self._tc, self._p, self._e, self._w, rstar, self._dt, self._tptable,
+            self._points, self._coeffs, )
 
     def radial_velocity(self, k: float):
         if self._derivatives:
-            return rv_o5v_d(
-                self.times, k, self._tc, self._p, self._a, self._i, self._e,
-                self._dt, self._tptable, self._points, self._coeffs, self._dcoeffs,
-            )
-        return rv_o5v(
-            self.times, k, self._tc, self._p, self._a, self._i, self._e,
-            self._dt, self._tptable, self._points, self._coeffs,
-        )
+            return rv_o5v_d(self.times, k, self._tc, self._p, self._a, self._i, self._e, self._dt, self._tptable,
+                self._points, self._coeffs, self._dcoeffs, )
+        return rv_o5v(self.times, k, self._tc, self._p, self._a, self._i, self._e, self._dt, self._tptable,
+            self._points, self._coeffs, )
 
     def lambert_phase_curve(self, k: float, ag: float, times: ndarray | None = None):
         times = times if times is not None else self.times
         if self._derivatives:
-            return lambert_phase_curve_o5v_d(
-                times, ag, self._a, k, self._tc, self._p, self._dt,
-                self._tptable, self._points, self._coeffs, self._dcoeffs,
-            )
-        return lambert_phase_curve_o5v(
-            times, ag, self._a, k, self._tc, self._p, self._dt,
-            self._tptable, self._points, self._coeffs,
-        )
+            return lambert_phase_curve_o5v_d(times, ag, self._a, k, self._tc, self._p, self._dt, self._tptable,
+                self._points, self._coeffs, self._dcoeffs, )
+        return lambert_phase_curve_o5v(times, ag, self._a, k, self._tc, self._p, self._dt, self._tptable, self._points,
+            self._coeffs, )
 
     def lambert_and_emission(self, k: float, ag: float, fr_night, fr_day, times: ndarray | None = None):
         times = times if times is not None else self.times
         if self._derivatives:
-            return lambert_and_emission_o5v_d(
-                times, ag, fr_night, fr_day, 0.0, self._a, k, self._tc, self._p,
-                self._dt, self._tptable, self._points, self._coeffs, self._dcoeffs,
-            )
-        return lambert_and_emission_o5v(
-            times, ag, fr_night, fr_day, 0.0, self._a, k, self._tc, self._p,
-            self._dt, self._tptable, self._points, self._coeffs,
-        )
+            return lambert_and_emission_o5v_d(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tc, self._p, self._dt,
+                self._tptable, self._points, self._coeffs, self._dcoeffs, )
+        return lambert_and_emission_o5v(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tc, self._p, self._dt,
+            self._tptable, self._points, self._coeffs, )
 
     def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):
         """Ellipsoidal variation signal.
@@ -303,24 +240,13 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return ev_signal_o5v_d(
-                alpha, mass_ratio, self._i, times, self._tc, self._p,
-                self._dt, self._tptable, self._points, self._coeffs, self._dcoeffs,
-            )
-        return ev_signal_o5v(
-            alpha, mass_ratio, self._i, times, self._tc, self._p,
-            self._dt, self._tptable, self._points, self._coeffs,
-        )
+            return ev_signal_o5v_d(alpha, mass_ratio, self._i, times, self._tc, self._p, self._dt, self._tptable,
+                self._points, self._coeffs, self._dcoeffs, )
+        return ev_signal_o5v(alpha, mass_ratio, self._i, times, self._tc, self._p, self._dt, self._tptable,
+            self._points, self._coeffs, )
 
-    def plot(
-        self,
-        figsize: Optional[tuple] = None,
-        show_exact: bool = False,
-        sr: float = 1.0,
-        pr: float = 0.5,
-        pc="k",
-        npt: int = 1000,
-    ):
+    def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc="k",
+            npt: int = 1000, ):
         tcur = self.times
         self.set_data(linspace(0, self._p, npt))
 
@@ -344,21 +270,12 @@ class Orbit:
 
         di = self.times.size // 6
         for i in range(6):
-            axs[1].arrow(
-                x[i * di],
-                z[i * di],
-                x[i * di + 1] - x[i * di],
-                z[i * di + 1] - z[i * di],
-                shape="full",
-                lw=6,
-                length_includes_head=True,
-                head_width=0.1,
-                color="k",
-            )
+            axs[1].arrow(x[i * di], z[i * di], x[i * di + 1] - x[i * di], z[i * di + 1] - z[i * di], shape="full", lw=6,
+                length_includes_head=True, head_width=0.1, color="k", )
 
         m = x < 0.0
         axs[1].plot((0, x[m][argmin(abs(z[m]))]), (0, 0), "k", zorder=-10, ls="--")
-        omega_ix = argmin(x**2 + y**2 + z**2)
+        omega_ix = argmin(x ** 2 + y ** 2 + z ** 2)
         axs[1].plot((0, x[omega_ix]), (0, z[omega_ix]), "k", zorder=-10, ls="--")
 
         if show_exact:
