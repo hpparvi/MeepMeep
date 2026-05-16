@@ -7,6 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 MeepMeep is a Python package for fast Keplerian orbit calculations optimized for exoplanet transit modeling. It uses 
 Taylor series expansions around knot points to achieve high-performance orbit evaluations.
 
+Reference notebooks live in `notebooks/` and rendered docs source in `doc/`.
+
 ## Building and Testing
 
 **Install for development:**
@@ -24,7 +26,12 @@ python -m build
 pytest meepmeep/tests/
 ```
 
-Tests compare Taylor series approximations against exact Newton-Raphson solutions. 
+Tests compare Taylor series approximations against exact Newton-Raphson solutions.
+
+**Test markers** (defined in `pytest.ini`):
+- `slow` — long-running tests; deselect with `-m "not slow"`
+- `accuracy` — numerical accuracy validation
+- `edge_case` — boundary condition tests
 
 ## Architecture
 
@@ -41,16 +48,19 @@ The Taylor series approach trades exact precision for speed by pre-computing coe
 
 ```
 meepmeep/
-├── __init__.py            # Exports Orbit, position, eclipse_light_travel_time
+├── __init__.py            # Exports Orbit, eclipse_light_travel_time
 ├── orbit.py               # Main Orbit class (user-facing API)
 ├── knot2d.py              # 2D knot point calculations (Knot2D, Knot2DFit)
-├── tsorbit.py             # Compatibility module (re-exports bounding_box)
-├── version.py             # Package version (0.8.0)
-├── xy/
-│   └── __init__.py        # Compatibility shim redirecting to backends.numba.taylor
+├── tsorbit.py             # Legacy compatibility shim (currently broken — stale import)
+├── version.py             # Reads version dynamically via importlib.metadata
 ├── tests/
-│   ├── conftest.py        # Shared fixtures (orbital params, tolerances)
-│   └── test_ts2d_position.py  # 2D Taylor series accuracy tests
+│   ├── conftest.py                  # Shared fixtures (orbital params, tolerances)
+│   ├── test_numba_newton.py         # Newton-Raphson Kepler solver tests
+│   ├── test_numba_orbit3d.py        # 3D orbit / multi-knot evaluator tests
+│   ├── test_numba_position2d.py     # 2D position accuracy tests
+│   ├── test_numba_solve2d.py        # 2D Taylor coefficient solver tests
+│   ├── test_numba_solve3d.py        # 3D Taylor coefficient solver tests
+│   └── test_orbit3d_evaluators.py   # End-to-end orbit3d evaluator tests
 └── backends/
     ├── numba/             # Primary backend (Numba JIT-compiled)
     │   ├── utils.py       # Orbital mechanics utilities (anomaly conversions, etc.)
@@ -59,23 +69,29 @@ meepmeep/
     │   ├── newton/
     │   │   └── newton.py  # Exact Kepler equation solvers (Newton-Raphson)
     │   └── taylor/        # Taylor series expansion modules
-    │       ├── position2d.py   # 2D position evaluation (p2d, d2d, pd2d)
-    │       ├── position2dd.py  # 2D position parameter derivatives (p2d_d, d2d_d)
-    │       ├── solve2d.py      # 2D Taylor coefficient computation (solve2d)
-    │       ├── solve2dd.py     # 2D derivative coefficient computation (solve2d_d)
-    │       ├── util2d.py       # 2D utilities (contact points, bounding box)
-    │       ├── position3d.py   # 3D position evaluation (p3d, d3d, z3d, pd3d)
-    │       ├── position3dd.py  # 3D position parameter derivatives (p3d_d, d3d_d, z3d_d)
-    │       ├── solve3d.py      # 3D Taylor coefficient computation (solve3d)
-    │       ├── solve3dd.py     # 3D derivative coefficient computation (solve3d_d)
-    │       ├── velocity3d.py   # 3D velocity evaluation (v3dc, vz3d)
-    │       ├── util3d.py       # 3D utilities (contact points, bounding box)
-    │       └── extended3d.py   # Multi-knot 3D orbit (phase curves, RV, light travel time)
+    │       ├── position2d.py    # 2D position evaluation (p2d, d2d, pd2d)
+    │       ├── position2dd.py   # 2D position parameter derivatives (p2d_d, d2d_d)
+    │       ├── solve2d.py       # 2D Taylor coefficient computation (solve2d)
+    │       ├── solve2dd.py      # 2D derivative coefficient computation (solve2d_d)
+    │       ├── util2d.py        # 2D utilities (contact points, bounding box)
+    │       ├── position3d.py    # 3D position evaluation (p3d, d3d, z3d, pd3d)
+    │       ├── position3dd.py   # 3D position parameter derivatives (p3d_d, d3d_d, z3d_d)
+    │       ├── solve3d.py       # 3D Taylor coefficient computation (solve3d)
+    │       ├── solve3dd.py      # 3D derivative coefficient computation (solve3d_d)
+    │       ├── velocity3d.py    # 3D velocity evaluation (v3dc, vz3d)
+    │       ├── velocity3dd.py   # 3D velocity parameter derivatives
+    │       ├── util3d.py        # 3D utilities (contact points, bounding box)
+    │       └── orbit3d.py       # Multi-knot orbit-spanning evaluators
+    │                            # (xyz/z/pd/vxyz/vz, true anomaly, phase, Lambert)
     └── jax/               # JAX backend (automatic differentiation)
         ├── ea.py          # Eccentric anomaly with custom JVP for AD
         └── ts2d/
             └── positiond.py  # 2D position with JAX AD support
 ```
+
+The package version is resolved dynamically: `pyproject.toml` declares
+`dynamic = ["version"]` (via `setuptools_scm`), and `meepmeep/version.py`
+reads it back at runtime through `importlib.metadata`.
 
 ### Key Concepts
 
@@ -87,7 +103,7 @@ meepmeep/
 **Taylor Expansion**: At each knot point, position is expanded as a 5th-order Taylor series in time. The `_coeffs` 
 array stores position, velocity, acceleration, jerk, and snap at each knot.
 
-**Time-to-Knot Table** (`_tptable`): Maps normalized time to the appropriate knot segment for fast lookups during evaluation.
+**Time-to-Knot Table** (`pktable`): Maps normalized time to the appropriate knot segment for fast lookups during evaluation. Used by `knot_ix` in `backends/numba/taylor/orbit3d.py` to dispatch a time to its knot.
 
 **Coefficient matrices**: `solve2d` returns a `(2, 5)` matrix, `solve3d` returns a `(3, 5)` matrix. Rows are spatial 
 dimensions (x, y or x, y, z), columns are Taylor order (position through snap, pre-scaled by factorial).
@@ -132,10 +148,11 @@ To add a new quantity:
 3. If derivatives are needed, add `_d` variants in the corresponding `*d.py` module
 4. Decorate with `@njit(fastmath=True)`
 
-For multi-knot evaluation (arrays of times with knot lookup), add functions to `extended3d.py` following the `_o5s` (scalar) / `_o5v` (vector) naming convention.
+For multi-knot evaluation (arrays of times with knot lookup), add functions to `orbit3d.py` following the `_o5s` (scalar) / `_o5v` (vector) naming convention. Multi-knot evaluators look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d`.
 
 ### Code Style
 
+- **Docstrings follow the NumPy style** (Parameters / Returns / Notes / Examples sections, with `name : type` parameter headers). See `backends/numba/utils.py`, `backends/numba/taylor/position3d.py`, and `backends/numba/taylor/orbit3d.py` for the established convention.
 - Function naming in `taylor/` modules:
   - `p3dc`, `p3d`: position (centered, direct)
   - `d3dc`, `d3d`: projected distance
@@ -143,7 +160,7 @@ For multi-knot evaluation (arrays of times with knot lookup), add functions to `
   - `v3dc`: velocity (centered)
   - `_d` suffix: includes parameter derivatives
   - `2d`/`3d` infix: dimensionality
-- In `extended3d.py` (multi-knot functions):
+- In `orbit3d.py` (multi-knot functions):
   - `_o5s`: 5th-order Taylor, scalar (single time)
   - `_o5v`: 5th-order Taylor, vector (array of times)
 - All Taylor polynomial evaluations use Horner's method for numerical stability
