@@ -35,11 +35,11 @@ from numba import njit
 from numpy import zeros, pi, floor, sqrt, sin, cos, arccos
 
 from .position3d import p3dc
-from .velocity3d import v3dc
+from .velocity3d import v3dc, vzc
 from .position3dd import p3dc_d, d3dc_d, z3dc_d
 from .velocity3dd import v3dc_d, vzc_d, rvc_d
 from .solve3dd import solve3d_d
-from ..utils import mean_anomaly_at_transit
+from ..utils import mean_anomaly_at_transit, mean_anomaly_at_transit_with_derivatives
 
 
 # ---------------------------------------------------------------------------
@@ -674,6 +674,134 @@ def ev_signal_o5v_d(alpha, mass_ratio, inc, times, t0, p, dt, pktable, points, c
         dout[j, 8] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
 
     return out, dout
+
+
+# ---------------------------------------------------------------------------
+# Light travel time
+# ---------------------------------------------------------------------------
+
+# Time taken by light to traverse one solar radius, in days. Kept in sync
+# with ``orbit3d.LTT_DAYS_PER_RSUN``.
+LTT_DAYS_PER_RSUN = 2.685885891543453e-05
+
+
+@njit(fastmath=True)
+def _ltt_transit_z_and_d(t0, p, e, w, dt, pktable, points, coeffs, dcoeffs):
+    """Helper: compute ``z(t_transit)`` and its full chain-rule derivative
+    w.r.t. ``(phase, p, a, i, e, w)`` for use by the light-travel-time
+    derivatives.
+
+    The transit time depends on the orbital parameters via
+    ``to = M_tr(e, w) · p / (2π)``, so the total derivative is
+
+        d/dθ_k [z(t_transit(θ); θ)]
+            = vz(t_transit) · (dto/dθ_k) + (∂z/∂θ_k)|_{t=t_transit}
+
+    where:
+      - dto/dp = M_tr(e, w) / (2π)
+      - dto/de = (dM_tr/de) · p / (2π)
+      - dto/dw = (dM_tr/dw) · p / (2π)
+      - dto/dθ_k = 0 for k ∈ {phase, a, i}
+
+    The "phase" slot inherits the multi-knot caveat documented at module
+    level: it reflects a per-knot phase shift at the knot containing
+    ``t_transit``, not a global user-facing T0 shift.
+    """
+    m_tr, dm_tr_de, dm_tr_dw = mean_anomaly_at_transit_with_derivatives(e, w)
+    two_pi = 2.0 * pi
+    to = m_tr / two_pi * p
+    t_transit = t0 + to
+
+    # Evaluate z and its (∂z/∂θ)|_{t=t_transit}.
+    z_tr, dz_tr_partial = z_o5s_d(t_transit, t0, p, dt, pktable, points, coeffs, dcoeffs)
+    # Velocity at transit (for the dt_transit/dθ chain term).
+    vz_tr = vz_o5s(t_transit, t0, p, dt, pktable, points, coeffs)
+
+    # dto/dθ: only slots 1 (p), 4 (e), 5 (w) are non-zero.
+    dto = zeros(6)
+    dto[1] = m_tr / two_pi
+    dto[4] = dm_tr_de * p / two_pi
+    dto[5] = dm_tr_dw * p / two_pi
+
+    dz_tr_total = zeros(6)
+    for k in range(6):
+        dz_tr_total[k] = vz_tr * dto[k] + dz_tr_partial[k]
+    return z_tr, dz_tr_total
+
+
+@njit(fastmath=True)
+def vz_o5s(t, t0, p, dt, pktable, points, coeffs):
+    """Local z-velocity helper used by ``_ltt_transit_z_and_d``.
+
+    Mirrors ``orbit3d.vz_o5s`` but kept private here to avoid a cross-module
+    import cycle.
+    """
+    epoch = floor((t - t0) / p)
+    tc = t - t0 - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    return vzc(tc - points[ix] * p, coeffs[ix])
+
+
+@njit(fastmath=True)
+def light_travel_time_o5s_d(t, t0, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+    """Light travel time correction and orbital-parameter derivatives at scalar time.
+
+    The correction is referenced to primary transit:
+
+        ltt(t) = -(z(t) - z(t_transit)) · rstar · (R_sun / c)
+
+    where ``t_transit = t0 + mean_anomaly_at_transit(e, w) · p / (2π)``.
+
+    Per spec, the partial derivative w.r.t. ``rstar`` is *not* returned — only
+    the 6 orbital derivatives in the canonical ``(phase, p, a, i, e, w)`` order.
+
+    The reference ``z(t_transit)`` and its parameter derivatives are computed
+    by ``_ltt_transit_z_and_d``, which includes the chain rule through
+    ``t_transit(p, e, w)`` using ``vz(t_transit)``.
+
+    Returns
+    -------
+    ltt : float
+        Light travel time correction [days].
+    dltt : ndarray (6,)
+        Derivatives w.r.t. ``(phase, p, a, i, e, w)``.
+    """
+    z_t, dz_t = z_o5s_d(t, t0, p, dt, pktable, points, coeffs, dcoeffs)
+    z_tr, dz_tr = _ltt_transit_z_and_d(t0, p, e, w, dt, pktable, points, coeffs, dcoeffs)
+    factor = -rstar * LTT_DAYS_PER_RSUN
+    ltt = factor * (z_t - z_tr)
+    dltt = zeros(6)
+    for k in range(6):
+        dltt[k] = factor * (dz_t[k] - dz_tr[k])
+    return ltt, dltt
+
+
+@njit(fastmath=True)
+def light_travel_time_o5v_d(times, t0, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+    """Light travel time correction and orbital-parameter derivatives at array of times.
+
+    See :func:`light_travel_time_o5s_d` for the sign, reference, and parameter
+    conventions.
+
+    Returns
+    -------
+    ltt : ndarray (N,)
+        Light travel time corrections [days].
+    dltt : ndarray (N, 6)
+        Derivatives w.r.t. ``(phase, p, a, i, e, w)``.
+    """
+    n = times.size
+    ltt = zeros(n)
+    dltt = zeros((n, 6))
+    factor = -rstar * LTT_DAYS_PER_RSUN
+    # Reference (z and its full derivative chain) computed once.
+    z_tr, dz_tr = _ltt_transit_z_and_d(t0, p, e, w, dt, pktable, points, coeffs, dcoeffs)
+    for j in range(n):
+        z, dz = z_o5s_d(times[j], t0, p, dt, pktable, points, coeffs, dcoeffs)
+        ltt[j] = factor * (z - z_tr)
+        for k in range(6):
+            dltt[j, k] = factor * (dz[k] - dz_tr[k])
+    return ltt, dltt
 
 
 @njit(fastmath=True)

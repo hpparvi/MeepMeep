@@ -15,7 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import floor, sqrt, ndarray, zeros
+from numpy import floor, sqrt, ndarray
 
 
 @njit(fastmath=True)
@@ -119,35 +119,3 @@ def z3d(tc, t0, p, c):
     """Calculate planet's z position."""
     epoch = floor((tc - t0 + 0.5 * p) / p)
     return z3dc(tc - (t0 + epoch * p), c)
-
-
-@njit(fastmath=True)
-def z3d_o(t, t0, p, dt, pktable, points, cf):
-    """Calculate planet's (z) position for a scalar time for any orbital phase"""
-    epoch = floor((t - t0) / p)
-    tc = t - t0 - epoch * p
-    ix = pktable[int(floor(tc / (dt*p)))]
-    tc -= points[ix] * p
-    return z3dc(tc, cf[ix, :, :])
-
-
-@njit
-def zdiff_o(t, t0, p, dt, pktable, points, coeffs):
-    return z_o(t, t0, p, dt, pktable, points, coeffs) - coeffs[0, 2]
-
-
-@njit
-def light_travel_time_o(t, t0, p, rstar, dt, pktable, points, coeffs):
-    """Light travel time in days."""
-    s = 2.685885891543453e-05  # ((1 * u.R_sun).to(u.m) / c.c).to('d').value
-    return -zdiff_o(t, t0, p, dt, pktable, points, coeffs) * rstar * s
-
-
-@njit
-def light_travel_time_o(times, t0, p, rstar, dt, pktable, points, coeffs):
-    """Light travel time in days."""
-    s = 2.685885891543453e-05  # ((1 * u.R_sun).to(u.m) / c.c).to('d').value
-    ltt = zeros(times.size)
-    for i in range(times.size):
-        ltt[i] = -zdiff_o(times[i], t0, p, dt, pktable, points, coeffs) * rstar * s
-    return ltt

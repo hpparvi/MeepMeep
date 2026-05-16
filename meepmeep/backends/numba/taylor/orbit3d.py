@@ -328,3 +328,77 @@ def rv_o5v(times, k, t0, p, a, i, e, dt, pktable, points, coeffs):
     for j in range(n):
         rvs[j] = vz_o5s(times[j], t0, p, dt, pktable, points, coeffs) * scale
     return rvs
+
+
+# ---------------------------------------------------------------------------
+# Light travel time
+# ---------------------------------------------------------------------------
+
+# Time taken by light to traverse one solar radius, in days:
+# (1 R_sun) / c = ((1 * u.R_sun).to(u.m) / c.c).to('d').value
+LTT_DAYS_PER_RSUN = 2.685885891543453e-05
+
+
+@njit(fastmath=True)
+def light_travel_time_o5s(t, t0, p, e, w, rstar, dt, pktable, points, coeffs):
+    """Light travel time correction at a scalar time, referenced to primary transit.
+
+    The correction is
+
+        ltt(t) = -(z(t) - z(t_transit)) · rstar · (R_sun / c)
+
+    with z in stellar radii, rstar in solar radii, result in days. The
+    reference is the primary transit (inferior conjunction): ``ltt(t_transit)
+    = 0`` by construction. This matches the convention used in transit
+    fitting, where the observed mid-transit time is the reference and the LTT
+    correction should add to the timing offset between primary transit and
+    secondary eclipse (and intermediate phases), not to the transit itself.
+
+    Important: the convention in this module is that ``t0`` is the
+    **periastron** time (the same as for every other ``*_o5*`` evaluator in
+    ``orbit3d.py``). The transit time is ``t0 + to`` where
+    ``to = mean_anomaly_at_transit(e, w) · p / (2π)``. The ``e, w`` arguments
+    are needed to determine ``to``.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the correction.
+    t0 : float
+        Time of periastron passage.
+    p : float
+        Orbital period [days].
+    e : float
+        Eccentricity.
+    w : float
+        Argument of periastron [radians].
+    rstar : float
+        Stellar radius [R_sun].
+    dt, pktable, points, coeffs :
+        Multi-knot dispatch arrays from ``solve3d_orbit`` / ``create_knots``.
+
+    Returns
+    -------
+    ltt : float
+        Light travel time correction [days].
+    """
+    to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
+    z_t = z_o5s(t, t0, p, dt, pktable, points, coeffs)
+    z_tr = z_o5s(t0 + to, t0, p, dt, pktable, points, coeffs)
+    return -(z_t - z_tr) * rstar * LTT_DAYS_PER_RSUN
+
+
+@njit(fastmath=True)
+def light_travel_time_o5v(times, t0, p, e, w, rstar, dt, pktable, points, coeffs):
+    """Light travel time correction at an array of times, referenced to primary transit.
+
+    See :func:`light_travel_time_o5s` for the sign and reference convention.
+    """
+    n = times.size
+    ltt = zeros(n)
+    to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
+    z_tr = z_o5s(t0 + to, t0, p, dt, pktable, points, coeffs)
+    factor = -rstar * LTT_DAYS_PER_RSUN
+    for j in range(n):
+        ltt[j] = factor * (z_o5s(times[j], t0, p, dt, pktable, points, coeffs) - z_tr)
+    return ltt
