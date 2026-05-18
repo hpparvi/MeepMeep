@@ -19,7 +19,8 @@ from numba import njit
 from numpy import pi, linspace, zeros
 from scipy.optimize import root_scalar
 
-from .newton.newton import ea_newton_s, ea_newton_v, ta_newton_s, ta_newton_v, xyz_newton_v
+from .newton.newton import ea_newton_s, ta_newton_s
+
 
 @njit
 def eccentric_anomaly(t, e):

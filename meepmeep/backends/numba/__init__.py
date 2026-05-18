@@ -14,6 +14,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from . import utils, newton, knots, tsorbit
+from . import utils, newton, knots
 
-__all__ = ['utils', 'newton', 'knots', 'tsorbit']
+__all__ = ['utils', 'newton', 'knots']
