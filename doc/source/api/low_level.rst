@@ -36,9 +36,13 @@ parameter-derivative tensor.
 Two-dimensional position and distance
 -------------------------------------
 
-Evaluators for the sky-plane :math:`(x, y)` position and the projected
-planet-star distance :math:`d = \sqrt{x^2 + y^2}`. Sufficient for transit
-light-curve modelling.
+Single-knot evaluators for the sky-plane :math:`(x, y)` position and the
+projected planet-star distance :math:`d = \sqrt{x^2 + y^2}`. Each
+function operates on one ``(2, 5)`` coefficient matrix from
+:func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` and is
+sufficient for transit light-curve modelling. The whole-orbit
+dispatchers that batch these calls across a knot grid live in
+:ref:`api.lowlevel.orbit_dispatchers`.
 
 .. currentmodule:: meepmeep.backends.numba.taylor.position2d
 
@@ -67,9 +71,13 @@ Parameter-derivative variants:
 Three-dimensional position and distance
 ---------------------------------------
 
-Evaluators that additionally return the line-of-sight coordinate
-:math:`z`. Needed for eclipses, light travel time, phase curves, and
-radial velocities.
+Single-knot evaluators that additionally return the line-of-sight
+coordinate :math:`z`. Each function operates on one ``(3, 5)``
+coefficient matrix from
+:func:`~meepmeep.backends.numba.taylor.solve3d.solve3d`. Needed for
+eclipses, light travel time, phase curves, and radial velocities. The
+whole-orbit dispatchers that batch these calls across a knot grid live
+in :ref:`api.lowlevel.orbit_dispatchers`.
 
 .. currentmodule:: meepmeep.backends.numba.taylor.position3d
 
@@ -156,13 +164,16 @@ The 3D module :mod:`meepmeep.backends.numba.taylor.util3d` exposes the
 same set of helpers operating on ``(3, 5)`` coefficient matrices.
 
 
-Multi-knot orbit dispatchers
-----------------------------
+.. _api.lowlevel.orbit_dispatchers:
+
+Whole-orbit dispatchers (multi-knot)
+------------------------------------
 
 Whole-orbit evaluators that use a precomputed time-to-knot table
 (``pktable``) to dispatch each input time to the appropriate knot and
 delegate to the centered single-knot evaluators above. The ``_o5s``
-suffix denotes a scalar-time variant, ``_o5v`` an array-of-times variant.
+suffix denotes a scalar-time variant, ``_o5v`` an array-of-times
+variant.
 
 .. currentmodule:: meepmeep.backends.numba.taylor.orbit3d
 
@@ -220,8 +231,8 @@ Light travel time:
    light_travel_time_o5v
 
 
-Multi-knot dispatchers with parameter derivatives
--------------------------------------------------
+Whole-orbit dispatchers with parameter derivatives
+--------------------------------------------------
 
 Gradient-returning counterparts of the orbit dispatchers above. Every
 function accepts an additional ``dcoeffs`` tensor of shape

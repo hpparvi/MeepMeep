@@ -13,7 +13,24 @@ author = 'Hannu Parviainen'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.intersphinx',
+]
+
+autosummary_generate = True
+
+napoleon_numpy_docstring = True
+napoleon_google_docstring = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable', None),
+}
 
 templates_path = ['_templates']
 exclude_patterns = []

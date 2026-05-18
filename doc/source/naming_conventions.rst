@@ -75,6 +75,14 @@ Examples: :func:`~meepmeep.backends.numba.taylor.position3d.p3d` is the
 direct variant, :func:`~meepmeep.backends.numba.taylor.position3d.p3dc`
 the centered one. Both share the same coefficient matrix.
 
+The centered evaluators are the shared workhorses for both usage modes
+introduced in :ref:`taylor_two_modes`. Single-knot callers reach them
+either directly (when observation times are already folded around the
+knot) or via the direct variants (when the evaluator should epoch-fold
+on the caller's behalf). Multi-knot dispatchers always reach them
+through a ``pktable`` lookup that yields a knot index and a
+centered time.
+
 The 2D module follows the same rule — ``p2d`` / ``p2dc``, ``d2d`` /
 ``d2dc`` — with one combined evaluator named ``pd2d_c`` (centered)
 spelled with an underscore to keep the ``pd`` prefix visually distinct
@@ -111,11 +119,13 @@ gradient-returning variant — for example
 Multi-knot dispatcher suffix
 ----------------------------
 
-Functions that span a whole orbit (i.e. look up the appropriate knot via
-``pktable`` and delegate to a centered evaluator) live in
-:mod:`~meepmeep.backends.numba.taylor.orbit3d` and use a different
-suffix family that encodes the polynomial order and the input
-cardinality:
+When the workflow needs a whole-orbit dispatcher — for example to
+evaluate a phase curve or an RV time series across an arbitrary range
+of times — the functions in
+:mod:`~meepmeep.backends.numba.taylor.orbit3d` look up the appropriate
+knot via ``pktable`` and delegate to a centered evaluator. These
+dispatchers use their own suffix family that encodes the polynomial
+order and the input cardinality:
 
 ============  ==============================================
 Suffix        Meaning
