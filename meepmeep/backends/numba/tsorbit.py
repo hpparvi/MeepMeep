@@ -1,5 +1,5 @@
 #  MeepMeep: fast orbit calculations for exoplanet modelling
-#  Copyright (C) 2022 Hannu Parviainen
+#  Copyright (C) 2022-2026 Hannu Parviainen
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 
 from numba import njit
 from numpy import zeros_like, cos, sin, floor, sqrt, zeros, linspace

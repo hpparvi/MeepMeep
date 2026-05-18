@@ -1,5 +1,5 @@
 #  MeepMeep: fast orbit calculations for exoplanet modelling
-#  Copyright (C) 2022 Hannu Parviainen
+#  Copyright (C) 2022-2026 Hannu Parviainen
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
