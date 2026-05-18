@@ -93,3 +93,172 @@ def bounding_box(k: float, coeffs: ndarray):
     t1 = find_contact_point(k, 1, coeffs)
     t4 = find_contact_point(k, 4, coeffs)
     return t1, t4
+
+
+@njit
+def t14(k: float, c: ndarray) -> float:
+    """Total transit duration T14 (first to fourth contact).
+
+    Parameters
+    ----------
+    k : float
+        Radius ratio.
+    c : ndarray
+        A (2, 5) Taylor coefficient matrix.
+
+    Returns
+    -------
+    float
+        Duration between first and fourth contact.
+    """
+    t1 = find_contact_point(k, 1, c)
+    t4 = find_contact_point(k, 4, c)
+    return t4 - t1
+
+
+@njit
+def t23(k: float, c: ndarray) -> float:
+    """Full-transit duration T23 (second to third contact).
+
+    Parameters
+    ----------
+    k : float
+        Radius ratio.
+    c : ndarray
+        A (2, 5) Taylor coefficient matrix.
+
+    Returns
+    -------
+    float
+        Duration between second and third contact.
+    """
+    t2 = find_contact_point(k, 2, c)
+    t3 = find_contact_point(k, 3, c)
+    return t3 - t2
+
+
+@njit
+def t12(k: float, c: ndarray) -> float:
+    """Ingress duration T12 (first to second contact).
+
+    Parameters
+    ----------
+    k : float
+        Radius ratio.
+    c : ndarray
+        A (2, 5) Taylor coefficient matrix.
+
+    Returns
+    -------
+    float
+        Duration between first and second contact.
+    """
+    t1 = find_contact_point(k, 1, c)
+    t2 = find_contact_point(k, 2, c)
+    return t2 - t1
+
+
+@njit
+def t34(k: float, c: ndarray) -> float:
+    """Egress duration T34 (third to fourth contact).
+
+    Parameters
+    ----------
+    k : float
+        Radius ratio.
+    c : ndarray
+        A (2, 5) Taylor coefficient matrix.
+
+    Returns
+    -------
+    float
+        Duration between third and fourth contact.
+    """
+    t3 = find_contact_point(k, 3, c)
+    t4 = find_contact_point(k, 4, c)
+    return t4 - t3
+
+
+@njit
+def t1(k: float, c: ndarray) -> float:
+    """First contact time.
+
+    Parameters
+    ----------
+    k : float
+        Radius ratio.
+    c : ndarray
+        A (2, 5) Taylor coefficient matrix.
+
+    Returns
+    -------
+    float
+        Time of first contact.
+    """
+    return find_contact_point(k, 1, c)
+
+
+@njit
+def t4(k: float, c: ndarray) -> float:
+    """Fourth contact time.
+
+    Parameters
+    ----------
+    k : float
+        Radius ratio.
+    c : ndarray
+        A (2, 5) Taylor coefficient matrix.
+
+    Returns
+    -------
+    float
+        Time of fourth contact.
+    """
+    return find_contact_point(k, 4, c)
+
+
+@njit
+def find_z_min(tc: float, c: ndarray):
+    """Locate the local minimum of the projected planet-star distance.
+
+    Uses golden-section search in a tight window around an initial guess.
+    Operates in the centered coordinate system of `c` (times are offsets
+    from the expansion point).
+
+    Parameters
+    ----------
+    tc : float
+        Initial guess for the minimum (offset from the expansion point).
+    c : ndarray
+        A (2, 5) Taylor coefficient matrix.
+
+    Returns
+    -------
+    t_min : float
+        Time of minimum projected distance.
+    z_min : float
+        Projected distance at the minimum.
+    """
+    r = 0.61803399
+    cc = 1.0 - r
+    x0, x3 = tc - 0.01, tc + 0.01
+    x1 = tc
+    x2 = tc + cc * (x3 - tc)
+
+    f1 = d2dc(x1, c)
+    f2 = d2dc(x2, c)
+
+    j = 0
+    while abs(x3 - x0) > 1e-7 and j < 100:
+        if f2 < f1:
+            x0, x1, x2 = x1, x2, r * x2 + cc * x3
+            f1, f2 = f2, d2dc(x2, c)
+        else:
+            x3, x2, x1 = x2, x1, r * x1 + cc * x0
+            f2, f1 = f1, d2dc(x1, c)
+        j += 1
+
+    if f1 < f2:
+        return x1, f1
+    else:
+        return x2, f2

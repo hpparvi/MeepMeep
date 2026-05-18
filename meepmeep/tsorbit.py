@@ -1,1 +1,0 @@
-from .backends.numba.ts2d.position import bounding_box
