@@ -15,15 +15,11 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import floor, sqrt, ndarray, pi
-
-from ..utils import TWO_PI, HALF_PI
+from numpy import floor, sqrt, ndarray
 
 @njit(fastmath=True)
 def p2d(tc, t0: float, p: float, c: ndarray):
     """Calculate planet's (x, y) position using Taylor series expansion.
-
-    Automatically works with both scalar and array time inputs through broadcasting.
 
     Parameters
     ----------
@@ -85,7 +81,7 @@ def d2dc(tc, c):
 
 @njit(fastmath=True)
 def pd2d(t: float, c: ndarray) -> tuple[float, float, float]:
-    """Calculate planet's (x,y) position and the projected distance for t centered on the expansion time.
+    """Calculate the planet's (x,y) position and the projected distance for t centered on the expansion time.
 
     Parameters
     ----------

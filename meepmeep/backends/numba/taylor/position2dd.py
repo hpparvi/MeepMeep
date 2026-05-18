@@ -15,9 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import floor, sqrt, zeros, pi
-
-from ..utils import TWO_PI, HALF_PI
+from numpy import floor, sqrt, zeros
 
 
 @njit(fastmath=True)
@@ -63,7 +61,7 @@ def p2d_d(t, t0, p, c, dc):
     Parameters
     ----------
     t : float
-        The current time.
+        The time.
     t0 : float
         The Taylor series expansion time.
     p : float
@@ -85,7 +83,7 @@ def p2d_d(t, t0, p, c, dc):
         Derivatives of py w.r.t. (phase, p, a, i, e, w).
     """
     epoch = floor((t - t0 + 0.5 * p) / p)
-    return p2dc_d(tc - (t0 + epoch * p), c, dc)
+    return p2dc_d(t - (t0 + epoch * p), c, dc)
 
 
 @njit(fastmath=True)
@@ -94,8 +92,8 @@ def d2dc_d(t, c, dc):
 
     Parameters
     ----------
-    tc : float
-        The current time.
+    t : float
+        The time.
     c : ndarray (2, 5)
         Position Taylor coefficients from solve_xy_p5.
     dc : ndarray (6, 2, 5)
@@ -117,13 +115,13 @@ def d2dc_d(t, c, dc):
 
 
 @njit(fastmath=True)
-def d2d_d(tc, t0, p, c, dc):
+def d2d_d(t, t0, p, c, dc):
     """Calculate projected planet-star distance and its parameter derivatives.
 
     Parameters
     ----------
-    tc : float
-        The current time.
+    t : float
+        The time.
     t0 : float
         The Taylor series expansion time.
     p : float
@@ -141,4 +139,4 @@ def d2d_d(tc, t0, p, c, dc):
         Derivatives of d w.r.t. (phase, p, a, i, e, w).
     """
     epoch = floor((t - t0 + 0.5 * p) / p)
-    return d2dc_d(tc - (t0 + epoch * p), c, dc)
+    return d2dc_d(t - (t0 + epoch * p), c, dc)
