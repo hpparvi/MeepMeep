@@ -15,7 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import ndarray, sqrt, cos, sin, zeros, linspace, pi
+from numpy import ndarray, sqrt, cos, sin, zeros
 
 from ..newton.newton import ea_from_ma
 from ..utils import mean_anomaly_at_transit, TWO_PI
@@ -51,9 +51,9 @@ def solve2d(phase: float, p: float, a: float, i: float, e: float, w: float) -> n
 
     # Constants
     n = TWO_PI / p
-    mu = n**2 * a**3  # Standard gravitational parameter [R_star^3 / day^2]
+    mu = n ** 2 * a ** 3  # Standard gravitational parameter [R_star^3 / day^2]
 
-    sqe2 = sqrt(1.0 - e**2)
+    sqe2 = sqrt(1.0 - e ** 2)
     ci = cos(i)
     cw = cos(w)
     sw = sin(w)
@@ -86,8 +86,8 @@ def solve2d(phase: float, p: float, a: float, i: float, e: float, w: float) -> n
     # ------------------------------------------------------
     # Based on recursive differentiation of a = -mu * r / |r|^3
 
-    r2 = r_val**2
-    v2 = v_xi**2 + v_eta**2
+    r2 = r_val ** 2
+    v2 = v_xi ** 2 + v_eta ** 2
     rv = xi * v_xi + eta * v_eta  # Dot product r . v
 
     # u = -mu / r^3
@@ -97,7 +97,7 @@ def solve2d(phase: float, p: float, a: float, i: float, e: float, w: float) -> n
 
     u = -mu * inv_r3
     u_dot = 3.0 * mu * rv * inv_r5
-    u_ddot = 3.0 * mu * (v2 * inv_r5 - 5.0 * rv**2 * inv_r7) - 3.0 * u**2
+    u_ddot = 3.0 * mu * (v2 * inv_r5 - 5.0 * rv ** 2 * inv_r7) - 3.0 * u ** 2
 
     # Acceleration components
     a_xi = u * xi
@@ -108,7 +108,7 @@ def solve2d(phase: float, p: float, a: float, i: float, e: float, w: float) -> n
     j_eta = u_dot * eta + u * v_eta
 
     # Snap components
-    s_coeff = u_ddot + u**2
+    s_coeff = u_ddot + u ** 2
     s_xi = s_coeff * xi + 2.0 * u_dot * v_xi
     s_eta = s_coeff * eta + 2.0 * u_dot * v_eta
 
@@ -146,4 +146,3 @@ def solve2d(phase: float, p: float, a: float, i: float, e: float, w: float) -> n
     cf[1, 4] = (m10 * s_xi + m11 * s_eta) / 24.0
 
     return cf
-

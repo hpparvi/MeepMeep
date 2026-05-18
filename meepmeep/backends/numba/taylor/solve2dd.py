@@ -15,7 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import zeros, sqrt, cos, sin, pi
+from numpy import zeros, sqrt, cos, sin
 
 from ..newton.newton import ea_from_ma
 from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
@@ -55,14 +55,14 @@ def solve2d_d(phase, p, a, i, e, w):
     # ================================================================
     n = TWO_PI / p
     dn = zeros(6)
-    dn[1] = -TWO_PI / p**2
+    dn[1] = -TWO_PI / p ** 2
 
-    mu = n**2 * a**3
+    mu = n ** 2 * a ** 3
     dmu = zeros(6)
-    dmu[1] = 2.0 * n * dn[1] * a**3
-    dmu[2] = 3.0 * n**2 * a**2
+    dmu[1] = 2.0 * n * dn[1] * a ** 3
+    dmu[2] = 3.0 * n ** 2 * a ** 2
 
-    sqe2 = sqrt(1.0 - e**2)
+    sqe2 = sqrt(1.0 - e ** 2)
     dsqe2 = zeros(6)
     dsqe2[4] = -e / sqe2
 
@@ -95,7 +95,7 @@ def solve2d_d(phase, p, a, i, e, w):
 
     dma = zeros(6)
     dma[0] = TWO_PI / p
-    dma[1] = -TWO_PI * phase / p**2
+    dma[1] = -TWO_PI * phase / p ** 2
     dma[4] = doffset[4]
     dma[5] = doffset[5]
 
@@ -146,7 +146,7 @@ def solve2d_d(phase, p, a, i, e, w):
     dea_dot = zeros(6)
     for k in range(6):
         da_k = 1.0 if k == 2 else 0.0
-        dea_dot[k] = (dn[k] * a + n * da_k) / r_val - n * a * dr[k] / r_val**2
+        dea_dot[k] = (dn[k] * a + n * da_k) / r_val - n * a * dr[k] / r_val ** 2
 
     # v_xi = -a * sin(E) * E_dot
     v_xi = -a * sea * ea_dot
@@ -160,16 +160,14 @@ def solve2d_d(phase, p, a, i, e, w):
     dv_eta = zeros(6)
     for k in range(6):
         da_k = 1.0 if k == 2 else 0.0
-        dv_eta[k] = (da_k * sqe2 * cea * ea_dot
-                     + a * dsqe2[k] * cea * ea_dot
-                     + a * sqe2 * dcea[k] * ea_dot
-                     + a * sqe2 * cea * dea_dot[k])
+        dv_eta[k] = (da_k * sqe2 * cea * ea_dot + a * dsqe2[k] * cea * ea_dot + a * sqe2 * dcea[
+            k] * ea_dot + a * sqe2 * cea * dea_dot[k])
 
     # ================================================================
     # Step 5: Higher-order derivatives
     # ================================================================
-    r2 = r_val**2
-    v2 = v_xi**2 + v_eta**2
+    r2 = r_val ** 2
+    v2 = v_xi ** 2 + v_eta ** 2
     rv = xi * v_xi + eta * v_eta
 
     dr2 = zeros(6)
@@ -203,23 +201,19 @@ def solve2d_d(phase, p, a, i, e, w):
     u_dot = 3.0 * mu * rv * inv_r5
     du_dot = zeros(6)
     for k in range(6):
-        du_dot[k] = 3.0 * (dmu[k] * rv * inv_r5
-                           + mu * drv[k] * inv_r5
-                           + mu * rv * dinv_r5[k])
+        du_dot[k] = 3.0 * (dmu[k] * rv * inv_r5 + mu * drv[k] * inv_r5 + mu * rv * dinv_r5[k])
 
     # u_ddot = 3*mu*(v2*inv_r5 - 5*rv^2*inv_r7) - 3*u^2
-    rv2 = rv**2
+    rv2 = rv ** 2
     drv2 = zeros(6)
     for k in range(6):
         drv2[k] = 2.0 * rv * drv[k]
 
-    u_ddot = 3.0 * mu * (v2 * inv_r5 - 5.0 * rv2 * inv_r7) - 3.0 * u**2
+    u_ddot = 3.0 * mu * (v2 * inv_r5 - 5.0 * rv2 * inv_r7) - 3.0 * u ** 2
     du_ddot = zeros(6)
     for k in range(6):
-        du_ddot[k] = (3.0 * (dmu[k] * (v2 * inv_r5 - 5.0 * rv2 * inv_r7)
-                             + mu * (dv2[k] * inv_r5 + v2 * dinv_r5[k]
-                                     - 5.0 * (drv2[k] * inv_r7 + rv2 * dinv_r7[k])))
-                      - 6.0 * u * du[k])
+        du_ddot[k] = (3.0 * (dmu[k] * (v2 * inv_r5 - 5.0 * rv2 * inv_r7) + mu * (
+                    dv2[k] * inv_r5 + v2 * dinv_r5[k] - 5.0 * (drv2[k] * inv_r7 + rv2 * dinv_r7[k]))) - 6.0 * u * du[k])
 
     # Acceleration
     a_xi = u * xi
@@ -240,7 +234,7 @@ def solve2d_d(phase, p, a, i, e, w):
         dj_eta[k] = du_dot[k] * eta + u_dot * deta[k] + du[k] * v_eta + u * dv_eta[k]
 
     # Snap
-    s_coeff = u_ddot + u**2
+    s_coeff = u_ddot + u ** 2
     ds_coeff = zeros(6)
     for k in range(6):
         ds_coeff[k] = du_ddot[k] + 2.0 * u * du[k]
@@ -283,7 +277,7 @@ def solve2d_d(phase, p, a, i, e, w):
     q_eta = (eta, v_eta, a_eta, j_eta, s_eta)
     dq_xi = (dxi, dv_xi, da_xi, dj_xi, ds_xi)
     dq_eta = (deta, dv_eta, da_eta, dj_eta, ds_eta)
-    scale = (1.0, 1.0, 0.5, 1.0/6.0, 1.0/24.0)
+    scale = (1.0, 1.0, 0.5, 1.0 / 6.0, 1.0 / 24.0)
 
     for col in range(5):
         qx = q_xi[col]
