@@ -22,13 +22,13 @@ from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 
 @njit(fastmath=True)
-def solve2d_d(phase, p, a, i, e, w):
-    """Calculate Taylor expansion coefficients and their parameter derivatives.
+def solve2d_d(t, p, a, i, e, w):
+    """Calculate Taylor expansion coefficients and their parameter derivatives around a given time.
 
     Parameters
     ----------
-    phase : float
-        Phase angle (time) for the Taylor series expansion [days].
+    t : float
+        Time for the Taylor series expansion [days], t=0 for the transit center.
     p : float
         Orbital period [days].
     a : float
@@ -91,11 +91,11 @@ def solve2d_d(phase, p, a, i, e, w):
     # ================================================================
     # Step 3: Mean anomaly and Kepler's equation
     # ================================================================
-    ma = (TWO_PI * phase / p + offset) % TWO_PI
+    ma = (TWO_PI * t / p + offset) % TWO_PI
 
     dma = zeros(6)
     dma[0] = TWO_PI / p
-    dma[1] = -TWO_PI * phase / p ** 2
+    dma[1] = -TWO_PI * t / p ** 2
     dma[4] = doffset[4]
     dma[5] = doffset[5]
 
