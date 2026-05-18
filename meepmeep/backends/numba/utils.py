@@ -16,13 +16,14 @@
 
 from numba import njit
 from numpy import pi, arctan2, sqrt, sin, cos, arccos, mod, copysign, sign, array, arcsin
+from numpy.typing import NDArray
 from scipy.constants import G
 
 HALF_PI = 0.5*pi
 TWO_PI = 2.0*pi
 
 
-@njit
+@njit(fastmath=True)
 def eccentricity_vector(i, e, w):
     """
     Compute the 3D eccentricity vector in the observer's coordinate system.
@@ -44,16 +45,15 @@ def eccentricity_vector(i, e, w):
 
     Returns
     -------
-    vec : ndarray
+    vec : NDArray
         A 1D float array of shape (3,) representing the [ex, ey, ez]
         components of the eccentricity vector. If e < 1e-5, returns
         [-1.0, 0.0, 0.0] as a stable reference for circular orbits.
 
     Notes
     -----
-    The coordinate system is typically defined such that the z-axis points
-    along the line of sight toward the observer. The components are
-    calculated as:
+    The coordinate system is defined such that the z-axis points along the
+    line of sight toward the observer. The components are calculated as:
 
     * ex = -e * cos(w)
     * ey = -e * sin(w) * cos(i)
@@ -71,9 +71,9 @@ def eccentricity_vector(i, e, w):
 
 
 @njit
-def eclipse_phase(p, i, e, w):
+def eclipse_time_offset(p, i, e, w):
     """
-        Calculate the time phase of the secondary eclipse relative to the primary transit.
+        Calculate the time offset of the secondary eclipse relative to the primary transit.
 
         For eccentric orbits, the secondary eclipse does not occur at exactly 0.5 phase.
         This function computes the exact time offset using Keplerian dynamics,
@@ -94,7 +94,7 @@ def eclipse_phase(p, i, e, w):
 
         Returns
         -------
-        phase : float
+        offset : float
             The time elapsed between the primary transit center and the
             secondary eclipse center, in the same units as `p`.
             The result is bounded between [0, p].
@@ -109,11 +109,11 @@ def eclipse_phase(p, i, e, w):
     eec = arctan2(sqrt(1. - e**2) * sin(HALF_PI + pi - w), e + cos(HALF_PI + pi - w))
     mtr = etr - e * sin(etr)
     mec = eec - e * sin(eec)
-    phase = (mec - mtr) * p / TWO_PI
-    return phase if phase > 0. else p + phase
+    offset = (mec - mtr) * p / TWO_PI
+    return offset if offset > 0. else p + offset
 
 
-@njit
+@njit(fastmath=True)
 def transit_distance_factor(e, w):
     """
     Calculate the dimensionless distance factor at the time of primary transit.
@@ -160,7 +160,7 @@ def i_from_baew(b, a, e, w):
     Parameters
     ----------
     b : float
-        Impact parameter (dimensionless). The projected distance between the
+        Impact parameter. The projected distance between the
         planet and star centers at the moment of transit, in units of the
         stellar radius.
     a : float
@@ -188,9 +188,9 @@ def i_from_baew(b, a, e, w):
     return arccos(b / (a * transit_distance_factor(e, w)))
 
 
-@njit
+@njit(fastmath=True)
 def as_from_rhop(rho, period):
-    """
+    r"""
     Compute the scaled semi-major axis (a/R_star) from stellar density and orbital period.
 
     This calculation is derived from Kepler's Third Law, assuming the planet's
@@ -223,8 +223,8 @@ def as_from_rhop(rho, period):
 
 
 @njit
-def ta_from_ea_v(e, ecc):
-    """
+def ta_from_ea(e, ecc):
+    r"""
     Convert Eccentric Anomaly to True Anomaly.
 
     This function calculates the position of the body along its orbit (True
@@ -233,14 +233,14 @@ def ta_from_ea_v(e, ecc):
 
     Parameters
     ----------
-    e : float or ndarray
+    e : float or NDArray
         Eccentric Anomaly in radians.
     ecc : float
         Orbital eccentricity (0 <= e < 1).
 
     Returns
     -------
-    f : float or ndarray
+    f : float or NDArray
         True Anomaly in radians.
 
     Notes
@@ -256,47 +256,13 @@ def ta_from_ea_v(e, ecc):
 
 
 @njit
-def ta_from_ea_s(e, ecc):
-    """
-    Convert Eccentric Anomaly to True Anomaly.
-
-    This function calculates the position of the body along its orbit (True
-    Anomaly) given its position relative to the auxiliary circle (Eccentric
-    Anomaly).
-
-    Parameters
-    ----------
-    e : float or ndarray
-        Eccentric Anomaly in radians.
-    ecc : float
-        Orbital eccentricity (0 <= e < 1).
-
-    Returns
-    -------
-    f : float or ndarray
-        True Anomaly in radians.
-
-    Notes
-    -----
-    The relationship is derived from the geometry of the ellipse:
-    $$ \cos(f) = \frac{\cos(E) - e}{1 - e \cos(E)} $$
-    $$ \sin(f) = \frac{\sqrt{1 - e^2} \sin(E)}{1 - e \cos(E)} $$
-    Using arctan2 ensures the True Anomaly is placed in the correct quadrant.
-    """
-    sta = sqrt(1.0 - ecc ** 2) * sin(e) / (1.0 - ecc * cos(e))
-    cta = (cos(e) - ecc) / (1.0 - ecc * cos(e))
-    Ta  = arctan2(sta, cta)
-    return Ta
-
-
-@njit
 def mean_anomaly_at_transit(ecc, w):
-    """
+    r"""
     Compute the Mean Anomaly at the moment of primary transit.
 
     For an eccentric orbit, the transit center does not occur at a Mean
-    Anomaly of zero (unless e=0). This function calculates the angular
-    time-offset required to align the transit event with the orbital clock.
+    Anomaly of zero. This function calculates the angular time-offset required
+    to align the transit event with the orbital clock.
 
     Parameters
     ----------
@@ -420,23 +386,23 @@ def mean_anomaly_with_derivatives(t, t0, p, ecc, w):
     """
     m_tr, dm_tr_de, dm_tr_dw = mean_anomaly_at_transit_with_derivatives(ecc, w)
     dt = t - t0
-    mean_motion = TWOPI / p
+    mean_motion = TWO_PI / p
     m = mean_motion * dt + m_tr
     dm_dt0 = -mean_motion
-    dm_dp  = -TWOPI * dt / (p**2)
+    dm_dp  = -TWO_PI * dt / (p**2)
     dm_de  = dm_tr_de
     dm_dw  = dm_tr_dw
     return m, dm_dt0, dm_dp, dm_de, dm_dw
 
 
 @njit
-def z_from_ta_s(f, a, i, e, w):
+def z_from_ta(f, a, i, e, w):
     """
-    Compute the sky-projected separation (Scalar version).
+    Compute the sky-projected separation.
 
     Parameters
     ----------
-    f : float
+    f : float or NDArray
         True anomaly in radians.
     a : float
         Scaled semi-major axis (a/R_star).
@@ -449,41 +415,13 @@ def z_from_ta_s(f, a, i, e, w):
 
     Returns
     -------
-    z : float
+    z : float or NDArray
         Projected separation between the planet and star centers in units
         of stellar radii. Positive values indicate the planet is in
         front of the star (transit), negative values indicate eclipse.
     """
     z  = a * (1.0-e**2) / (1.0 + e * cos(f)) * sqrt(1.0 - sin(w + f) ** 2 * sin(i) ** 2)
     z *= copysign(1.0, sin(w + f))
-    return z
-
-
-@njit(parallel=True)
-def z_from_ta_v(f, a, i, e, w):
-    """
-    Compute the sky-projected separation (Vectorized version).
-
-    Parameters
-    ----------
-    f : ndarray
-        True anomalies in radians.
-    a : float
-        Scaled semi-major axis (a/R_star).
-    i : float
-        Orbital inclination in radians.
-    e : float
-        Orbital eccentricity (0 <= e < 1).
-    w : float
-        Argument of periastron in radians.
-
-    Returns
-    -------
-    z : ndarray
-        Projected separations in units of stellar radii.
-    """
-    z  = a * (1.0-e**2) / (1.0 + e * cos(f)) * sqrt(1.0 - sin(w + f) ** 2 * sin(i) ** 2)
-    z *= sign(1.0, sin(w + f))
     return z
 
 

@@ -17,7 +17,7 @@
 from numba import njit
 from numpy import cos, sin, zeros, pi
 
-from ..utils import mean_anomaly, ta_from_ea_s, ta_from_ea_v, z_from_ta_s, z_from_ta_v, eclipse_phase
+from ..utils import mean_anomaly, ta_from_ea, z_from_ta, eclipse_time_offset
 
 
 @njit(fastmath=True)
@@ -60,12 +60,12 @@ def ea_newton_v(t, t0, p, e, w):
 
 @njit
 def ta_newton_s(t, t0, p, e, w):
-    return ta_from_ea_s(ea_newton_s(t, t0, p, e, w), e)
+    return ta_from_ea(ea_newton_s(t, t0, p, e, w), e)
 
 
 @njit
 def ta_newton_v(t, t0, p, e, w):
-    return ta_from_ea_v(ea_newton_v(t, t0, p, e, w), e)
+    return ta_from_ea(ea_newton_v(t, t0, p, e, w), e)
 
 
 @njit(fastmath=True)
@@ -94,7 +94,7 @@ def z_newton_s(time, t0, p, a, i, e, w):
     """Normalized projected distance for scalar time.
     """
     ta = ta_newton_s(time, t0, p, e, w)
-    return z_from_ta_s(ta, a, i, e, w)
+    return z_from_ta(ta, a, i, e, w)
 
 
 @njit
@@ -102,7 +102,7 @@ def z_newton_v(time, t0, p, a, i, e, w):
     """Normalized projected distance for an array of times.
     """
     ta = ta_newton_v(time, t0, p, e, w)
-    return z_from_ta_v(ta, a, i, e, w)
+    return z_from_ta(ta, a, i, e, w)
 
 
 @njit
@@ -148,7 +148,7 @@ def eclipse_light_travel_time(p: float, a: float, i: float, e: float, w: float, 
     r = ae / (1. + e * cos(f))
     ztr = r * sin(w + f) * si
 
-    f = ta_newton_s(eclipse_phase(p, i, e, w), 0.0, p, e, w)
+    f = ta_newton_s(eclipse_time_offset(p, i, e, w), 0.0, p, e, w)
     r = ae / (1. + e * cos(f))
     zec = r * sin(w + f) * si
 
