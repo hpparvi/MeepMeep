@@ -16,13 +16,36 @@
 
 from numba import njit
 from numpy import cos, sin, zeros, pi
+from numpy.typing import NDArray
 
 from ..utils import mean_anomaly, ta_from_ea, z_from_ta, eclipse_time_offset
 
 
 @njit(fastmath=True)
 def ea_from_ma(ma, ecc):
-    """Solve Kepler's equation E - e*sin(E) = M to high precision."""
+    """Solve Kepler's equation for the eccentric anomaly.
+
+    Inverts ``E - e * sin(E) = M`` using Newton-Raphson iteration.
+
+    Parameters
+    ----------
+    ma : float or NDArray
+        Mean anomaly in radians.
+    ecc : float
+        Orbital eccentricity (0 <= ecc < 1).
+
+    Returns
+    -------
+    ea : float or NDArray
+        Eccentric anomaly in radians satisfying ``E - e * sin(E) = M`` to
+        within ``|dE| < 1e-13`` or after 50 iterations, whichever comes first.
+
+    Notes
+    -----
+    The initial guess is ``E_0 = M`` for moderate eccentricities and
+    ``E_0 = pi`` for ``e > 0.8`` to improve convergence near apoastron
+    where Kepler's equation becomes stiff.
+    """
     ea = ma
     if ecc > 0.8:
         ea = pi
@@ -39,38 +62,152 @@ def ea_from_ma(ma, ecc):
 
 @njit
 def ea_newton_s(t, t0, p, e, w):
+    """Eccentric anomaly at a scalar time via Newton-Raphson.
+
+    Computes the mean anomaly from the orbital elements at time ``t``,
+    then solves Kepler's equation by iteration.
+
+    Parameters
+    ----------
+    t : float
+        Observation time, in the same units as ``p``.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    ea : float
+        Eccentric anomaly in radians.
+
+    """
     ma = mean_anomaly(t, t0, p, e, w)
-    ea = ma
-    err = 0.05
-    k = 0
-    while abs(err) > 1e-8 and k < 1000:
-        err = ea - e*sin(ea) - ma
-        ea = ea - err/(1.0-e*cos(ea))
-        k += 1
-    return ea
+    return ea_from_ma(ma, e)
 
 
 @njit
 def ea_newton_v(t, t0, p, e, w):
+    """Eccentric anomaly evaluated at an array of times.
+
+    Parameters
+    ----------
+    t : NDArray
+        1D array of observation times, in the same units as ``p``.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    ea : NDArray
+        Eccentric anomaly in radians.
+    """
     ea = zeros(t.size)
     for i in range(len(t)):
-        ea[i] = ea_newton_s(t[i], t0, p, e, w)
+        ma = mean_anomaly(t[i], t0, p, e, w)
+        ea[i] = ea_from_ma(ma, e)
     return ea
 
 
 @njit
 def ta_newton_s(t, t0, p, e, w):
+    """True anomaly at a scalar time.
+
+    Composes `ea_newton_s` with `ta_from_ea` to map time directly to
+    true anomaly, the angle between periastron and the planet's
+    current position as seen from the focus.
+
+    Parameters
+    ----------
+    t : float
+        Observation time, in the same units as ``p``.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    f : float
+        True anomaly in radians, wrapped to ``(-pi, pi]`` by arctan2.
+    """
     return ta_from_ea(ea_newton_s(t, t0, p, e, w), e)
 
 
 @njit
 def ta_newton_v(t, t0, p, e, w):
+    """True anomaly evaluated at an array of times.
+
+    Parameters
+    ----------
+    t : NDArray
+        1D array of observation times, in the same units as ``p``.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    f : NDArray
+        True anomaly in radians for each input time.
+    """
     return ta_from_ea(ea_newton_v(t, t0, p, e, w), e)
 
 
 @njit(fastmath=True)
 def xy_newton_v(time, t0, p, a, i, e, w):
-    """Planet velocity and acceleration at mid-transit in [R_star / day]"""
+    """Sky-plane (x, y) position of the planet at an array of times.
+
+    Parameters
+    ----------
+    time : NDArray
+        1D array of observation times, in the same units as ``p``.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    a : float
+        Scaled semi-major axis (a / R_star).
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    x : NDArray
+        Sky-plane x coordinate in units of stellar radii.
+    y : NDArray
+        Sky-plane y coordinate in units of stellar radii.
+
+    Notes
+    -----
+    The x-axis points right and the y-axis up in the projected sky
+    plane (see the coordinate-system convention in the project
+    documentation). The radial distance is ``r = a(1-e^2)/(1+e cos f)``
+    and the projection drops the line-of-sight component.
+    """
     f = ta_newton_v(time, t0, p, e, w)
     r = a * (1. - e ** 2) / (1. + e * cos(f))
     x = -r * cos(w + f)
@@ -80,7 +217,40 @@ def xy_newton_v(time, t0, p, a, i, e, w):
 
 @njit(fastmath=True)
 def xyz_newton_v(time, t0, p, a, i, e, w):
-    """Planet velocity and acceleration at mid-transit in [R_star / day]"""
+    """3D position of the planet at an array of times.
+
+    Returns the full position vector including the line-of-sight
+    component, so callers can distinguish transit (z > 0) from
+    secondary eclipse (z < 0).
+
+    Parameters
+    ----------
+    time : NDArray
+        1D array of observation times, in the same units as ``p``.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    a : float
+        Scaled semi-major axis (a / R_star).
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    x : NDArray
+        Sky-plane x coordinate in units of stellar radii.
+    y : NDArray
+        Sky-plane y coordinate in units of stellar radii.
+    z : NDArray
+        Line-of-sight coordinate in units of stellar radii; positive
+        toward the observer (transit side), negative on the far side
+        of the orbit (eclipse side).
+    """
     f = ta_newton_v(time, t0, p, e, w)
     r = a * (1. - e ** 2) / (1. + e * cos(f))
     x = -r * cos(w + f)
@@ -91,7 +261,31 @@ def xyz_newton_v(time, t0, p, a, i, e, w):
 
 @njit
 def z_newton_s(time, t0, p, a, i, e, w):
-    """Normalized projected distance for scalar time.
+    """Signed sky-projected planet-star separation at a scalar time.
+
+    Parameters
+    ----------
+    time : float
+        Observation time, in the same units as ``p``.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    a : float
+        Scaled semi-major axis (a / R_star).
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    z : float
+        Projected planet-star separation in units of stellar radii.
+        Positive during transit (planet in front of the star),
+        negative during secondary eclipse (planet behind the star).
     """
     ta = ta_newton_s(time, t0, p, e, w)
     return z_from_ta(ta, a, i, e, w)
@@ -99,7 +293,30 @@ def z_newton_s(time, t0, p, a, i, e, w):
 
 @njit
 def z_newton_v(time, t0, p, a, i, e, w):
-    """Normalized projected distance for an array of times.
+    """Signed sky-projected planet-star separation at an array of times.
+
+    Parameters
+    ----------
+    time : NDArray
+        1D array of observation times, in the same units as ``p``.
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    a : float
+        Scaled semi-major axis (a / R_star).
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    z : NDArray
+        Projected separation in stellar radii per input time, signed by
+        transit/eclipse side as in `z_newton_s`.
     """
     ta = ta_newton_v(time, t0, p, e, w)
     return z_from_ta(ta, a, i, e, w)
@@ -107,37 +324,81 @@ def z_newton_v(time, t0, p, a, i, e, w):
 
 @njit
 def rv_newton_v(times, k, t0, p, e, w):
+    """Stellar radial velocity induced by a planet at an array of times.
+
+    Implements the standard Keplerian radial-velocity model
+    ``RV(t) = K * (cos(w + f) + e * cos(w))``,
+    where ``f`` is the true anomaly and ``K`` is the velocity
+    semi-amplitude. The constant offset ``-K * e * cos(w)`` ensures
+    that the systemic velocity is zero (i.e. the model returns the
+    reflex motion around the barycenter).
+
+    Parameters
+    ----------
+    times : NDArray
+        1D array of observation times, in the same units as ``p``.
+    k : float
+        Radial-velocity semi-amplitude in the desired velocity units
+        (e.g. m/s).
+    t0 : float
+        Time of primary transit center.
+    p : float
+        Orbital period.
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
+
+    Returns
+    -------
+    rv : NDArray
+        Predicted radial velocity at each input time, in the same
+        units as ``k``.
+    """
     ta_n = ta_newton_v(times, t0, p, e, w)
     return k * (cos(w + ta_n) + e * cos(w))
 
 
 @njit
 def eclipse_light_travel_time(p: float, a: float, i: float, e: float, w: float, rstar: float):
-    """
-    Calculate the light travel time difference between the transit and the secondary eclipse of an exoplanet.
+    """Light travel time difference between primary transit and secondary eclipse.
 
-    This function computes the difference in light travel time caused by the displacement of the planet between
-    its transit across the star and its secondary eclipse (when the planet passes behind the star as viewed from Earth).
+    Photons from a secondary eclipse traverse an extra path equal to
+    the line-of-sight displacement of the planet between the two
+    events. This function returns that delay so observed
+    transit/eclipse mid-times can be corrected to the same emission
+    frame.
 
     Parameters
     ----------
     p : float
         Orbital period in days.
     a : float
-        Semi-major axis of the planet's orbit in host star radii.
+        Scaled semi-major axis (a / R_star).
     i : float
         Orbital inclination in radians.
     e : float
-        Orbital eccentricity.
+        Orbital eccentricity (0 <= e < 1).
     w : float
         Argument of periastron in radians.
     rstar : float
-        Radius of the star in solar radii.
+        Stellar radius in solar radii.
 
     Returns
     -------
-    float
-        The light travel time difference in days between the transit and secondary eclipse of the exoplanet.
+    dt : float
+        Light travel time delay between primary transit and secondary
+        eclipse, in days. Positive when the planet is closer to the
+        observer at transit than at eclipse (the usual case).
+
+    Notes
+    -----
+    The line-of-sight coordinate is evaluated as
+    ``z = r * sin(w + f) * sin(i)`` at the true anomaly for primary
+    transit (``t = 0``) and for secondary eclipse (``t =
+    eclipse_time_offset(p, i, e, w)``). The difference is converted
+    to a time delay using the light-crossing time of one solar
+    radius, ``s = R_sun / c ~ 2.686e-5 d``.
     """
     s = 2.685885891543453e-05  # Light travel time for a distance of one solar radius in days
 
