@@ -260,13 +260,13 @@ class Orbit:
 
         fig, axs = subplots(1, 3, figsize=figsize)
         axs[0].plot(x, y, zorder=0)
-        axs[0].add_patch(Circle((self._coeffs[0, 0], self._coeffs[0, 1]), pr, fc=pc, ec="k", zorder=10))
+        axs[0].add_patch(Circle((self._coeffs[0, 0, 0], self._coeffs[0, 1, 0]), pr, fc=pc, ec="k", zorder=10))
         axs[1].plot(x, z, zorder=1)
-        axs[1].add_patch(Circle((self._coeffs[0, 0], self._coeffs[0, 2]), pr, fc=pc, ec="k", zorder=11))
+        axs[1].add_patch(Circle((self._coeffs[0, 0, 0], self._coeffs[0, 2, 0]), pr, fc=pc, ec="k", zorder=11))
         axs[1].add_patch(Wedge((0, 0), 1.3 * sr, 180 - degrees(self._w), 180, fc=pc, ec="k", zorder=-10))
 
         axs[2].plot(z, y, zorder=2)
-        axs[2].add_patch(Circle((self._coeffs[0, 2], self._coeffs[0, 1]), pr, fc=pc, ec="k", zorder=12))
+        axs[2].add_patch(Circle((self._coeffs[0, 2, 0], self._coeffs[0, 1, 0]), pr, fc=pc, ec="k", zorder=12))
 
         di = self.times.size // 6
         for i in range(6):
