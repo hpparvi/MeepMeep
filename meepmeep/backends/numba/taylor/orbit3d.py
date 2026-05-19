@@ -30,7 +30,7 @@ from numba import njit
 from numpy import zeros, pi, floor, sqrt, sin, cos, arccos
 
 from .position3d import pos_c, sep_c, pz_c
-from .velocity3d import v3dc, vzc
+from .velocity3d import vel_c, zvel_c
 from .solve3d import solve3d
 from ..utils import mean_anomaly, mean_anomaly_at_transit
 
@@ -126,7 +126,7 @@ def vxyz_o5s(t, t0, p, dt, pktable, points, coeffs):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return v3dc(tc - points[ix] * p, coeffs[ix])
+    return vel_c(tc - points[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
@@ -145,7 +145,7 @@ def vz_o5s(t, t0, p, dt, pktable, points, coeffs):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return vzc(tc - points[ix] * p, coeffs[ix])
+    return zvel_c(tc - points[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
@@ -184,7 +184,7 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
             tcc = tc - points[ix] * p
             c = coeffs[ix]
             x, y, z = pos_c(tcc, c)
-            vx, vy, vz = v3dc(tcc, c)
+            vx, vy, vz = vel_c(tcc, c)
             edp = (x * ex + y * ey + z * ez) / sqrt((x * x + y * y + z * z) * nes)
 
             if edp <= -1.0:

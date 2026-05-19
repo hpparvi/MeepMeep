@@ -9,7 +9,7 @@ from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.taylor.solve3d import solve3d
 from meepmeep.backends.numba.taylor.position3d import pos_c
-from meepmeep.backends.numba.taylor.velocity3d import v3dc
+from meepmeep.backends.numba.taylor.velocity3d import vel_c
 from meepmeep.backends.numba.newton.newton import xyz_newton_v
 
 
@@ -79,7 +79,7 @@ class TestSolve3dPhysics:
         # The velocity from the derivative of the Horner polynomial at t=0
         # should equal cf[:, 1] (the pre-scaled 1st derivative coefficient).
         # v3dc evaluates this derivative analytically.
-        vx, vy, vz = v3dc(0.0, cf)
+        vx, vy, vz = vel_c(0.0, cf)
         assert_allclose(vx, cf[0, 1], rtol=1e-12)
         assert_allclose(vy, cf[1, 1], rtol=1e-12)
         assert_allclose(vz, cf[2, 1], rtol=1e-12)
@@ -151,7 +151,7 @@ class TestSolve3dAccuracy:
         vy_fd = (y2[0] - y1[0]) / (2 * h)
         vz_fd = (z2[0] - z1[0]) / (2 * h)
 
-        vx_ts, vy_ts, vz_ts = v3dc(t, cf)
+        vx_ts, vy_ts, vz_ts = vel_c(t, cf)
 
         assert_allclose(vx_ts, vx_fd, rtol=1e-4, atol=1e-6)
         assert_allclose(vy_ts, vy_fd, rtol=1e-4, atol=1e-6)

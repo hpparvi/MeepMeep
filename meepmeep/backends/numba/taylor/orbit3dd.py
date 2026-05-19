@@ -35,7 +35,7 @@ from numba import njit
 from numpy import zeros, pi, floor, sqrt, sin, cos, arccos
 
 from .position3d import pos_c
-from .velocity3d import v3dc, vzc
+from .velocity3d import vel_c, zvel_c
 from .position3dd import pos_cd, sep_cd, pz_cd
 from .velocity3dd import v3dc_d, vzc_d, rvc_d
 from .solve3dd import solve3d_d
@@ -739,7 +739,7 @@ def vz_o5s(t, t0, p, dt, pktable, points, coeffs):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return vzc(tc - points[ix] * p, coeffs[ix])
+    return zvel_c(tc - points[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
