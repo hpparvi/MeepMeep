@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.taylor.position2d import p2d, p2dc, pd2d, d2dc
+from meepmeep.backends.numba.taylor.position2d import pos, pos_c, pos_and_sep, sep_c
 from meepmeep.backends.numba.taylor.util2d import find_contact_point, bounding_box
 from meepmeep.backends.numba.taylor.solve2d import solve2d
 from meepmeep.backends.numba.newton.newton import xy_newton_v, z_newton_v
@@ -100,7 +100,7 @@ class TestPosition2dFunctions:
 
         # Evaluate at a small time offset
         t = 0.01
-        x, y = p2d(t, 0.0, circular_orbit["p"], coeffs)
+        x, y = pos(t, 0.0, circular_orbit["p"], coeffs)
 
         assert isinstance(x, (float, np.floating))
         assert isinstance(y, (float, np.floating))
@@ -117,7 +117,7 @@ class TestPosition2dFunctions:
 
         for t in times:
             # Taylor approximation
-            x_taylor, y_taylor = p2d(t, 0.0, circular_orbit["p"], coeffs)
+            x_taylor, y_taylor = pos(t, 0.0, circular_orbit["p"], coeffs)
 
             # Newton-Raphson ground truth
             x_newton, y_newton = xy_newton_v(np.array([t]), 0.0, circular_orbit["p"], circular_orbit["a"],
@@ -132,7 +132,7 @@ class TestPosition2dFunctions:
         coeffs = solve2d(0.0, **circular_orbit)
         t = 0.01
 
-        x, y = p2dc(t, coeffs)
+        x, y = pos_c(t, coeffs)
 
         assert np.isfinite(x)
         assert np.isfinite(y)
@@ -142,7 +142,7 @@ class TestPosition2dFunctions:
         coeffs = solve2d(0.0, **circular_orbit)
         t = 0.01
 
-        x, y, d = pd2d(t, coeffs)
+        x, y, d = pos_and_sep(t, coeffs)
 
         # Distance should match sqrt(x^2 + y^2)
         expected_d = np.sqrt(x ** 2 + y ** 2)
@@ -157,7 +157,7 @@ class TestProjectedDistance:
         coeffs = solve2d(0.0, **circular_orbit)
         t = 0.01
 
-        d = d2dc(t, coeffs)
+        d = sep_c(t, coeffs)
 
         assert isinstance(d, (float, np.floating))
         assert d > 0
@@ -168,10 +168,10 @@ class TestProjectedDistance:
         coeffs = solve2d(0.0, **eccentric_orbit)
         t = 0.02
 
-        x, y = p2dc(t, coeffs)
+        x, y = pos_c(t, coeffs)
         d_from_xy = np.sqrt(x ** 2 + y ** 2)
 
-        d_direct = d2dc(t, coeffs)
+        d_direct = sep_c(t, coeffs)
 
         assert_allclose(d_direct, d_from_xy, rtol=1e-12)
 
@@ -181,7 +181,7 @@ class TestProjectedDistance:
         times = np.array([0.0, 0.01, 0.02])
 
         # Taylor approximation using centered version
-        d_taylor = np.array([d2dc(t, coeffs) for t in times])
+        d_taylor = np.array([sep_c(t, coeffs) for t in times])
 
         # Newton-Raphson ground truth (times relative to t0=0)
         d_newton = z_newton_v(times, 0.0, circular_orbit["p"], circular_orbit["a"], circular_orbit["i"],
@@ -272,7 +272,7 @@ class TestAccuracyVsNewton:
         times = np.linspace(-0.01, 0.01, 20)
 
         for t in times:
-            x_taylor, y_taylor = p2d(t, 0.0, params["p"], coeffs)
+            x_taylor, y_taylor = pos(t, 0.0, params["p"], coeffs)
             x_newton, y_newton = xy_newton_v(np.array([t]), 0.0, params["p"], params["a"], params["i"], params["e"],
                 params["w"])
 
@@ -287,14 +287,14 @@ class TestAccuracyVsNewton:
 
         # Near expansion point
         t_near = 0.01
-        x_near, y_near = p2d(t_near, 0.0, eccentric_orbit["p"], coeffs)
+        x_near, y_near = pos(t_near, 0.0, eccentric_orbit["p"], coeffs)
         x_newton_near, y_newton_near = xy_newton_v(np.array([t_near]), 0.0, eccentric_orbit["p"], eccentric_orbit["a"],
             eccentric_orbit["i"], eccentric_orbit["e"], eccentric_orbit["w"])
         error_near = np.sqrt((x_near - x_newton_near[0]) ** 2 + (y_near - y_newton_near[0]) ** 2)
 
         # Far from expansion point
         t_far = 0.3
-        x_far, y_far = p2d(t_far, 0.0, eccentric_orbit["p"], coeffs)
+        x_far, y_far = pos(t_far, 0.0, eccentric_orbit["p"], coeffs)
         x_newton_far, y_newton_far = xy_newton_v(np.array([t_far]), 0.0, eccentric_orbit["p"], eccentric_orbit["a"],
             eccentric_orbit["i"], eccentric_orbit["e"], eccentric_orbit["w"])
         error_far = np.sqrt((x_far - x_newton_far[0]) ** 2 + (y_far - y_newton_far[0]) ** 2)

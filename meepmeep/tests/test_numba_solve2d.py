@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.taylor.solve2d import solve2d
-from meepmeep.backends.numba.taylor.position2d import p2dc
+from meepmeep.backends.numba.taylor.position2d import pos_c
 from meepmeep.backends.numba.newton.newton import xy_newton_v
 
 
@@ -77,8 +77,8 @@ class TestSolve2dPhysics:
         # Derivative of c[k,0] + t*(c[k,1] + t*(c[k,2] + ...)) at t=0 is c[k,1]
         # Evaluate at a tiny offset and check consistency
         h = 1e-8
-        x1, y1 = p2dc(-h, cf)
-        x2, y2 = p2dc(h, cf)
+        x1, y1 = pos_c(-h, cf)
+        x2, y2 = pos_c(h, cf)
         vx_fd = (x2 - x1) / (2 * h)
         vy_fd = (y2 - y1) / (2 * h)
         assert_allclose(vx_fd, cf[0, 1], rtol=1e-5, atol=1e-10)
@@ -111,7 +111,7 @@ class TestSolve2dAccuracy:
         times = np.linspace(-0.02, 0.02, 10)
 
         for t in times:
-            x_ts, y_ts = p2dc(t, cf)
+            x_ts, y_ts = pos_c(t, cf)
             x_nr, y_nr = xy_newton_v(
                 np.array([t]), 0.0, eccentric_orbit["p"],
                 eccentric_orbit["a"], eccentric_orbit["i"],
@@ -130,7 +130,7 @@ class TestSolve2dAccuracy:
         rtol = 1e-5 * (1 + e)
 
         for t in times:
-            x_ts, y_ts = p2dc(t, cf)
+            x_ts, y_ts = pos_c(t, cf)
             x_nr, y_nr = xy_newton_v(
                 np.array([t]), 0.0, params["p"],
                 params["a"], params["i"], params["e"], params["w"]
@@ -172,7 +172,7 @@ class TestSolve2dAccuracy:
         w = eccentric_orbit["w"]
 
         def position_error(t):
-            x_ts, y_ts = p2dc(t, cf)
+            x_ts, y_ts = pos_c(t, cf)
             x_nr, y_nr = xy_newton_v(np.array([t]), 0.0, p, a, i, e, w)
             return np.sqrt((x_ts - x_nr[0])**2 + (y_ts - y_nr[0])**2)
 
