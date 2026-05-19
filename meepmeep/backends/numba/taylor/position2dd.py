@@ -20,7 +20,7 @@ from numpy.typing import NDArray
 
 
 @njit(fastmath=True)
-def p2dc_d(t, c, dc):
+def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
     Evaluate the (x, y) position and its orbital-parameter derivatives at a knot-centered time.
 
@@ -28,13 +28,12 @@ def p2dc_d(t, c, dc):
     partial derivatives of the sky-plane position with respect to each of
     the six orbital parameters. Both the position polynomial and the six
     derivative polynomials are evaluated using Horner's scheme on the same
-    centered time `t`.
+    centered time `time`.
 
     Parameters
     ----------
-    t : float
-        Time relative to the Taylor series expansion point, i.e.
-        `t = tc - (t0 + epoch*p)`.
+    time : float
+        Time relative to the Taylor series expansion point.
     c : NDArray
         A (2, 5) coefficient matrix produced by `solve2d`. Rows index the
         spatial dimensions (x, y) and columns the Taylor order from
@@ -58,37 +57,31 @@ def p2dc_d(t, c, dc):
         Shape (6,) array of partial derivatives of `py` with respect to
         the same six parameters.
 
-    Notes
-    -----
-    The derivative polynomials share the truncation behaviour of the
-    position polynomial: they are accurate only inside the validity
-    region of the corresponding knot. Outside that region, both the
-    position and the gradients degrade together.
     """
-    px = c[0, 0] + t * (c[0, 1] + t * (c[0, 2] + t * (c[0, 3] + t * c[0, 4])))
-    py = c[1, 0] + t * (c[1, 1] + t * (c[1, 2] + t * (c[1, 3] + t * c[1, 4])))
+    px = c[0, 0] + time * (c[0, 1] + time * (c[0, 2] + time * (c[0, 3] + time * c[0, 4])))
+    py = c[1, 0] + time * (c[1, 1] + time * (c[1, 2] + time * (c[1, 3] + time * c[1, 4])))
 
     dpx = zeros(6)
     dpy = zeros(6)
     for k in range(6):
-        dpx[k] = dc[k, 0, 0] + t * (dc[k, 0, 1] + t * (dc[k, 0, 2] + t * (dc[k, 0, 3] + t * dc[k, 0, 4])))
-        dpy[k] = dc[k, 1, 0] + t * (dc[k, 1, 1] + t * (dc[k, 1, 2] + t * (dc[k, 1, 3] + t * dc[k, 1, 4])))
+        dpx[k] = dc[k, 0, 0] + time * (dc[k, 0, 1] + time * (dc[k, 0, 2] + time * (dc[k, 0, 3] + time * dc[k, 0, 4])))
+        dpy[k] = dc[k, 1, 0] + time * (dc[k, 1, 1] + time * (dc[k, 1, 2] + time * (dc[k, 1, 3] + time * dc[k, 1, 4])))
 
     return px, py, dpx, dpy
 
 
 @njit(fastmath=True)
-def p2d_d(t, t0, p, c, dc):
+def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     """
     Evaluate the (x, y) position and its orbital-parameter derivatives at an absolute time.
 
     Direct counterpart of `p2dc_d`: accepts an absolute observation time
-    `t`, folds it back into a single orbital epoch around the expansion
+    `time`, folds it back into a single orbital epoch around the expansion
     time `t0`, and delegates the polynomial evaluation to `p2dc_d`.
 
     Parameters
     ----------
-    t : float
+    time : float
         Absolute observation time in the same units as `t0` and `p`.
     t0 : float
         Taylor series expansion time (knot time).
@@ -111,29 +104,23 @@ def p2d_d(t, t0, p, c, dc):
     dpy : NDArray
         Shape (6,) partial derivatives of `py` w.r.t. `(t0, p, a, i, e, w)`.
 
-    Notes
-    -----
-    The folded epoch is `floor((t - t0 + p/2) / p)`, so the residual
-    passed to `p2dc_d` lies within `[-p/2, p/2)`. The returned gradients
-    are with respect to the parameters that define the orbit itself; the
-    discrete `epoch` shift contributes no derivative.
     """
-    epoch = floor((t - t0 + 0.5 * p) / p)
-    return p2dc_d(t - (t0 + epoch * p), c, dc)
+    epoch = floor((time - t0 + 0.5 * p) / p)
+    return pos_cd(time - (t0 + epoch * p), c, dc)
 
 
 @njit(fastmath=True)
-def d2dc_d(t, c, dc):
+def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
-    Evaluate the projected planet-star distance and its parameter derivatives at a knot-centered time.
+    Evaluate the projected planet-star separation and its parameter derivatives at a knot-centered time.
 
     Computes the sky-plane position via `p2dc_d` and reduces it to the
     Euclidean distance `d = sqrt(px^2 + py^2)`, propagating the parameter
-    derivatives through the chain rule.
+    derivatives using the chain rule.
 
     Parameters
     ----------
-    t : float
+    time : float
         Time relative to the Taylor series expansion point.
     c : NDArray
         A (2, 5) Taylor coefficient matrix produced by `solve2d`.
@@ -154,10 +141,10 @@ def d2dc_d(t, c, dc):
     The chain-rule reduction used here is
     `dd/dtheta = (px * dpx/dtheta + py * dpy/dtheta) / d`.
     The expression is regular for `d > 0`, which is the regime of
-    interest for transit modelling; the gradient is ill-defined exactly
+    interest for transit modeling; the gradient is ill-defined exactly
     at the (geometrically singular) point of zero projected separation.
     """
-    px, py, dpx, dpy = p2dc_d(t, c, dc)
+    px, py, dpx, dpy = pos_cd(time, c, dc)
     d = sqrt(px ** 2 + py ** 2)
     dd = zeros(6)
     for k in range(6):
@@ -166,16 +153,16 @@ def d2dc_d(t, c, dc):
 
 
 @njit(fastmath=True)
-def d2d_d(t, t0, p, c, dc):
+def sep_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     """
     Evaluate the projected planet-star distance and its parameter derivatives at an absolute time.
 
-    Direct counterpart of `d2dc_d`: epoch-folds the absolute time `t`
+    Direct counterpart of `d2dc_d`: epoch-folds the absolute time `time`
     around the expansion point `t0` and delegates to `d2dc_d`.
 
     Parameters
     ----------
-    t : float
+    time : float
         Absolute observation time in the same units as `t0` and `p`.
     t0 : float
         Taylor series expansion time (knot time).
@@ -195,5 +182,5 @@ def d2d_d(t, t0, p, c, dc):
         Shape (6,) partial derivatives of `d` with respect to
         `(t0, p, a, i, e, w)`.
     """
-    epoch = floor((t - t0 + 0.5 * p) / p)
-    return d2dc_d(t - (t0 + epoch * p), c, dc)
+    epoch = floor((time - t0 + 0.5 * p) / p)
+    return sep_cd(time - (t0 + epoch * p), c, dc)
