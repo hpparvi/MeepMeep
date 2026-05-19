@@ -19,7 +19,7 @@ from numpy import floor, sqrt, sin, cos, pi, zeros
 
 
 @njit(fastmath=True)
-def v3dc_d(t, c, dc):
+def vel_cd(t, c, dc):
     """Calculate planet's (vx, vy, vz) velocity and parameter derivatives.
 
     Parameters
@@ -54,7 +54,7 @@ def v3dc_d(t, c, dc):
 
 
 @njit(fastmath=True)
-def vzc_d(t, c, dc):
+def zvel_cd(t, c, dc):
     """Calculate planet's z-velocity and parameter derivatives.
 
     Parameters
@@ -81,7 +81,7 @@ def vzc_d(t, c, dc):
 
 
 @njit(fastmath=True)
-def vz_d(t, t0, p, c, dc):
+def zvel_d(t, t0, p, c, dc):
     """Calculate planet's z-velocity and parameter derivatives.
 
     Parameters
@@ -105,11 +105,11 @@ def vz_d(t, t0, p, c, dc):
         Derivatives of vz w.r.t. (phase, p, a, i, e, w).
     """
     epoch = floor((t - t0 + 0.5 * p) / p)
-    return vzc_d(t - (t0 + epoch * p), c, dc)
+    return zvel_cd(t - (t0 + epoch * p), c, dc)
 
 
 @njit(fastmath=True)
-def rvc_d(t, k, p, a, i, e, c, dc):
+def rv_cd(t, k, p, a, i, e, c, dc):
     """Calculate radial velocity and parameter derivatives.
 
     Parameters
@@ -141,7 +141,7 @@ def rvc_d(t, k, p, a, i, e, c, dc):
     n = 2.0 * pi / p * (a * sin(i)) / sqrt(1.0 - e ** 2)
     s = k / n
 
-    vz, dvz = vzc_d(t, c, dc)
+    vz, dvz = zvel_cd(t, c, dc)
     rv_val = s * vz
 
     # ds/dθ for each parameter: phase, p, a, i, e, w
@@ -191,4 +191,4 @@ def rv_d(t, k, t0, p, a, i, e, c, dc):
         Derivatives of rv w.r.t. (phase, p, a, i, e, w).
     """
     epoch = floor((t - t0 + 0.5 * p) / p)
-    return rvc_d(t - (t0 + epoch * p), k, p, a, i, e, c, dc)
+    return rv_cd(t - (t0 + epoch * p), k, p, a, i, e, c, dc)

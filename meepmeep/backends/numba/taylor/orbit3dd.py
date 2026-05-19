@@ -37,7 +37,7 @@ from numpy import zeros, pi, floor, sqrt, sin, cos, arccos
 from .position3d import pos_c
 from .velocity3d import vel_c, zvel_c
 from .position3dd import pos_cd, sep_cd, pz_cd
-from .velocity3dd import v3dc_d, vzc_d, rvc_d
+from .velocity3dd import vel_cd, zvel_cd, rv_cd
 from .solve3dd import solve3d_d
 from ..utils import mean_anomaly_at_transit, mean_anomaly_at_transit_with_derivatives
 
@@ -190,7 +190,7 @@ def vxyz_o5s_d(t, t0, p, dt, pktable, points, coeffs, dcoeffs):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return v3dc_d(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+    return vel_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
 
 
 @njit(fastmath=True)
@@ -221,7 +221,7 @@ def vz_o5s_d(t, t0, p, dt, pktable, points, coeffs, dcoeffs):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return vzc_d(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+    return zvel_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
 
 
 @njit(fastmath=True)
@@ -424,7 +424,7 @@ def true_anomaly_o5v_d(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs,
         dc = dcoeffs[ix]
 
         x, y, z, dx, dy, dz = pos_cd(tcc, c, dc)
-        vx, vy, vz, dvx, dvy, dvz = v3dc_d(tcc, c, dc)
+        vx, vy, vz, dvx, dvy, dvz = vel_cd(tcc, c, dc)
 
         r2 = x * x + y * y + z * z
         r = sqrt(r2)
@@ -824,7 +824,7 @@ def rv_o5v_d(times, k, t0, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
         tc = t - t0 - epoch * p
         ix = pktable[int(floor(tc / (dt * p)))]
         tcc = tc - points[ix] * p
-        rv_val, drv_orb = rvc_d(tcc, k, p, a, i, e, coeffs[ix], dcoeffs[ix])
+        rv_val, drv_orb = rv_cd(tcc, k, p, a, i, e, coeffs[ix], dcoeffs[ix])
         rvs[j] = rv_val
         for kk in range(6):
             drvs[j, kk] = drv_orb[kk]
