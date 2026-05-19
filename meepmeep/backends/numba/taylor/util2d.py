@@ -15,13 +15,13 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
-from numpy import ndarray
+from numpy.typing import NDArray
 
 from .position2d import sep_c
 
 
 @njit
-def find_contact_point(k: float, point: int, c: ndarray):
+def find_contact_point(k: float, point: int, c: NDArray):
     """Find the contact point time for a planet.
 
     Parameters
@@ -73,7 +73,7 @@ def find_contact_point(k: float, point: int, c: ndarray):
 
 
 @njit
-def bounding_box(k: float, coeffs: ndarray):
+def bounding_box(k: float, coeffs: NDArray):
     """Calculate the bounding box for a transit.
 
 
@@ -96,14 +96,14 @@ def bounding_box(k: float, coeffs: ndarray):
 
 
 @njit
-def t14(k: float, c: ndarray) -> float:
+def t14(k: float, c: NDArray) -> float:
     """Total transit duration T14 (first to fourth contact).
 
     Parameters
     ----------
     k : float
         Radius ratio.
-    c : ndarray
+    c : NDArray
         A (2, 5) Taylor coefficient matrix.
 
     Returns
@@ -117,14 +117,14 @@ def t14(k: float, c: ndarray) -> float:
 
 
 @njit
-def t23(k: float, c: ndarray) -> float:
+def t23(k: float, c: NDArray) -> float:
     """Full-transit duration T23 (second to third contact).
 
     Parameters
     ----------
     k : float
         Radius ratio.
-    c : ndarray
+    c : NDArray
         A (2, 5) Taylor coefficient matrix.
 
     Returns
@@ -138,14 +138,14 @@ def t23(k: float, c: ndarray) -> float:
 
 
 @njit
-def t12(k: float, c: ndarray) -> float:
+def t12(k: float, c: NDArray) -> float:
     """Ingress duration T12 (first to second contact).
 
     Parameters
     ----------
     k : float
         Radius ratio.
-    c : ndarray
+    c : NDArray
         A (2, 5) Taylor coefficient matrix.
 
     Returns
@@ -159,14 +159,14 @@ def t12(k: float, c: ndarray) -> float:
 
 
 @njit
-def t34(k: float, c: ndarray) -> float:
+def t34(k: float, c: NDArray) -> float:
     """Egress duration T34 (third to fourth contact).
 
     Parameters
     ----------
     k : float
         Radius ratio.
-    c : ndarray
+    c : NDArray
         A (2, 5) Taylor coefficient matrix.
 
     Returns
@@ -180,14 +180,14 @@ def t34(k: float, c: ndarray) -> float:
 
 
 @njit
-def t1(k: float, c: ndarray) -> float:
+def t1(k: float, c: NDArray) -> float:
     """First contact time.
 
     Parameters
     ----------
     k : float
         Radius ratio.
-    c : ndarray
+    c : NDArray
         A (2, 5) Taylor coefficient matrix.
 
     Returns
@@ -199,14 +199,14 @@ def t1(k: float, c: ndarray) -> float:
 
 
 @njit
-def t4(k: float, c: ndarray) -> float:
+def t4(k: float, c: NDArray) -> float:
     """Fourth contact time.
 
     Parameters
     ----------
     k : float
         Radius ratio.
-    c : ndarray
+    c : NDArray
         A (2, 5) Taylor coefficient matrix.
 
     Returns
@@ -218,7 +218,7 @@ def t4(k: float, c: ndarray) -> float:
 
 
 @njit
-def find_z_min(tc: float, c: ndarray):
+def find_z_min(tc: float, c: NDArray):
     """Locate the local minimum of the projected planet-star distance.
 
     Uses golden-section search in a tight window around an initial guess.
@@ -229,7 +229,7 @@ def find_z_min(tc: float, c: ndarray):
     ----------
     tc : float
         Initial guess for the minimum (offset from the expansion point).
-    c : ndarray
+    c : NDArray
         A (2, 5) Taylor coefficient matrix.
 
     Returns
