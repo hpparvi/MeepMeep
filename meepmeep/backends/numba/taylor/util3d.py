@@ -17,7 +17,7 @@
 from numba import njit
 from numpy import ndarray
 
-from .position3d import d3dc
+from .position3d import sep_c
 
 
 @njit
@@ -57,17 +57,17 @@ def find_contact_point(k: float, point: int, c: ndarray):
     t2 = s * 2.0 / vx
     t1 = 0.5 * t2
 
-    z0 = d3dc(t0, c) - zt
-    z1 = d3dc(t1, c) - zt
+    z0 = sep_c(t0, c) - zt
+    z1 = sep_c(t1, c) - zt
 
     j = 0
     while abs(t2 - t0) > 1e-6 and j < 100:
         if z0 * z1 < 0.0:
             t1, t2 = 0.5 * (t0 + t1), t1
-            z1, z2 = d3dc(t1, c) - zt, z1
+            z1, z2 = sep_c(t1, c) - zt, z1
         else:
             t0, t1 = t1, 0.5 * (t1 + t2)
-            z0, z1 = z1, d3dc(t1, c) - zt
+            z0, z1 = z1, sep_c(t1, c) - zt
         j += 1
     return t1
 
@@ -243,17 +243,17 @@ def find_z_min(tc: float, c: ndarray):
     x1 = tc
     x2 = tc + cc * (x3 - tc)
 
-    f1 = d3dc(x1, c)
-    f2 = d3dc(x2, c)
+    f1 = sep_c(x1, c)
+    f2 = sep_c(x2, c)
 
     j = 0
     while abs(x3 - x0) > 1e-7 and j < 100:
         if f2 < f1:
             x0, x1, x2 = x1, x2, r * x2 + cc * x3
-            f1, f2 = f2, d3dc(x2, c)
+            f1, f2 = f2, sep_c(x2, c)
         else:
             x3, x2, x1 = x2, x1, r * x1 + cc * x0
-            f2, f1 = f1, d3dc(x1, c)
+            f2, f1 = f1, sep_c(x1, c)
         j += 1
 
     if f1 < f2:

@@ -31,7 +31,7 @@ from meepmeep.backends.numba.utils import (
     TWO_PI,
     mean_anomaly_at_transit,
     eccentricity_vector,
-    eclipse_phase,
+    eclipse_time_offset,
 )
 from meepmeep.backends.numba.newton.newton import eclipse_light_travel_time
 from meepmeep.backends.numba.taylor.orbit3d import (
@@ -531,7 +531,7 @@ class TestLightTravelTime:
             # ``tc + to`` (since tc = periastron-time here), so eclipse time
             # in our clock is ``tc + to + eclipse_phase``.
             to = mean_anomaly_at_transit(pars["e"], pars["w"]) / TWO_PI * pars["p"]
-            ec_dt = eclipse_phase(pars["p"], pars["i"], pars["e"], pars["w"])
+            ec_dt = eclipse_time_offset(pars["p"], pars["i"], pars["e"], pars["w"])
             t_ec = tc + to + ec_dt
             ltt_ec = light_travel_time_o5s(t_ec, tc, pars["p"], pars["e"],
                                            pars["w"], rstar, dt, pkt, pts, c)

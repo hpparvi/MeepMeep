@@ -23,13 +23,13 @@ delegating to the single-knot evaluators in ``position3d``/``velocity3d``.
 
 Coefficient layout: ``coeffs`` is an ``(npt, 3, 5)`` array as produced by
 ``solve3d_orbit`` — ``coeffs[ix]`` is the ``(3, 5)`` matrix consumed by
-``p3dc``, ``v3dc``, ``vzc``, ``d3dc``, and ``z3dc``.
+``pos_c``, ``v3dc``, ``vzc``, ``sep_c``, and ``pz_c``.
 """
 
 from numba import njit
 from numpy import zeros, pi, floor, sqrt, sin, cos, arccos
 
-from .position3d import p3dc, d3dc, z3dc
+from .position3d import pos_c, sep_c, pz_c
 from .velocity3d import v3dc, vzc
 from .solve3d import solve3d
 from ..utils import mean_anomaly, mean_anomaly_at_transit
@@ -75,7 +75,7 @@ def xyz_o5s(t, t0, p, dt, pktable, points, coeffs):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return p3dc(tc - points[ix] * p, coeffs[ix])
+    return pos_c(tc - points[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
@@ -94,7 +94,7 @@ def z_o5s(t, t0, p, dt, pktable, points, coeffs):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return z3dc(tc - points[ix] * p, coeffs[ix])
+    return pz_c(tc - points[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
@@ -113,7 +113,7 @@ def pd_o5s(t, t0, p, dt, pktable, points, coeffs):
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return d3dc(tc - points[ix] * p, coeffs[ix])
+    return sep_c(tc - points[ix] * p, coeffs[ix])
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +183,7 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
             ix = pktable[int(floor(tc / (dt * p)))]
             tcc = tc - points[ix] * p
             c = coeffs[ix]
-            x, y, z = p3dc(tcc, c)
+            x, y, z = pos_c(tcc, c)
             vx, vy, vz = v3dc(tcc, c)
             edp = (x * ex + y * ey + z * ez) / sqrt((x * x + y * y + z * z) * nes)
 

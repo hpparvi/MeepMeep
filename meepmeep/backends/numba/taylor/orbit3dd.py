@@ -34,7 +34,7 @@ shape ``(N, ndp)`` where ``ndp`` is ``6`` for orbital-only routines and
 from numba import njit
 from numpy import zeros, pi, floor, sqrt, sin, cos, arccos
 
-from .position3d import p3dc
+from .position3d import pos_c
 from .velocity3d import v3dc, vzc
 from .position3dd import p3dc_d, d3dc_d, z3dc_d
 from .velocity3dd import v3dc_d, vzc_d, rvc_d

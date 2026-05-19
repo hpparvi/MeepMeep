@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.taylor.solve3d import solve3d
-from meepmeep.backends.numba.taylor.position3d import p3dc
+from meepmeep.backends.numba.taylor.position3d import pos_c
 from meepmeep.backends.numba.taylor.velocity3d import v3dc
 from meepmeep.backends.numba.newton.newton import xyz_newton_v
 
@@ -104,7 +104,7 @@ class TestSolve3dAccuracy:
         times = np.linspace(-0.02, 0.02, 10)
 
         for t in times:
-            x_ts, y_ts, z_ts = p3dc(t, cf)
+            x_ts, y_ts, z_ts = pos_c(t, cf)
             x_nr, y_nr, z_nr = xyz_newton_v(
                 np.array([t]), 0.0, eccentric_orbit["p"],
                 eccentric_orbit["a"], eccentric_orbit["i"],
@@ -124,7 +124,7 @@ class TestSolve3dAccuracy:
         rtol = 1e-5 * (1 + e)
 
         for t in times:
-            x_ts, y_ts, z_ts = p3dc(t, cf)
+            x_ts, y_ts, z_ts = pos_c(t, cf)
             x_nr, y_nr, z_nr = xyz_newton_v(
                 np.array([t]), 0.0, params["p"],
                 params["a"], params["i"], params["e"], params["w"]
@@ -167,7 +167,7 @@ class TestSolve3dAccuracy:
         w = eccentric_orbit["w"]
 
         def position_error(t):
-            x_ts, y_ts, z_ts = p3dc(t, cf)
+            x_ts, y_ts, z_ts = pos_c(t, cf)
             x_nr, y_nr, z_nr = xyz_newton_v(np.array([t]), 0.0, p, a, i, e, w)
             return np.sqrt((x_ts - x_nr[0])**2 + (y_ts - y_nr[0])**2 + (z_ts - z_nr[0])**2)
 
