@@ -17,4 +17,5 @@ catalogue its functions.
 
    taylor_overview
    naming_conventions
+   derivatives
    api/low_level

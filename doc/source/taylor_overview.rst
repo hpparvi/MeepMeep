@@ -10,9 +10,6 @@ trajectory. The coefficients are computed analytically at one or more
 line-of-sight depth, velocities, contact points and durations all reduce
 to Horner-scheme polynomial evaluations.
 
-The backend is designed for two equally important usage modes — see
-:ref:`taylor_two_modes` below.
-
 .. contents::
    :local:
    :depth: 2
@@ -23,15 +20,16 @@ The backend is designed for two equally important usage modes — see
 Two ways to use the Taylor backend
 ----------------------------------
 
+The backend is designed for two usage modes.
 Both modes share the same coefficient-matrix layout and the same family
 of evaluators; they differ only in *how many* knots you build and how
 the evaluators are dispatched.
 
 **Single-knot evaluation.** Build one set of Taylor coefficients at a
-chosen phase — typically the transit center for a transit model, or the
-secondary-eclipse center for an eclipse model — and evaluate positions
-or projected distance in the small time window where the series is
-accurate. This is the natural mode for transit / eclipse light-curve
+chosen phase (typically the transit center for a transit model, or the
+secondary-eclipse center for an eclipse model) and evaluate positions
+or projected distance in the time window where the series is
+accurate. This is the natural mode for transit and eclipse light-curve
 codes, for contact-point and duration calculations via
 :mod:`~meepmeep.backends.numba.taylor.util2d`, and for inspecting orbit
 geometry at a fixed phase. See :ref:`taylor_single_knot`.
@@ -42,11 +40,6 @@ arbitrary input times to the appropriate knot via a precomputed
 time-to-knot table. This is the natural mode for whole-orbit
 quantities — radial velocity curves, phase curves, ellipsoidal
 variation, light travel time. See :ref:`taylor_multi_knot`.
-
-Neither mode is more "fundamental" than the other; the single-knot
-evaluators are exactly the routines the multi-knot dispatchers delegate
-to internally, after looking up the knot index.
-
 
 Coordinate system
 -----------------
@@ -139,8 +132,8 @@ dimension.
 Single-knot evaluation
 ----------------------
 
-Pick a phase :math:`\phi_0` of interest — for example, the transit
-center :math:`\phi_0 = 0`. A single call to
+Pick a phase :math:`\phi_0` of interest (for example, the transit
+center :math:`\phi_0 = 0`). A single call to
 :func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` (or
 :func:`~meepmeep.backends.numba.taylor.solve3d.solve3d` for 3D) builds
 the ``(D, 5)`` coefficient matrix at that knot:
@@ -340,7 +333,10 @@ Modules suffixed with a ``d`` (``solve2dd``, ``position2dd``,
 ``solve3dd``, ``position3dd``, ``velocity3dd``, ``orbit3dd``) extend
 the backend with analytic partial derivatives of every output with
 respect to the six orbital parameters. The same machinery is available
-in both usage modes.
+in both usage modes. See :ref:`derivatives` for the full derivation,
+with equations for the Kepler implicit-differentiation step, the
+orbital-plane derivative chain, and the chain rules used by every
+evaluator and dispatcher.
 
 For **single-knot gradients**, swap
 :func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` /
