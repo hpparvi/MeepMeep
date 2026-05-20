@@ -11,7 +11,7 @@ ground truth. Here we focus on what's *new* in ``orbit3dd``:
 
 3. **Chain-rule consistency**: derivatives of derived quantities
    (``cos_alpha``, ``star_planet_distance``, ``cos_v_p_angle``) are reproduced
-   from ``xyz_o5v_d`` outputs by hand and must match the analytic versions.
+   from ``pos_ovd`` outputs by hand and must match the analytic versions.
 
 4. **Extra-parameter FD**: derivatives w.r.t. the routine-specific extras
    (``k`` for RV; ``ag, k`` for Lambert; ``ag, fr_night, fr_day, emi_offset, k``
@@ -54,27 +54,27 @@ from meepmeep.backends.numba.taylor.orbit3d import (
 )
 from meepmeep.backends.numba.taylor.orbit3dd import (
     solve3d_orbit_d,
-    xyz_o5s_d,
-    xyz_o5v_d,
-    z_o5s_d,
-    z_o5v_d,
-    pd_o5s_d,
-    vxyz_o5s_d,
-    vxyz_o5v_d,
-    vz_o5s_d,
-    vz_o5v_d,
-    cos_alpha_o5s_d,
-    cos_alpha_o5v_d,
-    cos_v_p_angle_o5v_d,
-    star_planet_distance_o5v_d,
-    true_anomaly_o5v_d,
-    lambert_phase_curve_o5s_d,
-    lambert_phase_curve_o5v_d,
-    lambert_and_emission_o5v_d,
-    ev_signal_o5v_d,
-    rv_o5v_d,
-    light_travel_time_o5s_d,
-    light_travel_time_o5v_d,
+    pos_osd,
+    pos_ovd,
+    zpos_osd,
+    zpos_ovd,
+    sep_osd,
+    vel_osd,
+    vel_ovd,
+    zvel_osd,
+    zvel_ovd,
+    cos_alpha_osd,
+    cos_alpha_ovd,
+    cos_v_p_angle_ovd,
+    star_planet_distance_ovd,
+    true_anomaly_ovd,
+    lambert_phase_curve_osd,
+    lambert_phase_curve_ovd,
+    lambert_and_emission_ovd,
+    ev_signal_ovd,
+    rv_ovd,
+    light_travel_time_osd,
+    light_travel_time_ovd,
     _lambert_kernel_d,
 )
 
@@ -106,10 +106,10 @@ def orbit_case(request, test_orbital_params):
 class TestValueParity:
     """Each _d routine's value output should match the base routine's value."""
 
-    def test_xyz_o5v_d(self, orbit_case):
+    def test_pos_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         x_b, y_b, z_b = pos_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
-        x, y, z, dx, dy, dz = xyz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        x, y, z, dx, dy, dz = pos_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(x, x_b, rtol=1e-12)
         assert_allclose(y, y_b, rtol=1e-12)
         assert_allclose(z, z_b, rtol=1e-12)
@@ -118,75 +118,75 @@ class TestValueParity:
         assert np.all(np.isfinite(dy))
         assert np.all(np.isfinite(dz))
 
-    def test_z_o5v_d(self, orbit_case):
+    def test_zpos_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         z_b = zpos_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
-        z, dz = z_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        z, dz = zpos_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(z, z_b, rtol=1e-12)
         assert dz.shape == (NTIMES, 6)
         assert np.all(np.isfinite(dz))
 
-    def test_pd_o5s_d(self, orbit_case):
+    def test_sep_osd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         for t in times[::5]:
             d_b = sep_os(t, tc, orbit_case["p"], dt, pkt, pts, c)
-            d_v, dd_v = pd_o5s_d(t, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+            d_v, dd_v = sep_osd(t, tc, orbit_case["p"], dt, pkt, pts, c, dc)
             assert_allclose(d_v, d_b, rtol=1e-12)
             assert dd_v.shape == (6,)
             assert np.all(np.isfinite(dd_v))
 
-    def test_vxyz_o5v_d(self, orbit_case):
+    def test_vel_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         vx_b, vy_b, vz_b = vel_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
-        vx, vy, vz, dvx, dvy, dvz = vxyz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        vx, vy, vz, dvx, dvy, dvz = vel_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(vx, vx_b, rtol=1e-12)
         assert_allclose(vy, vy_b, rtol=1e-12)
         assert_allclose(vz, vz_b, rtol=1e-12)
         assert dvx.shape == (NTIMES, 6)
         assert np.all(np.isfinite(dvx))
 
-    def test_vz_o5v_d(self, orbit_case):
+    def test_zvel_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         vz_b = zvel_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
-        vz, dvz = vz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        vz, dvz = zvel_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(vz, vz_b, rtol=1e-12)
         assert np.all(np.isfinite(dvz))
 
-    def test_cos_alpha_o5v_d(self, orbit_case):
+    def test_cos_alpha_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ca_b = cos_alpha_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
-        ca, dca = cos_alpha_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        ca, dca = cos_alpha_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(ca, ca_b, rtol=1e-12)
         assert np.all(np.isfinite(dca))
 
-    def test_star_planet_distance_o5v_d(self, orbit_case):
+    def test_star_planet_distance_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         r_b = star_planet_distance_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
-        r, dr = star_planet_distance_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        r, dr = star_planet_distance_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(r, r_b, rtol=1e-12)
         assert np.all(np.isfinite(dr))
 
-    def test_lambert_phase_curve_o5v_d(self, orbit_case):
+    def test_lambert_phase_curve_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         flux_b = lambert_phase_curve_ov(times, ag=0.3, a=orbit_case["a"], k=0.1,
                                         tpa=tc, p=orbit_case["p"], dt=dt,
                                         pktable=pkt, points=pts, coeffs=c)
-        flux, dflux = lambert_phase_curve_o5v_d(times, ag=0.3, a=orbit_case["a"], k=0.1,
-                                                t0=tc, p=orbit_case["p"], dt=dt,
+        flux, dflux = lambert_phase_curve_ovd(times, ag=0.3, a=orbit_case["a"], k=0.1,
+                                                tpa=tc, p=orbit_case["p"], dt=dt,
                                                 pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(flux, flux_b, rtol=1e-10, atol=1e-20)
         assert dflux.shape == (NTIMES, 8)
         assert np.all(np.isfinite(dflux))
 
-    def test_lambert_and_emission_o5v_d(self, orbit_case):
+    def test_lambert_and_emission_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ref_b, emi_b = lambert_and_emission_ov(times, ag=0.3, fr_night=0.1, fr_day=0.4,
                                                emi_offset=0.0, a=orbit_case["a"], k=0.1,
                                                tpa=tc, p=orbit_case["p"], dt=dt,
                                                pktable=pkt, points=pts, coeffs=c)
-        ref, emi, dref, demi = lambert_and_emission_o5v_d(
+        ref, emi, dref, demi = lambert_and_emission_ovd(
             times, ag=0.3, fr_night=0.1, fr_day=0.4, emi_offset=0.0,
-            a=orbit_case["a"], k=0.1, t0=tc, p=orbit_case["p"], dt=dt,
+            a=orbit_case["a"], k=0.1, tpa=tc, p=orbit_case["p"], dt=dt,
             pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(ref, ref_b, rtol=1e-10, atol=1e-20)
         assert_allclose(emi, emi_b, rtol=1e-10, atol=1e-20)
@@ -195,38 +195,38 @@ class TestValueParity:
         assert np.all(np.isfinite(dref))
         assert np.all(np.isfinite(demi))
 
-    def test_ev_signal_o5v_d(self, orbit_case):
+    def test_ev_signal_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ev_b = ev_signal_ov(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
                             times=times, tpa=tc, p=orbit_case["p"], dt=dt,
                             pktable=pkt, points=pts, coeffs=c)
-        ev, dev = ev_signal_o5v_d(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
-                                  times=times, t0=tc, p=orbit_case["p"], dt=dt,
+        ev, dev = ev_signal_ovd(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
+                                  times=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                   pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(ev, ev_b, rtol=1e-10, atol=1e-20)
         assert dev.shape == (NTIMES, 9)
         assert np.all(np.isfinite(dev))
 
-    def test_rv_o5v_d(self, orbit_case):
+    def test_rv_ovd(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         rv_b = rv_ov(times, k=0.05, tpa=tc, p=orbit_case["p"], a=orbit_case["a"],
                      i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
                      points=pts, coeffs=c)
-        rv, drv = rv_o5v_d(times, k=0.05, t0=tc, p=orbit_case["p"], a=orbit_case["a"],
+        rv, drv = rv_ovd(times, k=0.05, tpa=tc, p=orbit_case["p"], a=orbit_case["a"],
                            i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
                            points=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(rv, rv_b, rtol=1e-12)
         assert drv.shape == (NTIMES, 7)
         assert np.all(np.isfinite(drv))
 
-    def test_true_anomaly_o5v_d_eccentric(self, test_orbital_params):
+    def test_true_anomaly_ovd_eccentric(self, test_orbital_params):
         # Skip circular orbit value-parity (eccentricity_vector sentinel handling).
         orbit_case = test_orbital_params["eccentric"]
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ev = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
         f_b = true_anomaly_ov(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
                               orbit_case["w"], dt, pkt, pts, c)
-        f, df = true_anomaly_o5v_d(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
+        f, df = true_anomaly_ovd(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
                                    orbit_case["w"], dt, pkt, pts, c, dc)
         # Compare via cos/sin to be invariant to wrap-around.
         assert_allclose(np.cos(f), np.cos(f_b), atol=1e-10)
@@ -237,31 +237,31 @@ class TestValueParity:
 
 # ---------------------------------------------------------------------------
 # Chain-rule consistency: derived-quantity gradients must match what we
-# compute by hand from xyz_o5v_d output.
+# compute by hand from pos_ovd output.
 # ---------------------------------------------------------------------------
 
 class TestChainRuleConsistency:
 
     def test_cos_alpha_chain_rule(self, orbit_case):
         """``d(-z/r)/dθ = -dz/r + z·(x·dx + y·dy + z·dz)/r^3`` should match
-        cos_alpha_o5v_d directly."""
+        cos_alpha_ovd directly."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        x, y, z, dx, dy, dz = xyz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        x, y, z, dx, dy, dz = pos_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
         # Hand-built analytic derivative.
         xdotdx = x[:, None] * dx + y[:, None] * dy + z[:, None] * dz  # (N, 6)
         dca_expected = -dz / r[:, None] + (z[:, None] * xdotdx) / (r ** 3)[:, None]
 
-        _, dca = cos_alpha_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        _, dca = cos_alpha_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(dca, dca_expected, rtol=1e-10, atol=1e-12)
 
     def test_star_planet_distance_chain_rule(self, orbit_case):
         """``dr/dθ = (x·dx + y·dy + z·dz)/r``."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        x, y, z, dx, dy, dz = xyz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        x, y, z, dx, dy, dz = pos_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
         dr_expected = (x[:, None] * dx + y[:, None] * dy + z[:, None] * dz) / r[:, None]
-        _, dr = star_planet_distance_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        _, dr = star_planet_distance_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(dr, dr_expected, rtol=1e-10, atol=1e-12)
 
     def test_cos_v_p_angle_chain_rule(self, orbit_case):
@@ -269,11 +269,11 @@ class TestChainRuleConsistency:
         for a concrete check: cos = x/r ⇒ dcos/dθ = dx/r - x·xdotdx/r^3."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         v = np.array([1.0, 0.0, 0.0])
-        x, y, z, dx, dy, dz = xyz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        x, y, z, dx, dy, dz = pos_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
         xdotdx = x[:, None] * dx + y[:, None] * dy + z[:, None] * dz
         dcs_expected = dx / r[:, None] - x[:, None] * xdotdx / (r ** 3)[:, None]
-        _, dcs = cos_v_p_angle_o5v_d(v, times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        _, dcs = cos_v_p_angle_ovd(v, times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(dcs, dcs_expected, rtol=1e-10, atol=1e-12)
 
     def test_lambert_value_lessthan_amplitude(self, orbit_case):
@@ -281,8 +281,8 @@ class TestChainRuleConsistency:
         when stepped along the gradient (not a chain-rule check, but pins
         the sign convention)."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        flux, _ = lambert_phase_curve_o5v_d(times, ag=0.3, a=orbit_case["a"], k=0.1,
-                                            t0=tc, p=orbit_case["p"], dt=dt,
+        flux, _ = lambert_phase_curve_ovd(times, ag=0.3, a=orbit_case["a"], k=0.1,
+                                            tpa=tc, p=orbit_case["p"], dt=dt,
                                             pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         amplitude = 0.1 ** 2 * 0.3 / orbit_case["a"] ** 2
         assert np.all(flux <= amplitude + 1e-12)
@@ -305,7 +305,7 @@ class TestExtraParameterFD:
         f_p = lambert_phase_curve_ov(times, ag + h, a, k, tc, orbit_case["p"], dt, pkt, pts, c)
         f_m = lambert_phase_curve_ov(times, ag - h, a, k, tc, orbit_case["p"], dt, pkt, pts, c)
         fd = (f_p - f_m) / (2 * h)
-        _, dflux = lambert_phase_curve_o5v_d(times, ag, a, k, tc, orbit_case["p"], dt,
+        _, dflux = lambert_phase_curve_ovd(times, ag, a, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
         assert_allclose(dflux[:, 6], fd, rtol=1e-5, atol=1e-10)
 
@@ -317,7 +317,7 @@ class TestExtraParameterFD:
         f_p = lambert_phase_curve_ov(times, ag, a, k + h, tc, orbit_case["p"], dt, pkt, pts, c)
         f_m = lambert_phase_curve_ov(times, ag, a, k - h, tc, orbit_case["p"], dt, pkt, pts, c)
         fd = (f_p - f_m) / (2 * h)
-        _, dflux = lambert_phase_curve_o5v_d(times, ag, a, k, tc, orbit_case["p"], dt,
+        _, dflux = lambert_phase_curve_ovd(times, ag, a, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
         assert_allclose(dflux[:, 7], fd, rtol=1e-5, atol=1e-10)
 
@@ -325,7 +325,7 @@ class TestExtraParameterFD:
         """FD all 5 extras (ag, fr_night, fr_day, emi_offset, k)."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ag, fn, fd_, eo, a, k = 0.3, 0.1, 0.4, 0.2, orbit_case["a"], 0.1
-        ref, emi, dref, demi = lambert_and_emission_o5v_d(
+        ref, emi, dref, demi = lambert_and_emission_ovd(
             times, ag, fn, fd_, eo, a, k, tc, orbit_case["p"], dt,
             pkt, pts, c, dc)
         h = 1e-7
@@ -350,8 +350,8 @@ class TestExtraParameterFD:
         """FD on alpha (6), mass_ratio (7), inc (8)."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         alpha, mr, inc = 1.0, 1e-3, orbit_case["i"]
-        _, dev = ev_signal_o5v_d(alpha=alpha, mass_ratio=mr, inc=inc,
-                                 times=times, t0=tc, p=orbit_case["p"], dt=dt,
+        _, dev = ev_signal_ovd(alpha=alpha, mass_ratio=mr, inc=inc,
+                                 times=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                  pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         h = 1e-7
         for slot, name in [(6, "alpha"), (7, "mr"), (8, "inc")]:
@@ -371,7 +371,7 @@ class TestExtraParameterFD:
         """drv/dk at slot 6. RV is linear in k, so drv/dk = rv/k exactly."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         k = 0.05
-        rv, drv = rv_o5v_d(times, k=k, t0=tc, p=orbit_case["p"], a=orbit_case["a"],
+        rv, drv = rv_ovd(times, k=k, tpa=tc, p=orbit_case["p"], a=orbit_case["a"],
                            i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
                            points=pts, coeffs=c, dcoeffs=dc)
         # drv/dk should equal rv / k (linearity in k).
@@ -419,10 +419,10 @@ class TestScalarVectorConsistency:
 
     def test_xyz_scalar_matches_vector(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        x_v, y_v, z_v, dx_v, dy_v, dz_v = xyz_o5v_d(times, tc, orbit_case["p"],
+        x_v, y_v, z_v, dx_v, dy_v, dz_v = pos_ovd(times, tc, orbit_case["p"],
                                                     dt, pkt, pts, c, dc)
         for j in range(0, NTIMES, 7):
-            x, y, z, dx, dy, dz = xyz_o5s_d(times[j], tc, orbit_case["p"],
+            x, y, z, dx, dy, dz = pos_osd(times[j], tc, orbit_case["p"],
                                             dt, pkt, pts, c, dc)
             assert_allclose([x, y, z], [x_v[j], y_v[j], z_v[j]], rtol=1e-12)
             assert_allclose(dx, dx_v[j], rtol=1e-12)
@@ -431,20 +431,20 @@ class TestScalarVectorConsistency:
 
     def test_z_scalar_matches_vector(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        z_v, dz_v = z_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+        z_v, dz_v = zpos_ovd(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         for j in range(0, NTIMES, 7):
-            z, dz = z_o5s_d(times[j], tc, orbit_case["p"], dt, pkt, pts, c, dc)
+            z, dz = zpos_osd(times[j], tc, orbit_case["p"], dt, pkt, pts, c, dc)
             assert_allclose(z, z_v[j], rtol=1e-12)
             assert_allclose(dz, dz_v[j], rtol=1e-12)
 
     def test_lambert_scalar_matches_vector(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        flux_v, dflux_v = lambert_phase_curve_o5v_d(
+        flux_v, dflux_v = lambert_phase_curve_ovd(
             times, ag=0.3, a=orbit_case["a"], k=0.1,
-            t0=tc, p=orbit_case["p"], dt=dt,
+            tpa=tc, p=orbit_case["p"], dt=dt,
             pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         for j in range(0, NTIMES, 7):
-            flux, dflux = lambert_phase_curve_o5s_d(
+            flux, dflux = lambert_phase_curve_osd(
                 times[j], 0.3, orbit_case["a"], 0.1,
                 tc, orbit_case["p"], dt, pkt, pts, c, dc)
             assert_allclose(flux, flux_v[j], rtol=1e-12)
@@ -469,7 +469,7 @@ class TestLightTravelTime:
         rstar = 0.95
         p, e, w = orbit_case["p"], orbit_case["e"], orbit_case["w"]
         ltt_b = light_travel_time_ov(times, tc, p, e, w, rstar, dt, pkt, pts, c)
-        ltt, dltt = light_travel_time_o5v_d(times, tc, p, e, w, rstar,
+        ltt, dltt = light_travel_time_ovd(times, tc, p, e, w, rstar,
                                             dt, pkt, pts, c, dc)
         assert_allclose(ltt, ltt_b, rtol=1e-10, atol=1e-18)
         assert dltt.shape == (NTIMES, 6)
@@ -479,10 +479,10 @@ class TestLightTravelTime:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         rstar = 1.0
         p, e, w = orbit_case["p"], orbit_case["e"], orbit_case["w"]
-        ltt_v, dltt_v = light_travel_time_o5v_d(times, tc, p, e, w, rstar,
+        ltt_v, dltt_v = light_travel_time_ovd(times, tc, p, e, w, rstar,
                                                 dt, pkt, pts, c, dc)
         for j in range(0, NTIMES, 7):
-            ltt, dltt = light_travel_time_o5s_d(times[j], tc, p, e, w, rstar,
+            ltt, dltt = light_travel_time_osd(times[j], tc, p, e, w, rstar,
                                                 dt, pkt, pts, c, dc)
             assert_allclose(ltt, ltt_v[j], rtol=1e-12, atol=1e-20)
             assert_allclose(dltt, dltt_v[j], rtol=1e-12, atol=1e-20)
@@ -495,9 +495,9 @@ class TestLightTravelTime:
         """Value and gradient should scale linearly with rstar."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         p, e, w = orbit_case["p"], orbit_case["e"], orbit_case["w"]
-        ltt1, dltt1 = light_travel_time_o5v_d(times, tc, p, e, w, 1.0,
+        ltt1, dltt1 = light_travel_time_ovd(times, tc, p, e, w, 1.0,
                                               dt, pkt, pts, c, dc)
-        ltt2, dltt2 = light_travel_time_o5v_d(times, tc, p, e, w, 2.5,
+        ltt2, dltt2 = light_travel_time_ovd(times, tc, p, e, w, 2.5,
                                               dt, pkt, pts, c, dc)
         assert_allclose(ltt2, 2.5 * ltt1, rtol=1e-12, atol=1e-20)
         assert_allclose(dltt2, 2.5 * dltt1, rtol=1e-12, atol=1e-20)
@@ -510,7 +510,7 @@ class TestLightTravelTime:
         # t_transit = tc + mean_anomaly_at_transit(e, w) * p / (2π)
         to = mean_anomaly_at_transit(e, w) / TWO_PI * p
         t_transit = tc + to
-        ltt, _ = light_travel_time_o5s_d(t_transit, tc, p, e, w, rstar,
+        ltt, _ = light_travel_time_osd(t_transit, tc, p, e, w, rstar,
                                          dt, pkt, pts, c, dc)
         assert_allclose(ltt, 0.0, atol=1e-15)
         ltt_b = light_travel_time_os(t_transit, tc, p, e, w, rstar,
@@ -550,7 +550,7 @@ class TestLightTravelTime:
         times, tc, dt, pkt, pts, c, dc = _setup(pars)
         rstar = 1.0
         p, e, w = pars["p"], pars["e"], pars["w"]
-        _, dltt = light_travel_time_o5v_d(times, tc, p, e, w, rstar,
+        _, dltt = light_travel_time_ovd(times, tc, p, e, w, rstar,
                                           dt, pkt, pts, c, dc)
         # FD for the (a, i, e, w) slots — these don't require rebuilding the
         # coefficient arrays except via the e, w dependence of to. We FD
