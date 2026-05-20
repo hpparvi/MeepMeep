@@ -14,27 +14,28 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""User-facing high-level orbit API.
+"""High-level orbit API.
 
-This module exposes :class:`Orbit`, a thin object wrapper around the
-multi-knot Taylor-series dispatchers in
-:mod:`meepmeep.backends.numba.taylor.orbit3d` and
-:mod:`meepmeep.backends.numba.taylor.orbit3dd`. It handles the bookkeeping
-that the low-level dispatchers expect — building the knot grid, evaluating
-Taylor coefficients (and their parameter derivatives, on request), and
-threading the ``points`` / ``pktable`` / ``coeffs`` / ``dcoeffs`` arrays
-through every observable.
+MeepMeep computes Keplerian exoplanet orbits very fast. This module is
+the user-facing front door: the :class:`Orbit` class lets you set a few
+orbital elements once and then ask for whatever quantity you need at
+whatever times you need: planet position, velocity, sky-projected
+separation, phase angle, radial velocity, reflected-light and thermal
+phase curves, ellipsoidal variation, and light travel time. In
+derivative mode every quantity also comes back with analytic gradients
+w.r.t. the orbital parameters, ready to feed a gradient-based optimiser
+or sampler.
 
-Parameter conventions at this layer match CLAUDE.md. The time anchor is
+The time anchor is
 either ``tc`` (transit center, the time of inferior conjunction) or ``tp``
 (time of periastron passage); :meth:`Orbit.set_pars` accepts either and
 stores both internally. The remaining elements are ``p`` (orbital period
 in days), ``a`` (scaled semi-major axis :math:`a/R_\\star`), ``i``
 (inclination in radians), ``e`` (eccentricity), and ``w`` (argument of
-periastron in radians). The orbit3d/orbit3dd backend uses a
-periastron-anchored time argument internally; the conversion happens once
-inside :meth:`Orbit.set_pars`, which stores the periastron-anchor time as
-``self._tpa`` and the transit-center time as ``self._t0``.
+periastron in radians). Internally the Taylor backend anchors its knot
+grid at periastron, so :meth:`Orbit.set_pars` converts once and stores
+the periastron-anchor time as ``self._tp`` and the transit-center time
+as ``self._tc``.
 """
 
 from typing import Optional
@@ -49,23 +50,24 @@ from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_
 from .backends.numba.taylor.orbit3d import (solve3d_orbit as solve_xyz_o5s, pos_ov, cos_alpha_ov, vel_ov,
                                             true_anomaly_ov, rv_ov, star_planet_distance_ov, ev_signal_ov,
                                             lambert_phase_curve_ov, lambert_and_emission_ov, light_travel_time_ov, )
-from .backends.numba.taylor.orbit3dd import (solve3d_orbit_d, pos_ovd, cos_alpha_ovd, vel_ovd,
-                                             true_anomaly_ovd, rv_ovd, star_planet_distance_ovd, ev_signal_ovd,
-                                             lambert_phase_curve_ovd, lambert_and_emission_ovd,
-                                             light_travel_time_ovd, )
+from .backends.numba.taylor.orbit3dd import (solve3d_orbit_d, pos_ovd, cos_alpha_ovd, vel_ovd, true_anomaly_ovd, rv_ovd,
+                                             star_planet_distance_ovd, ev_signal_ovd, lambert_phase_curve_ovd,
+                                             lambert_and_emission_ovd, light_travel_time_ovd, )
 
 
 class Orbit:
-    """Multi-knot Taylor-series orbit evaluator.
+    """Evaluate Keplerian orbits at arbitrary times, with optional analytic gradients.
 
-    `Orbit` builds a knot grid once at construction time, computes Taylor
-    coefficients (and, on request, parameter-derivative coefficients) when
-    you bind orbital parameters via :meth:`set_pars`, and then evaluates any
-    of the registered observables (position, velocity, projected separation,
-    phase angle, radial velocity, phase curves, ellipsoidal variation, light
-    travel time, …) at arbitrary times. In ``derivatives=True`` mode every
-    observable additionally returns analytic gradients w.r.t. the six
-    orbital parameters and any method-specific physical extras.
+    Bind a handful of orbital elements once via :meth:`set_pars`, hand it
+    a time grid via :meth:`set_data`, and then ask for any of the
+    quantities that exoplanet light-curve and radial-velocity modelling
+    typically need: planet position, velocity, sky-projected separation,
+    phase angle, radial velocity, reflected-light and thermal phase
+    curves, ellipsoidal variation, light travel time. Construct with
+    ``derivatives=True`` to additionally receive the analytic gradient of
+    each quantity w.r.t. the six orbital parameters (and any
+    method-specific extras such as ``k`` or ``ag``), which is what a
+    gradient-based optimiser or HMC sampler wants.
 
     Workflow:
     ``Orbit(npt, knot_placement, derivatives) → set_pars(tc=..., p=..., a=...,
@@ -138,9 +140,9 @@ class Orbit:
     underlying orbit3d / orbit3dd dispatchers anchor their knot grid at
     periastron, so :meth:`set_pars` converts once via
     :math:`t_p = t_c - M_\\mathrm{tr}(e, w) \\cdot p / (2\\pi)` and stores
-    both values: ``self._t0`` (transit center) and ``self._tpa``
-    (periastron anchor). Every dispatcher call uses ``self._tpa``;
-    ``self._t0`` is used only by the Newton-Raphson diagnostic paths
+    both values: ``self._tc`` (transit center) and ``self._tp``
+    (periastron anchor). Every dispatcher call uses ``self._tp``;
+    ``self._tc`` is used only by the Newton-Raphson diagnostic paths
     (:meth:`_xyz_error`, :meth:`_cos_phase_error`, :meth:`mean_anomaly`,
     :meth:`true_anomaly(exact=True)`) and by :meth:`plot(show_exact=True)`.
     """
@@ -248,7 +250,7 @@ class Orbit:
     def mean_anomaly(self):
         """Mean anomaly at every bound time, wrapped into :math:`[0, 2\\pi)`.
 
-        Computed analytically from ``self._t0`` (transit-center time) via the
+        Computed analytically from ``self._tc`` (transit-center time) via the
         mean-anomaly-at-transit offset, so this method does not use the
         Taylor backend at all.
 
@@ -412,8 +414,8 @@ class Orbit:
         but loses physical meaning at the clamped points.
         """
         if self._derivatives:
-            ca, dca = cos_alpha_ovd(self.times, self._tp, self._p, self._dt, self._tptable, self._points,
-                                    self._coeffs, self._dcoeffs, )
+            ca, dca = cos_alpha_ovd(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+                                    self._dcoeffs, )
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             ph = arccos(ca_c)
             inv_s = -1.0 / sqrt(1.0 - ca_c * ca_c)
@@ -442,16 +444,15 @@ class Orbit:
         :math:`|\\cos\\alpha| = 1`.
         """
         if self._derivatives:
-            ca, dca = cos_alpha_ovd(self.times, self._tp, self._p, self._dt, self._tptable, self._points,
-                                    self._coeffs, self._dcoeffs, )
+            ca, dca = cos_alpha_ovd(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+                                    self._dcoeffs, )
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             th = arccos(-ca_c)
             # d(arccos(-c))/dθ = +dc/dθ / sqrt(1 - c²)
             inv_s = 1.0 / sqrt(1.0 - ca_c * ca_c)
             dth = inv_s[:, None] * dca
             return th, dth
-        return arccos(
-            -cos_alpha_ov(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs))
+        return arccos(-cos_alpha_ov(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs))
 
     def star_planet_distance(self, times: Optional[ndarray] = None):
         """3D star-planet separation :math:`r = \\sqrt{x^2 + y^2 + z^2}`.
@@ -531,8 +532,8 @@ class Orbit:
         if self._derivatives:
             return rv_ovd(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable,
                           self._points, self._coeffs, self._dcoeffs, )
-        return rv_ov(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable,
-                     self._points, self._coeffs, )
+        return rv_ov(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable, self._points,
+                     self._coeffs, )
 
     def lambert_phase_curve(self, k: float, ag: float, times: ndarray | None = None):
         """Reflected-light phase curve assuming Lambertian scattering.
@@ -643,11 +644,11 @@ class Orbit:
         if self._derivatives:
             return ev_signal_ovd(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable,
                                  self._points, self._coeffs, self._dcoeffs, )
-        return ev_signal_ov(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable,
-                            self._points, self._coeffs, )
+        return ev_signal_ov(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable, self._points,
+                            self._coeffs, )
 
     def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc="k",
-            npt: int = 1000, ):
+             npt: int = 1000, ):
         """Diagnostic three-panel plot of the orbit geometry.
 
         Renders front (X-Y), top (X-Z), and side (Z-Y) projections with
@@ -703,7 +704,7 @@ class Orbit:
         di = self.times.size // 6
         for i in range(6):
             axs[1].arrow(x[i * di], z[i * di], x[i * di + 1] - x[i * di], z[i * di + 1] - z[i * di], shape="full", lw=6,
-                length_includes_head=True, head_width=0.1, color="k", )
+                         length_includes_head=True, head_width=0.1, color="k", )
 
         m = x < 0.0
         axs[1].plot((0, x[m][argmin(abs(z[m]))]), (0, 0), "k", zorder=-10, ls="--")
