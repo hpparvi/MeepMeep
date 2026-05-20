@@ -148,7 +148,7 @@ class TestPhotometricSignals:
     def test_lambert_phase_curve_finite_and_bounded(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
         flux = lambert_phase_curve_ov(times, ag=0.3, a=orbit_case["a"], k=0.1,
-                                      t0=tc, p=orbit_case["p"], dt=dt,
+                                      tpa=tc, p=orbit_case["p"], dt=dt,
                                       pktable=pkt, points=pts, coeffs=c)
         assert np.all(np.isfinite(flux))
         assert np.all(flux >= 0.0)
@@ -159,7 +159,7 @@ class TestPhotometricSignals:
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
         ref, emi = lambert_and_emission_ov(times, ag=0.3, fr_night=0.1, fr_day=0.4,
                                            emi_offset=0.0, a=orbit_case["a"], k=0.1,
-                                           t0=tc, p=orbit_case["p"], dt=dt,
+                                           tpa=tc, p=orbit_case["p"], dt=dt,
                                            pktable=pkt, points=pts, coeffs=c)
         assert np.all(np.isfinite(ref))
         assert np.all(np.isfinite(emi))
@@ -169,7 +169,7 @@ class TestPhotometricSignals:
     def test_ev_signal_finite(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
         ev = ev_signal_ov(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
-                          times=times, t0=tc, p=orbit_case["p"], dt=dt,
+                          times=times, tpa=tc, p=orbit_case["p"], dt=dt,
                           pktable=pkt, points=pts, coeffs=c)
         assert np.all(np.isfinite(ev))
 

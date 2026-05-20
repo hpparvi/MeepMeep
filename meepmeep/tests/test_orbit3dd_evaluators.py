@@ -169,7 +169,7 @@ class TestValueParity:
     def test_lambert_phase_curve_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         flux_b = lambert_phase_curve_ov(times, ag=0.3, a=orbit_case["a"], k=0.1,
-                                        t0=tc, p=orbit_case["p"], dt=dt,
+                                        tpa=tc, p=orbit_case["p"], dt=dt,
                                         pktable=pkt, points=pts, coeffs=c)
         flux, dflux = lambert_phase_curve_o5v_d(times, ag=0.3, a=orbit_case["a"], k=0.1,
                                                 t0=tc, p=orbit_case["p"], dt=dt,
@@ -182,7 +182,7 @@ class TestValueParity:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ref_b, emi_b = lambert_and_emission_ov(times, ag=0.3, fr_night=0.1, fr_day=0.4,
                                                emi_offset=0.0, a=orbit_case["a"], k=0.1,
-                                               t0=tc, p=orbit_case["p"], dt=dt,
+                                               tpa=tc, p=orbit_case["p"], dt=dt,
                                                pktable=pkt, points=pts, coeffs=c)
         ref, emi, dref, demi = lambert_and_emission_o5v_d(
             times, ag=0.3, fr_night=0.1, fr_day=0.4, emi_offset=0.0,
@@ -198,7 +198,7 @@ class TestValueParity:
     def test_ev_signal_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ev_b = ev_signal_ov(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
-                            times=times, t0=tc, p=orbit_case["p"], dt=dt,
+                            times=times, tpa=tc, p=orbit_case["p"], dt=dt,
                             pktable=pkt, points=pts, coeffs=c)
         ev, dev = ev_signal_o5v_d(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
                                   times=times, t0=tc, p=orbit_case["p"], dt=dt,
@@ -209,7 +209,7 @@ class TestValueParity:
 
     def test_rv_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        rv_b = rv_ov(times, k=0.05, t0=tc, p=orbit_case["p"], a=orbit_case["a"],
+        rv_b = rv_ov(times, k=0.05, tpa=tc, p=orbit_case["p"], a=orbit_case["a"],
                      i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
                      points=pts, coeffs=c)
         rv, drv = rv_o5v_d(times, k=0.05, t0=tc, p=orbit_case["p"], a=orbit_case["a"],
@@ -337,9 +337,9 @@ class TestExtraParameterFD:
                    "eo": "emi_offset", "k": "k"}[perturb]
             args_p[key] = args_p[key] + h
             args_m[key] = args_m[key] - h
-            r_p, e_p = lambert_and_emission_ov(times, t0=tc, p=orbit_case["p"], dt=dt,
+            r_p, e_p = lambert_and_emission_ov(times, tpa=tc, p=orbit_case["p"], dt=dt,
                                                pktable=pkt, points=pts, coeffs=c, **args_p)
-            r_m, e_m = lambert_and_emission_ov(times, t0=tc, p=orbit_case["p"], dt=dt,
+            r_m, e_m = lambert_and_emission_ov(times, tpa=tc, p=orbit_case["p"], dt=dt,
                                                pktable=pkt, points=pts, coeffs=c, **args_m)
             assert_allclose(dref[:, slot], (r_p - r_m) / (2 * h),
                             rtol=1e-4, atol=1e-9, err_msg=f"dref slot {slot} ({perturb})")
@@ -360,9 +360,9 @@ class TestExtraParameterFD:
             real_key = {"alpha": "alpha", "mr": "mass_ratio", "inc": "inc"}[name]
             kwargs_p[real_key] += h
             kwargs_m[real_key] -= h
-            v_p = ev_signal_ov(times=times, t0=tc, p=orbit_case["p"], dt=dt,
+            v_p = ev_signal_ov(times=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                pktable=pkt, points=pts, coeffs=c, **kwargs_p)
-            v_m = ev_signal_ov(times=times, t0=tc, p=orbit_case["p"], dt=dt,
+            v_m = ev_signal_ov(times=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                pktable=pkt, points=pts, coeffs=c, **kwargs_m)
             assert_allclose(dev[:, slot], (v_p - v_m) / (2 * h),
                             rtol=1e-4, atol=1e-10, err_msg=f"slot {slot} ({name})")
