@@ -191,45 +191,45 @@ Positions and distances:
 .. autosummary::
    :toctree: generated
 
-   xyz_o5s
-   xyz_o5v
-   z_o5s
-   z_o5v
-   pd_o5s
-   star_planet_distance_o5v
+   pos_os
+   pos_ov
+   zpos_os
+   zpos_ov
+   sep_os
+   star_planet_distance_ov
 
 Velocities and radial velocity:
 
 .. autosummary::
    :toctree: generated
 
-   vxyz_o5s
-   vxyz_o5v
-   vz_o5s
-   vz_o5v
-   rv_o5v
+   vel_os
+   vel_ov
+   zvel_os
+   zvel_ov
+   rv_ov
 
 Phase angles, Lambert curves, and ellipsoidal variation:
 
 .. autosummary::
    :toctree: generated
 
-   true_anomaly_o5v
-   cos_alpha_o5s
-   cos_alpha_o5v
-   cos_v_p_angle_o5v
-   lambert_phase_curve_o5s
-   lambert_phase_curve_o5v
-   lambert_and_emission_o5v
-   ev_signal_o5v
+   true_anomaly_ov
+   cos_alpha_os
+   cos_alpha_ov
+   cos_v_p_angle_ov
+   lambert_phase_curve_os
+   lambert_phase_curve_ov
+   lambert_and_emission_ov
+   ev_signal_ov
 
 Light travel time:
 
 .. autosummary::
    :toctree: generated
 
-   light_travel_time_o5s
-   light_travel_time_o5v
+   light_travel_time_os
+   light_travel_time_ov
 
 
 Whole-orbit dispatchers with parameter derivatives

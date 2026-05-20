@@ -276,28 +276,28 @@ helper is
 :mod:`~meepmeep.backends.numba.taylor.orbit3d` use a different
 suffix family from the single-knot evaluators:
 
-* ``*_o5s`` — 5th-order Taylor, **s**\ calar input time.
-* ``*_o5v`` — 5th-order Taylor, **v**\ ector of input times.
+* ``*_os`` — orbit-spanning, **s**\ calar input time.
+* ``*_ov`` — orbit-spanning, **v**\ ector of input times.
 
 Each dispatcher looks up the relevant knot via ``pktable`` and
 delegates to the corresponding centered evaluator in :mod:`position3d`
 / :mod:`velocity3d`. Beyond raw positions and velocities, the module
 provides higher-level whole-orbit outputs:
 
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.true_anomaly_o5v`,
-  :func:`~meepmeep.backends.numba.taylor.orbit3d.cos_alpha_o5v` —
+* :func:`~meepmeep.backends.numba.taylor.orbit3d.true_anomaly_ov`,
+  :func:`~meepmeep.backends.numba.taylor.orbit3d.cos_alpha_ov` —
   phase-angle quantities.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.star_planet_distance_o5v`
+* :func:`~meepmeep.backends.numba.taylor.orbit3d.star_planet_distance_ov`
   — 3D separation.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_phase_curve_o5v`,
-  :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_and_emission_o5v`
+* :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_phase_curve_ov`,
+  :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_and_emission_ov`
   — reflected-light and combined reflection + thermal phase curves.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.rv_o5v` — radial
+* :func:`~meepmeep.backends.numba.taylor.orbit3d.rv_ov` — radial
   velocity.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.ev_signal_o5v` —
+* :func:`~meepmeep.backends.numba.taylor.orbit3d.ev_signal_ov` —
   ellipsoidal-variation signal.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.light_travel_time_o5s`
-  / :func:`~meepmeep.backends.numba.taylor.orbit3d.light_travel_time_o5v`
+* :func:`~meepmeep.backends.numba.taylor.orbit3d.light_travel_time_os`
+  / :func:`~meepmeep.backends.numba.taylor.orbit3d.light_travel_time_ov`
   — light travel time corrections.
 
 **Multi-knot quickstart.** Build the per-orbit structures once and
@@ -307,7 +307,7 @@ evaluate at an array of times:
 
    import numpy as np
    from meepmeep.backends.numba.knots import create_knots
-   from meepmeep.backends.numba.taylor.orbit3d import solve3d_orbit, xyz_o5v
+   from meepmeep.backends.numba.taylor.orbit3d import solve3d_orbit, pos_ov
 
    # Orbital parameters
    t0, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
@@ -321,7 +321,7 @@ evaluate at an array of times:
 
    # Evaluate the orbit at a grid of times
    times = np.linspace(0.0, p, 2001)
-   xs, ys, zs = xyz_o5v(times, t0, p, dt, pktable, points, coeffs)
+   xs, ys, zs = pos_ov(times, t0, p, dt, pktable, points, coeffs)
 
 
 .. _taylor_derivatives:

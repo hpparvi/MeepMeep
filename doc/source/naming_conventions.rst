@@ -123,22 +123,24 @@ evaluate a phase curve or an RV time series across an arbitrary range
 of times — the functions in
 :mod:`~meepmeep.backends.numba.taylor.orbit3d` look up the appropriate
 knot via ``pktable`` and delegate to a centered evaluator. These
-dispatchers use their own suffix family that encodes the polynomial
-order and the input cardinality:
+dispatchers use their own suffix family that encodes the input
+cardinality:
 
 ============  ==============================================
 Suffix        Meaning
 ============  ==============================================
-``_o5s``      5th-order Taylor, **s**\ calar input time.
-``_o5v``      5th-order Taylor, **v**\ ector of input times.
+``_os``       Orbit-spanning, **s**\ calar input time.
+``_ov``       Orbit-spanning, **v**\ ector of input times.
 ============  ==============================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.orbit3d.xyz_o5s` /
-:func:`~meepmeep.backends.numba.taylor.orbit3d.xyz_o5v`,
-:func:`~meepmeep.backends.numba.taylor.orbit3d.vz_o5v`. The
-gradient-returning counterparts in
-:mod:`~meepmeep.backends.numba.taylor.orbit3dd` carry an extra
-``_d``: ``xyz_o5v_d``, ``vz_o5s_d``, ``rv_o5v_d``, and so on.
+Examples: :func:`~meepmeep.backends.numba.taylor.orbit3d.pos_os` /
+:func:`~meepmeep.backends.numba.taylor.orbit3d.pos_ov`,
+:func:`~meepmeep.backends.numba.taylor.orbit3d.zvel_ov`. The
+gradient-returning counterparts live in
+:mod:`~meepmeep.backends.numba.taylor.orbit3dd`; pending alignment with
+the new convention, they currently still carry the older ``_o5s_d`` /
+``_o5v_d`` suffix family (e.g. ``xyz_o5v_d``, ``vz_o5s_d``,
+``rv_o5v_d``).
 
 
 Module naming
