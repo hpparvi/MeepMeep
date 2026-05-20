@@ -137,10 +137,10 @@ Examples: :func:`~meepmeep.backends.numba.taylor.orbit3d.pos_os` /
 :func:`~meepmeep.backends.numba.taylor.orbit3d.pos_ov`,
 :func:`~meepmeep.backends.numba.taylor.orbit3d.zvel_ov`. The
 gradient-returning counterparts live in
-:mod:`~meepmeep.backends.numba.taylor.orbit3dd`; pending alignment with
-the new convention, they currently still carry the older ``_o5s_d`` /
-``_o5v_d`` suffix family (e.g. ``xyz_o5v_d``, ``vz_o5s_d``,
-``rv_o5v_d``).
+:mod:`~meepmeep.backends.numba.taylor.orbit3dd` and append ``d`` to
+the suffix, mirroring the position/velocity ``_c`` → ``_cd``
+convention: ``_osd`` and ``_ovd`` (e.g. ``pos_ovd``, ``zvel_osd``,
+``rv_ovd``).
 
 
 Module naming

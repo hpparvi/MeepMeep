@@ -453,12 +453,12 @@ and the cosine of the phase angle :math:`\cos \alpha = -z / r`:
                        + z\, \tfrac{\partial z}{\partial \theta_k}\Bigr).
 
 These appear in
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.star_planet_distance_o5v_d`
+:func:`~meepmeep.backends.numba.taylor.orbit3dd.star_planet_distance_ovd`
 and
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.cos_alpha_o5v_d`. The
+:func:`~meepmeep.backends.numba.taylor.orbit3dd.cos_alpha_ovd`. The
 Lambertian phase-curve dispatchers
-(:func:`~meepmeep.backends.numba.taylor.orbit3dd.lambert_phase_curve_o5v_d`,
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.lambert_and_emission_o5v_d`)
+(:func:`~meepmeep.backends.numba.taylor.orbit3dd.lambert_phase_curve_ovd`,
+:func:`~meepmeep.backends.numba.taylor.orbit3dd.lambert_and_emission_ovd`)
 compose the Lambert kernel
 :math:`f(\cos\alpha) = (\sin\alpha + (\pi - \alpha)\cos\alpha)/\pi`
 on top of :math:`\cos\alpha`, with its own closed-form derivative

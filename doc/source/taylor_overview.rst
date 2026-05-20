@@ -362,7 +362,7 @@ returns ``(N, 3, 5)`` coefficients and an
 ``(N, 6, 3, 5)`` derivative tensor. The dispatcher counterparts in
 :mod:`~meepmeep.backends.numba.taylor.orbit3dd` share the names of the
 non-derivative dispatchers with an added ``_d`` suffix
-(``xyz_o5v_d``, ``vz_o5s_d``, ``rv_o5v_d``, and so on).
+(``pos_ovd``, ``zvel_osd``, ``rv_ovd``, and so on).
 
 Distance derivatives are reduced from the position gradients via the
 chain rule

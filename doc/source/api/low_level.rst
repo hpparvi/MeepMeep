@@ -246,27 +246,27 @@ function accepts an additional ``dcoeffs`` tensor of shape
    :toctree: generated
 
    solve3d_orbit_d
-   xyz_o5s_d
-   xyz_o5v_d
-   z_o5s_d
-   z_o5v_d
-   pd_o5s_d
-   vxyz_o5s_d
-   vxyz_o5v_d
-   vz_o5s_d
-   vz_o5v_d
-   cos_alpha_o5s_d
-   cos_alpha_o5v_d
-   cos_v_p_angle_o5v_d
-   true_anomaly_o5v_d
-   star_planet_distance_o5v_d
-   lambert_phase_curve_o5s_d
-   lambert_phase_curve_o5v_d
-   lambert_and_emission_o5v_d
-   ev_signal_o5v_d
-   rv_o5v_d
-   light_travel_time_o5s_d
-   light_travel_time_o5v_d
+   pos_osd
+   pos_ovd
+   zpos_osd
+   zpos_ovd
+   sep_osd
+   vel_osd
+   vel_ovd
+   zvel_osd
+   zvel_ovd
+   cos_alpha_osd
+   cos_alpha_ovd
+   cos_v_p_angle_ovd
+   true_anomaly_ovd
+   star_planet_distance_ovd
+   lambert_phase_curve_osd
+   lambert_phase_curve_ovd
+   lambert_and_emission_ovd
+   ev_signal_ovd
+   rv_ovd
+   light_travel_time_osd
+   light_travel_time_ovd
 
 
 Knot grid construction
