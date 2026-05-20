@@ -328,9 +328,9 @@ for each parameter :math:`k`:
      \;=\; \sum_{n=0}^{4} dc[k, d, n]\, t^n.
 
 Implemented in
-:func:`~meepmeep.backends.numba.taylor.position2dd.p2dc_d`,
-:func:`~meepmeep.backends.numba.taylor.position3dd.p3dc_d`,
-and their direct counterparts ``p2d_d``, ``p3d_d`` (which epoch-fold
+:func:`~meepmeep.backends.numba.taylor.position2dd.pos_cd`,
+:func:`~meepmeep.backends.numba.taylor.position3dd.pos_cd`,
+and their direct counterparts ``pos_d``, ``pos_d`` (which epoch-fold
 ``t`` first; the discrete epoch shift contributes no derivative).
 
 
@@ -349,8 +349,8 @@ For :math:`d = \sqrt{p_x^2 + p_y^2}`, differentiating
    \;}
 
 The same reduction is applied in 2D and 3D
-(:func:`~meepmeep.backends.numba.taylor.position2dd.d2dc_d`,
-:func:`~meepmeep.backends.numba.taylor.position3dd.d3dc_d`); both
+(:func:`~meepmeep.backends.numba.taylor.position2dd.sep_cd`,
+:func:`~meepmeep.backends.numba.taylor.position3dd.sep_cd`); both
 treat :math:`d` as the **projected** distance. The expression is
 regular for :math:`d > 0` and ill-defined at exactly zero projected
 separation; transit modelling stays well clear of this geometric
@@ -363,7 +363,7 @@ Z-coordinate
 The line-of-sight coordinate :math:`z` is just the third row of the
 position polynomial, so its gradient is the polynomial in
 ``dc[k, 2, :]``. See
-:func:`~meepmeep.backends.numba.taylor.position3dd.z3dc_d`.
+:func:`~meepmeep.backends.numba.taylor.position3dd.pz_cd`.
 
 
 Line-of-sight velocity
@@ -383,7 +383,7 @@ polynomial, with the factorial pre-scaling exactly cancelling the
                   + 4 c[2, 4]\, t^3.
 
 The gradient is the same polynomial pattern on ``dc``. See
-:func:`~meepmeep.backends.numba.taylor.velocity3dd.vzc_d`.
+:func:`~meepmeep.backends.numba.taylor.velocity3dd.zvel_cd`.
 
 
 Radial velocity
@@ -420,7 +420,7 @@ with closed-form non-zero entries
    \frac{\partial s}{\partial e} = -\frac{s\, e}{1 - e^2}.
 
 The :math:`(\phi_0, w)` partials of :math:`s` vanish. Implemented in
-:func:`~meepmeep.backends.numba.taylor.velocity3dd.rvc_d` and
+:func:`~meepmeep.backends.numba.taylor.velocity3dd.rv_cd` and
 :func:`~meepmeep.backends.numba.taylor.velocity3dd.rv_d`.
 
 

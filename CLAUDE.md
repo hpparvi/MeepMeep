@@ -33,6 +33,17 @@ Tests compare Taylor series approximations against exact Newton-Raphson solution
 - `accuracy` — numerical accuracy validation
 - `edge_case` — boundary condition tests
 
+## Terminology: projected star-planet separation
+
+When referring to the sky-projected distance between the star and planet centers in transit modeling contexts (the quantity usually denoted `z` or `b(t)` in units of stellar radii), use **"projected separation"** or **"sky-projected separation"** rather than "projected distance" or "projected center distance".
+
+Rationale:
+- "Separation" already implies a center-to-center distance between two objects, making qualifiers like "center" redundant.
+- This matches the dominant convention in the transit literature (Mandel & Agol 2002, Seager & Mallén-Ornelas 2003, Winn 2010, and most subsequent work).
+- "Sky-projected" is preferred over bare "projected" on first use, since it specifies the plane of projection.
+
+On first use in methods sections or docstrings, expand to something like: *"the sky-projected separation between the centers of the star and planet, in units of the stellar radius"*. After that, "projected separation" alone is sufficient.
+
 ## Architecture
 
 ### Core Computational Strategy
@@ -69,16 +80,16 @@ meepmeep/
     │   ├── newton/
     │   │   └── newton.py  # Exact Kepler equation solvers (Newton-Raphson)
     │   └── taylor/        # Taylor series expansion modules
-    │       ├── position2d.py    # 2D position evaluation (p2d, d2d, pd2d)
-    │       ├── position2dd.py   # 2D position parameter derivatives (p2d_d, d2d_d)
+    │       ├── position2d.py    # 2D position evaluation (pos, sep, pos_and_sep)
+    │       ├── position2dd.py   # 2D position parameter derivatives (pos_d, sep_d)
     │       ├── solve2d.py       # 2D Taylor coefficient computation (solve2d)
     │       ├── solve2dd.py      # 2D derivative coefficient computation (solve2d_d)
     │       ├── util2d.py        # 2D utilities (contact points, bounding box)
-    │       ├── position3d.py    # 3D position evaluation (p3d, d3d, z3d, pd3d)
-    │       ├── position3dd.py   # 3D position parameter derivatives (p3d_d, d3d_d, z3d_d)
+    │       ├── position3d.py    # 3D position evaluation (pos, sep, pos_and_sep, pz)
+    │       ├── position3dd.py   # 3D position parameter derivatives (pos_d, sep_d, pz_d)
     │       ├── solve3d.py       # 3D Taylor coefficient computation (solve3d)
     │       ├── solve3dd.py      # 3D derivative coefficient computation (solve3d_d)
-    │       ├── velocity3d.py    # 3D velocity evaluation (v3dc, vz3d)
+    │       ├── velocity3d.py    # 3D velocity evaluation (vel_c, zvel, rv)
     │       ├── velocity3dd.py   # 3D velocity parameter derivatives
     │       ├── util3d.py        # 3D utilities (contact points, bounding box)
     │       └── orbit3d.py       # Multi-knot orbit-spanning evaluators
@@ -137,10 +148,10 @@ Standard Keplerian elements used throughout:
 
 The `taylor/` module follows a consistent pattern. For each quantity there are two function variants:
 
-1. **Centered (`Xc`)**: Takes time `t` already relative to the expansion point, plus coefficient matrix `c`
+1. **Centered (`X_c`)**: Takes time `t` already relative to the expansion point, plus coefficient matrix `c`
 2. **Direct (`X`)**: Takes absolute time `t`, reference time `t0`, period `p`, and `c`. Handles epoch-folding internally.
 
-For parameter derivatives, add a `_d` suffix (e.g., `p3dc_d`, `p3d_d`). These take an additional `dc` array of shape `(6, D, 5)`.
+For parameter derivatives, the centered variant gets a `_cd` suffix and the direct variant a `_d` suffix (e.g., `pos_cd`, `pos_d`). These take an additional `dc` array of shape `(6, D, 5)`.
 
 To add a new quantity:
 1. Implement the centered version using Horner-scheme evaluation of the coefficient polynomial
@@ -153,13 +164,19 @@ For multi-knot evaluation (arrays of times with knot lookup), add functions to `
 ### Code Style
 
 - **Docstrings follow the NumPy style** (Parameters / Returns / Notes / Examples sections, with `name : type` parameter headers). See `backends/numba/utils.py`, `backends/numba/taylor/position3d.py`, and `backends/numba/taylor/orbit3d.py` for the established convention.
+- Never use Unicode characters in docstrings or variable names.
 - Function naming in `taylor/` modules:
-  - `p3dc`, `p3d`: position (centered, direct)
-  - `d3dc`, `d3d`: projected distance
-  - `z3dc`, `z3d`: z-coordinate only
-  - `v3dc`: velocity (centered)
-  - `_d` suffix: includes parameter derivatives
-  - `2d`/`3d` infix: dimensionality
+  - `pos_c`, `pos`: position (centered, direct)
+  - `sep_c`, `sep`: sky-projected separation
+  - `pos_and_sep_c`, `pos_and_sep`: position and projected separation, returned jointly
+  - `pz_c`, `pz`: line-of-sight (z) coordinate only
+  - `vel_c`: velocity vector (centered)
+  - `zvel_c`, `zvel`: line-of-sight velocity component
+  - `rv_c`, `rv`: radial velocity
+  - `_c` suffix: centered (time argument is relative to the knot)
+  - `_d` suffix: direct evaluator with parameter derivatives
+  - `_cd` suffix: centered evaluator with parameter derivatives
+  - Dimensionality (2D vs 3D) is encoded by the module name (`position2d` vs `position3d`), not by the function name.
 - In `orbit3d.py` (multi-knot functions):
   - `_o5s`: 5th-order Taylor, scalar (single time)
   - `_o5v`: 5th-order Taylor, vector (array of times)

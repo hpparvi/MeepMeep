@@ -12,43 +12,40 @@ function is decodable at a glance. This page is the decoder.
    :depth: 2
 
 
-Quantity prefix
----------------
+Quantity stem
+-------------
 
-The leading letters of a function name identify the quantity being
+The leading word of a function name identifies the quantity being
 evaluated:
 
-===========  ====================================================
-Prefix       Quantity
-===========  ====================================================
-``p``        Position (vector of coordinates).
-``d``        Projected planet-star distance, :math:`\sqrt{x^2+y^2}`.
-``pd``       Position and projected distance, returned jointly.
-``z``        Line-of-sight (z) coordinate only.
-``v``        Velocity vector (3D modules only).
-``vz``       Line-of-sight velocity component.
-``rv``       Radial velocity (line-of-sight velocity, scaled).
-===========  ====================================================
+================  ====================================================
+Stem              Quantity
+================  ====================================================
+``pos``           Position (vector of coordinates).
+``sep``           Sky-projected planet-star separation, :math:`\sqrt{x^2+y^2}`.
+``pos_and_sep``   Position and projected separation, returned jointly.
+``pz``            Line-of-sight (:math:`z`) coordinate only.
+``vel``           Velocity vector (3D modules only).
+``zvel``          Line-of-sight velocity component.
+``rv``            Radial velocity (line-of-sight velocity, scaled).
+================  ====================================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.position2d.p2d` returns
-the (x, y) position; :func:`~meepmeep.backends.numba.taylor.position3d.d3d`
-returns the projected distance from a 3D coefficient set;
-:func:`~meepmeep.backends.numba.taylor.velocity3d.vz` returns the
+Examples: :func:`~meepmeep.backends.numba.taylor.position2d.pos` returns
+the (x, y) position; :func:`~meepmeep.backends.numba.taylor.position3d.sep`
+returns the projected separation from a 3D coefficient set;
+:func:`~meepmeep.backends.numba.taylor.velocity3d.zvel` returns the
 line-of-sight velocity.
 
 
-Dimensionality infix
---------------------
+Dimensionality lives in the module, not the function
+-----------------------------------------------------
 
-The digit between the prefix and any suffixes tags the spatial dimension
-of the evaluator:
-
-============  ==================================================
-Infix         Meaning
-============  ==================================================
-``2d``        Two-dimensional (sky-plane :math:`x, y`).
-``3d``        Three-dimensional (full :math:`x, y, z`).
-============  ==================================================
+The spatial dimensionality of an evaluator is encoded by the module name
+(``position2d`` vs ``position3d``, ``util2d`` vs ``util3d``) rather than
+by the function name. Both ``meepmeep.backends.numba.taylor.position2d``
+and ``meepmeep.backends.numba.taylor.position3d`` therefore expose a
+function called ``pos``; the 3D module additionally exposes ``pz``,
+``pos_and_sep``, etc.
 
 The 2D evaluators are roughly 30 percent cheaper per call and are
 sufficient for transit modelling; switch to 3D whenever the
@@ -59,20 +56,20 @@ phase curves, radial velocities).
 Centered vs. direct suffix
 --------------------------
 
-A trailing ``c`` marks a function as the **centered** variant: it takes a
+A trailing ``_c`` marks a function as the **centered** variant: it takes a
 time argument already shifted to lie close to a knot and skips the
-epoch-folding step. Functions without the ``c`` are **direct** variants
+epoch-folding step. Functions without the ``_c`` are **direct** variants
 that accept an absolute time together with ``t0`` and ``p``.
 
 ==========================  ==============================================
 Suffix                      Meaning
 ==========================  ==============================================
 *(none)*                    Direct: accepts absolute time, epoch-folds.
-``c``                       Centered: accepts time relative to the knot.
+``_c``                      Centered: accepts time relative to the knot.
 ==========================  ==============================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.position3d.p3d` is the
-direct variant, :func:`~meepmeep.backends.numba.taylor.position3d.p3dc`
+Examples: :func:`~meepmeep.backends.numba.taylor.position3d.pos` is the
+direct variant, :func:`~meepmeep.backends.numba.taylor.position3d.pos_c`
 the centered one. Both share the same coefficient matrix.
 
 The centered evaluators are the shared workhorses for both usage modes
@@ -83,37 +80,39 @@ on the caller's behalf). Multi-knot dispatchers always reach them
 through a ``pktable`` lookup that yields a knot index and a
 centered time.
 
-The 2D module follows the same rule — ``p2d`` / ``p2dc``, ``d2d`` /
-``d2dc`` — with one combined evaluator named ``pd2d_c`` (centered)
-spelled with an underscore to keep the ``pd`` prefix visually distinct
-from the ``2d`` infix.
+The 2D module follows the same rule — ``pos`` / ``pos_c``, ``sep`` /
+``sep_c``, ``pos_and_sep`` / ``pos_and_sep_c``.
 
 
 Parameter-derivative suffix
 ---------------------------
 
-A trailing ``_d`` marks a function that returns *both* the quantity and
-its partial derivatives with respect to the six orbital parameters
-``(t0, p, a, i, e, w)``:
+The gradient-returning variants live in the ``*dd``-suffixed modules
+(``position2dd.py``, ``position3dd.py``, ``velocity3dd.py``,
+``solve2dd.py``, ``solve3dd.py``, ``orbit3dd.py``) and return *both* the
+quantity and its partial derivatives with respect to the six orbital
+parameters ``(t0, p, a, i, e, w)``. The suffix encodes whether the
+underlying evaluator is centered or direct:
 
 ==========================  ==============================================
 Suffix                      Meaning
 ==========================  ==============================================
-``_d``                      Returns gradient w.r.t. orbital parameters.
+``_d``                      Direct evaluator returning a gradient
+                            w.r.t. orbital parameters.
+``_cd``                     Centered evaluator returning a gradient
+                            w.r.t. orbital parameters.
 ==========================  ==============================================
 
-The ``_d`` variants accept an additional argument ``dc`` — a
-``(6, D, 5)`` parameter-derivative tensor produced by
+These functions accept an additional argument ``dc`` — a ``(6, D, 5)``
+parameter-derivative tensor produced by
 :func:`~meepmeep.backends.numba.taylor.solve2dd.solve2d_d` or
-:func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d`. They live in
-modules whose filename also ends in a ``d``: ``position2dd.py``,
-``position3dd.py``, ``velocity3dd.py``, ``solve2dd.py``, ``solve3dd.py``,
-``orbit3dd.py``.
+:func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d`.
 
-The suffixes compose. A function ending in ``c_d`` is the centered
-gradient-returning variant — for example
-:func:`~meepmeep.backends.numba.taylor.position2dd.p2dc_d` and
-:func:`~meepmeep.backends.numba.taylor.position3dd.d3dc_d`.
+Examples: :func:`~meepmeep.backends.numba.taylor.position2dd.pos_cd` and
+:func:`~meepmeep.backends.numba.taylor.position3dd.sep_cd` are the
+centered gradient-returning variants;
+:func:`~meepmeep.backends.numba.taylor.position3dd.pos_d` is the direct
+counterpart.
 
 
 Multi-knot dispatcher suffix
@@ -151,7 +150,7 @@ The same suffix rules apply at the module level:
 Module suffix     Contents
 ================  ========================================================
 ``solve*``        Coefficient solvers (build ``c`` from orbital elements).
-``position*``     Position / distance evaluators.
+``position*``     Position / separation evaluators.
 ``velocity*``     Velocity / line-of-sight velocity evaluators.
 ``util*``         Geometric helpers (contact points, bounding box, durations).
 ``orbit*``        Multi-knot dispatchers spanning a full orbit.

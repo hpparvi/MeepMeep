@@ -49,11 +49,12 @@ dispatchers that batch these calls across a knot grid live in
 .. autosummary::
    :toctree: generated
 
-   p2d
-   p2dc
-   d2d
-   d2dc
-   pd2d_c
+   pos
+   pos_c
+   sep
+   sep_c
+   pos_and_sep
+   pos_and_sep_c
 
 Parameter-derivative variants:
 
@@ -62,10 +63,10 @@ Parameter-derivative variants:
 .. autosummary::
    :toctree: generated
 
-   p2d_d
-   p2dc_d
-   d2d_d
-   d2dc_d
+   pos_d
+   pos_cd
+   sep_d
+   sep_cd
 
 
 Three-dimensional position and distance
@@ -84,14 +85,14 @@ in :ref:`api.lowlevel.orbit_dispatchers`.
 .. autosummary::
    :toctree: generated
 
-   p3d
-   p3dc
-   d3d
-   d3dc
-   pd3d
-   pd3dc
-   z3d
-   z3dc
+   pos
+   pos_c
+   sep
+   sep_c
+   pos_and_sep
+   pos_and_sep_c
+   pz
+   pz_c
 
 Parameter-derivative variants:
 
@@ -100,12 +101,12 @@ Parameter-derivative variants:
 .. autosummary::
    :toctree: generated
 
-   p3d_d
-   p3dc_d
-   d3d_d
-   d3dc_d
-   z3d_d
-   z3dc_d
+   pos_d
+   pos_cd
+   sep_d
+   sep_cd
+   pz_d
+   pz_cd
 
 
 Velocities
@@ -119,10 +120,10 @@ coefficient matrices used by the position evaluators.
 .. autosummary::
    :toctree: generated
 
-   v3dc
-   vzc
-   vz
-   rvc
+   vel_c
+   zvel_c
+   zvel
+   rv_c
    rv
 
 Parameter-derivative variants:
@@ -132,10 +133,10 @@ Parameter-derivative variants:
 .. autosummary::
    :toctree: generated
 
-   v3dc_d
-   vzc_d
-   vz_d
-   rvc_d
+   vel_cd
+   zvel_cd
+   zvel_d
+   rv_cd
    rv_d
 
 
