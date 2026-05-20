@@ -35,21 +35,21 @@ from meepmeep.backends.numba.utils import (
 )
 from meepmeep.backends.numba.newton.newton import eclipse_light_travel_time
 from meepmeep.backends.numba.taylor.orbit3d import (
-    xyz_o5v,
-    z_o5v,
-    vxyz_o5v,
-    vz_o5v,
-    cos_alpha_o5v,
-    star_planet_distance_o5v,
-    rv_o5v,
-    true_anomaly_o5v,
-    lambert_phase_curve_o5v,
-    lambert_and_emission_o5v,
-    ev_signal_o5v,
-    cos_v_p_angle_o5v,
-    pd_o5s,
-    light_travel_time_o5s,
-    light_travel_time_o5v,
+    pos_ov,
+    zpos_ov,
+    vel_ov,
+    zvel_ov,
+    cos_alpha_ov,
+    star_planet_distance_ov,
+    rv_ov,
+    true_anomaly_ov,
+    lambert_phase_curve_ov,
+    lambert_and_emission_ov,
+    ev_signal_ov,
+    cos_v_p_angle_ov,
+    sep_os,
+    light_travel_time_os,
+    light_travel_time_ov,
     _lambert_kernel,
 )
 from meepmeep.backends.numba.taylor.orbit3dd import (
@@ -108,7 +108,7 @@ class TestValueParity:
 
     def test_xyz_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        x_b, y_b, z_b = xyz_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        x_b, y_b, z_b = pos_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         x, y, z, dx, dy, dz = xyz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(x, x_b, rtol=1e-12)
         assert_allclose(y, y_b, rtol=1e-12)
@@ -120,7 +120,7 @@ class TestValueParity:
 
     def test_z_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        z_b = z_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        z_b = zpos_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         z, dz = z_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(z, z_b, rtol=1e-12)
         assert dz.shape == (NTIMES, 6)
@@ -129,7 +129,7 @@ class TestValueParity:
     def test_pd_o5s_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         for t in times[::5]:
-            d_b = pd_o5s(t, tc, orbit_case["p"], dt, pkt, pts, c)
+            d_b = sep_os(t, tc, orbit_case["p"], dt, pkt, pts, c)
             d_v, dd_v = pd_o5s_d(t, tc, orbit_case["p"], dt, pkt, pts, c, dc)
             assert_allclose(d_v, d_b, rtol=1e-12)
             assert dd_v.shape == (6,)
@@ -137,7 +137,7 @@ class TestValueParity:
 
     def test_vxyz_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        vx_b, vy_b, vz_b = vxyz_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        vx_b, vy_b, vz_b = vel_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         vx, vy, vz, dvx, dvy, dvz = vxyz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(vx, vx_b, rtol=1e-12)
         assert_allclose(vy, vy_b, rtol=1e-12)
@@ -147,30 +147,30 @@ class TestValueParity:
 
     def test_vz_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        vz_b = vz_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        vz_b = zvel_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         vz, dvz = vz_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(vz, vz_b, rtol=1e-12)
         assert np.all(np.isfinite(dvz))
 
     def test_cos_alpha_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        ca_b = cos_alpha_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        ca_b = cos_alpha_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         ca, dca = cos_alpha_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(ca, ca_b, rtol=1e-12)
         assert np.all(np.isfinite(dca))
 
     def test_star_planet_distance_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        r_b = star_planet_distance_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        r_b = star_planet_distance_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         r, dr = star_planet_distance_o5v_d(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(r, r_b, rtol=1e-12)
         assert np.all(np.isfinite(dr))
 
     def test_lambert_phase_curve_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        flux_b = lambert_phase_curve_o5v(times, ag=0.3, a=orbit_case["a"], k=0.1,
-                                         t0=tc, p=orbit_case["p"], dt=dt,
-                                         pktable=pkt, points=pts, coeffs=c)
+        flux_b = lambert_phase_curve_ov(times, ag=0.3, a=orbit_case["a"], k=0.1,
+                                        t0=tc, p=orbit_case["p"], dt=dt,
+                                        pktable=pkt, points=pts, coeffs=c)
         flux, dflux = lambert_phase_curve_o5v_d(times, ag=0.3, a=orbit_case["a"], k=0.1,
                                                 t0=tc, p=orbit_case["p"], dt=dt,
                                                 pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
@@ -180,10 +180,10 @@ class TestValueParity:
 
     def test_lambert_and_emission_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        ref_b, emi_b = lambert_and_emission_o5v(times, ag=0.3, fr_night=0.1, fr_day=0.4,
-                                                emi_offset=0.0, a=orbit_case["a"], k=0.1,
-                                                t0=tc, p=orbit_case["p"], dt=dt,
-                                                pktable=pkt, points=pts, coeffs=c)
+        ref_b, emi_b = lambert_and_emission_ov(times, ag=0.3, fr_night=0.1, fr_day=0.4,
+                                               emi_offset=0.0, a=orbit_case["a"], k=0.1,
+                                               t0=tc, p=orbit_case["p"], dt=dt,
+                                               pktable=pkt, points=pts, coeffs=c)
         ref, emi, dref, demi = lambert_and_emission_o5v_d(
             times, ag=0.3, fr_night=0.1, fr_day=0.4, emi_offset=0.0,
             a=orbit_case["a"], k=0.1, t0=tc, p=orbit_case["p"], dt=dt,
@@ -197,9 +197,9 @@ class TestValueParity:
 
     def test_ev_signal_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        ev_b = ev_signal_o5v(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
-                             times=times, t0=tc, p=orbit_case["p"], dt=dt,
-                             pktable=pkt, points=pts, coeffs=c)
+        ev_b = ev_signal_ov(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
+                            times=times, t0=tc, p=orbit_case["p"], dt=dt,
+                            pktable=pkt, points=pts, coeffs=c)
         ev, dev = ev_signal_o5v_d(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
                                   times=times, t0=tc, p=orbit_case["p"], dt=dt,
                                   pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
@@ -209,9 +209,9 @@ class TestValueParity:
 
     def test_rv_o5v_d(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        rv_b = rv_o5v(times, k=0.05, t0=tc, p=orbit_case["p"], a=orbit_case["a"],
-                      i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
-                      points=pts, coeffs=c)
+        rv_b = rv_ov(times, k=0.05, t0=tc, p=orbit_case["p"], a=orbit_case["a"],
+                     i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
+                     points=pts, coeffs=c)
         rv, drv = rv_o5v_d(times, k=0.05, t0=tc, p=orbit_case["p"], a=orbit_case["a"],
                            i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
                            points=pts, coeffs=c, dcoeffs=dc)
@@ -224,8 +224,8 @@ class TestValueParity:
         orbit_case = test_orbital_params["eccentric"]
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ev = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
-        f_b = true_anomaly_o5v(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
-                               orbit_case["w"], dt, pkt, pts, c)
+        f_b = true_anomaly_ov(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
+                              orbit_case["w"], dt, pkt, pts, c)
         f, df = true_anomaly_o5v_d(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
                                    orbit_case["w"], dt, pkt, pts, c, dc)
         # Compare via cos/sin to be invariant to wrap-around.
@@ -302,8 +302,8 @@ class TestExtraParameterFD:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ag, a, k = 0.3, orbit_case["a"], 0.1
         h = 1e-7
-        f_p = lambert_phase_curve_o5v(times, ag + h, a, k, tc, orbit_case["p"], dt, pkt, pts, c)
-        f_m = lambert_phase_curve_o5v(times, ag - h, a, k, tc, orbit_case["p"], dt, pkt, pts, c)
+        f_p = lambert_phase_curve_ov(times, ag + h, a, k, tc, orbit_case["p"], dt, pkt, pts, c)
+        f_m = lambert_phase_curve_ov(times, ag - h, a, k, tc, orbit_case["p"], dt, pkt, pts, c)
         fd = (f_p - f_m) / (2 * h)
         _, dflux = lambert_phase_curve_o5v_d(times, ag, a, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
@@ -314,8 +314,8 @@ class TestExtraParameterFD:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ag, a, k = 0.3, orbit_case["a"], 0.1
         h = 1e-8
-        f_p = lambert_phase_curve_o5v(times, ag, a, k + h, tc, orbit_case["p"], dt, pkt, pts, c)
-        f_m = lambert_phase_curve_o5v(times, ag, a, k - h, tc, orbit_case["p"], dt, pkt, pts, c)
+        f_p = lambert_phase_curve_ov(times, ag, a, k + h, tc, orbit_case["p"], dt, pkt, pts, c)
+        f_m = lambert_phase_curve_ov(times, ag, a, k - h, tc, orbit_case["p"], dt, pkt, pts, c)
         fd = (f_p - f_m) / (2 * h)
         _, dflux = lambert_phase_curve_o5v_d(times, ag, a, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
@@ -337,10 +337,10 @@ class TestExtraParameterFD:
                    "eo": "emi_offset", "k": "k"}[perturb]
             args_p[key] = args_p[key] + h
             args_m[key] = args_m[key] - h
-            r_p, e_p = lambert_and_emission_o5v(times, t0=tc, p=orbit_case["p"], dt=dt,
-                                                pktable=pkt, points=pts, coeffs=c, **args_p)
-            r_m, e_m = lambert_and_emission_o5v(times, t0=tc, p=orbit_case["p"], dt=dt,
-                                                pktable=pkt, points=pts, coeffs=c, **args_m)
+            r_p, e_p = lambert_and_emission_ov(times, t0=tc, p=orbit_case["p"], dt=dt,
+                                               pktable=pkt, points=pts, coeffs=c, **args_p)
+            r_m, e_m = lambert_and_emission_ov(times, t0=tc, p=orbit_case["p"], dt=dt,
+                                               pktable=pkt, points=pts, coeffs=c, **args_m)
             assert_allclose(dref[:, slot], (r_p - r_m) / (2 * h),
                             rtol=1e-4, atol=1e-9, err_msg=f"dref slot {slot} ({perturb})")
             assert_allclose(demi[:, slot], (e_p - e_m) / (2 * h),
@@ -360,10 +360,10 @@ class TestExtraParameterFD:
             real_key = {"alpha": "alpha", "mr": "mass_ratio", "inc": "inc"}[name]
             kwargs_p[real_key] += h
             kwargs_m[real_key] -= h
-            v_p = ev_signal_o5v(times=times, t0=tc, p=orbit_case["p"], dt=dt,
-                                pktable=pkt, points=pts, coeffs=c, **kwargs_p)
-            v_m = ev_signal_o5v(times=times, t0=tc, p=orbit_case["p"], dt=dt,
-                                pktable=pkt, points=pts, coeffs=c, **kwargs_m)
+            v_p = ev_signal_ov(times=times, t0=tc, p=orbit_case["p"], dt=dt,
+                               pktable=pkt, points=pts, coeffs=c, **kwargs_p)
+            v_m = ev_signal_ov(times=times, t0=tc, p=orbit_case["p"], dt=dt,
+                               pktable=pkt, points=pts, coeffs=c, **kwargs_m)
             assert_allclose(dev[:, slot], (v_p - v_m) / (2 * h),
                             rtol=1e-4, atol=1e-10, err_msg=f"slot {slot} ({name})")
 
@@ -378,10 +378,10 @@ class TestExtraParameterFD:
         assert_allclose(drv[:, 6], rv / k, rtol=1e-12)
         # Also FD-cross-check.
         h = 1e-8
-        rv_p = rv_o5v(times, k + h, tc, orbit_case["p"], orbit_case["a"],
-                      orbit_case["i"], orbit_case["e"], dt, pkt, pts, c)
-        rv_m = rv_o5v(times, k - h, tc, orbit_case["p"], orbit_case["a"],
-                      orbit_case["i"], orbit_case["e"], dt, pkt, pts, c)
+        rv_p = rv_ov(times, k + h, tc, orbit_case["p"], orbit_case["a"],
+                     orbit_case["i"], orbit_case["e"], dt, pkt, pts, c)
+        rv_m = rv_ov(times, k - h, tc, orbit_case["p"], orbit_case["a"],
+                     orbit_case["i"], orbit_case["e"], dt, pkt, pts, c)
         assert_allclose(drv[:, 6], (rv_p - rv_m) / (2 * h), rtol=1e-5, atol=1e-10)
 
 
@@ -468,7 +468,7 @@ class TestLightTravelTime:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         rstar = 0.95
         p, e, w = orbit_case["p"], orbit_case["e"], orbit_case["w"]
-        ltt_b = light_travel_time_o5v(times, tc, p, e, w, rstar, dt, pkt, pts, c)
+        ltt_b = light_travel_time_ov(times, tc, p, e, w, rstar, dt, pkt, pts, c)
         ltt, dltt = light_travel_time_o5v_d(times, tc, p, e, w, rstar,
                                             dt, pkt, pts, c, dc)
         assert_allclose(ltt, ltt_b, rtol=1e-10, atol=1e-18)
@@ -487,8 +487,8 @@ class TestLightTravelTime:
             assert_allclose(ltt, ltt_v[j], rtol=1e-12, atol=1e-20)
             assert_allclose(dltt, dltt_v[j], rtol=1e-12, atol=1e-20)
             # And the base scalar function:
-            ltt_b = light_travel_time_o5s(times[j], tc, p, e, w, rstar,
-                                          dt, pkt, pts, c)
+            ltt_b = light_travel_time_os(times[j], tc, p, e, w, rstar,
+                                         dt, pkt, pts, c)
             assert_allclose(ltt, ltt_b, rtol=1e-12, atol=1e-20)
 
     def test_linear_in_rstar(self, orbit_case):
@@ -513,8 +513,8 @@ class TestLightTravelTime:
         ltt, _ = light_travel_time_o5s_d(t_transit, tc, p, e, w, rstar,
                                          dt, pkt, pts, c, dc)
         assert_allclose(ltt, 0.0, atol=1e-15)
-        ltt_b = light_travel_time_o5s(t_transit, tc, p, e, w, rstar,
-                                      dt, pkt, pts, c)
+        ltt_b = light_travel_time_os(t_transit, tc, p, e, w, rstar,
+                                     dt, pkt, pts, c)
         assert_allclose(ltt_b, 0.0, atol=1e-15)
 
     def test_matches_eclipse_ltt(self, test_orbital_params):
@@ -533,8 +533,8 @@ class TestLightTravelTime:
             to = mean_anomaly_at_transit(pars["e"], pars["w"]) / TWO_PI * pars["p"]
             ec_dt = eclipse_time_offset(pars["p"], pars["i"], pars["e"], pars["w"])
             t_ec = tc + to + ec_dt
-            ltt_ec = light_travel_time_o5s(t_ec, tc, pars["p"], pars["e"],
-                                           pars["w"], rstar, dt, pkt, pts, c)
+            ltt_ec = light_travel_time_os(t_ec, tc, pars["p"], pars["e"],
+                                          pars["w"], rstar, dt, pkt, pts, c)
             ltt_ref = eclipse_light_travel_time(pars["p"], pars["a"], pars["i"],
                                                 pars["e"], pars["w"], rstar)
             # Taylor truncation floor for the 15-knot, 5th-order expansion
@@ -559,8 +559,8 @@ class TestLightTravelTime:
         # the ``mean_anomaly_at_transit`` term.
         h = 1e-6
         # FD against the e slot: perturb e only in the call to LTT.
-        ltt_p = light_travel_time_o5v(times, tc, p, e + h, w, rstar, dt, pkt, pts, c)
-        ltt_m = light_travel_time_o5v(times, tc, p, e - h, w, rstar, dt, pkt, pts, c)
+        ltt_p = light_travel_time_ov(times, tc, p, e + h, w, rstar, dt, pkt, pts, c)
+        ltt_m = light_travel_time_ov(times, tc, p, e - h, w, rstar, dt, pkt, pts, c)
         # This isolates the dto/de contribution: vz(t_tr) · p/(2π) · dM_tr/de
         # times -rstar · s. Compare only the "transit-shift" contribution by
         # subtracting the same evaluation with e held fixed in the LTT
@@ -584,7 +584,7 @@ class TestLightTravelTime:
         times, tc, dt, pkt, pts, c, _ = _setup(orbit_case)
         rstar = 1.0
         p, e, w = orbit_case["p"], orbit_case["e"], orbit_case["w"]
-        ltt = light_travel_time_o5v(times, tc, p, e, w, rstar, dt, pkt, pts, c)
+        ltt = light_travel_time_ov(times, tc, p, e, w, rstar, dt, pkt, pts, c)
         # Eclipse-side values should exceed transit-side values; the global
         # max occurs near secondary eclipse and is strictly positive.
         assert ltt.max() > 1e-6

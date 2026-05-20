@@ -23,7 +23,7 @@ delegating to the single-knot evaluators in ``position3d``/``velocity3d``.
 
 Coefficient layout: ``coeffs`` is an ``(npt, 3, 5)`` array as produced by
 ``solve3d_orbit`` — ``coeffs[ix]`` is the ``(3, 5)`` matrix consumed by
-``pos_c``, ``v3dc``, ``vzc``, ``sep_c``, and ``pz_c``.
+``pos_c``, ``vel_c``, ``zvel_c``, ``sep_c``, and ``pz_c``.
 """
 
 from numba import njit
@@ -70,7 +70,7 @@ def knot_ix(t, t0, p, dt, pktable) -> int:
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True)
-def xyz_o5s(t, t0, p, dt, pktable, points, coeffs):
+def pos_os(t, t0, p, dt, pktable, points, coeffs):
     """Planet (x, y, z) position at scalar time `t` for any orbital phase."""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
@@ -79,17 +79,17 @@ def xyz_o5s(t, t0, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def xyz_o5v(times, t0, p, dt, pktable, points, coeffs):
+def pos_ov(times, t0, p, dt, pktable, points, coeffs):
     """Planet (x, y, z) position at an array of times."""
     npt = times.size
     xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
-        xs[i], ys[i], zs[i] = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        xs[i], ys[i], zs[i] = pos_os(times[i], t0, p, dt, pktable, points, coeffs)
     return xs, ys, zs
 
 
 @njit(fastmath=True)
-def z_o5s(t, t0, p, dt, pktable, points, coeffs):
+def zpos_os(t, t0, p, dt, pktable, points, coeffs):
     """Planet z-position at scalar time `t` for any orbital phase."""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
@@ -98,18 +98,18 @@ def z_o5s(t, t0, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def z_o5v(times, t0, p, dt, pktable, points, coeffs):
+def zpos_ov(times, t0, p, dt, pktable, points, coeffs):
     """Planet z-position at an array of times."""
     npt = times.size
     zs = zeros(npt)
     for i in range(npt):
-        zs[i] = z_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        zs[i] = zpos_os(times[i], t0, p, dt, pktable, points, coeffs)
     return zs
 
 
 @njit(fastmath=True)
-def pd_o5s(t, t0, p, dt, pktable, points, coeffs):
-    """Projected planet-star distance at scalar time `t` for any orbital phase."""
+def sep_os(t, t0, p, dt, pktable, points, coeffs):
+    """Projected planet-star separation at scalar time `t` for any orbital phase."""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -121,7 +121,7 @@ def pd_o5s(t, t0, p, dt, pktable, points, coeffs):
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True)
-def vxyz_o5s(t, t0, p, dt, pktable, points, coeffs):
+def vel_os(t, t0, p, dt, pktable, points, coeffs):
     """Planet (vx, vy, vz) velocity at scalar time `t` for any orbital phase."""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
@@ -130,17 +130,17 @@ def vxyz_o5s(t, t0, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def vxyz_o5v(times, t0, p, dt, pktable, points, coeffs):
+def vel_ov(times, t0, p, dt, pktable, points, coeffs):
     """Planet (vx, vy, vz) velocity at an array of times."""
     npt = times.size
     vxs, vys, vzs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
-        vxs[i], vys[i], vzs[i] = vxyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        vxs[i], vys[i], vzs[i] = vel_os(times[i], t0, p, dt, pktable, points, coeffs)
     return vxs, vys, vzs
 
 
 @njit(fastmath=True)
-def vz_o5s(t, t0, p, dt, pktable, points, coeffs):
+def zvel_os(t, t0, p, dt, pktable, points, coeffs):
     """Planet z-velocity at scalar time `t` for any orbital phase."""
     epoch = floor((t - t0) / p)
     tc = t - t0 - epoch * p
@@ -149,12 +149,12 @@ def vz_o5s(t, t0, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def vz_o5v(times, t0, p, dt, pktable, points, coeffs):
+def zvel_ov(times, t0, p, dt, pktable, points, coeffs):
     """Planet z-velocity at an array of times."""
     npt = times.size
     vzs = zeros(npt)
     for i in range(npt):
-        vzs[i] = vz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        vzs[i] = zvel_os(times[i], t0, p, dt, pktable, points, coeffs)
     return vzs
 
 
@@ -163,7 +163,7 @@ def vz_o5v(times, t0, p, dt, pktable, points, coeffs):
 # ---------------------------------------------------------------------------
 
 @njit
-def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+def true_anomaly_ov(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     """True anomaly from the angle between the position and the eccentricity vector."""
     npt = times.size
     f = zeros(npt)
@@ -199,42 +199,42 @@ def true_anomaly_o5v(times, t0, p, ex, ey, ez, w, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def cos_v_p_angle_o5v(v, times, t0, p, dt, pktable, points, coeffs):
+def cos_v_p_angle_ov(v, times, t0, p, dt, pktable, points, coeffs):
     """Cosine of the angle between the planet position and a fixed reference vector `v`."""
     n = times.size
     out = zeros(n)
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     for i in range(n):
-        x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        x, y, z = pos_os(times[i], t0, p, dt, pktable, points, coeffs)
         out[i] = (x * v[0] + y * v[1] + z * v[2]) * inv_nv / sqrt(x * x + y * y + z * z)
     return out
 
 
 @njit(fastmath=True)
-def cos_alpha_o5s(t, t0, p, dt, pktable, points, coeffs):
+def cos_alpha_os(t, t0, p, dt, pktable, points, coeffs):
     """Cosine of the phase angle at scalar time `t`."""
-    x, y, z = xyz_o5s(t, t0, p, dt, pktable, points, coeffs)
+    x, y, z = pos_os(t, t0, p, dt, pktable, points, coeffs)
     return -z / sqrt(x * x + y * y + z * z)
 
 
 @njit(fastmath=True)
-def cos_alpha_o5v(times, t0, p, dt, pktable, points, coeffs):
+def cos_alpha_ov(times, t0, p, dt, pktable, points, coeffs):
     """Cosine of the phase angle at an array of times."""
     n = times.size
     out = zeros(n)
     for i in range(n):
-        x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        x, y, z = pos_os(times[i], t0, p, dt, pktable, points, coeffs)
         out[i] = -z / sqrt(x * x + y * y + z * z)
     return out
 
 
 @njit(fastmath=True)
-def star_planet_distance_o5v(times, t0, p, dt, pktable, points, coeffs):
+def star_planet_distance_ov(times, t0, p, dt, pktable, points, coeffs):
     """3D star-planet distance at an array of times."""
     n = times.size
     out = zeros(n)
     for i in range(n):
-        x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        x, y, z = pos_os(times[i], t0, p, dt, pktable, points, coeffs)
         out[i] = sqrt(x * x + y * y + z * z)
     return out
 
@@ -262,37 +262,37 @@ def _lambert_kernel(cos_alpha):
 
 
 @njit(fastmath=True)
-def lambert_phase_curve_o5s(time, ag, a, k, t0, p, dt, pktable, points, coeffs):
+def lambert_phase_curve_os(time, ag, a, k, t0, p, dt, pktable, points, coeffs):
     """Lambertian phase-curve flux contribution at a scalar time."""
     amplitude = k * k * ag / (a * a)
-    cos_alpha = cos_alpha_o5s(time, t0, p, dt, pktable, points, coeffs)
+    cos_alpha = cos_alpha_os(time, t0, p, dt, pktable, points, coeffs)
     phase, _ = _lambert_kernel(cos_alpha)
     return amplitude * phase
 
 
 @njit(fastmath=True)
-def lambert_phase_curve_o5v(times, ag, a, k, t0, p, dt, pktable, points, coeffs):
+def lambert_phase_curve_ov(times, ag, a, k, t0, p, dt, pktable, points, coeffs):
     """Lambertian phase-curve flux contribution at an array of times."""
     n = times.size
     res = zeros(n)
     amplitude = k * k * ag / (a * a)
     for i in range(n):
-        cos_alpha = cos_alpha_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        cos_alpha = cos_alpha_os(times[i], t0, p, dt, pktable, points, coeffs)
         phase, _ = _lambert_kernel(cos_alpha)
         res[i] = amplitude * phase
     return res
 
 
 @njit(fastmath=True)
-def lambert_and_emission_o5v(times, ag, fr_night, fr_day, emi_offset, a, k,
-                             t0, p, dt, pktable, points, coeffs):
+def lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
+                            t0, p, dt, pktable, points, coeffs):
     """Lambertian reflection plus a simple cosine-emission day/night model."""
     n = times.size
     ref, emi = zeros(n), zeros(n)
     k2 = k * k
     aref = k2 * ag / (a * a)
     for i in range(n):
-        cos_alpha = cos_alpha_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        cos_alpha = cos_alpha_os(times[i], t0, p, dt, pktable, points, coeffs)
         phase, alpha = _lambert_kernel(cos_alpha)
         ref[i] = aref * phase
         emi[i] = k2 * (fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cos(alpha + emi_offset)))
@@ -300,7 +300,7 @@ def lambert_and_emission_o5v(times, ag, fr_night, fr_day, emi_offset, a, k,
 
 
 @njit(fastmath=True)
-def ev_signal_o5v(alpha, mass_ratio, inc, times, t0, p, dt, pktable, points, coeffs):
+def ev_signal_ov(alpha, mass_ratio, inc, times, t0, p, dt, pktable, points, coeffs):
     """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6–10).
 
     Uses the identity ``cos(2*arccos(u)) = 2*u**2 - 1`` to avoid a redundant
@@ -311,7 +311,7 @@ def ev_signal_o5v(alpha, mass_ratio, inc, times, t0, p, dt, pktable, points, coe
     sin2_inc = sin(inc) ** 2
     pre = -alpha * mass_ratio * sin2_inc
     for i in range(n):
-        x, y, z = xyz_o5s(times[i], t0, p, dt, pktable, points, coeffs)
+        x, y, z = pos_os(times[i], t0, p, dt, pktable, points, coeffs)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)
         cz = z / d
@@ -320,13 +320,13 @@ def ev_signal_o5v(alpha, mass_ratio, inc, times, t0, p, dt, pktable, points, coe
 
 
 @njit(fastmath=True)
-def rv_o5v(times, k, t0, p, a, i, e, dt, pktable, points, coeffs):
+def rv_ov(times, k, t0, p, a, i, e, dt, pktable, points, coeffs):
     """Radial velocity at an array of times (Perryman 2018, Eq. 2.23)."""
     n = times.size
     rvs = zeros(n)
     scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
     for j in range(n):
-        rvs[j] = vz_o5s(times[j], t0, p, dt, pktable, points, coeffs) * scale
+        rvs[j] = zvel_os(times[j], t0, p, dt, pktable, points, coeffs) * scale
     return rvs
 
 
@@ -340,7 +340,7 @@ LTT_DAYS_PER_RSUN = 2.685885891543453e-05
 
 
 @njit(fastmath=True)
-def light_travel_time_o5s(t, t0, p, e, w, rstar, dt, pktable, points, coeffs):
+def light_travel_time_os(t, t0, p, e, w, rstar, dt, pktable, points, coeffs):
     """Light travel time correction at a scalar time, referenced to primary transit.
 
     The correction is
@@ -383,13 +383,13 @@ def light_travel_time_o5s(t, t0, p, e, w, rstar, dt, pktable, points, coeffs):
         Light travel time correction [days].
     """
     to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_t = z_o5s(t, t0, p, dt, pktable, points, coeffs)
-    z_tr = z_o5s(t0 + to, t0, p, dt, pktable, points, coeffs)
+    z_t = zpos_os(t, t0, p, dt, pktable, points, coeffs)
+    z_tr = zpos_os(t0 + to, t0, p, dt, pktable, points, coeffs)
     return -(z_t - z_tr) * rstar * LTT_DAYS_PER_RSUN
 
 
 @njit(fastmath=True)
-def light_travel_time_o5v(times, t0, p, e, w, rstar, dt, pktable, points, coeffs):
+def light_travel_time_ov(times, t0, p, e, w, rstar, dt, pktable, points, coeffs):
     """Light travel time correction at an array of times, referenced to primary transit.
 
     See :func:`light_travel_time_o5s` for the sign and reference convention.
@@ -397,8 +397,8 @@ def light_travel_time_o5v(times, t0, p, e, w, rstar, dt, pktable, points, coeffs
     n = times.size
     ltt = zeros(n)
     to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_tr = z_o5s(t0 + to, t0, p, dt, pktable, points, coeffs)
+    z_tr = zpos_os(t0 + to, t0, p, dt, pktable, points, coeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
     for j in range(n):
-        ltt[j] = factor * (z_o5s(times[j], t0, p, dt, pktable, points, coeffs) - z_tr)
+        ltt[j] = factor * (zpos_os(times[j], t0, p, dt, pktable, points, coeffs) - z_tr)
     return ltt

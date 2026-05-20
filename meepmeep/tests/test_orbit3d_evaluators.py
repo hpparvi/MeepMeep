@@ -18,17 +18,17 @@ from meepmeep.backends.numba.newton.newton import (
 )
 from meepmeep.backends.numba.taylor.orbit3d import (
     solve3d_orbit,
-    xyz_o5v,
-    vxyz_o5v,
-    vz_o5v,
-    z_o5v,
-    cos_alpha_o5v,
-    star_planet_distance_o5v,
-    rv_o5v,
-    true_anomaly_o5v,
-    lambert_phase_curve_o5v,
-    lambert_and_emission_o5v,
-    ev_signal_o5v,
+    pos_ov,
+    vel_ov,
+    zvel_ov,
+    zpos_ov,
+    cos_alpha_ov,
+    star_planet_distance_ov,
+    rv_ov,
+    true_anomaly_ov,
+    lambert_phase_curve_ov,
+    lambert_and_emission_ov,
+    ev_signal_ov,
 )
 from meepmeep.backends.numba.utils import (
     TWO_PI,
@@ -67,7 +67,7 @@ def orbit_case(request, test_orbital_params):
 class TestPositionEvaluators:
     def test_xyz_matches_newton(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        x, y, z = xyz_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        x, y, z = pos_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         xn, yn, zn = xyz_newton_v(times, 0.0, **orbit_case)
         assert_allclose(x, xn, **TOL)
         assert_allclose(y, yn, **TOL)
@@ -75,13 +75,13 @@ class TestPositionEvaluators:
 
     def test_z_only_matches_xyz(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        _, _, z_full = xyz_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
-        z_only = z_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        _, _, z_full = pos_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        z_only = zpos_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         assert_allclose(z_only, z_full, rtol=1e-12)
 
     def test_star_planet_distance(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        d = star_planet_distance_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        d = star_planet_distance_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         xn, yn, zn = xyz_newton_v(times, 0.0, **orbit_case)
         dn = np.sqrt(xn ** 2 + yn ** 2 + zn ** 2)
         assert_allclose(d, dn, **TOL)
@@ -92,7 +92,7 @@ class TestVelocityEvaluators:
         """Velocity from the Taylor expansion should match a centered finite
         difference of the Newton position."""
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        vx, vy, vz = vxyz_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        vx, vy, vz = vel_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
 
         h = 1e-4
         xp, yp, zp = xyz_newton_v(times + h, 0.0, **orbit_case)
@@ -106,15 +106,15 @@ class TestVelocityEvaluators:
 
     def test_vz_consistent_with_vxyz(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        _, _, vz_full = vxyz_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
-        vz_only = vz_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        _, _, vz_full = vel_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        vz_only = zvel_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         assert_allclose(vz_only, vz_full, rtol=1e-12)
 
 
 class TestPhaseAngles:
     def test_cos_alpha_matches_xyz(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        ca = cos_alpha_o5v(times, tc, orbit_case["p"], dt, pkt, pts, c)
+        ca = cos_alpha_ov(times, tc, orbit_case["p"], dt, pkt, pts, c)
         xn, yn, zn = xyz_newton_v(times, 0.0, **orbit_case)
         ca_ref = -zn / np.sqrt(xn ** 2 + yn ** 2 + zn ** 2)
         assert_allclose(ca, ca_ref, **TOL)
@@ -125,8 +125,8 @@ class TestPhaseAngles:
         orbit_case = test_orbital_params["eccentric"]
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
         ev = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
-        f_ts = true_anomaly_o5v(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
-                                orbit_case["w"], dt, pkt, pts, c)
+        f_ts = true_anomaly_ov(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
+                               orbit_case["w"], dt, pkt, pts, c)
         f_nr = ta_newton_v(times, 0.0, orbit_case["p"], orbit_case["e"], orbit_case["w"])
         # Compare via cos/sin to be invariant to 2*pi wrap-around discontinuities.
         assert_allclose(np.cos(f_ts), np.cos(f_nr), atol=1e-3)
@@ -137,8 +137,8 @@ class TestRadialVelocity:
     def test_rv_matches_newton(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
         k = 0.05
-        rv = rv_o5v(times, k, tc, orbit_case["p"], orbit_case["a"],
-                    orbit_case["i"], orbit_case["e"], dt, pkt, pts, c)
+        rv = rv_ov(times, k, tc, orbit_case["p"], orbit_case["a"],
+                   orbit_case["i"], orbit_case["e"], dt, pkt, pts, c)
         rv_ref = rv_newton_v(times, k, 0.0, orbit_case["p"],
                              orbit_case["e"], orbit_case["w"])
         assert_allclose(rv, rv_ref, rtol=1e-3, atol=2e-4)
@@ -147,9 +147,9 @@ class TestRadialVelocity:
 class TestPhotometricSignals:
     def test_lambert_phase_curve_finite_and_bounded(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        flux = lambert_phase_curve_o5v(times, ag=0.3, a=orbit_case["a"], k=0.1,
-                                       t0=tc, p=orbit_case["p"], dt=dt,
-                                       pktable=pkt, points=pts, coeffs=c)
+        flux = lambert_phase_curve_ov(times, ag=0.3, a=orbit_case["a"], k=0.1,
+                                      t0=tc, p=orbit_case["p"], dt=dt,
+                                      pktable=pkt, points=pts, coeffs=c)
         assert np.all(np.isfinite(flux))
         assert np.all(flux >= 0.0)
         amplitude = 0.1 ** 2 * 0.3 / orbit_case["a"] ** 2
@@ -157,10 +157,10 @@ class TestPhotometricSignals:
 
     def test_lambert_and_emission_components(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        ref, emi = lambert_and_emission_o5v(times, ag=0.3, fr_night=0.1, fr_day=0.4,
-                                            emi_offset=0.0, a=orbit_case["a"], k=0.1,
-                                            t0=tc, p=orbit_case["p"], dt=dt,
-                                            pktable=pkt, points=pts, coeffs=c)
+        ref, emi = lambert_and_emission_ov(times, ag=0.3, fr_night=0.1, fr_day=0.4,
+                                           emi_offset=0.0, a=orbit_case["a"], k=0.1,
+                                           t0=tc, p=orbit_case["p"], dt=dt,
+                                           pktable=pkt, points=pts, coeffs=c)
         assert np.all(np.isfinite(ref))
         assert np.all(np.isfinite(emi))
         assert np.all(ref >= 0.0)
@@ -168,9 +168,9 @@ class TestPhotometricSignals:
 
     def test_ev_signal_finite(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        ev = ev_signal_o5v(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
-                           times=times, t0=tc, p=orbit_case["p"], dt=dt,
-                           pktable=pkt, points=pts, coeffs=c)
+        ev = ev_signal_ov(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
+                          times=times, t0=tc, p=orbit_case["p"], dt=dt,
+                          pktable=pkt, points=pts, coeffs=c)
         assert np.all(np.isfinite(ev))
 
 
@@ -240,8 +240,8 @@ class TestContracts:
             pars["e"] = e
             times, tc, dt, pkt, pts, c = _setup(pars)
             ev = eccentricity_vector(pars["i"], pars["e"], pars["w"])
-            f = true_anomaly_o5v(times, tc, pars["p"], ev[0], ev[1], ev[2],
-                                 pars["w"], dt, pkt, pts, c)
+            f = true_anomaly_ov(times, tc, pars["p"], ev[0], ev[1], ev[2],
+                                pars["w"], dt, pkt, pts, c)
             assert np.all(np.isfinite(f)), f"NaN in true anomaly for e={e}"
             # For a circular orbit it should equal mean anomaly mod 2*pi.
             assert np.all((f >= 0.0) & (f < 2 * np.pi + 1e-9))
