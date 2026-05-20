@@ -25,14 +25,16 @@ Taylor coefficients (and their parameter derivatives, on request), and
 threading the ``points`` / ``pktable`` / ``coeffs`` / ``dcoeffs`` arrays
 through every observable.
 
-Parameter conventions at this layer match CLAUDE.md: ``t0`` is the time of
-inferior conjunction (transit center), ``p`` is the orbital period in days,
-``a`` is the scaled semi-major axis :math:`a/R_\\star`, ``i`` is the
-inclination in radians, ``e`` is the eccentricity, and ``w`` is the
-argument of periastron in radians. The orbit3d/orbit3dd backend uses a
+Parameter conventions at this layer match CLAUDE.md. The time anchor is
+either ``tc`` (transit center, the time of inferior conjunction) or ``tp``
+(time of periastron passage); :meth:`Orbit.set_pars` accepts either and
+stores both internally. The remaining elements are ``p`` (orbital period
+in days), ``a`` (scaled semi-major axis :math:`a/R_\\star`), ``i``
+(inclination in radians), ``e`` (eccentricity), and ``w`` (argument of
+periastron in radians). The orbit3d/orbit3dd backend uses a
 periastron-anchored time argument internally; the conversion happens once
 inside :meth:`Orbit.set_pars`, which stores the periastron-anchor time as
-``self._tpa``.
+``self._tpa`` and the transit-center time as ``self._t0``.
 """
 
 from typing import Optional
@@ -66,8 +68,10 @@ class Orbit:
     orbital parameters and any method-specific physical extras.
 
     Workflow:
-    ``Orbit(npt, knot_placement, derivatives) → set_pars(t0, p, a, i, e, w)
-    → set_data(times) → call any observable``.
+    ``Orbit(npt, knot_placement, derivatives) → set_pars(tc=..., p=..., a=...,
+    i=..., e=..., w=...) → set_data(times) → call any observable``. Pass
+    ``tp=...`` instead of ``tc=...`` to anchor the orbit at periastron
+    passage instead of transit center.
 
     Parameters
     ----------
@@ -104,10 +108,16 @@ class Orbit:
         Number of knots, set at construction.
     times : ndarray or None
         Time grid bound via :meth:`set_data`. ``None`` until set.
+    _t0 : float
+        Transit-center time, set by :meth:`set_pars` (directly if you
+        pass ``tc``, or derived from ``tp`` otherwise). Used by the
+        Newton-Raphson diagnostic paths and by
+        :meth:`plot(show_exact=True)`.
     _tpa : float
-        Periastron-anchor time, derived from the user-facing ``t0`` in
-        :meth:`set_pars`. Passed straight through to every orbit3d /
-        orbit3dd dispatcher as their ``tpa`` argument.
+        Periastron-anchor time. Passed straight through to every orbit3d /
+        orbit3dd dispatcher as their ``tpa`` argument. Set by
+        :meth:`set_pars` (directly if you pass ``tp``, or derived from
+        ``tc`` otherwise).
     _coeffs : ndarray, shape (npt, 3, 5)
         Taylor coefficient matrices at every knot, built in :meth:`set_pars`.
     _dcoeffs : ndarray, shape (npt, 6, 3, 5) or None
@@ -123,16 +133,16 @@ class Orbit:
 
     Notes
     -----
-    Convention bridge: this class accepts the user-facing ``t0`` =
-    inferior-conjunction (transit-center) time, but the underlying
-    orbit3d / orbit3dd dispatchers anchor their knot grid at periastron.
-    :meth:`set_pars` converts once via
-    ``self._tpa = t0 - mean_anomaly_at_transit(e, w) / (2π) · p`` and
-    every subsequent dispatcher call uses ``self._tpa``. The raw
-    ``self._t0`` is kept around only for the Newton-Raphson diagnostic
-    paths (:meth:`_xyz_error`, :meth:`_cos_phase_error`,
-    :meth:`mean_anomaly`, :meth:`true_anomaly(exact=True)`) and for
-    :meth:`plot(show_exact=True)`.
+    Convention bridge: this class accepts either ``tc`` (transit-center
+    time) or ``tp`` (periastron-passage time) via :meth:`set_pars`. The
+    underlying orbit3d / orbit3dd dispatchers anchor their knot grid at
+    periastron, so :meth:`set_pars` converts once via
+    :math:`t_p = t_c - M_\\mathrm{tr}(e, w) \\cdot p / (2\\pi)` and stores
+    both values: ``self._t0`` (transit center) and ``self._tpa``
+    (periastron anchor). Every dispatcher call uses ``self._tpa``;
+    ``self._t0`` is used only by the Newton-Raphson diagnostic paths
+    (:meth:`_xyz_error`, :meth:`_cos_phase_error`, :meth:`mean_anomaly`,
+    :meth:`true_anomaly(exact=True)`) and by :meth:`plot(show_exact=True)`.
     """
 
     def __init__(self, npt: int = 15, knot_placement: str = "ea", derivatives: bool = False):
@@ -170,20 +180,26 @@ class Orbit:
         """
         self.times = times
 
-    def set_pars(self, t0, p, a, i, e, w):
+    def set_pars(self, *, tc=None, tp=None, p, a, i, e, w):
         """Bind orbital parameters and (re-)compute the per-knot Taylor coefficients.
 
-        Stores the user-facing parameters on the instance, derives the
-        periastron-anchor time ``self._tpa`` from ``t0`` via
-        ``t_pa = t0 - mean_anomaly_at_transit(e, w) / (2π) · p``, and calls
-        :func:`~meepmeep.backends.numba.taylor.orbit3d.solve3d_orbit` (or
-        :func:`~meepmeep.backends.numba.taylor.orbit3dd.solve3d_orbit_d` in
-        derivative mode) to fill ``self._coeffs`` (and ``self._dcoeffs``).
+        The time anchor is specified by exactly one of ``tc`` (transit
+        center) or ``tp`` (periastron passage); the two are related by
+        :math:`t_p = t_c - M_\\mathrm{tr}(e, w) \\cdot p / (2\\pi)`.
+        Whichever is supplied, the other is derived and stored, so the
+        diagnostic paths that need ``t_c`` (e.g. the Newton-Raphson
+        reference) and the orbit3d / orbit3dd dispatchers that need
+        ``t_pa`` are both satisfied from one call.
+
+        All parameters are keyword-only, so the call site always names the
+        convention explicitly.
 
         Parameters
         ----------
-        t0 : float
+        tc : float, optional
             Time of inferior conjunction (transit center) [days].
+        tp : float, optional
+            Time of periastron passage [days].
         p : float
             Orbital period [days].
         a : float
@@ -194,14 +210,36 @@ class Orbit:
             Eccentricity, :math:`0 \\le e < 1`.
         w : float
             Argument of periastron [radians].
+
+        Raises
+        ------
+        TypeError
+            If both ``tc`` and ``tp`` are supplied, or if neither is.
+
+        Notes
+        -----
+        After this call, ``self._t0`` holds the transit-center time and
+        ``self._tpa`` holds the periastron-anchor time, regardless of which
+        input was used.
         """
-        self._t0 = t0
+        if tc is not None and tp is not None:
+            raise TypeError("set_pars accepts exactly one of `tc` (transit center) "
+                            "or `tp` (periastron passage), not both.")
+        if tc is None and tp is None:
+            raise TypeError("set_pars requires either `tc` (transit center) "
+                            "or `tp` (periastron passage).")
+        to = mean_anomaly_at_transit(e, w) / TWO_PI * p
+        if tc is not None:
+            self._t0 = tc
+            self._tpa = tc - to
+        else:
+            self._tpa = tp
+            self._t0 = tp + to
         self._p = p
         self._a = a
         self._i = i
         self._e = e
         self._w = w
-        self._tpa = t0 - mean_anomaly_at_transit(e, w) / TWO_PI * p
         if self._derivatives:
             self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w, self.npt)
         else:

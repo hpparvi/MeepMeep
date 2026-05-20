@@ -181,7 +181,7 @@ class TestOrbitClass:
     def orbit(self, test_orbital_params):
         pars = test_orbital_params["eccentric"]
         o = Orbit(npt=NPT)
-        o.set_pars(t0=0.0, **pars)
+        o.set_pars(tc=0.0, **pars)
         o.set_data(np.linspace(0.0, pars["p"], NTIMES))
         return o, pars
 
