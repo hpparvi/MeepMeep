@@ -308,9 +308,14 @@ evaluate at an array of times:
    import numpy as np
    from meepmeep.backends.numba.knots import create_knots
    from meepmeep.backends.numba.taylor.orbit3d import solve3d_orbit, pos_ov
+   from meepmeep.backends.numba.utils import mean_anomaly_at_transit
 
-   # Orbital parameters
+   # Orbital parameters (t0 is the transit-center time, the high-level convention)
    t0, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
+
+   # The orbit3d dispatchers anchor their knot grid at periastron, so
+   # convert the user-facing transit-center time to the periastron-anchor time.
+   tpa = t0 - mean_anomaly_at_transit(e, w) / (2.0 * np.pi) * p
 
    # Knot grid (eccentric-anomaly placement) and the time-to-knot table
    npt = 15
@@ -321,7 +326,7 @@ evaluate at an array of times:
 
    # Evaluate the orbit at a grid of times
    times = np.linspace(0.0, p, 2001)
-   xs, ys, zs = pos_ov(times, t0, p, dt, pktable, points, coeffs)
+   xs, ys, zs = pos_ov(times, tpa, p, dt, pktable, points, coeffs)
 
 
 .. _taylor_derivatives:
