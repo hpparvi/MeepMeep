@@ -122,25 +122,37 @@ When the workflow needs a whole-orbit dispatcher — for example to
 evaluate a phase curve or an RV time series across an arbitrary range
 of times — the functions in
 :mod:`~meepmeep.backends.numba.taylor.orbit3d` look up the appropriate
-knot via ``pktable`` and delegate to a centered evaluator. These
-dispatchers use their own suffix family that encodes the input
-cardinality:
+knot via ``pktable`` and delegate to a centered evaluator. The public
+surface is a single overloaded entry point per quantity that accepts
+either a scalar time or a 1-D array of times and dispatches at compile
+time (inside ``@njit``) or at call time (pure Python):
 
 ============  ==============================================
 Suffix        Meaning
 ============  ==============================================
-``_os``       Orbit-spanning, **s**\ calar input time.
-``_ov``       Orbit-spanning, **v**\ ector of input times.
+``_o``        Orbit-spanning dispatcher. Scalar time → scalar
+              result; 1-D float64 array → array result.
+``_od``       Same, with gradients w.r.t. orbital parameters.
 ============  ==============================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.orbit3d.pos_os` /
-:func:`~meepmeep.backends.numba.taylor.orbit3d.pos_ov`,
-:func:`~meepmeep.backends.numba.taylor.orbit3d.zvel_ov`. The
-gradient-returning counterparts live in
-:mod:`~meepmeep.backends.numba.taylor.orbit3dd` and append ``d`` to
-the suffix, mirroring the position/velocity ``_c`` → ``_cd``
-convention: ``_osd`` and ``_ovd`` (e.g. ``pos_ovd``, ``zvel_osd``,
-``rv_ovd``).
+Examples: :func:`~meepmeep.backends.numba.taylor.orbit3d.pos_o`,
+:func:`~meepmeep.backends.numba.taylor.orbit3d.zvel_o`,
+:func:`~meepmeep.backends.numba.taylor.orbit3dd.pos_od`,
+:func:`~meepmeep.backends.numba.taylor.orbit3dd.rv_od`.
+
+Internally each dispatcher routes to a private kernel with the explicit
+``_os`` / ``_ov`` (scalar / vector) suffix — e.g. ``_pos_os`` and
+``_pos_ov`` in ``orbit3d.py``, ``_pos_osd`` and ``_pos_ovd`` in
+``orbit3dd.py``. Reach for those private kernels only when you need to
+avoid the dispatcher's type check (rarely useful) or when contributing
+to MeepMeep itself.
+
+.. note::
+   When upgrading from an earlier MeepMeep release where the public
+   names were ``pos_os`` / ``pos_ov`` / ``pos_osd`` / ``pos_ovd``,
+   purge any ``__pycache__/*.nbi`` / ``*.nbc`` files from callers
+   compiled with ``cache=True`` so Numba recompiles against the new
+   dispatchers.
 
 
 Module naming

@@ -47,12 +47,12 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 from .backends.numba.knots import create_knots
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
 from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector
-from .backends.numba.taylor.orbit3d import (solve3d_orbit as solve_xyz_o5s, pos_ov, cos_alpha_ov, vel_ov,
-                                            true_anomaly_ov, rv_ov, star_planet_distance_ov, ev_signal_ov,
-                                            lambert_phase_curve_ov, lambert_and_emission_ov, light_travel_time_ov, )
-from .backends.numba.taylor.orbit3dd import (solve3d_orbit_d, pos_ovd, cos_alpha_ovd, vel_ovd, true_anomaly_ovd, rv_ovd,
-                                             star_planet_distance_ovd, ev_signal_ovd, lambert_phase_curve_ovd,
-                                             lambert_and_emission_ovd, light_travel_time_ovd, )
+from .backends.numba.taylor.orbit3d import (solve3d_orbit as solve_xyz_o5s, pos_o, cos_alpha_o, vel_o,
+                                            true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
+                                            lambert_phase_curve_o, lambert_and_emission_o, light_travel_time_o, )
+from .backends.numba.taylor.orbit3dd import (solve3d_orbit_d, pos_od, cos_alpha_od, vel_od, true_anomaly_od, rv_od,
+                                             star_planet_distance_od, ev_signal_od, lambert_phase_curve_od,
+                                             lambert_and_emission_od, light_travel_time_od, )
 
 
 class Orbit:
@@ -92,7 +92,7 @@ class Orbit:
         ``(phase, p, a, i, e, w)`` followed by per-method physical extras
         (e.g. ``k`` for :meth:`radial_velocity`; ``ag, k`` for
         :meth:`lambert_phase_curve`; ``alpha, mass_ratio, inc`` for
-        :meth:`ellipsoidal_variation`; see the underlying ``*_ovd`` routines
+        :meth:`ellipsoidal_variation`; see the underlying ``*_od`` routines
         in :mod:`meepmeep.backends.numba.taylor.orbit3dd` for the full
         signatures).
 
@@ -294,9 +294,9 @@ class Orbit:
             return ta_newton_v(self.times, self._tc, self._p, self._e, self._w)
         ev = eccentricity_vector(self._i, self._e, self._w)
         if self._derivatives:
-            return true_anomaly_ovd(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
+            return true_anomaly_od(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
                                     self._tptable, self._points, self._coeffs, self._dcoeffs, )
-        return true_anomaly_ov(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._tptable,
+        return true_anomaly_o(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._tptable,
                                self._points, self._coeffs, )
 
     def xyz(self, times: Optional[ndarray] = None):
@@ -320,9 +320,9 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return pos_ovd(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+            return pos_od(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
                            self._dcoeffs, )
-        return pos_ov(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return pos_o(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def _xyz_error(self):
         """Per-time position residuals against the Newton-Raphson reference.
@@ -351,9 +351,9 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            return vel_ovd(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+            return vel_od(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
                            self._dcoeffs, )
-        return vel_ov(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return vel_o(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def cos_phase(self):
         """Cosine of the phase angle, :math:`\\cos\\alpha = -z/r`.
@@ -371,9 +371,9 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            return cos_alpha_ovd(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+            return cos_alpha_od(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
                                  self._dcoeffs, )
-        return cos_alpha_ov(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return cos_alpha_o(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def _cos_phase_error(self):
         """Per-time phase-angle-cosine residuals against the Newton-Raphson reference.
@@ -414,14 +414,14 @@ class Orbit:
         but loses physical meaning at the clamped points.
         """
         if self._derivatives:
-            ca, dca = cos_alpha_ovd(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+            ca, dca = cos_alpha_od(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
                                     self._dcoeffs, )
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             ph = arccos(ca_c)
             inv_s = -1.0 / sqrt(1.0 - ca_c * ca_c)
             dph = inv_s[:, None] * dca
             return ph, dph
-        return arccos(cos_alpha_ov(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs))
+        return arccos(cos_alpha_o(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs))
 
     def theta(self):
         """Supplement angle :math:`\\theta = \\arccos(-\\cos\\alpha) = \\pi - \\alpha`.
@@ -444,7 +444,7 @@ class Orbit:
         :math:`|\\cos\\alpha| = 1`.
         """
         if self._derivatives:
-            ca, dca = cos_alpha_ovd(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+            ca, dca = cos_alpha_od(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
                                     self._dcoeffs, )
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             th = arccos(-ca_c)
@@ -452,13 +452,13 @@ class Orbit:
             inv_s = 1.0 / sqrt(1.0 - ca_c * ca_c)
             dth = inv_s[:, None] * dca
             return th, dth
-        return arccos(-cos_alpha_ov(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs))
+        return arccos(-cos_alpha_o(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs))
 
     def star_planet_distance(self, times: Optional[ndarray] = None):
         """3D star-planet separation :math:`r = \\sqrt{x^2 + y^2 + z^2}`.
 
         Distinct from :meth:`projected separation` (currently only available
-        through the low-level ``sep_ov`` dispatcher), which drops the
+        through the low-level ``sep_o`` dispatcher), which drops the
         line-of-sight component.
 
         Parameters
@@ -477,9 +477,9 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return star_planet_distance_ovd(times, self._tp, self._p, self._dt, self._tptable, self._points,
+            return star_planet_distance_od(times, self._tp, self._p, self._dt, self._tptable, self._points,
                                             self._coeffs, self._dcoeffs, )
-        return star_planet_distance_ov(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return star_planet_distance_o(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def light_travel_time(self, rstar: float):
         """Light-travel-time correction, referenced to primary transit.
@@ -504,9 +504,9 @@ class Orbit:
             ``rstar`` is intentionally *not* returned (per package spec).
         """
         if self._derivatives:
-            return light_travel_time_ovd(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt,
+            return light_travel_time_od(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt,
                                          self._tptable, self._points, self._coeffs, self._dcoeffs, )
-        return light_travel_time_ov(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt, self._tptable,
+        return light_travel_time_o(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt, self._tptable,
                                     self._points, self._coeffs, )
 
     def radial_velocity(self, k: float):
@@ -530,9 +530,9 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            return rv_ovd(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable,
+            return rv_od(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable,
                           self._points, self._coeffs, self._dcoeffs, )
-        return rv_ov(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable, self._points,
+        return rv_o(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable, self._points,
                      self._coeffs, )
 
     def lambert_phase_curve(self, k: float, ag: float, times: ndarray | None = None):
@@ -562,9 +562,9 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return lambert_phase_curve_ovd(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable,
+            return lambert_phase_curve_od(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable,
                                            self._points, self._coeffs, self._dcoeffs, )
-        return lambert_phase_curve_ov(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable, self._points,
+        return lambert_phase_curve_o(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable, self._points,
                                       self._coeffs, )
 
     def lambert_and_emission(self, k: float, ag: float, fr_night, fr_day, times: ndarray | None = None):
@@ -575,7 +575,7 @@ class Orbit:
         The emission model is a smooth interpolation between night-side and
         day-side levels driven by :math:`\\cos\\alpha`. The emission peak
         offset (advection) parameter is fixed at zero here; use the
-        low-level :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_and_emission_ov`
+        low-level :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_and_emission_o`
         directly if you need it.
 
         Parameters
@@ -608,9 +608,9 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return lambert_and_emission_ovd(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
+            return lambert_and_emission_od(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
                                             self._tptable, self._points, self._coeffs, self._dcoeffs, )
-        return lambert_and_emission_ov(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
+        return lambert_and_emission_o(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
                                        self._tptable, self._points, self._coeffs, )
 
     def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):
@@ -642,9 +642,9 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return ev_signal_ovd(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable,
+            return ev_signal_od(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable,
                                  self._points, self._coeffs, self._dcoeffs, )
-        return ev_signal_ov(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable, self._points,
+        return ev_signal_o(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable, self._points,
                             self._coeffs, )
 
     def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc="k",

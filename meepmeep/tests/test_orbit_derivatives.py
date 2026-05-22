@@ -7,7 +7,7 @@ Two-part strategy:
    tiny ``fastmath`` rounding noise).
 
 2. **Underlying-function parity**: the derivative output of each method
-   exactly matches a direct call to the corresponding ``*_ovd`` routine
+   exactly matches a direct call to the corresponding ``*_od`` routine
    in ``meepmeep.backends.numba.taylor.orbit3dd`` using the same
    ``coeffs/dcoeffs`` arrays — this confirms the wrapper does no
    unintended math.
@@ -22,16 +22,16 @@ from numpy.testing import assert_allclose
 from meepmeep.orbit import Orbit
 from meepmeep.backends.numba.utils import eccentricity_vector
 from meepmeep.backends.numba.taylor.orbit3dd import (
-    pos_ovd,
-    vel_ovd,
-    cos_alpha_ovd,
-    star_planet_distance_ovd,
-    rv_ovd,
-    lambert_phase_curve_ovd,
-    lambert_and_emission_ovd,
-    ev_signal_ovd,
-    true_anomaly_ovd,
-    light_travel_time_ovd,
+    pos_od,
+    vel_od,
+    cos_alpha_od,
+    star_planet_distance_od,
+    rv_od,
+    lambert_phase_curve_od,
+    lambert_and_emission_od,
+    ev_signal_od,
+    true_anomaly_od,
+    light_travel_time_od,
 )
 
 
@@ -166,7 +166,7 @@ class TestUnderlyingParity:
     def test_xyz(self, orbit_deriv):
         o = orbit_deriv
         x, y, z, dx, dy, dz = o.xyz()
-        x_r, y_r, z_r, dx_r, dy_r, dz_r = pos_ovd(o.times, *self._dispatch_args(o))
+        x_r, y_r, z_r, dx_r, dy_r, dz_r = pos_od(o.times, *self._dispatch_args(o))
         assert_allclose(dx, dx_r, rtol=RTOL_DERIV)
         assert_allclose(dy, dy_r, rtol=RTOL_DERIV)
         assert_allclose(dz, dz_r, rtol=RTOL_DERIV)
@@ -174,7 +174,7 @@ class TestUnderlyingParity:
     def test_vxyz(self, orbit_deriv):
         o = orbit_deriv
         _, _, _, dvx, dvy, dvz = o.vxyz()
-        _, _, _, dvx_r, dvy_r, dvz_r = vel_ovd(o.times, *self._dispatch_args(o))
+        _, _, _, dvx_r, dvy_r, dvz_r = vel_od(o.times, *self._dispatch_args(o))
         assert_allclose(dvx, dvx_r, rtol=RTOL_DERIV)
         assert_allclose(dvy, dvy_r, rtol=RTOL_DERIV)
         assert_allclose(dvz, dvz_r, rtol=RTOL_DERIV)
@@ -182,26 +182,26 @@ class TestUnderlyingParity:
     def test_cos_phase(self, orbit_deriv):
         o = orbit_deriv
         _, dca = o.cos_phase()
-        _, dca_r = cos_alpha_ovd(o.times, *self._dispatch_args(o))
+        _, dca_r = cos_alpha_od(o.times, *self._dispatch_args(o))
         assert_allclose(dca, dca_r, rtol=RTOL_DERIV)
 
     def test_star_planet_distance(self, orbit_deriv):
         o = orbit_deriv
         _, dr = o.star_planet_distance()
-        _, dr_r = star_planet_distance_ovd(o.times, *self._dispatch_args(o))
+        _, dr_r = star_planet_distance_od(o.times, *self._dispatch_args(o))
         assert_allclose(dr, dr_r, rtol=RTOL_DERIV)
 
     def test_radial_velocity(self, orbit_deriv):
         o = orbit_deriv
         _, drv = o.radial_velocity(k=0.05)
-        _, drv_r = rv_ovd(o.times, 0.05, o._tp, o._p, o._a, o._i, o._e,
+        _, drv_r = rv_od(o.times, 0.05, o._tp, o._p, o._a, o._i, o._e,
                           o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs)
         assert_allclose(drv, drv_r, rtol=RTOL_DERIV)
 
     def test_lambert_phase_curve(self, orbit_deriv):
         o = orbit_deriv
         _, dflux = o.lambert_phase_curve(k=0.1, ag=0.3)
-        _, dflux_r = lambert_phase_curve_ovd(
+        _, dflux_r = lambert_phase_curve_od(
             o.times, 0.3, o._a, 0.1, o._tp, o._p,
             o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
         )
@@ -211,7 +211,7 @@ class TestUnderlyingParity:
         o = orbit_deriv
         _, _, dref, demi = o.lambert_and_emission(k=0.1, ag=0.3,
                                                   fr_night=0.1, fr_day=0.4)
-        _, _, dref_r, demi_r = lambert_and_emission_ovd(
+        _, _, dref_r, demi_r = lambert_and_emission_od(
             o.times, 0.3, 0.1, 0.4, 0.0, o._a, 0.1, o._tp, o._p,
             o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
         )
@@ -221,7 +221,7 @@ class TestUnderlyingParity:
     def test_ellipsoidal_variation(self, orbit_deriv):
         o = orbit_deriv
         _, dev = o.ellipsoidal_variation(alpha=1.0, mass_ratio=1e-3)
-        _, dev_r = ev_signal_ovd(
+        _, dev_r = ev_signal_od(
             1.0, 1e-3, o._i, o.times, o._tp, o._p,
             o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
         )
@@ -231,7 +231,7 @@ class TestUnderlyingParity:
         o = orbit_deriv
         ev = eccentricity_vector(o._i, o._e, o._w)
         _, df = o.true_anomaly()
-        _, df_r = true_anomaly_ovd(
+        _, df_r = true_anomaly_od(
             o.times, o._tp, o._p, ev[0], ev[1], ev[2], o._w,
             o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
         )
@@ -241,7 +241,7 @@ class TestUnderlyingParity:
         o = orbit_deriv
         rstar = 1.0
         _, dltt = o.light_travel_time(rstar=rstar)
-        _, dltt_r = light_travel_time_ovd(
+        _, dltt_r = light_travel_time_od(
             o.times, o._tp, o._p, o._e, o._w, rstar,
             o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
         )

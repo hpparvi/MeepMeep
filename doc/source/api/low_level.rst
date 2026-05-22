@@ -181,9 +181,10 @@ Whole-orbit dispatchers (multi-knot)
 
 Whole-orbit evaluators that use a precomputed time-to-knot table
 (``pktable``) to dispatch each input time to the appropriate knot and
-delegate to the centered single-knot evaluators above. The ``_o5s``
-suffix denotes a scalar-time variant, ``_o5v`` an array-of-times
-variant.
+delegate to the centered single-knot evaluators above. Each name is a
+single overloaded dispatcher that accepts either a scalar time or a
+1-D float64 array of times; the ``_o`` suffix denotes the forward
+dispatcher and ``_od`` its gradient-returning counterpart.
 
 .. currentmodule:: meepmeep.numba3d
 
@@ -200,45 +201,38 @@ Positions and distances:
 .. autosummary::
    :toctree: generated
 
-   pos_os
-   pos_ov
-   zpos_os
-   zpos_ov
-   sep_os
-   star_planet_distance_ov
+   pos_o
+   zpos_o
+   sep_o
+   star_planet_distance_o
 
 Velocities and radial velocity:
 
 .. autosummary::
    :toctree: generated
 
-   vel_os
-   vel_ov
-   zvel_os
-   zvel_ov
-   rv_ov
+   vel_o
+   zvel_o
+   rv_o
 
 Phase angles, Lambert curves, and ellipsoidal variation:
 
 .. autosummary::
    :toctree: generated
 
-   true_anomaly_ov
-   cos_alpha_os
-   cos_alpha_ov
-   cos_v_p_angle_ov
-   lambert_phase_curve_os
-   lambert_phase_curve_ov
-   lambert_and_emission_ov
-   ev_signal_ov
+   true_anomaly_o
+   cos_alpha_o
+   cos_v_p_angle_o
+   lambert_phase_curve_o
+   lambert_and_emission_o
+   ev_signal_o
 
 Light travel time:
 
 .. autosummary::
    :toctree: generated
 
-   light_travel_time_os
-   light_travel_time_ov
+   light_travel_time_o
 
 
 Whole-orbit dispatchers with parameter derivatives
@@ -255,27 +249,20 @@ function accepts an additional ``dcoeffs`` tensor of shape
    :toctree: generated
 
    solve3d_orbit_d
-   pos_osd
-   pos_ovd
-   zpos_osd
-   zpos_ovd
-   sep_osd
-   vel_osd
-   vel_ovd
-   zvel_osd
-   zvel_ovd
-   cos_alpha_osd
-   cos_alpha_ovd
-   cos_v_p_angle_ovd
-   true_anomaly_ovd
-   star_planet_distance_ovd
-   lambert_phase_curve_osd
-   lambert_phase_curve_ovd
-   lambert_and_emission_ovd
-   ev_signal_ovd
-   rv_ovd
-   light_travel_time_osd
-   light_travel_time_ovd
+   pos_od
+   zpos_od
+   sep_od
+   vel_od
+   zvel_od
+   cos_alpha_od
+   cos_v_p_angle_od
+   true_anomaly_od
+   star_planet_distance_od
+   lambert_phase_curve_od
+   lambert_and_emission_od
+   ev_signal_od
+   rv_od
+   light_travel_time_od
 
 
 Knot grid construction

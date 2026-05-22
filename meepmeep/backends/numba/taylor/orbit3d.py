@@ -26,8 +26,9 @@ Coefficient layout: ``coeffs`` is an ``(npt, 3, 5)`` array as produced by
 ``pos_c``, ``vel_c``, ``zvel_c``, ``sep_c``, and ``pz_c``.
 """
 
-from numba import njit
-from numpy import zeros, pi, floor, sqrt, sin, cos, arccos
+from numba import njit, types
+from numba.extending import overload
+from numpy import zeros, pi, floor, sqrt, sin, cos, arccos, ndarray
 
 from .position3d import pos_c, sep_c, pz_c
 from .velocity3d import vel_c, zvel_c
@@ -1110,27 +1111,354 @@ def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeff
 
 
 # ---------------------------------------------------------------------------
-# Temporary public aliases (removed once dispatchers land)
+# Unified scalar/array dispatchers
 # ---------------------------------------------------------------------------
+# Each ``<name>_o`` is callable from pure Python and from inside ``@njit``.
+# The Python body handles interpreter calls; the ``@overload(...)`` block
+# registers typings for nopython mode. Scalar inputs route to
+# ``_<name>_os``; 1-D float64 array inputs route to ``_<name>_ov``. Other
+# input types raise ``TypingError`` (njit) or ``TypeError`` (Python).
+#
+# Time-argument position: most dispatchers inspect the first argument, but
+# ``cos_v_p_angle_o`` inspects the second (``v`` is first) and
+# ``ev_signal_o`` inspects the fourth (``alpha, mass_ratio, inc`` precede).
 
-pos_os = _pos_os
-pos_ov = _pos_ov
-zpos_os = _zpos_os
-zpos_ov = _zpos_ov
-sep_os = _sep_os
-vel_os = _vel_os
-vel_ov = _vel_ov
-zvel_os = _zvel_os
-zvel_ov = _zvel_ov
-true_anomaly_ov = _true_anomaly_ov
-cos_v_p_angle_ov = _cos_v_p_angle_ov
-cos_alpha_os = _cos_alpha_os
-cos_alpha_ov = _cos_alpha_ov
-star_planet_distance_ov = _star_planet_distance_ov
-lambert_phase_curve_os = _lambert_phase_curve_os
-lambert_phase_curve_ov = _lambert_phase_curve_ov
-lambert_and_emission_ov = _lambert_and_emission_ov
-ev_signal_ov = _ev_signal_ov
-rv_ov = _rv_ov
-light_travel_time_os = _light_travel_time_os
-light_travel_time_ov = _light_travel_time_ov
+
+def _is_1d_array(typ):
+    """True for a 1-D Numba array type (any layout)."""
+    return isinstance(typ, types.Array) and typ.ndim == 1
+
+
+# --- pos -------------------------------------------------------------------
+
+def pos_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet (x, y, z) position. See :func:`_pos_os` / :func:`_pos_ov`."""
+    if isinstance(t, ndarray):
+        return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(pos_o, jit_options={'fastmath': True})
+def _pos_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- zpos ------------------------------------------------------------------
+
+def zpos_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet z-position. See :func:`_zpos_os` / :func:`_zpos_ov`."""
+    if isinstance(t, ndarray):
+        return _zpos_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(zpos_o, jit_options={'fastmath': True})
+def _zpos_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _zpos_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- sep -------------------------------------------------------------------
+
+def sep_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Sky-projected separation. See :func:`_sep_os` / :func:`_sep_ov`."""
+    if isinstance(t, ndarray):
+        return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _sep_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(sep_o, jit_options={'fastmath': True})
+def _sep_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _sep_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- vel -------------------------------------------------------------------
+
+def vel_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet (vx, vy, vz) velocity. See :func:`_vel_os` / :func:`_vel_ov`."""
+    if isinstance(t, ndarray):
+        return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _vel_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(vel_o, jit_options={'fastmath': True})
+def _vel_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _vel_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- zvel ------------------------------------------------------------------
+
+def zvel_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet z-velocity. See :func:`_zvel_os` / :func:`_zvel_ov`."""
+    if isinstance(t, ndarray):
+        return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(zvel_o, jit_options={'fastmath': True})
+def _zvel_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- true_anomaly ----------------------------------------------------------
+
+def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+    """True anomaly. See :func:`_true_anomaly_os` / :func:`_true_anomaly_ov`."""
+    if isinstance(t, ndarray):
+        return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
+    return _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
+
+
+@overload(true_anomaly_o)
+def _true_anomaly_o_overload(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+            return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+            return _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- cos_v_p_angle ---------------------------------------------------------
+
+def cos_v_p_angle_o(v, t, tpa, p, dt, pktable, points, coeffs):
+    """Cosine of angle between planet position and a fixed vector.
+
+    See :func:`_cos_v_p_angle_os` / :func:`_cos_v_p_angle_ov`.
+    """
+    if isinstance(t, ndarray):
+        return _cos_v_p_angle_ov(v, t, tpa, p, dt, pktable, points, coeffs)
+    return _cos_v_p_angle_os(v, t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(cos_v_p_angle_o, jit_options={'fastmath': True})
+def _cos_v_p_angle_o_overload(v, t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(v, t, tpa, p, dt, pktable, points, coeffs):
+            return _cos_v_p_angle_ov(v, t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(v, t, tpa, p, dt, pktable, points, coeffs):
+            return _cos_v_p_angle_os(v, t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- cos_alpha -------------------------------------------------------------
+
+def cos_alpha_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Cosine of the phase angle. See :func:`_cos_alpha_os` / :func:`_cos_alpha_ov`."""
+    if isinstance(t, ndarray):
+        return _cos_alpha_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(cos_alpha_o, jit_options={'fastmath': True})
+def _cos_alpha_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _cos_alpha_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- star_planet_distance --------------------------------------------------
+
+def star_planet_distance_o(t, tpa, p, dt, pktable, points, coeffs):
+    """3D star-planet distance.
+
+    See :func:`_star_planet_distance_os` / :func:`_star_planet_distance_ov`.
+    """
+    if isinstance(t, ndarray):
+        return _star_planet_distance_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _star_planet_distance_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(star_planet_distance_o, jit_options={'fastmath': True})
+def _star_planet_distance_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _star_planet_distance_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _star_planet_distance_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- lambert_phase_curve ---------------------------------------------------
+
+def lambert_phase_curve_o(t, ag, a, k, tpa, p, dt, pktable, points, coeffs):
+    """Lambertian phase-curve flux.
+
+    See :func:`_lambert_phase_curve_os` / :func:`_lambert_phase_curve_ov`.
+    """
+    if isinstance(t, ndarray):
+        return _lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, pktable, points, coeffs)
+    return _lambert_phase_curve_os(t, ag, a, k, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(lambert_phase_curve_o, jit_options={'fastmath': True})
+def _lambert_phase_curve_o_overload(t, ag, a, k, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, ag, a, k, tpa, p, dt, pktable, points, coeffs):
+            return _lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, ag, a, k, tpa, p, dt, pktable, points, coeffs):
+            return _lambert_phase_curve_os(t, ag, a, k, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- lambert_and_emission --------------------------------------------------
+
+def lambert_and_emission_o(t, ag, fr_night, fr_day, emi_offset, a, k,
+                           tpa, p, dt, pktable, points, coeffs):
+    """Lambertian reflection plus cosine-emission day/night flux.
+
+    See :func:`_lambert_and_emission_os` / :func:`_lambert_and_emission_ov`.
+    """
+    if isinstance(t, ndarray):
+        return _lambert_and_emission_ov(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                        tpa, p, dt, pktable, points, coeffs)
+    return _lambert_and_emission_os(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                    tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(lambert_and_emission_o, jit_options={'fastmath': True})
+def _lambert_and_emission_o_overload(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                     tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, ag, fr_night, fr_day, emi_offset, a, k,
+                 tpa, p, dt, pktable, points, coeffs):
+            return _lambert_and_emission_ov(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                            tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, ag, fr_night, fr_day, emi_offset, a, k,
+                 tpa, p, dt, pktable, points, coeffs):
+            return _lambert_and_emission_os(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                            tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- ev_signal -------------------------------------------------------------
+
+def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
+    """Ellipsoidal variation signal.
+
+    Time argument is the 4th positional. See :func:`_ev_signal_os` /
+    :func:`_ev_signal_ov`.
+    """
+    if isinstance(t, ndarray):
+        return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)
+    return _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(ev_signal_o, jit_options={'fastmath': True})
+def _ev_signal_o_overload(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
+            return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
+            return _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- rv --------------------------------------------------------------------
+
+def rv_o(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+    """Radial velocity. See :func:`_rv_os` / :func:`_rv_ov`."""
+    if isinstance(t, ndarray):
+        return _rv_ov(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
+    return _rv_os(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
+
+
+@overload(rv_o, jit_options={'fastmath': True})
+def _rv_o_overload(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+            return _rv_ov(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+            return _rv_os(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# --- light_travel_time -----------------------------------------------------
+
+def light_travel_time_o(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+    """Light travel time correction.
+
+    See :func:`_light_travel_time_os` / :func:`_light_travel_time_ov`.
+    """
+    if isinstance(t, ndarray):
+        return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)
+    return _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)
+
+
+@overload(light_travel_time_o, jit_options={'fastmath': True})
+def _light_travel_time_o_overload(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+            return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+            return _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)
+        return impl
+    return None

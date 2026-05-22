@@ -206,7 +206,9 @@ To add a new quantity:
 4. Decorate with `@njit(fastmath=True)`
 5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-knot routines).
 
-For multi-knot evaluation (arrays of times with knot lookup), add functions to `orbit3d.py` following the `_os` (scalar) / `_ov` (vector) naming convention; gradient counterparts go in `orbit3dd.py` as `_osd` / `_ovd`. Multi-knot evaluators look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d` (or their gradient variants in `position3dd`/`velocity3dd`).
+For multi-knot evaluation (arrays of times with knot lookup), add functions to `orbit3d.py` as a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time. Gradient counterparts go in `orbit3dd.py` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher. The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d` (or their gradient variants in `position3dd`/`velocity3dd`).
+
+Note on Numba `cache=True` callers: after introducing or modifying a dispatcher, purge stale `__pycache__/*.nbi` / `*.nbc` files so Numba recompiles against the new overload registration.
 
 ### Code Style
 
@@ -225,9 +227,10 @@ For multi-knot evaluation (arrays of times with knot lookup), add functions to `
   - `_cd` suffix: centered evaluator with parameter derivatives
   - Dimensionality (2D vs 3D) is encoded by the module name (`position2d` vs `position3d`), not by the function name.
 - In `orbit3d.py` / `orbit3dd.py` (multi-knot dispatchers):
-  - `_os`: orbit-spanning, scalar input time (e.g. `pos_os`, `zvel_os`)
-  - `_ov`: orbit-spanning, vector of input times (e.g. `pos_ov`, `rv_ov`)
-  - `_osd` / `_ovd`: as above, with parameter gradients (in `orbit3dd.py`)
+  - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)
+  - `_od`: same, gradient-returning (in `orbit3dd.py`; e.g. `pos_od`, `rv_od`)
+  - `_os` / `_ov` (private, leading underscore): the underlying scalar and vector kernels the dispatcher routes to; only call directly when contributing
+  - `_osd` / `_ovd` (private, leading underscore): same, gradient-returning kernels
 - The authoritative reference for the full naming scheme is
   `doc/source/naming_conventions.rst`. Update both that file and this
   section if the conventions change.

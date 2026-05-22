@@ -89,7 +89,7 @@ def test_numba_smoke_numba3d():
         TWO_PI,
         create_knots,
         solve3d_orbit,
-        pos_ov,
+        pos_o,
         mean_anomaly_at_transit,
         ta_from_ea,
     )
@@ -103,7 +103,7 @@ def test_numba_smoke_numba3d():
 
     @njit(cache=False)
     def run(times, tpa, p_, dt_, pkt, pts, c):
-        x, y, z = pos_ov(times, tpa, p_, dt_, pkt, pts, c)
+        x, y, z = pos_o(times, tpa, p_, dt_, pkt, pts, c)
         v = ta_from_ea(0.3, 0.0)
         return x[0], y[0], z[0], v
 

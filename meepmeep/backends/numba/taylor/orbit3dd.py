@@ -31,8 +31,9 @@ shape ``(N, ndp)`` where ``ndp`` is ``6`` for orbital-only routines and
 ``6 + n_extra`` for routines with extra physical inputs.
 """
 
-from numba import njit
-from numpy import zeros, pi, floor, sqrt, sin, cos, arccos
+from numba import njit, types
+from numba.extending import overload
+from numpy import zeros, pi, floor, sqrt, sin, cos, arccos, ndarray
 
 from .velocity3d import zvel_c
 from .position3dd import pos_cd, sep_cd, pz_cd
@@ -1557,27 +1558,350 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
 
 
 # ---------------------------------------------------------------------------
-# Temporary public aliases (removed once dispatchers land)
+# Unified scalar/array dispatchers (gradient-returning)
 # ---------------------------------------------------------------------------
+# Each ``<name>_od`` mirrors the orbit3d.py ``<name>_o`` pattern for the
+# gradient-returning families. Scalar inputs route to ``_<name>_osd``;
+# 1-D float64 array inputs route to ``_<name>_ovd``. Same time-argument
+# conventions as orbit3d (most use arg 0; ``cos_v_p_angle_od`` uses arg 1;
+# ``ev_signal_od`` uses arg 3).
 
-pos_osd = _pos_osd
-pos_ovd = _pos_ovd
-zpos_osd = _zpos_osd
-zpos_ovd = _zpos_ovd
-sep_osd = _sep_osd
-vel_osd = _vel_osd
-vel_ovd = _vel_ovd
-zvel_osd = _zvel_osd
-zvel_ovd = _zvel_ovd
-cos_alpha_osd = _cos_alpha_osd
-cos_alpha_ovd = _cos_alpha_ovd
-star_planet_distance_ovd = _star_planet_distance_ovd
-cos_v_p_angle_ovd = _cos_v_p_angle_ovd
-true_anomaly_ovd = _true_anomaly_ovd
-lambert_phase_curve_osd = _lambert_phase_curve_osd
-lambert_phase_curve_ovd = _lambert_phase_curve_ovd
-lambert_and_emission_ovd = _lambert_and_emission_ovd
-ev_signal_ovd = _ev_signal_ovd
-rv_ovd = _rv_ovd
-light_travel_time_osd = _light_travel_time_osd
-light_travel_time_ovd = _light_travel_time_ovd
+
+def _is_1d_array(typ):
+    """True for a 1-D Numba array type (any layout)."""
+    return isinstance(typ, types.Array) and typ.ndim == 1
+
+
+# --- pos -------------------------------------------------------------------
+
+def pos_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Planet (x, y, z) position with gradients. See :func:`_pos_osd` / :func:`_pos_ovd`."""
+    if isinstance(t, ndarray):
+        return _pos_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(pos_od, jit_options={'fastmath': True})
+def _pos_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _pos_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- zpos ------------------------------------------------------------------
+
+def zpos_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Planet z-position with gradients. See :func:`_zpos_osd` / :func:`_zpos_ovd`."""
+    if isinstance(t, ndarray):
+        return _zpos_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(zpos_od, jit_options={'fastmath': True})
+def _zpos_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _zpos_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- sep -------------------------------------------------------------------
+
+def sep_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Sky-projected separation with gradients. See :func:`_sep_osd` / :func:`_sep_ovd`."""
+    if isinstance(t, ndarray):
+        return _sep_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(sep_od, jit_options={'fastmath': True})
+def _sep_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _sep_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- vel -------------------------------------------------------------------
+
+def vel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Planet velocity with gradients. See :func:`_vel_osd` / :func:`_vel_ovd`."""
+    if isinstance(t, ndarray):
+        return _vel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(vel_od, jit_options={'fastmath': True})
+def _vel_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _vel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- zvel ------------------------------------------------------------------
+
+def zvel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Planet z-velocity with gradients. See :func:`_zvel_osd` / :func:`_zvel_ovd`."""
+    if isinstance(t, ndarray):
+        return _zvel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(zvel_od, jit_options={'fastmath': True})
+def _zvel_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _zvel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- cos_alpha -------------------------------------------------------------
+
+def cos_alpha_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Cosine of phase angle with gradients. See :func:`_cos_alpha_osd` / :func:`_cos_alpha_ovd`."""
+    if isinstance(t, ndarray):
+        return _cos_alpha_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(cos_alpha_od, jit_options={'fastmath': True})
+def _cos_alpha_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _cos_alpha_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- star_planet_distance --------------------------------------------------
+
+def star_planet_distance_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """3D star-planet distance with gradients.
+
+    See :func:`_star_planet_distance_osd` / :func:`_star_planet_distance_ovd`.
+    """
+    if isinstance(t, ndarray):
+        return _star_planet_distance_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(star_planet_distance_od, jit_options={'fastmath': True})
+def _star_planet_distance_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _star_planet_distance_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- cos_v_p_angle ---------------------------------------------------------
+
+def cos_v_p_angle_od(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Cosine of angle between planet position and fixed vector, with gradients.
+
+    See :func:`_cos_v_p_angle_osd` / :func:`_cos_v_p_angle_ovd`.
+    """
+    if isinstance(t, ndarray):
+        return _cos_v_p_angle_ovd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(cos_v_p_angle_od, jit_options={'fastmath': True})
+def _cos_v_p_angle_od_overload(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _cos_v_p_angle_ovd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- true_anomaly ----------------------------------------------------------
+
+def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+    """True anomaly with gradients. See :func:`_true_anomaly_osd` / :func:`_true_anomaly_ovd`."""
+    if isinstance(t, ndarray):
+        return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
+    return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(true_anomaly_od)
+def _true_anomaly_od_overload(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+            return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+            return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- lambert_phase_curve ---------------------------------------------------
+
+def lambert_phase_curve_od(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Lambertian phase-curve flux with gradients.
+
+    See :func:`_lambert_phase_curve_osd` / :func:`_lambert_phase_curve_ovd`.
+    """
+    if isinstance(t, ndarray):
+        return _lambert_phase_curve_ovd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _lambert_phase_curve_osd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(lambert_phase_curve_od, jit_options={'fastmath': True})
+def _lambert_phase_curve_od_overload(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _lambert_phase_curve_ovd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _lambert_phase_curve_osd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- lambert_and_emission --------------------------------------------------
+
+def lambert_and_emission_od(t, ag, fr_night, fr_day, emi_offset, a, k,
+                            tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Lambertian reflection plus emission with gradients.
+
+    See :func:`_lambert_and_emission_osd` / :func:`_lambert_and_emission_ovd`.
+    """
+    if isinstance(t, ndarray):
+        return _lambert_and_emission_ovd(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                         tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                     tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(lambert_and_emission_od, jit_options={'fastmath': True})
+def _lambert_and_emission_od_overload(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                      tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, ag, fr_night, fr_day, emi_offset, a, k,
+                 tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _lambert_and_emission_ovd(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                             tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, ag, fr_night, fr_day, emi_offset, a, k,
+                 tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
+                                             tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- ev_signal -------------------------------------------------------------
+
+def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Ellipsoidal variation signal with gradients.
+
+    Time argument is the 4th positional. See :func:`_ev_signal_osd` /
+    :func:`_ev_signal_ovd`.
+    """
+    if isinstance(t, ndarray):
+        return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    return _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(ev_signal_od, jit_options={'fastmath': True})
+def _ev_signal_od_overload(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+            return _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- rv --------------------------------------------------------------------
+
+def rv_od(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+    """Radial velocity with gradients. See :func:`_rv_osd` / :func:`_rv_ovd`."""
+    if isinstance(t, ndarray):
+        return _rv_ovd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
+    return _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(rv_od, jit_options={'fastmath': True})
+def _rv_od_overload(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+            return _rv_ovd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+            return _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
+
+
+# --- light_travel_time -----------------------------------------------------
+
+def light_travel_time_od(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+    """Light travel time correction with gradients.
+
+    See :func:`_light_travel_time_osd` / :func:`_light_travel_time_ovd`.
+    """
+    if isinstance(t, ndarray):
+        return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
+    return _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
+
+
+@overload(light_travel_time_od, jit_options={'fastmath': True})
+def _light_travel_time_od_overload(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+            return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+            return _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
+        return impl
+    return None
