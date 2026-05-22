@@ -3,28 +3,28 @@ MeepMeep documentation
 
 MeepMeep is an extremely fast Keplerian orbit evaluator for exoplanet
 light-curve and radial-velocity modelling. It calculates sky-projected
-planet-star separations, phase curves, and RV signals (among the other
-quantities that are useful in exoplanet research) an order of magnitude
-faster than standard per-point Newton-Raphson approaches.
+planet-star separations, phase curves, RV signals, and other quantities
+useful in exoplanet research — an order of magnitude faster than
+standard per-point Newton-Raphson approaches.
 
-MeepMeep's speed comes from a Taylor-series shortcut, as presented in Parviainen
-and Korth (2015). Kepler's equation is solved exactly only at a small set of
-knot points along the orbit. Every orbit evaluation is then
-a short polynomial in time.
+MeepMeep's speed comes from a Taylor-series shortcut presented in
+Parviainen and Korth (2020). Kepler's equation is solved exactly only at
+a small set of knot points along the orbit, and every orbit evaluation
+in between is just a short polynomial in time.
 
 There are two ways to use the package. The
 :class:`~meepmeep.orbit.Orbit` class is the convenience entry point:
 instantiate it once with the time array of your observations, then
-inside the fitting loop update the orbital parameters and read out
-whichever observable you need: positions, velocities, the
+update the orbital parameters inside the fitting loop and read out
+whichever observable you need — positions, velocities, the
 sky-projected separation, the phase angle, the radial velocity,
 reflected-light and thermal phase curves, ellipsoidal variation, or
-the light-travel-time correction. The low-level functions cover the same
-ground at a lower level. The low-level functions are all numba-jitted and
-can be integrated into low-level transit or RM modeling code with minimal
-overheads. Use the class when you want the batteries-included workflow; use the
-low-level functions when you are building a custom transit or RV model and want
-the orbit math to inline into your hot loop.
+the light-travel-time correction. The low-level functions cover the
+same ground more directly: they are all numba-jitted, so they drop
+straight into a custom transit or RV model with minimal overhead. Use
+the class when you want the batteries-included workflow; use the
+low-level functions when you are building a custom transit or RV model
+and want the orbit math to inline into your hot loop.
 
 Derivative mode adds analytic gradients of every quantity w.r.t. the
 six orbital parameters (and any method-specific extras), making the
