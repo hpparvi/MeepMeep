@@ -44,6 +44,20 @@ Rationale:
 
 On first use in methods sections or docstrings, expand to something like: *"the sky-projected separation between the centers of the star and planet, in units of the stellar radius"*. After that, "projected separation" alone is sufficient.
 
+## Documentation
+
+Sphinx sources live in `doc/source/`; build with:
+
+```bash
+cd doc && make html      # output in doc/build/html/
+```
+
+Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`). The authoritative reference for low-level function naming is `doc/source/naming_conventions.rst` — keep it and the "Adding New Taylor Series Functions" section of this file in sync.
+
+**Citation.** The Taylor-series-around-knot-points method is published in Parviainen & Korth (2020), MNRAS 499, 3356; ADS bibcode `2020MNRAS.499.3356P`. Cite as "Parviainen and Korth (2020)" in docs.
+
+**Voice and audience.** Documentation prose is targeted at PhD-level astrophysicists who are comfortable with programming. Keep it informal, informative, and to the point. Favour short sentences in introductory text. The headline performance claim is "an order of magnitude faster than per-point Newton-Raphson" (the underlying benchmark is up to ~20×; do not quote the specific multiplier in user-facing docs).
+
 ## Architecture
 
 ### Core Computational Strategy
@@ -62,7 +76,9 @@ meepmeep/
 ├── __init__.py            # Exports Orbit, eclipse_light_travel_time
 ├── orbit.py               # Main Orbit class (user-facing API)
 ├── knot2d.py              # 2D knot point calculations (Knot2D, Knot2DFit)
-├── tsorbit.py             # Legacy compatibility shim (currently broken — stale import)
+├── numba.py               # Re-exports the commonly used numba low-level functions
+│                          # (knots, Newton solvers, solve3d_orbit, *_ov, *_ovd, etc.)
+│                          # so user @njit code can import them from one place.
 ├── version.py             # Reads version dynamically via importlib.metadata
 ├── tests/
 │   ├── conftest.py                  # Shared fixtures (orbital params, tolerances)
@@ -71,12 +87,14 @@ meepmeep/
 │   ├── test_numba_position2d.py     # 2D position accuracy tests
 │   ├── test_numba_solve2d.py        # 2D Taylor coefficient solver tests
 │   ├── test_numba_solve3d.py        # 3D Taylor coefficient solver tests
-│   └── test_orbit3d_evaluators.py   # End-to-end orbit3d evaluator tests
+│   ├── test_numba_utils.py          # Orbital-mechanics utility tests
+│   ├── test_orbit3d_evaluators.py   # End-to-end orbit3d evaluator tests
+│   ├── test_orbit3dd_evaluators.py  # End-to-end orbit3dd (gradient) evaluator tests
+│   └── test_orbit_derivatives.py    # Orbit class derivative-mode tests
 └── backends/
     ├── numba/             # Primary backend (Numba JIT-compiled)
     │   ├── utils.py       # Orbital mechanics utilities (anomaly conversions, etc.)
     │   ├── knots.py       # Knot placement strategies (mm, ea, ta)
-    │   ├── tsorbit.py     # Taylor series orbit object wrapper
     │   ├── newton/
     │   │   └── newton.py  # Exact Kepler equation solvers (Newton-Raphson)
     │   └── taylor/        # Taylor series expansion modules
@@ -92,8 +110,10 @@ meepmeep/
     │       ├── velocity3d.py    # 3D velocity evaluation (vel_c, zvel, rv)
     │       ├── velocity3dd.py   # 3D velocity parameter derivatives
     │       ├── util3d.py        # 3D utilities (contact points, bounding box)
-    │       └── orbit3d.py       # Multi-knot orbit-spanning evaluators
-    │                            # (xyz/z/pd/vxyz/vz, true anomaly, phase, Lambert)
+    │       ├── orbit3d.py       # Multi-knot orbit-spanning evaluators
+    │       │                    # (pos/sep/vel/zvel/rv, true anomaly, phase, Lambert)
+    │       └── orbit3dd.py      # Multi-knot orbit-spanning gradient dispatchers
+    │                            # (pos_ovd, sep_osd, rv_ovd, ev_signal_ovd, ...)
     └── jax/               # JAX backend (automatic differentiation)
         ├── ea.py          # Eccentric anomaly with custom JVP for AD
         └── ts2d/
@@ -159,7 +179,7 @@ To add a new quantity:
 3. If derivatives are needed, add `_d` variants in the corresponding `*d.py` module
 4. Decorate with `@njit(fastmath=True)`
 
-For multi-knot evaluation (arrays of times with knot lookup), add functions to `orbit3d.py` following the `_o5s` (scalar) / `_o5v` (vector) naming convention. Multi-knot evaluators look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d`.
+For multi-knot evaluation (arrays of times with knot lookup), add functions to `orbit3d.py` following the `_os` (scalar) / `_ov` (vector) naming convention; gradient counterparts go in `orbit3dd.py` as `_osd` / `_ovd`. Multi-knot evaluators look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d` (or their gradient variants in `position3dd`/`velocity3dd`).
 
 ### Code Style
 
@@ -177,7 +197,11 @@ For multi-knot evaluation (arrays of times with knot lookup), add functions to `
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
   - Dimensionality (2D vs 3D) is encoded by the module name (`position2d` vs `position3d`), not by the function name.
-- In `orbit3d.py` (multi-knot functions):
-  - `_o5s`: 5th-order Taylor, scalar (single time)
-  - `_o5v`: 5th-order Taylor, vector (array of times)
+- In `orbit3d.py` / `orbit3dd.py` (multi-knot dispatchers):
+  - `_os`: orbit-spanning, scalar input time (e.g. `pos_os`, `zvel_os`)
+  - `_ov`: orbit-spanning, vector of input times (e.g. `pos_ov`, `rv_ov`)
+  - `_osd` / `_ovd`: as above, with parameter gradients (in `orbit3dd.py`)
+- The authoritative reference for the full naming scheme is
+  `doc/source/naming_conventions.rst`. Update both that file and this
+  section if the conventions change.
 - All Taylor polynomial evaluations use Horner's method for numerical stability
