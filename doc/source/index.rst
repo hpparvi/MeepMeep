@@ -1,17 +1,20 @@
 MeepMeep documentation
 ======================
 
-MeepMeep is a Python package for computing the observables that
-exoplanet light-curve and radial-velocity modelling need from a
-Keplerian orbit: the sky-projected separation between the centres of
-the star and planet (in units of the stellar radius), the
+MeepMeep is a fast Keplerian orbit evaluator for exoplanet
+light-curve and radial-velocity modelling. It returns the quantities
+you actually fit against: the sky-projected separation of the star
+and planet centres (in units of the stellar radius), the
 line-of-sight velocity and the stellar radial-velocity signal,
 reflected-light and thermal phase curves, ellipsoidal variation, and
-the light-travel-time correction. It is built for the case that
-dominates light-curve and RV work — the same orbit is evaluated
-thousands of times under different orbital parameters during a fitting
-or MCMC sampling run — and the inner loop that pulls those quantities
-out has to be fast.
+the light-travel-time correction.
+
+The speed comes from a Taylor-series shortcut. Kepler's equation is
+solved exactly only at a small set of knot points along the orbit.
+Every evaluation in the fitting loop is then a short polynomial in
+time — no transcendental solve per sample. The inner loop of a
+typical light-curve or RV fit runs roughly an order of magnitude
+faster than it would with a per-point Newton-Raphson solver.
 
 There are two equally first-class ways to use the package. The
 :class:`~meepmeep.orbit.Orbit` class is the convenience entry point:
