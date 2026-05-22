@@ -3,15 +3,18 @@
 Low-level Taylor backend API
 ============================
 
-This page catalogues the numba-compiled Taylor-series routines that live
-under :mod:`meepmeep.backends.numba.taylor`. See :doc:`../taylor_overview`
-for the conceptual model and :doc:`../naming_conventions` for the function
-naming scheme.
+The reference catalogue for the low-level Taylor-backend routines. Use
+this page when you have dropped below the
+:class:`~meepmeep.orbit.Orbit` class and need to know the exact
+function names, signatures, and per-function semantics. See
+:doc:`../taylor_overview` for the conceptual model that ties these
+routines together and :doc:`../naming_conventions` for the suffix
+grammar that explains how the names are constructed.
 
-All functions listed here are :func:`numba.njit`-compiled and operate on
-NumPy arrays. Per-function detail (parameters, shapes, units, mathematical
-notes) is documented in the source docstrings and rendered below via
-``autosummary``.
+Every function listed here is :func:`numba.njit`-compiled and operates
+on NumPy arrays. Per-function detail (parameters, shapes, units,
+mathematical notes) lives in the source docstrings and is rendered
+below via ``autosummary``.
 
 
 Coefficient solvers
