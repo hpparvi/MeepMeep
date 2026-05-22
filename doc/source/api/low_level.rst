@@ -25,15 +25,21 @@ coefficient matrices that the position and velocity evaluators consume.
 Variants suffixed with ``_d`` additionally return the ``(6, D, 5)``
 parameter-derivative tensor.
 
-.. currentmodule:: meepmeep.backends.numba.taylor
+.. currentmodule:: meepmeep.numba2d
 
 .. autosummary::
    :toctree: generated
 
-   solve2d.solve2d
-   solve2dd.solve2d_d
-   solve3d.solve3d
-   solve3dd.solve3d_d
+   solve2d
+   solve2d_d
+
+.. currentmodule:: meepmeep.numba3d
+
+.. autosummary::
+   :toctree: generated
+
+   solve3d
+   solve3d_d
 
 
 Two-dimensional position and distance
@@ -42,12 +48,12 @@ Two-dimensional position and distance
 Single-knot evaluators for the sky-plane :math:`(x, y)` position and the
 projected planet-star distance :math:`d = \sqrt{x^2 + y^2}`. Each
 function operates on one ``(2, 5)`` coefficient matrix from
-:func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` and is
+:func:`~meepmeep.numba2d.solve2d` and is
 sufficient for transit light-curve modelling. The whole-orbit
 dispatchers that batch these calls across a knot grid live in
 :ref:`api.lowlevel.orbit_dispatchers`.
 
-.. currentmodule:: meepmeep.backends.numba.taylor.position2d
+.. currentmodule:: meepmeep.numba2d
 
 .. autosummary::
    :toctree: generated
@@ -61,7 +67,7 @@ dispatchers that batch these calls across a knot grid live in
 
 Parameter-derivative variants:
 
-.. currentmodule:: meepmeep.backends.numba.taylor.position2dd
+.. currentmodule:: meepmeep.numba2d
 
 .. autosummary::
    :toctree: generated
@@ -78,12 +84,12 @@ Three-dimensional position and distance
 Single-knot evaluators that additionally return the line-of-sight
 coordinate :math:`z`. Each function operates on one ``(3, 5)``
 coefficient matrix from
-:func:`~meepmeep.backends.numba.taylor.solve3d.solve3d`. Needed for
+:func:`~meepmeep.numba3d.solve3d`. Needed for
 eclipses, light travel time, phase curves, and radial velocities. The
 whole-orbit dispatchers that batch these calls across a knot grid live
 in :ref:`api.lowlevel.orbit_dispatchers`.
 
-.. currentmodule:: meepmeep.backends.numba.taylor.position3d
+.. currentmodule:: meepmeep.numba3d
 
 .. autosummary::
    :toctree: generated
@@ -99,7 +105,7 @@ in :ref:`api.lowlevel.orbit_dispatchers`.
 
 Parameter-derivative variants:
 
-.. currentmodule:: meepmeep.backends.numba.taylor.position3dd
+.. currentmodule:: meepmeep.numba3d
 
 .. autosummary::
    :toctree: generated
@@ -118,7 +124,7 @@ Velocities
 Velocity-vector and line-of-sight velocity evaluators built on the same
 coefficient matrices used by the position evaluators.
 
-.. currentmodule:: meepmeep.backends.numba.taylor.velocity3d
+.. currentmodule:: meepmeep.numba3d
 
 .. autosummary::
    :toctree: generated
@@ -131,7 +137,7 @@ coefficient matrices used by the position evaluators.
 
 Parameter-derivative variants:
 
-.. currentmodule:: meepmeep.backends.numba.taylor.velocity3dd
+.. currentmodule:: meepmeep.numba3d
 
 .. autosummary::
    :toctree: generated
@@ -149,7 +155,7 @@ Geometric utilities
 Contact points, durations, and bounding boxes derived analytically from a
 coefficient matrix.
 
-.. currentmodule:: meepmeep.backends.numba.taylor.util2d
+.. currentmodule:: meepmeep.numba2d
 
 .. autosummary::
    :toctree: generated
@@ -164,7 +170,7 @@ coefficient matrix.
    t23
    t34
 
-The 3D module :mod:`meepmeep.backends.numba.taylor.util3d` exposes the
+The 3D module :mod:`meepmeep.numba3d` also exposes the
 same set of helpers operating on ``(3, 5)`` coefficient matrices.
 
 
@@ -179,7 +185,7 @@ delegate to the centered single-knot evaluators above. The ``_o5s``
 suffix denotes a scalar-time variant, ``_o5v`` an array-of-times
 variant.
 
-.. currentmodule:: meepmeep.backends.numba.taylor.orbit3d
+.. currentmodule:: meepmeep.numba3d
 
 Orbit setup:
 
@@ -241,9 +247,9 @@ Whole-orbit dispatchers with parameter derivatives
 Gradient-returning counterparts of the orbit dispatchers above. Every
 function accepts an additional ``dcoeffs`` tensor of shape
 ``(N, 6, D, 5)`` (knot, parameter, dimension, Taylor order) produced by
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.solve3d_orbit_d`.
+:func:`~meepmeep.numba3d.solve3d_orbit_d`.
 
-.. currentmodule:: meepmeep.backends.numba.taylor.orbit3dd
+.. currentmodule:: meepmeep.numba3d
 
 .. autosummary::
    :toctree: generated
@@ -277,13 +283,22 @@ Knot grid construction
 
 The knot grid and the time-to-knot table consumed by the multi-knot
 dispatchers are built once per orbit by
-:func:`~meepmeep.backends.numba.knots.create_knots`.
+:func:`~meepmeep.numba3d.create_knots`.
+
+.. currentmodule:: meepmeep.numba3d
+
+.. autosummary::
+   :toctree: generated
+
+   create_knots
+
+The two anomaly helpers below are not part of the aggregator surface
+but remain available at their source path.
 
 .. currentmodule:: meepmeep.backends.numba.knots
 
 .. autosummary::
    :toctree: generated
 
-   create_knots
    eccentric_anomaly
    true_anomaly
