@@ -54,3 +54,60 @@ def test_all_matches_public_attributes(aggregator):
     missing = declared - public
     assert not extra, f"public attributes not declared in __all__: {sorted(extra)}"
     assert not missing, f"__all__ entries not present as public attributes: {sorted(missing)}"
+
+
+# ----------------------------------------------------------------------
+# Numba-callability smoke tests
+# ----------------------------------------------------------------------
+# These compile a tiny @njit function that calls a handful of
+# representative re-exports from each aggregator. If the re-export
+# layer ever breaks Numba's dispatch (for example, by wrapping a jitted
+# function in a pure-Python decorator), these tests catch it.
+
+import numpy as np
+from numba import njit
+
+
+def test_numba_smoke_numba2d():
+    from meepmeep.numba2d import solve2d, sep, t14
+
+    @njit(cache=False)
+    def run():
+        c = solve2d(0.0, 3.0, 10.0, 1.5, 0.0, 0.0)
+        s = sep(0.0, 0.0, 3.0, c)
+        # k = 0.1 -> total transit duration t14 should be finite for this geometry
+        d = t14(0.1, c)
+        return s, d
+
+    s, d = run()
+    assert np.isfinite(s)
+    assert np.isfinite(d)
+
+
+def test_numba_smoke_numba3d():
+    from meepmeep.numba3d import (
+        TWO_PI,
+        create_knots,
+        solve3d_orbit,
+        pos_ov,
+        mean_anomaly_at_transit,
+        ta_from_ea,
+    )
+
+    NPT = 15
+    p, a, i, e, w = 3.0, 10.0, 1.5, 0.0, 0.0
+
+    knot_times, _, dt, pktable = create_knots(NPT, max(e, 0.2), "ea")
+    coeffs = solve3d_orbit(knot_times, p, a, i, e, w, npt=NPT)
+    t0_periastron = -mean_anomaly_at_transit(e, w) / TWO_PI * p
+
+    @njit(cache=False)
+    def run(times, tpa, p_, dt_, pkt, pts, c):
+        x, y, z = pos_ov(times, tpa, p_, dt_, pkt, pts, c)
+        v = ta_from_ea(0.3, 0.0)
+        return x[0], y[0], z[0], v
+
+    times = np.linspace(0.0, p, 11)
+    x0, y0, z0, v = run(times, t0_periastron, p, dt, pktable, knot_times, coeffs)
+    assert np.isfinite(x0) and np.isfinite(y0) and np.isfinite(z0)
+    assert np.isfinite(v)
