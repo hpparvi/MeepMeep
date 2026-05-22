@@ -3,9 +3,19 @@
 Analytic parameter derivatives
 ==============================
 
-Every quantity that the Taylor backend evaluates is also exposed in a
-``_d``-suffixed variant that returns the value alongside its
-analytic partial derivatives with respect to the six orbital
+Gradient-based optimisers (Levenberg-Marquardt, L-BFGS) and HMC
+samplers need the gradient of the model w.r.t. the parameters at every
+iteration. Finite-differencing the orbit works but is expensive and
+loses accuracy; automatic differentiation through JIT-compiled numba
+code is not supported in general. MeepMeep takes a third route:
+hand-derived analytic gradients shipped as sibling routines next to
+each evaluator. Each ``_d`` call costs only a few times what the
+value-only call costs, the gradient is exact up to floating-point
+error, and the result drops straight into a fitter or sampler.
+
+In concrete terms, every quantity that the Taylor backend evaluates is
+also exposed in a ``_d``-suffixed variant that returns the value
+alongside its analytic partial derivatives w.r.t. the six orbital
 parameters
 
 .. math::
@@ -15,28 +25,25 @@ parameters
 where :math:`\phi_0` is the expansion phase passed to the solver (in
 the single-knot transit-modelling workflow, :math:`\phi_0 \equiv t_0`,
 the time of transit center). The leading axis of every ``dc`` tensor
-follows this ordering. This page documents how the derivatives are
+follows this ordering. This page documents how those derivatives are
 computed, the explicit formulas at each stage, and the practical
-regime in which they are accurate.
+regime in which they are accurate — useful when you are verifying the
+math, extending the backend with a new observable, or debugging a
+gradient mismatch.
 
 .. contents::
    :local:
    :depth: 2
 
 
-Why analytic, and the two-layer chain
--------------------------------------
+The two-layer chain
+-------------------
 
-The numba backend is JIT-compiled with :func:`numba.njit` and
-``fastmath=True``; automatic differentiation through such code is not
-supported in general, so MeepMeep derives every gradient by hand and
-ships it as a sibling routine to each evaluator. The arrangement is
-fast (each ``_d`` call is at most a few times slower than the value-only
-call), exact up to floating-point error, and compatible with
-gradient-based fitters (Levenberg-Marquardt, HMC, L-BFGS) operating in
-inner loops.
-
-The chain splits into two layers:
+The gradient computation splits into two layers. The boundary between
+them is exactly where the analytic difficulty sits: everything that
+depends on Kepler's equation lives in Layer A and is computed once per
+knot; the per-evaluator math in Layer B is just polynomial
+manipulation and one-line chain rules.
 
 * **Layer A — derivative coefficients.** The solvers
   :func:`~meepmeep.backends.numba.taylor.solve2dd.solve2d_d` and
