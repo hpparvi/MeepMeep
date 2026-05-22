@@ -3,12 +3,25 @@
 Taylor-series backend overview
 ==============================
 
-The numba backend in :mod:`meepmeep.backends.numba.taylor` evaluates
-Keplerian orbits via 5th-order Taylor expansions of the planet's
-trajectory. The coefficients are computed analytically at one or more
-*knot* points; from those coefficients, positions, projected distances,
-line-of-sight depth, velocities, contact points and durations all reduce
-to Horner-scheme polynomial evaluations.
+This page is for users who want to drop below the
+:class:`~meepmeep.orbit.Orbit` class — to compose custom evaluators,
+work with the per-knot Taylor coefficients directly, or differentiate
+orbit-derived quantities through their own chain rule. It documents
+the low-level backend that :class:`~meepmeep.orbit.Orbit` uses under
+the hood.
+
+Mechanically, the backend approximates each Keplerian orbit as a set
+of 5th-order Taylor expansions of the planet's trajectory, anchored at
+one or more *knot* points along the orbit. The Taylor coefficients are
+computed analytically; from them, positions, sky-projected
+separations, the line-of-sight coordinate, velocities, contact points
+and durations all reduce to fast Horner-scheme polynomial evaluations.
+
+.. note::
+
+   The backend documented here is the **numba** implementation,
+   currently the only complete one. A JAX backend is partially
+   implemented and slated for future development.
 
 .. contents::
    :local:
