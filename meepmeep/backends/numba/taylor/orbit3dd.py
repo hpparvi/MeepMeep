@@ -106,7 +106,7 @@ def solve3d_orbit_d(knot_times, p, a, i, e, w, npt):
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True)
-def pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Planet (x, y, z) position and orbital-parameter derivatives at scalar time.
 
     Parameters
@@ -147,7 +147,7 @@ def pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Planet (x, y, z) position and orbital-parameter derivatives at array of times.
 
     Parameters
@@ -155,7 +155,7 @@ def pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the position and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -172,7 +172,7 @@ def pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dys = zeros((n, 6))
     dzs = zeros((n, 6))
     for j in range(n):
-        x, y, z, dx, dy, dz = pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         xs[j] = x
         ys[j] = y
         zs[j] = z
@@ -184,10 +184,10 @@ def pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Planet z-position and orbital-parameter derivatives at scalar time.
 
-    Cheaper than :func:`pos_osd` when only the line-of-sight coordinate
+    Cheaper than :func:`_pos_osd` when only the line-of-sight coordinate
     and its gradient are needed.
 
     Parameters
@@ -195,7 +195,7 @@ def zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     t : float
         Time at which to evaluate the z-coordinate and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -211,7 +211,7 @@ def zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Planet z-position and orbital-parameter derivatives at array of times.
 
     Parameters
@@ -219,7 +219,7 @@ def zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the z-coordinate and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -232,7 +232,7 @@ def zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     zs = zeros(n)
     dzs = zeros((n, 6))
     for j in range(n):
-        z, dz = zpos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        z, dz = _zpos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         zs[j] = z
         for k in range(6):
             dzs[j, k] = dz[k]
@@ -240,7 +240,7 @@ def zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Sky-projected planet-star separation and orbital-parameter derivatives at scalar time.
 
     Returns :math:`\\sqrt{x^2 + y^2}` together with its gradient w.r.t.
@@ -254,7 +254,7 @@ def sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     t : float
         Time at which to evaluate the separation and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -274,7 +274,7 @@ def sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True)
-def vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Planet (vx, vy, vz) velocity and orbital-parameter derivatives at scalar time.
 
     Parameters
@@ -282,7 +282,7 @@ def vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     t : float
         Time at which to evaluate the velocity and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -298,7 +298,7 @@ def vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Planet (vx, vy, vz) velocity and orbital-parameter derivatives at array of times.
 
     Parameters
@@ -306,7 +306,7 @@ def vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the velocity and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -323,7 +323,7 @@ def vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dvys = zeros((n, 6))
     dvzs = zeros((n, 6))
     for j in range(n):
-        vx, vy, vz, dvx, dvy, dvz = vel_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        vx, vy, vz, dvx, dvy, dvz = _vel_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         vxs[j] = vx
         vys[j] = vy
         vzs[j] = vz
@@ -335,10 +335,10 @@ def vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Planet z-velocity and orbital-parameter derivatives at scalar time.
 
-    Cheaper than :func:`vel_osd` when only the line-of-sight component is
+    Cheaper than :func:`_vel_osd` when only the line-of-sight component is
     needed (e.g. for radial-velocity gradients).
 
     Parameters
@@ -346,7 +346,7 @@ def zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     t : float
         Time at which to evaluate the z-velocity and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -362,7 +362,7 @@ def zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Planet z-velocity and orbital-parameter derivatives at array of times.
 
     Parameters
@@ -370,7 +370,7 @@ def zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the z-velocity and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -383,7 +383,7 @@ def zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     vzs = zeros(n)
     dvzs = zeros((n, 6))
     for j in range(n):
-        vz, dvz = zvel_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        vz, dvz = _zvel_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         vzs[j] = vz
         for k in range(6):
             dvzs[j, k] = dvz[k]
@@ -395,7 +395,7 @@ def zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True)
-def cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Cosine of the phase angle and orbital-parameter derivatives at scalar time.
 
     With :math:`\\cos\\alpha = -z/r` and :math:`r = \\sqrt{x^2+y^2+z^2}`, the
@@ -415,7 +415,7 @@ def cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     t : float
         Time at which to evaluate the phase-angle cosine and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -424,7 +424,7 @@ def cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dca : ndarray, shape (6,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
-    x, y, z, dx, dy, dz = pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     r2 = x * x + y * y + z * z
     r = sqrt(r2)
     ca = -z / r
@@ -438,17 +438,17 @@ def cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Cosine of the phase angle and orbital-parameter derivatives at array of times.
 
-    See :func:`cos_alpha_osd` for the gradient formula.
+    See :func:`_cos_alpha_osd` for the gradient formula.
 
     Parameters
     ----------
     times : ndarray, shape (N,)
         Times at which to evaluate the phase-angle cosine and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -461,7 +461,7 @@ def cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     cas = zeros(n)
     dcas = zeros((n, 6))
     for j in range(n):
-        ca, dca = cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        ca, dca = _cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         cas[j] = ca
         for k in range(6):
             dcas[j, k] = dca[k]
@@ -469,7 +469,7 @@ def cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """3D star-planet distance and orbital-parameter derivatives at array of times.
 
     Returns :math:`r = \\sqrt{x^2 + y^2 + z^2}` and
@@ -481,7 +481,7 @@ def star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs
     times : ndarray, shape (N,)
         Times at which to evaluate the separation and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -494,7 +494,7 @@ def star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs
     rs = zeros(n)
     drs = zeros((n, 6))
     for j in range(n):
-        x, y, z, dx, dy, dz = pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         r = sqrt(x * x + y * y + z * z)
         rs[j] = r
         inv_r = 1.0 / r
@@ -504,7 +504,7 @@ def star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs
 
 
 @njit(fastmath=True)
-def cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Cosine of the angle between planet position and a fixed reference vector ``v``.
 
     The reference vector ``v`` is treated as a constant; gradients are
@@ -518,7 +518,7 @@ def cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the cosine and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -532,7 +532,7 @@ def cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dcs = zeros((n, 6))
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     for j in range(n):
-        x, y, z, dx, dy, dz = pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         r2 = x * x + y * y + z * z
         r = sqrt(r2)
         inv_r = 1.0 / r
@@ -562,7 +562,7 @@ def cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 # trivial in (phase, p) and zero in the rest.
 
 @njit
-def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
     """True anomaly and its orbital-parameter derivatives at array of times.
 
     Computed from the geometric angle between the planet position vector
@@ -574,7 +574,7 @@ def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, 
     times : ndarray, shape (N,)
         Times at which to evaluate the true anomaly and gradient.
     tpa : float
-        Periastron time anchoring the knot grid (see :func:`pos_osd`).
+        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
     p : float
         Orbital period [days].
     ex, ey, ez : float
@@ -715,7 +715,7 @@ def _lambert_kernel_d(cos_alpha):
 
 
 @njit(fastmath=True)
-def lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian phase-curve flux and parameter derivatives at scalar time.
 
     Derivative ordering: ``(phase, p, a, i, e, w, ag, k)`` — length 8.
@@ -731,7 +731,7 @@ def lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs,
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -741,7 +741,7 @@ def lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs,
         Gradient w.r.t. ``(phase, p, a, i, e, w, ag, k)``.
     """
     amplitude = k * k * ag / (a * a)
-    ca, dca = cos_alpha_osd(time, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    ca, dca = _cos_alpha_osd(time, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     phase, _, dphase_dc = _lambert_kernel_d(ca)
     flux = amplitude * phase
 
@@ -759,7 +759,7 @@ def lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs,
 
 
 @njit(fastmath=True)
-def lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian phase-curve flux and parameter derivatives at array of times.
 
     Parameters
@@ -767,7 +767,7 @@ def lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeffs
     times : ndarray, shape (N,)
         Times at which to evaluate the flux contribution and gradient.
     ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`lambert_phase_curve_osd`.
+        See :func:`_lambert_phase_curve_osd`.
 
     Returns
     -------
@@ -785,7 +785,7 @@ def lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeffs
     dag_amp = k * k * inv_a2
     dk_amp = 2.0 * k * ag * inv_a2
     for j in range(n):
-        ca, dca = cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        ca, dca = _cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         phase, _, dphase_dc = _lambert_kernel_d(ca)
         flux[j] = amplitude * phase
         for kk in range(6):
@@ -797,7 +797,7 @@ def lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeffs
 
 
 @njit(fastmath=True)
-def lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
+def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
                              tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian reflection plus cosine-emission day/night model with parameter derivatives.
 
@@ -821,7 +821,7 @@ def lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -848,7 +848,7 @@ def lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
     daref_dk = 2.0 * k * ag * inv_a2
 
     for j in range(n):
-        ca, dca = cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        ca, dca = _cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         phase, alpha, dphase_dc = _lambert_kernel_d(ca)
 
         # --- reflected component ---
@@ -898,7 +898,7 @@ def lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
 
 
 @njit(fastmath=True)
-def ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Ellipsoidal variation signal and parameter derivatives.
 
     Implements
@@ -923,7 +923,7 @@ def ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, co
     times : ndarray, shape (N,)
         Times at which to evaluate the signal and gradient.
     tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`pos_osd`.
+        See :func:`_pos_osd`.
 
     Returns
     -------
@@ -942,7 +942,7 @@ def ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, co
     pre = -alpha * mass_ratio * sin2_inc
 
     for j in range(n):
-        x, y, z, dx, dy, dz = pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)
         cz = z / d
@@ -1008,7 +1008,7 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
     Parameters
     ----------
     tpa : float
-        Periastron time anchoring the knot grid (see :func:`pos_osd`).
+        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
     p, e, w : float
         Orbital period [days], eccentricity, argument of periastron [radians].
     dt, pktable, points, coeffs, dcoeffs :
@@ -1034,7 +1034,7 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
     t_transit = tpa + to
 
     # Evaluate z and its (∂z/∂θ)|_{t=t_transit}.
-    z_tr, dz_tr_partial = zpos_osd(t_transit, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    z_tr, dz_tr_partial = _zpos_osd(t_transit, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     # Velocity at transit (for the dt_transit/dθ chain term).
     vz_tr = _zvel_os(t_transit, tpa, p, dt, pktable, points, coeffs)
 
@@ -1062,7 +1062,7 @@ def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
     t : float
         Time at which to evaluate the z-velocity.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_osd` (no ``dcoeffs`` — this is a value-only helper).
+        See :func:`_pos_osd` (no ``dcoeffs`` — this is a value-only helper).
 
     Returns
     -------
@@ -1076,7 +1076,7 @@ def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
     """Light travel time correction and orbital-parameter derivatives at scalar time.
 
     The correction is referenced to primary transit:
@@ -1099,7 +1099,7 @@ def light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, d
     t : float
         Time at which to evaluate the correction and gradient.
     tpa : float
-        Periastron time anchoring the knot grid (see :func:`pos_osd`).
+        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
     p : float
         Orbital period [days].
     e : float
@@ -1118,7 +1118,7 @@ def light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, d
     dltt : ndarray, shape (6,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
-    z_t, dz_t = zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    z_t, dz_t = _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
     ltt = factor * (z_t - z_tr)
@@ -1129,10 +1129,10 @@ def light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, d
 
 
 @njit(fastmath=True)
-def light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
     """Light travel time correction and orbital-parameter derivatives at array of times.
 
-    Vectorised version of :func:`light_travel_time_osd`. Caches the
+    Vectorised version of :func:`_light_travel_time_osd`. Caches the
     transit-time reference (``z_tr`` and its gradient) once outside the
     loop and reuses it for every input time.
 
@@ -1141,7 +1141,7 @@ def light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coeff
     times : ndarray, shape (N,)
         Times at which to evaluate the correction and gradient.
     tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`light_travel_time_osd`.
+        See :func:`_light_travel_time_osd`.
 
     Returns
     -------
@@ -1157,7 +1157,7 @@ def light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coeff
     # Reference (z and its full derivative chain) computed once.
     z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
     for j in range(n):
-        z, dz = zpos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        z, dz = _zpos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         ltt[j] = factor * (z - z_tr)
         for k in range(6):
             dltt[j, k] = factor * (dz[k] - dz_tr[k])
@@ -1165,7 +1165,7 @@ def light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coeff
 
 
 @njit(fastmath=True)
-def rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     """Radial velocity and parameter derivatives at array of times.
 
     Derivative ordering: ``(phase, p, a, i, e, w, k)`` — length 7.
@@ -1177,7 +1177,7 @@ def rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     k : float
         Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
     tpa : float
-        Periastron time anchoring the knot grid (see :func:`pos_osd`).
+        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
     p : float
         Orbital period [days].
     a : float
@@ -1212,3 +1212,30 @@ def rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
         # drv/dk = rv / k  (rv is linear in k via the scale factor s = k/n).
         drvs[j, 6] = rv_val / k if k != 0.0 else 0.0
     return rvs, drvs
+
+
+# ---------------------------------------------------------------------------
+# Temporary public aliases (removed once dispatchers land)
+# ---------------------------------------------------------------------------
+
+pos_osd = _pos_osd
+pos_ovd = _pos_ovd
+zpos_osd = _zpos_osd
+zpos_ovd = _zpos_ovd
+sep_osd = _sep_osd
+vel_osd = _vel_osd
+vel_ovd = _vel_ovd
+zvel_osd = _zvel_osd
+zvel_ovd = _zvel_ovd
+cos_alpha_osd = _cos_alpha_osd
+cos_alpha_ovd = _cos_alpha_ovd
+star_planet_distance_ovd = _star_planet_distance_ovd
+cos_v_p_angle_ovd = _cos_v_p_angle_ovd
+true_anomaly_ovd = _true_anomaly_ovd
+lambert_phase_curve_osd = _lambert_phase_curve_osd
+lambert_phase_curve_ovd = _lambert_phase_curve_ovd
+lambert_and_emission_ovd = _lambert_and_emission_ovd
+ev_signal_ovd = _ev_signal_ovd
+rv_ovd = _rv_ovd
+light_travel_time_osd = _light_travel_time_osd
+light_travel_time_ovd = _light_travel_time_ovd

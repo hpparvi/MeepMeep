@@ -128,7 +128,7 @@ def knot_ix(t, tpa, p, dt, pktable) -> int:
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True, inline="always")
-def pos_os(t, tpa, p, dt, pktable, points, coeffs):
+def _pos_os(t, tpa, p, dt, pktable, points, coeffs):
     """Planet (x, y, z) position at scalar time ``t`` for any orbital phase.
 
     Parameters
@@ -162,7 +162,7 @@ def pos_os(t, tpa, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def pos_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _pos_ov(times, tpa, p, dt, pktable, points, coeffs):
     """Planet (x, y, z) position at an array of times.
 
     Parameters
@@ -170,7 +170,7 @@ def pos_ov(times, tpa, p, dt, pktable, points, coeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the position.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -180,15 +180,15 @@ def pos_ov(times, tpa, p, dt, pktable, points, coeffs):
     npt = times.size
     xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
-        xs[i], ys[i], zs[i] = pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return xs, ys, zs
 
 
 @njit(fastmath=True, inline="always")
-def zpos_os(t, tpa, p, dt, pktable, points, coeffs):
+def _zpos_os(t, tpa, p, dt, pktable, points, coeffs):
     """Planet z-position at scalar time ``t`` for any orbital phase.
 
-    Cheaper than :func:`pos_os` when only the line-of-sight coordinate is
+    Cheaper than :func:`_pos_os` when only the line-of-sight coordinate is
     needed (e.g. for light travel time and eclipse-side geometry).
 
     Parameters
@@ -196,7 +196,7 @@ def zpos_os(t, tpa, p, dt, pktable, points, coeffs):
     t : float
         Time at which to evaluate the z-coordinate.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -211,7 +211,7 @@ def zpos_os(t, tpa, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def zpos_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _zpos_ov(times, tpa, p, dt, pktable, points, coeffs):
     """Planet z-position at an array of times.
 
     Parameters
@@ -219,7 +219,7 @@ def zpos_ov(times, tpa, p, dt, pktable, points, coeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the z-coordinate.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -229,12 +229,12 @@ def zpos_ov(times, tpa, p, dt, pktable, points, coeffs):
     npt = times.size
     zs = zeros(npt)
     for i in range(npt):
-        zs[i] = zpos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        zs[i] = _zpos_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return zs
 
 
 @njit(fastmath=True, inline="always")
-def sep_os(t, tpa, p, dt, pktable, points, coeffs):
+def _sep_os(t, tpa, p, dt, pktable, points, coeffs):
     """Sky-projected planet-star separation at scalar time ``t``.
 
     Returns :math:`\\sqrt{x^2 + y^2}` in units of the stellar radius —
@@ -245,7 +245,7 @@ def sep_os(t, tpa, p, dt, pktable, points, coeffs):
     t : float
         Time at which to evaluate the separation.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -263,7 +263,7 @@ def sep_os(t, tpa, p, dt, pktable, points, coeffs):
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True, inline="always")
-def vel_os(t, tpa, p, dt, pktable, points, coeffs):
+def _vel_os(t, tpa, p, dt, pktable, points, coeffs):
     """Planet (vx, vy, vz) velocity at scalar time ``t`` for any orbital phase.
 
     Parameters
@@ -271,7 +271,7 @@ def vel_os(t, tpa, p, dt, pktable, points, coeffs):
     t : float
         Time at which to evaluate the velocity.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -287,7 +287,7 @@ def vel_os(t, tpa, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def vel_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _vel_ov(times, tpa, p, dt, pktable, points, coeffs):
     """Planet (vx, vy, vz) velocity at an array of times.
 
     Parameters
@@ -295,7 +295,7 @@ def vel_ov(times, tpa, p, dt, pktable, points, coeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the velocity.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -305,15 +305,15 @@ def vel_ov(times, tpa, p, dt, pktable, points, coeffs):
     npt = times.size
     vxs, vys, vzs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
-        vxs[i], vys[i], vzs[i] = vel_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        vxs[i], vys[i], vzs[i] = _vel_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return vxs, vys, vzs
 
 
 @njit(fastmath=True, inline="always")
-def zvel_os(t, tpa, p, dt, pktable, points, coeffs):
+def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
     """Planet z-velocity at scalar time ``t`` for any orbital phase.
 
-    Cheaper than :func:`vel_os` when only the line-of-sight component is
+    Cheaper than :func:`_vel_os` when only the line-of-sight component is
     needed (e.g. for radial velocity).
 
     Parameters
@@ -321,7 +321,7 @@ def zvel_os(t, tpa, p, dt, pktable, points, coeffs):
     t : float
         Time at which to evaluate the z-velocity.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -335,7 +335,7 @@ def zvel_os(t, tpa, p, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
     """Planet z-velocity at an array of times.
 
     Parameters
@@ -343,7 +343,7 @@ def zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the z-velocity.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -353,7 +353,7 @@ def zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
     npt = times.size
     vzs = zeros(npt)
     for i in range(npt):
-        vzs[i] = zvel_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        vzs[i] = _zvel_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return vzs
 
 
@@ -362,7 +362,7 @@ def zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
 # ---------------------------------------------------------------------------
 
 @njit
-def true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     """True anomaly at an array of times.
 
     Computed from the angle between the planet position vector and the
@@ -433,7 +433,7 @@ def true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
 
 
 @njit(fastmath=True)
-def cos_v_p_angle_ov(v, times, tpa, p, dt, pktable, points, coeffs):
+def _cos_v_p_angle_ov(v, times, tpa, p, dt, pktable, points, coeffs):
     """Cosine of the angle between the planet position and a fixed reference vector.
 
     Useful for projecting the planet position onto an arbitrary
@@ -447,7 +447,7 @@ def cos_v_p_angle_ov(v, times, tpa, p, dt, pktable, points, coeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the angle.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -459,13 +459,13 @@ def cos_v_p_angle_ov(v, times, tpa, p, dt, pktable, points, coeffs):
     out = zeros(n)
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     for i in range(n):
-        x, y, z = pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
         out[i] = (x * v[0] + y * v[1] + z * v[2]) * inv_nv / sqrt(x * x + y * y + z * z)
     return out
 
 
 @njit(fastmath=True, inline="always")
-def cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs):
+def _cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs):
     """Cosine of the phase angle at scalar time ``t``.
 
     The phase angle :math:`\\alpha` is the star-planet-observer angle.
@@ -479,29 +479,29 @@ def cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs):
     t : float
         Time at which to evaluate the phase angle.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
     cos_alpha : float
         Cosine of the phase angle, in :math:`[-1, 1]`.
     """
-    x, y, z = pos_os(t, tpa, p, dt, pktable, points, coeffs)
+    x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
     return -z / sqrt(x * x + y * y + z * z)
 
 
 @njit(fastmath=True)
-def cos_alpha_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _cos_alpha_ov(times, tpa, p, dt, pktable, points, coeffs):
     """Cosine of the phase angle at an array of times.
 
-    See :func:`cos_alpha_os` for the sign and reference conventions.
+    See :func:`_cos_alpha_os` for the sign and reference conventions.
 
     Parameters
     ----------
     times : ndarray, shape (N,)
         Times at which to evaluate the phase angle.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -511,17 +511,17 @@ def cos_alpha_ov(times, tpa, p, dt, pktable, points, coeffs):
     n = times.size
     out = zeros(n)
     for i in range(n):
-        x, y, z = pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
         out[i] = -z / sqrt(x * x + y * y + z * z)
     return out
 
 
 @njit(fastmath=True)
-def star_planet_distance_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _star_planet_distance_ov(times, tpa, p, dt, pktable, points, coeffs):
     """3D star-planet distance at an array of times.
 
     Returns :math:`\\sqrt{x^2 + y^2 + z^2}`, the full Euclidean separation
-    in 3D. Distinct from :func:`sep_os`, which projects out the
+    in 3D. Distinct from :func:`_sep_os`, which projects out the
     line-of-sight component.
 
     Parameters
@@ -529,7 +529,7 @@ def star_planet_distance_ov(times, tpa, p, dt, pktable, points, coeffs):
     times : ndarray, shape (N,)
         Times at which to evaluate the separation.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -539,7 +539,7 @@ def star_planet_distance_ov(times, tpa, p, dt, pktable, points, coeffs):
     n = times.size
     out = zeros(n)
     for i in range(n):
-        x, y, z = pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
         out[i] = sqrt(x * x + y * y + z * z)
     return out
 
@@ -582,7 +582,7 @@ def _lambert_kernel(cos_alpha):
 
 
 @njit(fastmath=True, inline="always")
-def lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, pktable, points, coeffs):
+def _lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, pktable, points, coeffs):
     """Lambertian phase-curve flux contribution at a scalar time.
 
     Evaluates :math:`F(t) = (k/a)^2\\, A_g\\, f(\\alpha(t))` where
@@ -601,7 +601,7 @@ def lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, pktable, points, coeffs):
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -609,13 +609,13 @@ def lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, pktable, points, coeffs):
         Reflected planet-to-star flux ratio at the given time.
     """
     amplitude = k * k * ag / (a * a)
-    cos_alpha = cos_alpha_os(time, tpa, p, dt, pktable, points, coeffs)
+    cos_alpha = _cos_alpha_os(time, tpa, p, dt, pktable, points, coeffs)
     phase, _ = _lambert_kernel(cos_alpha)
     return amplitude * phase
 
 
 @njit(fastmath=True)
-def lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, pktable, points, coeffs):
+def _lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, pktable, points, coeffs):
     """Lambertian phase-curve flux contribution at an array of times.
 
     Parameters
@@ -623,7 +623,7 @@ def lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, pktable, points, coeffs)
     times : ndarray, shape (N,)
         Times at which to evaluate the flux contribution.
     ag, a, k, tpa, p, dt, pktable, points, coeffs :
-        See :func:`lambert_phase_curve_os`.
+        See :func:`_lambert_phase_curve_os`.
 
     Returns
     -------
@@ -634,14 +634,14 @@ def lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, pktable, points, coeffs)
     res = zeros(n)
     amplitude = k * k * ag / (a * a)
     for i in range(n):
-        cos_alpha = cos_alpha_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        cos_alpha = _cos_alpha_os(times[i], tpa, p, dt, pktable, points, coeffs)
         phase, _ = _lambert_kernel(cos_alpha)
         res[i] = amplitude * phase
     return res
 
 
 @njit(fastmath=True)
-def lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
+def _lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
                             tpa, p, dt, pktable, points, coeffs):
     """Lambertian reflection plus a simple cosine-emission day/night model.
 
@@ -670,7 +670,7 @@ def lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -684,7 +684,7 @@ def lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
     k2 = k * k
     aref = k2 * ag / (a * a)
     for i in range(n):
-        cos_alpha = cos_alpha_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        cos_alpha = _cos_alpha_os(times[i], tpa, p, dt, pktable, points, coeffs)
         phase, alpha = _lambert_kernel(cos_alpha)
         ref[i] = aref * phase
         emi[i] = k2 * (fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cos(alpha + emi_offset)))
@@ -692,7 +692,7 @@ def lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
 
 
 @njit(fastmath=True)
-def ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs):
+def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs):
     """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6–10).
 
     Returns the relative flux variation induced by the tidally distorted
@@ -711,7 +711,7 @@ def ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coe
     times : ndarray, shape (N,)
         Times at which to evaluate the signal.
     tpa, p, dt, pktable, points, coeffs :
-        See :func:`pos_os`.
+        See :func:`_pos_os`.
 
     Returns
     -------
@@ -729,7 +729,7 @@ def ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coe
     sin2_inc = sin(inc) ** 2
     pre = -alpha * mass_ratio * sin2_inc
     for i in range(n):
-        x, y, z = pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)
         cz = z / d
@@ -738,7 +738,7 @@ def ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coe
 
 
 @njit(fastmath=True)
-def rv_ov(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+def _rv_ov(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
     """Radial velocity at an array of times (Perryman 2018, Eq. 2.23).
 
     Converts the internal line-of-sight velocity (in
@@ -775,7 +775,7 @@ def rv_ov(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
     rvs = zeros(n)
     scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
     for j in range(n):
-        rvs[j] = zvel_os(times[j], tpa, p, dt, pktable, points, coeffs) * scale
+        rvs[j] = _zvel_os(times[j], tpa, p, dt, pktable, points, coeffs) * scale
     return rvs
 
 
@@ -789,7 +789,7 @@ LTT_DAYS_PER_RSUN = 2.685885891543453e-05
 
 
 @njit(fastmath=True)
-def light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+def _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
     """Light travel time correction at a scalar time, referenced to primary transit.
 
     The correction is
@@ -832,16 +832,16 @@ def light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
         Light travel time correction [days].
     """
     to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_t = zpos_os(t, tpa, p, dt, pktable, points, coeffs)
-    z_tr = zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
+    z_t = _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
+    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
     return -(z_t - z_tr) * rstar * LTT_DAYS_PER_RSUN
 
 
 @njit(fastmath=True)
-def light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
     """Light travel time correction at an array of times, referenced to primary transit.
 
-    Vectorised version of :func:`light_travel_time_os`. Caches the
+    Vectorised version of :func:`_light_travel_time_os`. Caches the
     transit-time z-coordinate ``z_tr`` once outside the loop and reuses
     it for every input time.
 
@@ -871,8 +871,35 @@ def light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs
     n = times.size
     ltt = zeros(n)
     to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_tr = zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
+    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
     for j in range(n):
-        ltt[j] = factor * (zpos_os(times[j], tpa, p, dt, pktable, points, coeffs) - z_tr)
+        ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, pktable, points, coeffs) - z_tr)
     return ltt
+
+
+# ---------------------------------------------------------------------------
+# Temporary public aliases (removed once dispatchers land)
+# ---------------------------------------------------------------------------
+
+pos_os = _pos_os
+pos_ov = _pos_ov
+zpos_os = _zpos_os
+zpos_ov = _zpos_ov
+sep_os = _sep_os
+vel_os = _vel_os
+vel_ov = _vel_ov
+zvel_os = _zvel_os
+zvel_ov = _zvel_ov
+true_anomaly_ov = _true_anomaly_ov
+cos_v_p_angle_ov = _cos_v_p_angle_ov
+cos_alpha_os = _cos_alpha_os
+cos_alpha_ov = _cos_alpha_ov
+star_planet_distance_ov = _star_planet_distance_ov
+lambert_phase_curve_os = _lambert_phase_curve_os
+lambert_phase_curve_ov = _lambert_phase_curve_ov
+lambert_and_emission_ov = _lambert_and_emission_ov
+ev_signal_ov = _ev_signal_ov
+rv_ov = _rv_ov
+light_travel_time_os = _light_travel_time_os
+light_travel_time_ov = _light_travel_time_ov
