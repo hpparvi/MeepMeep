@@ -269,6 +269,35 @@ def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     return sep_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
 
 
+@njit(fastmath=True)
+def _sep_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Sky-projected planet-star separation and orbital-parameter derivatives at array of times.
+
+    Parameters
+    ----------
+    times : ndarray, shape (N,)
+        Times at which to evaluate the separation and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    ds : ndarray, shape (N,)
+        Sky-projected separations per time.
+    dds : ndarray, shape (N, 6)
+        Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
+    """
+    n = times.size
+    ds = zeros(n)
+    dds = zeros((n, 6))
+    for j in range(n):
+        d, dd = _sep_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        ds[j] = d
+        for k in range(6):
+            dds[j, k] = dd[k]
+    return ds, dds
+
+
 # ---------------------------------------------------------------------------
 # Velocity
 # ---------------------------------------------------------------------------
@@ -469,6 +498,38 @@ def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
+def _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """3D star-planet distance and orbital-parameter derivatives at scalar time.
+
+    Scalar counterpart of :func:`_star_planet_distance_ovd`. Returns
+    :math:`r = \\sqrt{x^2 + y^2 + z^2}` and
+    :math:`\\partial r/\\partial \\theta_k = (x\\,\\partial x/\\partial \\theta_k
+    + y\\,\\partial y/\\partial \\theta_k + z\\,\\partial z/\\partial \\theta_k)/r`.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the separation and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    r : float
+        3D star-planet distance [stellar radii].
+    dr : ndarray, shape (6,)
+        Gradient w.r.t. ``(phase, p, a, i, e, w)``.
+    """
+    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    r = sqrt(x * x + y * y + z * z)
+    inv_r = 1.0 / r
+    dr = zeros(6)
+    for k in range(6):
+        dr[k] = (x * dx[k] + y * dy[k] + z * dz[k]) * inv_r
+    return r, dr
+
+
+@njit(fastmath=True)
 def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """3D star-planet distance and orbital-parameter derivatives at array of times.
 
@@ -501,6 +562,46 @@ def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeff
         for k in range(6):
             drs[j, k] = (x * dx[k] + y * dy[k] + z * dz[k]) * inv_r
     return rs, drs
+
+
+@njit(fastmath=True)
+def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Cosine of the angle between planet position and a fixed reference vector at scalar time.
+
+    Scalar counterpart of :func:`_cos_v_p_angle_ovd`. The reference vector
+    ``v`` is treated as a constant; gradients are w.r.t. the 6 orbital
+    parameters only.
+
+    Parameters
+    ----------
+    v : ndarray, shape (3,)
+        Fixed reference vector.
+    t : float
+        Time at which to evaluate the cosine and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    cs : float
+        Cosine of the angle.
+    dcs : ndarray, shape (6,)
+        Gradient w.r.t. ``(phase, p, a, i, e, w)``.
+    """
+    inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    r2 = x * x + y * y + z * z
+    r = sqrt(r2)
+    inv_r = 1.0 / r
+    inv_r3 = inv_r / r2
+    dot = x * v[0] + y * v[1] + z * v[2]
+    cs = dot * inv_nv * inv_r
+    dcs = zeros(6)
+    for k in range(6):
+        ddot = dx[k] * v[0] + dy[k] * v[1] + dz[k] * v[2]
+        xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
+        dcs[k] = inv_nv * (ddot * inv_r - dot * xdotdx * inv_r3)
+    return cs, dcs
 
 
 @njit(fastmath=True)
@@ -560,6 +661,84 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 # (``ex ≤ -0.9999`` sentinel from ``eccentricity_vector``) collapses true
 # anomaly to mean anomaly: ``f = 2π(t - tpa)/p`` ⇒ analytic derivatives are
 # trivial in (phase, p) and zero in the rest.
+
+@njit
+def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+    """True anomaly and orbital-parameter derivatives at scalar time.
+
+    Scalar counterpart of :func:`_true_anomaly_ovd`. See that function for
+    the geometric derivation, the singular-configuration policy
+    (``df = 0`` at ``edp = +/-1``), and the circular-orbit fast path.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the true anomaly and gradient.
+    tpa : float
+        Periastron time.
+    p : float
+        Orbital period [days].
+    ex, ey, ez : float
+        Components of the eccentricity vector. ``(-1, 0, 0)`` triggers the
+        circular-orbit fast path.
+    w : float
+        Argument of periastron [radians]. Kept for signature parity.
+    dt, pktable, points, coeffs, dcoeffs :
+        Multi-knot dispatch arrays.
+
+    Returns
+    -------
+    f : float
+        True anomaly [radians], in :math:`[0, 2\\pi)`.
+    df : ndarray, shape (6,)
+        Gradient w.r.t. ``(phase, p, a, i, e, w)``.
+    """
+    df = zeros(6)
+    nes = ex * ex + ey * ey + ez * ez
+
+    if ex <= -0.9999 and nes > 0.99:
+        twopi = 2.0 * pi
+        tau = t - tpa
+        epoch = floor(tau / p)
+        tau_red = tau - epoch * p
+        f = twopi * tau_red / p
+        df[0] = -twopi / p
+        df[1] = -twopi * tau_red / (p * p)
+        return f, df
+
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    tcc = tc - points[ix] * p
+    c = coeffs[ix]
+    dc = dcoeffs[ix]
+
+    x, y, z, dx, dy, dz = pos_cd(tcc, c, dc)
+    vx, vy, vz, dvx, dvy, dvz = vel_cd(tcc, c, dc)
+
+    r2 = x * x + y * y + z * z
+    sqrt_r2_nes = sqrt(r2 * nes)
+    edp = (x * ex + y * ey + z * ez) / sqrt_r2_nes
+    rdotv = x * vx + y * vy + z * vz
+
+    if edp <= -1.0:
+        return pi, df
+    if edp >= 1.0:
+        return 0.0, df
+
+    sign = 1.0 if rdotv > 0.0 else -1.0
+    base = arccos(edp)
+    f = base if sign > 0.0 else 2.0 * pi - base
+    denom = sqrt(1.0 - edp * edp)
+    xdote = x * ex + y * ey + z * ez
+    for k in range(6):
+        dxdote = dx[k] * ex + dy[k] * ey + dz[k] * ez
+        xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
+        dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
+        df_k = -dedp / denom
+        df[k] = df_k if sign > 0.0 else -df_k
+    return f, df
+
 
 @njit
 def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
@@ -797,6 +976,80 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
 
 
 @njit(fastmath=True)
+def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
+                              tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Lambertian reflection plus cosine-emission day/night model with derivatives at scalar time.
+
+    Scalar counterpart of :func:`_lambert_and_emission_ovd`. Derivative
+    ordering: ``(phase, p, a, i, e, w, ag, fr_night, fr_day, emi_offset, k)``
+    — length 11.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the flux contributions and gradients.
+    ag, fr_night, fr_day, emi_offset, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_lambert_and_emission_ovd`.
+
+    Returns
+    -------
+    ref : float
+        Reflected (Lambertian) flux contribution.
+    emi : float
+        Thermal emission contribution.
+    dref : ndarray, shape (11,)
+        Gradient of ``ref`` w.r.t.
+        ``(phase, p, a, i, e, w, ag, fr_night, fr_day, emi_offset, k)``.
+    demi : ndarray, shape (11,)
+        Gradient of ``emi`` w.r.t. the same parameter block.
+    """
+    k2 = k * k
+    inv_a2 = 1.0 / (a * a)
+    aref = k2 * ag * inv_a2
+    daref_da = -2.0 * k2 * ag / (a * a * a)
+    daref_dag = k2 * inv_a2
+    daref_dk = 2.0 * k * ag * inv_a2
+
+    ca, dca = _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    phase, alpha, dphase_dc = _lambert_kernel_d(ca)
+
+    dref = zeros(11)
+    demi = zeros(11)
+
+    ref = aref * phase
+    for kk in range(6):
+        dref[kk] = aref * dphase_dc * dca[kk]
+    dref[2] += daref_da * phase
+    dref[6] = daref_dag * phase
+    dref[10] = daref_dk * phase
+
+    cs = cos(alpha + emi_offset)
+    sn = sin(alpha + emi_offset)
+    bracket = fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cs)
+    emi = k2 * bracket
+
+    ca_clamped = ca
+    if ca_clamped > 1.0:
+        ca_clamped = 1.0
+    elif ca_clamped < -1.0:
+        ca_clamped = -1.0
+    s = sqrt(1.0 - ca_clamped * ca_clamped)
+    if s < 1e-12:
+        dalpha_dc = 0.0
+    else:
+        dalpha_dc = -1.0 / s
+    demi_dalpha = k2 * (fr_day - fr_night) * 0.5 * sn
+    for kk in range(6):
+        demi[kk] = demi_dalpha * dalpha_dc * dca[kk]
+    demi[7] = k2 * (1.0 - 0.5 * (1.0 - cs))
+    demi[8] = k2 * 0.5 * (1.0 - cs)
+    demi[9] = k2 * (fr_day - fr_night) * 0.5 * sn
+    demi[10] = 2.0 * k * bracket
+
+    return ref, emi, dref, demi
+
+
+@njit(fastmath=True)
 def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
                              tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian reflection plus cosine-emission day/night model with parameter derivatives.
@@ -895,6 +1148,60 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
         demi[j, 10] = 2.0 * k * bracket
 
     return ref, emi, dref, demi
+
+
+@njit(fastmath=True)
+def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Ellipsoidal variation signal and derivatives at scalar time.
+
+    Scalar counterpart of :func:`_ev_signal_ovd`. Derivative ordering:
+    ``(phase, p, a, i, e, w, alpha, mass_ratio, inc)`` — length 9.
+
+    Parameters
+    ----------
+    alpha : float
+        Gravity-darkening coefficient.
+    mass_ratio : float
+        Planet-to-star mass ratio.
+    inc : float
+        Orbital inclination [radians], independent of the orbital ``i`` axis.
+    t : float
+        Time at which to evaluate the signal and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    out : float
+        Ellipsoidal variation signal.
+    dout : ndarray, shape (9,)
+        Gradient w.r.t. ``(phase, p, a, i, e, w, alpha, mass_ratio, inc)``.
+    """
+    sin_inc = sin(inc)
+    cos_inc = cos(inc)
+    sin2_inc = sin_inc * sin_inc
+    pre = -alpha * mass_ratio * sin2_inc
+
+    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    d2 = x * x + y * y + z * z
+    d = sqrt(d2)
+    cz = z / d
+    g = (2.0 * cz * cz - 1.0) / (d2 * d)
+    out = pre * g
+
+    d5 = d2 * d2 * d
+    A = 2.0 * z * z - d2
+    dout = zeros(9)
+    for kk in range(6):
+        xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
+        dd = xdotdx / d
+        dA = -2.0 * (x * dx[kk] + y * dy[kk]) + 2.0 * z * dz[kk]
+        dg = (dA - 5.0 * A * dd / d2) / d5
+        dout[kk] = pre * dg
+    dout[6] = -mass_ratio * sin2_inc * g
+    dout[7] = -alpha * sin2_inc * g
+    dout[8] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
+    return out, dout
 
 
 @njit(fastmath=True)
@@ -1162,6 +1469,41 @@ def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coef
         for k in range(6):
             dltt[j, k] = factor * (dz[k] - dz_tr[k])
     return ltt, dltt
+
+
+@njit(fastmath=True)
+def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+    """Radial velocity and parameter derivatives at scalar time.
+
+    Scalar counterpart of :func:`_rv_ovd`. Derivative ordering:
+    ``(phase, p, a, i, e, w, k)`` — length 7.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the radial velocity and gradient.
+    k : float
+        Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
+    tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_rv_ovd`.
+
+    Returns
+    -------
+    rv : float
+        Radial velocity [m s\\ :sup:`-1`].
+    drv : ndarray, shape (7,)
+        Gradient w.r.t. ``(phase, p, a, i, e, w, k)``.
+    """
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    tcc = tc - points[ix] * p
+    rv_val, drv_orb = rv_cd(tcc, k, p, a, i, e, coeffs[ix], dcoeffs[ix])
+    drv = zeros(7)
+    for kk in range(6):
+        drv[kk] = drv_orb[kk]
+    drv[6] = rv_val / k if k != 0.0 else 0.0
+    return rv_val, drv
 
 
 @njit(fastmath=True)

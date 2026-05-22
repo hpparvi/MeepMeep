@@ -258,6 +258,29 @@ def _sep_os(t, tpa, p, dt, pktable, points, coeffs):
     return sep_c(tc - points[ix] * p, coeffs[ix])
 
 
+@njit(fastmath=True)
+def _sep_ov(times, tpa, p, dt, pktable, points, coeffs):
+    """Sky-projected planet-star separation at an array of times.
+
+    Parameters
+    ----------
+    times : ndarray, shape (N,)
+        Times at which to evaluate the separation.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    seps : ndarray, shape (N,)
+        Sky-projected separations [stellar radii], always non-negative.
+    """
+    n = times.size
+    out = zeros(n)
+    for j in range(n):
+        out[j] = _sep_os(times[j], tpa, p, dt, pktable, points, coeffs)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Velocity
 # ---------------------------------------------------------------------------
@@ -362,6 +385,67 @@ def _zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
 # ---------------------------------------------------------------------------
 
 @njit
+def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+    """True anomaly at scalar time.
+
+    Scalar counterpart of :func:`_true_anomaly_ov`. See that function for
+    the geometric definition, the sign convention from
+    :math:`\\mathbf{r}\\cdot\\mathbf{v}`, and the near-circular fast-path
+    sentinel.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the true anomaly.
+    tpa : float
+        Periastron time anchoring the knot grid.
+    p : float
+        Orbital period [days].
+    ex, ey, ez : float
+        Components of the eccentricity vector. ``(-1, 0, 0)`` triggers the
+        circular-orbit fast path (see :func:`_true_anomaly_ov`).
+    w : float
+        Argument of periastron [radians]. Kept for signature parity with
+        :func:`_true_anomaly_ov`; unused (the circular fast path collapses
+        to mean anomaly with ``w = 0``).
+    dt, pktable, points, coeffs :
+        Multi-knot dispatch arrays from :func:`solve3d_orbit` /
+        :func:`~meepmeep.backends.numba.knots.create_knots`.
+
+    Returns
+    -------
+    f : float
+        True anomaly [radians], in :math:`[0, 2\\pi)`.
+    """
+    nes = ex * ex + ey * ey + ez * ez
+
+    if ex <= -0.9999 and nes > 0.99:
+        # Circular-orbit fast path; match the array variant by going through
+        # ``mean_anomaly`` (which folds in the transit-offset correction from
+        # ``mean_anomaly_at_transit``). The simpler ``2π(t - tpa)/p`` used in
+        # the gradient module's fast path is intentionally NOT used here.
+        return mean_anomaly(t, tpa, p, 0.0, w)
+
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    tcc = tc - points[ix] * p
+    c = coeffs[ix]
+    x, y, z = pos_c(tcc, c)
+    vx, vy, vz = vel_c(tcc, c)
+    edp = (x * ex + y * ey + z * ez) / sqrt((x * x + y * y + z * z) * nes)
+
+    if edp <= -1.0:
+        return pi
+    elif edp >= 1.0:
+        return 0.0
+    elif (x * vx + y * vy + z * vz) > 0.0:
+        return arccos(edp)
+    else:
+        return 2.0 * pi - arccos(edp)
+
+
+@njit
 def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     """True anomaly at an array of times.
 
@@ -430,6 +514,31 @@ def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
             else:
                 f[i] = 2.0 * pi - arccos(edp)
     return f
+
+
+@njit(fastmath=True, inline="always")
+def _cos_v_p_angle_os(v, t, tpa, p, dt, pktable, points, coeffs):
+    """Cosine of the angle between the planet position and a fixed reference vector at scalar time.
+
+    Scalar counterpart of :func:`_cos_v_p_angle_ov`.
+
+    Parameters
+    ----------
+    v : ndarray, shape (3,)
+        Reference vector. Need not be unit-norm.
+    t : float
+        Time at which to evaluate the angle.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    cos_theta : float
+        Cosine of the angle, in :math:`[-1, 1]`.
+    """
+    inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+    x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+    return (x * v[0] + y * v[1] + z * v[2]) * inv_nv / sqrt(x * x + y * y + z * z)
 
 
 @njit(fastmath=True)
@@ -514,6 +623,29 @@ def _cos_alpha_ov(times, tpa, p, dt, pktable, points, coeffs):
         x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
         out[i] = -z / sqrt(x * x + y * y + z * z)
     return out
+
+
+@njit(fastmath=True, inline="always")
+def _star_planet_distance_os(t, tpa, p, dt, pktable, points, coeffs):
+    """3D star-planet distance at scalar time.
+
+    Returns :math:`\\sqrt{x^2 + y^2 + z^2}`. Distinct from :func:`_sep_os`,
+    which projects out the line-of-sight component.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the distance.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    r : float
+        3D star-planet distance [stellar radii].
+    """
+    x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+    return sqrt(x * x + y * y + z * z)
 
 
 @njit(fastmath=True)
@@ -640,6 +772,37 @@ def _lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, pktable, points, coeffs
     return res
 
 
+@njit(fastmath=True, inline="always")
+def _lambert_and_emission_os(t, ag, fr_night, fr_day, emi_offset, a, k,
+                             tpa, p, dt, pktable, points, coeffs):
+    """Lambertian reflection plus cosine-emission day/night model at scalar time.
+
+    Scalar counterpart of :func:`_lambert_and_emission_ov`. See that
+    function for the physical model.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the flux contributions.
+    ag, fr_night, fr_day, emi_offset, a, k, tpa, p, dt, pktable, points, coeffs :
+        See :func:`_lambert_and_emission_ov`.
+
+    Returns
+    -------
+    ref : float
+        Reflected-light flux ratio.
+    emi : float
+        Thermal-emission flux ratio.
+    """
+    k2 = k * k
+    aref = k2 * ag / (a * a)
+    cos_alpha = _cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs)
+    phase, alpha = _lambert_kernel(cos_alpha)
+    ref = aref * phase
+    emi = k2 * (fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cos(alpha + emi_offset)))
+    return ref, emi
+
+
 @njit(fastmath=True)
 def _lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
                             tpa, p, dt, pktable, points, coeffs):
@@ -691,6 +854,40 @@ def _lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
     return ref, emi
 
 
+@njit(fastmath=True, inline="always")
+def _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
+    """Ellipsoidal variation signal at scalar time.
+
+    Scalar counterpart of :func:`_ev_signal_ov`. See that function for the
+    physical model (Lillo-Box et al. 2014, Eqs. 6-10).
+
+    Parameters
+    ----------
+    alpha : float
+        Gravity-darkening coefficient.
+    mass_ratio : float
+        Planet-to-star mass ratio :math:`M_p / M_\\star`.
+    inc : float
+        Orbital inclination [radians].
+    t : float
+        Time at which to evaluate the signal.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    ev : float
+        Relative flux variation due to ellipsoidal distortion.
+    """
+    sin2_inc = sin(inc) ** 2
+    pre = -alpha * mass_ratio * sin2_inc
+    x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+    d2 = x * x + y * y + z * z
+    d = sqrt(d2)
+    cz = z / d
+    return pre * (2.0 * cz * cz - 1.0) / (d2 * d)
+
+
 @njit(fastmath=True)
 def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs):
     """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6–10).
@@ -735,6 +932,40 @@ def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, co
         cz = z / d
         out[i] = pre * (2.0 * cz * cz - 1.0) / (d2 * d)
     return out
+
+
+@njit(fastmath=True, inline="always")
+def _rv_os(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+    """Radial velocity at scalar time (Perryman 2018, Eq. 2.23).
+
+    Scalar counterpart of :func:`_rv_ov`.
+
+    Parameters
+    ----------
+    t : float
+        Time at which to evaluate the radial velocity.
+    k : float
+        Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
+    tpa : float
+        Periastron time.
+    p : float
+        Orbital period [days].
+    a : float
+        Scaled semi-major axis :math:`a/R_\\star`.
+    i : float
+        Inclination [radians].
+    e : float
+        Eccentricity.
+    dt, pktable, points, coeffs :
+        Multi-knot dispatch arrays.
+
+    Returns
+    -------
+    rv : float
+        Radial velocity [m s\\ :sup:`-1`].
+    """
+    scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
+    return _zvel_os(t, tpa, p, dt, pktable, points, coeffs) * scale
 
 
 @njit(fastmath=True)
