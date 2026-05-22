@@ -76,9 +76,13 @@ meepmeep/
 ├── __init__.py            # Exports Orbit, eclipse_light_travel_time
 ├── orbit.py               # Main Orbit class (user-facing API)
 ├── knot2d.py              # 2D knot point calculations (Knot2D, Knot2DFit)
-├── numba.py               # Re-exports the commonly used numba low-level functions
-│                          # (knots, Newton solvers, solve3d_orbit, *_ov, *_ovd, etc.)
-│                          # so user @njit code can import them from one place.
+├── numba2d.py             # Public low-level 2D Taylor API (re-exports of
+│                          # backends/numba/taylor/{position2d,position2dd,
+│                          # solve2d,solve2dd,util2d}).
+├── numba3d.py             # Public low-level 3D Taylor API: single-knot 3D
+│                          # Taylor evaluators, multi-knot orbit-spanning
+│                          # routines, and dimension-agnostic primitives
+│                          # (knots, Newton solvers, orbital-mechanics utils).
 ├── version.py             # Reads version dynamically via importlib.metadata
 ├── tests/
 │   ├── conftest.py                  # Shared fixtures (orbital params, tolerances)
@@ -123,6 +127,28 @@ meepmeep/
 The package version is resolved dynamically: `pyproject.toml` declares
 `dynamic = ["version"]` (via `setuptools_scm`), and `meepmeep/version.py`
 reads it back at runtime through `importlib.metadata`.
+
+### Public low-level API
+
+`meepmeep.numba2d` and `meepmeep.numba3d` are the canonical public
+entry points for the low-level Numba primitives. User `@njit` kernels
+and direct (non-jitted) callers should import from these modules
+rather than reaching into `meepmeep.backends.numba.*` directly. The
+layout under `backends/numba/` is implementation detail and may be
+restructured without notice; the aggregator modules are the
+stability contract.
+
+Each aggregator re-exports source names verbatim (no aliases, no
+renames) and declares an explicit `__all__`. When adding a new public
+function in `backends/numba/`, add it to the corresponding
+aggregator's `__all__` as well.
+
+`numba2d` covers the 2D Taylor surface only. `numba3d` covers the 3D
+Taylor surface, the multi-knot orbit-spanning routines from
+`orbit3d`/`orbit3dd`, and the dimension-agnostic primitives (knots,
+Newton solvers, orbital-mechanics utilities). 2D users who need
+dimension-agnostic primitives import them from
+`meepmeep.backends.numba.{knots,newton.newton,utils}`.
 
 ### Key Concepts
 
@@ -178,6 +204,7 @@ To add a new quantity:
 2. Implement the direct version that epoch-folds and delegates to the centered version
 3. If derivatives are needed, add `_d` variants in the corresponding `*d.py` module
 4. Decorate with `@njit(fastmath=True)`
+5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-knot routines).
 
 For multi-knot evaluation (arrays of times with knot lookup), add functions to `orbit3d.py` following the `_os` (scalar) / `_ov` (vector) naming convention; gradient counterparts go in `orbit3dd.py` as `_osd` / `_ovd`. Multi-knot evaluators look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d` (or their gradient variants in `position3dd`/`velocity3dd`).
 
