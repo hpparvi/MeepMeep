@@ -40,6 +40,11 @@ from ..utils import mean_anomaly, mean_anomaly_at_transit
 # Setup helpers
 # ---------------------------------------------------------------------------
 
+def _is_1d_array(typ):
+    """True for a 1-D Numba array type (any layout)."""
+    return isinstance(typ, types.Array) and typ.ndim == 1
+
+
 @njit
 def solve3d_orbit(knot_times, p, a, i, e, w, npt):
     """Pre-compute Taylor coefficients at every knot of one orbit.
@@ -125,7 +130,7 @@ def knot_ix(t, tpa, p, dt, pktable) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Position
+# 3D Position
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True, inline="always")
@@ -185,6 +190,29 @@ def _pos_ov(times, tpa, p, dt, pktable, points, coeffs):
     return xs, ys, zs
 
 
+def pos_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet (x, y, z) position. See :func:`_pos_os` / :func:`_pos_ov`."""
+    if isinstance(t, ndarray):
+        return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(pos_o, jit_options={'fastmath': True})
+def _pos_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+# ---------------------------------------------------------------------------
+# z position
+# ---------------------------------------------------------------------------
+
 @njit(fastmath=True, inline="always")
 def _zpos_os(t, tpa, p, dt, pktable, points, coeffs):
     """Planet z-position at scalar time ``t`` for any orbital phase.
@@ -234,6 +262,30 @@ def _zpos_ov(times, tpa, p, dt, pktable, points, coeffs):
     return zs
 
 
+def zpos_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet z-position. See :func:`_zpos_os` / :func:`_zpos_ov`."""
+    if isinstance(t, ndarray):
+        return _zpos_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(zpos_o, jit_options={'fastmath': True})
+def _zpos_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _zpos_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Sky-projected separation
+# ---------------------------------------------------------------------------
+
 @njit(fastmath=True, inline="always")
 def _sep_os(t, tpa, p, dt, pktable, points, coeffs):
     """Sky-projected planet-star separation at scalar time ``t``.
@@ -282,8 +334,27 @@ def _sep_ov(times, tpa, p, dt, pktable, points, coeffs):
     return out
 
 
+def sep_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Sky-projected separation. See :func:`_sep_os` / :func:`_sep_ov`."""
+    if isinstance(t, ndarray):
+        return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _sep_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(sep_o, jit_options={'fastmath': True})
+def _sep_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _sep_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
 # ---------------------------------------------------------------------------
-# Velocity
+# 3D velocity
 # ---------------------------------------------------------------------------
 
 @njit(fastmath=True, inline="always")
@@ -333,6 +404,29 @@ def _vel_ov(times, tpa, p, dt, pktable, points, coeffs):
     return vxs, vys, vzs
 
 
+def vel_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet (vx, vy, vz) velocity. See :func:`_vel_os` / :func:`_vel_ov`."""
+    if isinstance(t, ndarray):
+        return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _vel_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(vel_o, jit_options={'fastmath': True})
+def _vel_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _vel_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
+
+# ---------------------------------------------------------------------------
+# Z velocity
+# ---------------------------------------------------------------------------
+
 @njit(fastmath=True, inline="always")
 def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
     """Planet z-velocity at scalar time ``t`` for any orbital phase.
@@ -380,6 +474,24 @@ def _zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
         vzs[i] = _zvel_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return vzs
 
+def zvel_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet z-velocity. See :func:`_zvel_os` / :func:`_zvel_ov`."""
+    if isinstance(t, ndarray):
+        return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
+    return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)
+
+
+@overload(zvel_o, jit_options={'fastmath': True})
+def _zvel_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+    if _is_1d_array(t):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    if isinstance(t, types.Float):
+        def impl(t, tpa, p, dt, pktable, points, coeffs):
+            return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)
+        return impl
+    return None
 
 # ---------------------------------------------------------------------------
 # Anomalies and angles
@@ -1124,119 +1236,6 @@ def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeff
 # ``ev_signal_o`` inspects the fourth (``alpha, mass_ratio, inc`` precede).
 
 
-def _is_1d_array(typ):
-    """True for a 1-D Numba array type (any layout)."""
-    return isinstance(typ, types.Array) and typ.ndim == 1
-
-
-# --- pos -------------------------------------------------------------------
-
-def pos_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet (x, y, z) position. See :func:`_pos_os` / :func:`_pos_ov`."""
-    if isinstance(t, ndarray):
-        return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _pos_os(t, tpa, p, dt, pktable, points, coeffs)
-
-
-@overload(pos_o, jit_options={'fastmath': True})
-def _pos_o_overload(t, tpa, p, dt, pktable, points, coeffs):
-    if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _pos_os(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    return None
-
-
-# --- zpos ------------------------------------------------------------------
-
-def zpos_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet z-position. See :func:`_zpos_os` / :func:`_zpos_ov`."""
-    if isinstance(t, ndarray):
-        return _zpos_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
-
-
-@overload(zpos_o, jit_options={'fastmath': True})
-def _zpos_o_overload(t, tpa, p, dt, pktable, points, coeffs):
-    if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _zpos_ov(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    return None
-
-
-# --- sep -------------------------------------------------------------------
-
-def sep_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Sky-projected separation. See :func:`_sep_os` / :func:`_sep_ov`."""
-    if isinstance(t, ndarray):
-        return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _sep_os(t, tpa, p, dt, pktable, points, coeffs)
-
-
-@overload(sep_o, jit_options={'fastmath': True})
-def _sep_o_overload(t, tpa, p, dt, pktable, points, coeffs):
-    if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _sep_os(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    return None
-
-
-# --- vel -------------------------------------------------------------------
-
-def vel_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet (vx, vy, vz) velocity. See :func:`_vel_os` / :func:`_vel_ov`."""
-    if isinstance(t, ndarray):
-        return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _vel_os(t, tpa, p, dt, pktable, points, coeffs)
-
-
-@overload(vel_o, jit_options={'fastmath': True})
-def _vel_o_overload(t, tpa, p, dt, pktable, points, coeffs):
-    if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _vel_os(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    return None
-
-
-# --- zvel ------------------------------------------------------------------
-
-def zvel_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet z-velocity. See :func:`_zvel_os` / :func:`_zvel_ov`."""
-    if isinstance(t, ndarray):
-        return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)
-
-
-@overload(zvel_o, jit_options={'fastmath': True})
-def _zvel_o_overload(t, tpa, p, dt, pktable, points, coeffs):
-    if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)
-        return impl
-    return None
 
 
 # --- true_anomaly ----------------------------------------------------------
