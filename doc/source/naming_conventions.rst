@@ -89,7 +89,7 @@ Parameter-derivative suffix
 
 The gradient-returning variants live in the ``*dd``-suffixed modules
 (``position2dd.py``, ``position3dd.py``, ``velocity3dd.py``,
-``solve2dd.py``, ``solve3dd.py``, ``orbit3dd.py``) and return *both* the
+``solve2dd.py``, ``solve3dd.py``, and the ``orbit3dd/`` package) and return *both* the
 quantity and its partial derivatives with respect to the six orbital
 parameters ``(t0, p, a, i, e, w)``. The suffix encodes whether the
 underlying evaluator is centered or direct:
@@ -142,8 +142,8 @@ Examples: :func:`~meepmeep.backends.numba.taylor.orbit3d.pos_o`,
 
 Internally each dispatcher routes to a private kernel with the explicit
 ``_os`` / ``_ov`` (scalar / vector) suffix — e.g. ``_pos_os`` and
-``_pos_ov`` in ``orbit3d.py``, ``_pos_osd`` and ``_pos_ovd`` in
-``orbit3dd.py``. Reach for those private kernels only when you need to
+``_pos_ov`` in the ``orbit3d/`` package, ``_pos_osd`` and ``_pos_ovd`` in
+the ``orbit3dd/`` package. Reach for those private kernels only when you need to
 avoid the dispatcher's type check (rarely useful) or when contributing
 to MeepMeep itself.
 
@@ -172,4 +172,4 @@ Module suffix     Contents
 ================  ========================================================
 
 So ``position3dd.py`` is read as "3D position evaluators, with derivatives",
-and ``orbit3dd.py`` as "orbit-spanning 3D dispatchers, with derivatives".
+and the ``orbit3dd/`` package as "orbit-spanning 3D dispatchers, with derivatives".

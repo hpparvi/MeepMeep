@@ -114,10 +114,15 @@ meepmeep/
     │       ├── velocity3d.py    # 3D velocity evaluation (vel_c, zvel, rv)
     │       ├── velocity3dd.py   # 3D velocity parameter derivatives
     │       ├── util3d.py        # 3D utilities (contact points, bounding box)
-    │       ├── orbit3d.py       # Multi-knot orbit-spanning evaluators
-    │       │                    # (pos/sep/vel/zvel/rv, true anomaly, phase, Lambert)
-    │       └── orbit3dd.py      # Multi-knot orbit-spanning gradient dispatchers
-    │                            # (pos_ovd, sep_osd, rv_ovd, ev_signal_ovd, ...)
+    │       ├── orbit3d/         # Multi-knot orbit-spanning evaluators, one
+    │       │                    # module per quantity (position, separation,
+    │       │                    # velocity, radial_velocity, true_anomaly,
+    │       │                    # phase_angle, lambert, ev_signal, ...). Shared
+    │       │                    # helpers in _common.py; __init__.py re-exports
+    │       │                    # the full surface.
+    │       └── orbit3dd/        # Multi-knot orbit-spanning gradient evaluators,
+    │                            # mirroring orbit3d/ one module per quantity
+    │                            # (the *_od / *_osd / *_ovd families).
     └── jax/               # JAX backend (automatic differentiation)
         ├── ea.py          # Eccentric anomaly with custom JVP for AD
         └── ts2d/
@@ -160,7 +165,7 @@ dimension-agnostic primitives import them from
 **Taylor Expansion**: At each knot point, position is expanded as a 5th-order Taylor series in time. The `_coeffs` 
 array stores position, velocity, acceleration, jerk, and snap at each knot.
 
-**Time-to-Knot Table** (`pktable`): Maps normalized time to the appropriate knot segment for fast lookups during evaluation. Used by `knot_ix` in `backends/numba/taylor/orbit3d.py` to dispatch a time to its knot.
+**Time-to-Knot Table** (`pktable`): Maps normalized time to the appropriate knot segment for fast lookups during evaluation. Used by `knot_ix` in `backends/numba/taylor/orbit3d/_common.py` to dispatch a time to its knot.
 
 **Coefficient matrices**: `solve2d` returns a `(2, 5)` matrix, `solve3d` returns a `(3, 5)` matrix. Rows are spatial 
 dimensions (x, y or x, y, z), columns are Taylor order (position through snap, pre-scaled by factorial).
@@ -206,13 +211,13 @@ To add a new quantity:
 4. Decorate with `@njit(fastmath=True)`
 5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-knot routines).
 
-For multi-knot evaluation (arrays of times with knot lookup), add functions to `orbit3d.py` as a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time. Gradient counterparts go in `orbit3dd.py` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher. The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d` (or their gradient variants in `position3dd`/`velocity3dd`).
+For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d` (or their gradient variants in `position3dd`/`velocity3dd`).
 
 Note on Numba `cache=True` callers: after introducing or modifying a dispatcher, purge stale `__pycache__/*.nbi` / `*.nbc` files so Numba recompiles against the new overload registration.
 
 ### Code Style
 
-- **Docstrings follow the NumPy style** (Parameters / Returns / Notes / Examples sections, with `name : type` parameter headers). See `backends/numba/utils.py`, `backends/numba/taylor/position3d.py`, and `backends/numba/taylor/orbit3d.py` for the established convention.
+- **Docstrings follow the NumPy style** (Parameters / Returns / Notes / Examples sections, with `name : type` parameter headers). See `backends/numba/utils.py`, `backends/numba/taylor/position3d.py`, and `backends/numba/taylor/orbit3d/position.py` for the established convention.
 - Never use Unicode characters in docstrings or variable names.
 - Function naming in `taylor/` modules:
   - `pos_c`, `pos`: position (centered, direct)
@@ -226,9 +231,9 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
   - Dimensionality (2D vs 3D) is encoded by the module name (`position2d` vs `position3d`), not by the function name.
-- In `orbit3d.py` / `orbit3dd.py` (multi-knot dispatchers):
+- In the `orbit3d/` / `orbit3dd/` packages (multi-knot dispatchers):
   - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)
-  - `_od`: same, gradient-returning (in `orbit3dd.py`; e.g. `pos_od`, `rv_od`)
+  - `_od`: same, gradient-returning (in the `orbit3dd/` package; e.g. `pos_od`, `rv_od`)
   - `_os` / `_ov` (private, leading underscore): the underlying scalar and vector kernels the dispatcher routes to; only call directly when contributing
   - `_osd` / `_ovd` (private, leading underscore): same, gradient-returning kernels
 - The authoritative reference for the full naming scheme is
