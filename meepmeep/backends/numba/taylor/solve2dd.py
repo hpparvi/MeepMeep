@@ -22,7 +22,7 @@ from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 
 @njit(fastmath=True)
-def solve2d_d(t, p, a, i, e, w):
+def solve2d_d(t, p, a, i, e, w, lan: float = 0.0):
     """Calculate Taylor expansion coefficients and their parameter derivatives around a given time.
 
     Parameters
@@ -39,16 +39,20 @@ def solve2d_d(t, p, a, i, e, w):
         Eccentricity of the orbit.
     w : float
         Argument of periastron [rad].
+    lan : float, optional
+        Longitude of the ascending node [rad]. A constant counterclockwise rotation
+        of the sky-plane (x, y) coordinates about the line of sight. Defaults to 0.0.
 
     Returns
     -------
     cf : ndarray (2, 5)
         Position Taylor coefficients (identical to solve_xy_p5 output).
-    dcf : ndarray (6, 2, 5)
+    dcf : ndarray (7, 2, 5)
         Parameter derivative coefficients. dcf[k] = d(cf)/d(theta_k)
-        for theta = (phase, p, a, i, e, w).
+        for theta = (phase, p, a, i, e, w, lan). Row 6 is the derivative
+        with respect to the longitude of the ascending node.
     """
-    # Parameter indices: 0=phase, 1=p, 2=a, 3=i, 4=e, 5=w
+    # Parameter indices: 0=phase, 1=p, 2=a, 3=i, 4=e, 5=w, 6=lan
 
     # ================================================================
     # Step 1: Constants and their derivatives
@@ -270,7 +274,7 @@ def solve2d_d(t, p, a, i, e, w):
     # Step 7: Assemble output
     # ================================================================
     cf = zeros((2, 5))
-    dcf = zeros((6, 2, 5))
+    dcf = zeros((7, 2, 5))
 
     # Orbital plane quantities grouped by Taylor order
     q_xi = (xi, v_xi, a_xi, j_xi, s_xi)
@@ -292,5 +296,33 @@ def solve2d_d(t, p, a, i, e, w):
             dqe = dq_eta[col][k]
             dcf[k, 0, col] = (dm00[k] * qx + m00 * dqx + dm01[k] * qe + m01 * dqe) * s
             dcf[k, 1, col] = (dm10[k] * qx + m10 * dqx + dm11[k] * qe + m11 * dqe) * s
+
+    # ================================================================
+    # Step 8: Longitude of the ascending node
+    # ================================================================
+    # `lan` is a constant rotation R(lan) of the sky-plane (x, y) about the line of
+    # sight, independent of the other six parameters. The product rule therefore
+    # collapses: cf and the existing six derivative rows are simply rotated by
+    # R(lan), and the new lan-derivative row (index 6) is R'(lan) . cf_base.
+    cO = cos(lan)
+    sO = sin(lan)
+    for col in range(5):
+        x0 = cf[0, col]
+        y0 = cf[1, col]
+
+        # New lan-derivative row: R'(lan) . cf_base (uses the pre-rotation coords)
+        dcf[6, 0, col] = -sO * x0 - cO * y0
+        dcf[6, 1, col] = cO * x0 - sO * y0
+
+        # Rotate the position
+        cf[0, col] = cO * x0 - sO * y0
+        cf[1, col] = sO * x0 + cO * y0
+
+        # Rotate the existing six derivative rows
+        for k in range(6):
+            dx0 = dcf[k, 0, col]
+            dy0 = dcf[k, 1, col]
+            dcf[k, 0, col] = cO * dx0 - sO * dy0
+            dcf[k, 1, col] = sO * dx0 + cO * dy0
 
     return cf, dcf

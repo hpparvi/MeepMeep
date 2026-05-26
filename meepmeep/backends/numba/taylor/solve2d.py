@@ -22,7 +22,7 @@ from ..utils import mean_anomaly_at_transit, TWO_PI
 
 
 @njit(fastmath=True)
-def solve2d(t: float, p: float, a: float, i: float, e: float, w: float) -> ndarray:
+def solve2d(t: float, p: float, a: float, i: float, e: float, w: float, lan: float = 0.0) -> ndarray:
     """ Calculate the Taylor expansion for the (x, y) position around a given time relative to the transit center.
 
     Parameters
@@ -39,6 +39,10 @@ def solve2d(t: float, p: float, a: float, i: float, e: float, w: float) -> ndarr
         Eccentricity of the orbit.
     w : float
         Argument of periastron [rad].
+    lan : float, optional
+        Longitude of the ascending node [rad]. A constant counterclockwise rotation
+        of the sky-plane (x, y) coordinates about the line of sight. Defaults to 0.0,
+        which reproduces the un-rotated orientation.
 
     Returns
     -------
@@ -144,5 +148,17 @@ def solve2d(t: float, p: float, a: float, i: float, e: float, w: float) -> ndarr
     # Snap / 24
     cf[0, 4] = (m00 * s_xi + m01 * s_eta) / 24.0
     cf[1, 4] = (m10 * s_xi + m11 * s_eta) / 24.0
+
+    # 5. Longitude of the ascending node
+    # ----------------------------------
+    # Rotate the sky-plane (x, y) coordinates about the line of sight by `lan`.
+    # The rotation is constant in time, so it applies uniformly to every Taylor column.
+    cO = cos(lan)
+    sO = sin(lan)
+    for col in range(5):
+        x0 = cf[0, col]
+        y0 = cf[1, col]
+        cf[0, col] = cO * x0 - sO * y0
+        cf[1, col] = sO * x0 + cO * y0
 
     return cf
