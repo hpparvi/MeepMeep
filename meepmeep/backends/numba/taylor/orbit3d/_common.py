@@ -34,7 +34,7 @@ def _is_1d_array(typ):
 
 
 @njit
-def solve3d_orbit(knot_times, p, a, i, e, w, npt, lan=0.0):
+def solve3d_orbit(knot_times, p, a, i, e, w, lan=0.0, npt=15):
     """Pre-compute Taylor coefficients at every knot of one orbit.
 
     For each interior knot this calls :func:`~meepmeep.backends.numba.taylor.solve3d.solve3d`
@@ -58,11 +58,11 @@ def solve3d_orbit(knot_times, p, a, i, e, w, npt, lan=0.0):
         Eccentricity, :math:`0 \\le e < 1`.
     w : float
         Argument of periastron [radians].
-    npt : int
-        Number of knots, including the periodic-image slot.
     lan : float, optional
         Longitude of the ascending node [radians]. Constant rotation of the
         sky-plane (x, y) coordinates about the line of sight. Defaults to 0.0.
+    npt : int, optional
+        Number of knots, including the periodic-image slot. Defaults to 15.
 
     Returns
     -------

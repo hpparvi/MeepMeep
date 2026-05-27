@@ -253,9 +253,10 @@ class Orbit:
         self._w = w
         self._lan = lan
         if self._derivatives:
-            self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w, self.npt, lan)
+            self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w,
+                                                          lan=lan, npt=self.npt)
         else:
-            self._coeffs = solve_xyz_o5s(self._points, p, a, i, e, w, self.npt, lan)
+            self._coeffs = solve_xyz_o5s(self._points, p, a, i, e, w, lan=lan, npt=self.npt)
 
     def mean_anomaly(self):
         """Mean anomaly at every bound time, wrapped into :math:`[0, 2\\pi)`.

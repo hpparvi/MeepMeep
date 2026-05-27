@@ -335,7 +335,7 @@ evaluate at an array of times:
    knot_times, points, pktable, dt = create_knots(npt, e, quantity='ea')
 
    # Pre-compute Taylor coefficients at every knot
-   coeffs = solve3d_orbit(knot_times, p, a, i, e, w, npt)
+   coeffs = solve3d_orbit(knot_times, p, a, i, e, w, npt=npt)
 
    # Evaluate the orbit at a grid of times
    times = np.linspace(0.0, p, 2001)
