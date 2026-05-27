@@ -40,10 +40,10 @@ For the 2D surface see :mod:`meepmeep.numba2d`.
 
 # --- 3D single-knot Taylor primitives ---------------------------------
 from .backends.numba.taylor.position3d import (
-    pos_c, pos, sep_c, sep, pos_and_sep_c, pos_and_sep, pz_c, pz,
+    pos_c, pos, sep_c, sep, pos_and_sep_c, pos_and_sep, zpos_c, zpos,
 )
 from .backends.numba.taylor.position3dd import (
-    pos_cd, pos_d, sep_cd, sep_d, pz_cd, pz_d,
+    pos_cd, pos_d, sep_cd, sep_d, zpos_cd, zpos_d,
 )
 from .backends.numba.taylor.velocity3d import (
     vel_c, zvel_c, zvel, rv_c, rv,
@@ -108,10 +108,6 @@ __all__ = [
     "pos_d",
     "pos_o",
     "pos_od",
-    "pz",
-    "pz_c",
-    "pz_cd",
-    "pz_d",
     "rv",
     "rv_c",
     "rv_cd",
@@ -142,6 +138,10 @@ __all__ = [
     "vel_cd",
     "vel_o",
     "vel_od",
+    "zpos",
+    "zpos_c",
+    "zpos_cd",
+    "zpos_d",
     "zpos_o",
     "zpos_od",
     "zvel",

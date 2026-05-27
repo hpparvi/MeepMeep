@@ -382,7 +382,7 @@ Z-coordinate
 The line-of-sight coordinate :math:`z` is just the third row of the
 position polynomial, so its gradient is the polynomial in
 ``dc[k, 2, :]``. See
-:func:`~meepmeep.backends.numba.taylor.position3dd.pz_cd`.
+:func:`~meepmeep.backends.numba.taylor.position3dd.zpos_cd`.
 
 
 Line-of-sight velocity

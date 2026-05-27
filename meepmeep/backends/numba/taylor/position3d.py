@@ -170,7 +170,7 @@ def sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArr
     d : float or NDArray
         Sky-projected planet-star separation in units of stellar radii.
         Always non-negative; the sign of the line-of-sight depth
-        (transit vs. eclipse) is not encoded here. Use `pz` or `pz_c`
+        (transit vs. eclipse) is not encoded here. Use `zpos` or `zpos_c`
         if the transit/eclipse branch is needed.
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
@@ -251,11 +251,11 @@ def pos_and_sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple
 
 
 @njit(fastmath=True, inline='always')
-def pz_c(time: float | NDArray, c: NDArray) -> float | NDArray:
+def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     """
     Evaluate the planet's line-of-sight z position at a knot-centered time.
 
-    Centered counterpart of `pz`: evaluates only the z-direction Taylor
+    Centered counterpart of `zpos`: evaluates only the z-direction Taylor
     polynomial (row 2 of `c`), skipping the x and y rows. This is the
     cheapest 3D evaluator in the module and is the right choice when
     only the transit/eclipse branch is needed (e.g. to discriminate
@@ -279,12 +279,12 @@ def pz_c(time: float | NDArray, c: NDArray) -> float | NDArray:
 
 
 @njit(fastmath=True, inline='always')
-def pz(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArray:
+def zpos(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArray:
     """
     Evaluate the planet's line-of-sight z position at an absolute time.
 
     Folds the absolute observation time back to a knot-centered offset
-    and delegates to `pz_c`.
+    and delegates to `zpos_c`.
 
     Parameters
     ----------
@@ -306,4 +306,4 @@ def pz(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArra
         (negative z) branches of the orbit.
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
-    return pz_c(time - (t0 + epoch * p), c)
+    return zpos_c(time - (t0 + epoch * p), c)

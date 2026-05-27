@@ -20,7 +20,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..position3dd import pz_cd
+from ..position3dd import zpos_cd
 from ._common import _is_1d_array
 
 
@@ -48,7 +48,7 @@ def _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    return pz_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+    return zpos_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
 
 
 @njit(fastmath=True)

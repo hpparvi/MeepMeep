@@ -26,7 +26,7 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Centered companion to `position2d.pos_c` that additionally returns the
     partial derivatives of the sky-plane position with respect to each of
-    the six orbital parameters. Both the position polynomial and the six
+    the seven orbital parameters. Both the position polynomial and the seven
     derivative polynomials are evaluated using Horner's scheme on the same
     centered time `time`.
 
@@ -39,9 +39,9 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         spatial dimensions (x, y) and columns the Taylor order from
         position through snap (pre-scaled by the factorial of the order).
     dc : NDArray
-        A (6, 2, 5) tensor of parameter-derivative coefficients produced
-        by `solve2d_d`. The leading axis enumerates the six Keplerian
-        parameters in the canonical order `(t0, p, a, i, e, w)`; the
+        A (7, 2, 5) tensor of parameter-derivative coefficients produced
+        by `solve2d_d`. The leading axis enumerates the seven Keplerian
+        parameters in the canonical order `(t0, p, a, i, e, w, lan)`; the
         remaining axes mirror the layout of `c`.
 
     Returns
@@ -51,19 +51,19 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     py : float
         Sky-plane y position in units of stellar radii.
     dpx : NDArray
-        Shape (6,) array of partial derivatives of `px` with respect to
-        `(t0, p, a, i, e, w)`, in that order.
+        Shape (7,) array of partial derivatives of `px` with respect to
+        `(t0, p, a, i, e, w, lan)`, in that order.
     dpy : NDArray
-        Shape (6,) array of partial derivatives of `py` with respect to
-        the same six parameters.
+        Shape (7,) array of partial derivatives of `py` with respect to
+        the same seven parameters.
 
     """
     px = c[0, 0] + time * (c[0, 1] + time * (c[0, 2] + time * (c[0, 3] + time * c[0, 4])))
     py = c[1, 0] + time * (c[1, 1] + time * (c[1, 2] + time * (c[1, 3] + time * c[1, 4])))
 
-    dpx = zeros(6)
-    dpy = zeros(6)
-    for k in range(6):
+    dpx = zeros(7)
+    dpy = zeros(7)
+    for k in range(7):
         dpx[k] = dc[k, 0, 0] + time * (dc[k, 0, 1] + time * (dc[k, 0, 2] + time * (dc[k, 0, 3] + time * dc[k, 0, 4])))
         dpy[k] = dc[k, 1, 0] + time * (dc[k, 1, 1] + time * (dc[k, 1, 2] + time * (dc[k, 1, 3] + time * dc[k, 1, 4])))
 
@@ -90,8 +90,8 @@ def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     c : NDArray
         A (2, 5) Taylor coefficient matrix produced by `solve2d`.
     dc : NDArray
-        A (6, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w)`.
+        A (7, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
+        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
 
     Returns
     -------
@@ -100,9 +100,9 @@ def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     py : float
         Sky-plane y position in units of stellar radii.
     dpx : NDArray
-        Shape (6,) partial derivatives of `px` w.r.t. `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `px` w.r.t. `(t0, p, a, i, e, w, lan)`.
     dpy : NDArray
-        Shape (6,) partial derivatives of `py` w.r.t. `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `py` w.r.t. `(t0, p, a, i, e, w, lan)`.
 
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
@@ -125,16 +125,16 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     c : NDArray
         A (2, 5) Taylor coefficient matrix produced by `solve2d`.
     dc : NDArray
-        A (6, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w)`.
+        A (7, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
+        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
 
     Returns
     -------
     d : float
         Projected planet-star center distance in units of stellar radii.
     dd : NDArray
-        Shape (6,) partial derivatives of `d` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `d` with respect to
+        `(t0, p, a, i, e, w, lan)`.
 
     Notes
     -----
@@ -146,8 +146,8 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
     px, py, dpx, dpy = pos_cd(time, c, dc)
     d = sqrt(px ** 2 + py ** 2)
-    dd = zeros(6)
-    for k in range(6):
+    dd = zeros(7)
+    for k in range(7):
         dd[k] = (px * dpx[k] + py * dpy[k]) / d
     return d, dd
 
@@ -171,16 +171,16 @@ def sep_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     c : NDArray
         A (2, 5) Taylor coefficient matrix produced by `solve2d`.
     dc : NDArray
-        A (6, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w)`.
+        A (7, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
+        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
 
     Returns
     -------
     d : float
         Projected planet-star center distance in units of stellar radii.
     dd : NDArray
-        Shape (6,) partial derivatives of `d` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `d` with respect to
+        `(t0, p, a, i, e, w, lan)`.
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
     return sep_cd(time - (t0 + epoch * p), c, dc)

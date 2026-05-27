@@ -23,7 +23,7 @@ delegating to the single-knot evaluators in ``position3d``/``velocity3d``.
 
 Coefficient layout: ``coeffs`` is an ``(npt, 3, 5)`` array as produced by
 ``solve3d_orbit`` — ``coeffs[ix]`` is the ``(3, 5)`` matrix consumed by
-``pos_c``, ``vel_c``, ``zvel_c``, ``sep_c``, and ``pz_c``.
+``pos_c``, ``vel_c``, ``zvel_c``, ``sep_c``, and ``zpos_c``.
 
 Each physical quantity lives in its own module, holding that quantity's
 scalar kernel (``_X_os``), vector kernel (``_X_ov``), public dispatcher

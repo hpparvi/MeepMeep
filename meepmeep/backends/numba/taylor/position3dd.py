@@ -215,11 +215,11 @@ def sep_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
 
 
 @njit(fastmath=True)
-def pz_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
     """
     Evaluate the line-of-sight z position and its parameter derivatives at a knot-centered time.
 
-    Centered companion to `position3d.pz_c` that additionally returns
+    Centered companion to `position3d.zpos_c` that additionally returns
     the partial derivatives of the line-of-sight coordinate with
     respect to each of the seven orbital parameters. Only the z-direction
     polynomials are evaluated; the x and y rows of `c` and `dc` are not
@@ -254,12 +254,12 @@ def pz_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArr
 
 
 @njit(fastmath=True)
-def pz_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+def zpos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
     """
     Evaluate the line-of-sight z position and its parameter derivatives at an absolute time.
 
-    Direct counterpart of `pz_cd`: epoch-folds the absolute time `time`
-    around the expansion point `t0` and delegates to `pz_cd`.
+    Direct counterpart of `zpos_cd`: epoch-folds the absolute time `time`
+    around the expansion point `t0` and delegates to `zpos_cd`.
 
     Parameters
     ----------
@@ -287,4 +287,4 @@ def pz_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) ->
         `(t0, p, a, i, e, w, lan)`.
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
-    return pz_cd(time - (t0 + epoch * p), c, dc)
+    return zpos_cd(time - (t0 + epoch * p), c, dc)

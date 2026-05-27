@@ -107,8 +107,8 @@ meepmeep/
     │       ├── solve2d.py       # 2D Taylor coefficient computation (solve2d)
     │       ├── solve2dd.py      # 2D derivative coefficient computation (solve2d_d)
     │       ├── util2d.py        # 2D utilities (contact points, bounding box)
-    │       ├── position3d.py    # 3D position evaluation (pos, sep, pos_and_sep, pz)
-    │       ├── position3dd.py   # 3D position parameter derivatives (pos_d, sep_d, pz_d)
+    │       ├── position3d.py    # 3D position evaluation (pos, sep, pos_and_sep, zpos)
+    │       ├── position3dd.py   # 3D position parameter derivatives (pos_d, sep_d, zpos_d)
     │       ├── solve3d.py       # 3D Taylor coefficient computation (solve3d)
     │       ├── solve3dd.py      # 3D derivative coefficient computation (solve3d_d)
     │       ├── velocity3d.py    # 3D velocity evaluation (vel_c, zvel, rv)
@@ -226,7 +226,7 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `pos_c`, `pos`: position (centered, direct)
   - `sep_c`, `sep`: sky-projected separation
   - `pos_and_sep_c`, `pos_and_sep`: position and projected separation, returned jointly
-  - `pz_c`, `pz`: line-of-sight (z) coordinate only
+  - `zpos_c`, `zpos`: line-of-sight (z) coordinate only
   - `vel_c`: velocity vector (centered)
   - `zvel_c`, `zvel`: line-of-sight velocity component
   - `rv_c`, `rv`: radial velocity

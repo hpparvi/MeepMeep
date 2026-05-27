@@ -176,7 +176,7 @@ variants and the choice belongs entirely in this single-knot mode:
   :func:`~meepmeep.backends.numba.taylor.position2d.pos_and_sep_c`,
   :func:`~meepmeep.backends.numba.taylor.position3d.pos_c`,
   :func:`~meepmeep.backends.numba.taylor.position3d.sep_c`,
-  :func:`~meepmeep.backends.numba.taylor.position3d.pz_c`.
+  :func:`~meepmeep.backends.numba.taylor.position3d.zpos_c`.
 
 * **Direct** variants (no ``c`` suffix) accept an absolute time
   together with ``t0`` and ``p`` and epoch-fold internally via
@@ -187,7 +187,7 @@ variants and the choice belongs entirely in this single-knot mode:
   :func:`~meepmeep.backends.numba.taylor.position2d.sep`,
   :func:`~meepmeep.backends.numba.taylor.position3d.pos`,
   :func:`~meepmeep.backends.numba.taylor.position3d.sep`,
-  :func:`~meepmeep.backends.numba.taylor.position3d.pz`.
+  :func:`~meepmeep.backends.numba.taylor.position3d.zpos`.
 
 **Geometric helpers.** The
 :mod:`~meepmeep.backends.numba.taylor.util2d` and
@@ -239,7 +239,7 @@ them to the matching centered-with-derivatives evaluators
 :func:`~meepmeep.backends.numba.taylor.position2dd.sep_cd`,
 :func:`~meepmeep.backends.numba.taylor.position3dd.pos_cd`,
 :func:`~meepmeep.backends.numba.taylor.position3dd.sep_cd`,
-:func:`~meepmeep.backends.numba.taylor.position3dd.pz_cd`, and so on).
+:func:`~meepmeep.backends.numba.taylor.position3dd.zpos_cd`, and so on).
 See :ref:`taylor_derivatives` for the gradient conventions.
 
 

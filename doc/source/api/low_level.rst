@@ -100,8 +100,8 @@ in :ref:`api.lowlevel.orbit_dispatchers`.
    sep_c
    pos_and_sep
    pos_and_sep_c
-   pz
-   pz_c
+   zpos
+   zpos_c
 
 Parameter-derivative variants:
 
@@ -114,8 +114,8 @@ Parameter-derivative variants:
    pos_cd
    sep_d
    sep_cd
-   pz_d
-   pz_cd
+   zpos_d
+   zpos_cd
 
 
 Velocities

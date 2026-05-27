@@ -23,13 +23,13 @@ from ..utils import mean_anomaly_at_transit, TWO_PI
 
 
 @njit(fastmath=True)
-def solve3d(phase: float, p: float, a: float, i: float, e: float, w: float, lan: float = 0.0) -> NDArray:
-    """ Calculate the Taylor expansion for the (x, y, z) position around a given phase angle.
+def solve3d(t: float, p: float, a: float, i: float, e: float, w: float, lan: float = 0.0) -> NDArray:
+    """ Calculate the Taylor expansion for the (x, y, z) position around a given time relative to the transit center.
 
     Parameters
     ----------
-    phase : float
-        Phase angle (time) for the Taylor series expansion [days].
+    t : float
+        Time for the Taylor series expansion [days], t=0 for the transit center.
     p : float
         Orbital period [days].
     a : float
@@ -67,7 +67,7 @@ def solve3d(phase: float, p: float, a: float, i: float, e: float, w: float, lan:
     # 1. Calculate Mean Anomaly and Eccentric Anomaly
     # -----------------------------------------------
     offset = mean_anomaly_at_transit(e, w)
-    ma = (TWO_PI * (phase - (-offset * p / TWO_PI)) / p) % TWO_PI
+    ma = (TWO_PI * (t - (-offset * p / TWO_PI)) / p) % TWO_PI
 
     ea = ea_from_ma(ma, e)
     sea = sin(ea)

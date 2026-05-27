@@ -24,7 +24,7 @@ Stem              Quantity
 ``pos``           Position (vector of coordinates).
 ``sep``           Sky-projected planet-star separation, :math:`\sqrt{x^2+y^2}`.
 ``pos_and_sep``   Position and projected separation, returned jointly.
-``pz``            Line-of-sight (:math:`z`) coordinate only.
+``zpos``          Line-of-sight (:math:`z`) coordinate only.
 ``vel``           Velocity vector (3D modules only).
 ``zvel``          Line-of-sight velocity component.
 ``rv``            Radial velocity (line-of-sight velocity, scaled).
@@ -44,7 +44,7 @@ The spatial dimensionality of an evaluator is encoded by the module name
 (``position2d`` vs ``position3d``, ``util2d`` vs ``util3d``) rather than
 by the function name. Both ``meepmeep.backends.numba.taylor.position2d``
 and ``meepmeep.backends.numba.taylor.position3d`` therefore expose a
-function called ``pos``; the 3D module additionally exposes ``pz``,
+function called ``pos``; the 3D module additionally exposes ``zpos``,
 ``pos_and_sep``, etc.
 
 The 2D evaluators are roughly 30 percent cheaper per call and are

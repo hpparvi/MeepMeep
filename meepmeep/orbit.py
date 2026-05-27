@@ -49,7 +49,7 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 from .backends.numba.knots import create_knots
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
 from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector
-from .backends.numba.taylor.orbit3d import (solve3d_orbit as solve_xyz_o5s, pos_o, cos_alpha_o, vel_o,
+from .backends.numba.taylor.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
                                             true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
                                             lambert_phase_curve_o, lambert_and_emission_o, light_travel_time_o, )
 from .backends.numba.taylor.orbit3dd import (solve3d_orbit_d, pos_od, cos_alpha_od, vel_od, true_anomaly_od, rv_od,
@@ -256,7 +256,7 @@ class Orbit:
             self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w,
                                                           lan=lan, npt=self.npt)
         else:
-            self._coeffs = solve_xyz_o5s(self._points, p, a, i, e, w, lan=lan, npt=self.npt)
+            self._coeffs = solve3d_orbit(self._points, p, a, i, e, w, lan=lan, npt=self.npt)
 
     def mean_anomaly(self):
         """Mean anomaly at every bound time, wrapped into :math:`[0, 2\\pi)`.
