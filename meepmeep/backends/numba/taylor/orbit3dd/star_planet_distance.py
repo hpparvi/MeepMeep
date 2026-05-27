@@ -44,14 +44,14 @@ def _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     r : float
         3D star-planet distance [stellar radii].
-    dr : ndarray, shape (6,)
+    dr : ndarray, shape (7,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
     x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     r = sqrt(x * x + y * y + z * z)
     inv_r = 1.0 / r
-    dr = zeros(6)
-    for k in range(6):
+    dr = zeros(7)
+    for k in range(7):
         dr[k] = (x * dx[k] + y * dy[k] + z * dz[k]) * inv_r
     return r, dr
 
@@ -75,18 +75,18 @@ def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeff
     -------
     rs : ndarray, shape (N,)
         3D star-planet separations per time.
-    drs : ndarray, shape (N, 6)
+    drs : ndarray, shape (N, 7)
         Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
     """
     n = times.size
     rs = zeros(n)
-    drs = zeros((n, 6))
+    drs = zeros((n, 7))
     for j in range(n):
         x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         r = sqrt(x * x + y * y + z * z)
         rs[j] = r
         inv_r = 1.0 / r
-        for k in range(6):
+        for k in range(7):
             drs[j, k] = (x * dx[k] + y * dy[k] + z * dz[k]) * inv_r
     return rs, drs
 

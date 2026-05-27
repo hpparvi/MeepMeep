@@ -29,8 +29,8 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     5th-order position polynomials, yielding 4th-order polynomials in
     `time` that are evaluated using Horner's scheme. The same
     differentiation is applied to the parameter-derivative
-    coefficients so the result is the velocity together with its six
-    partial derivatives with respect to `(t0, p, a, i, e, w)`.
+    coefficients so the result is the velocity together with its seven
+    partial derivatives with respect to `(t0, p, a, i, e, w, lan)`.
 
     Parameters
     ----------
@@ -42,9 +42,9 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         from position through snap (pre-scaled by the factorial of the
         order).
     dc : NDArray
-        A (6, 3, 5) tensor of parameter-derivative coefficients
-        produced by `solve3d_d`. The leading axis enumerates the six
-        Keplerian parameters in the canonical order `(t0, p, a, i, e, w)`;
+        A (7, 3, 5) tensor of parameter-derivative coefficients
+        produced by `solve3d_d`. The leading axis enumerates the seven
+        Keplerian parameters in the canonical order `(t0, p, a, i, e, w, lan)`;
         the remaining axes mirror the layout of `c`.
 
     Returns
@@ -57,11 +57,11 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer.
     dvx : NDArray
-        Shape (6,) partial derivatives of `vx` w.r.t. `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `vx` w.r.t. `(t0, p, a, i, e, w, lan)`.
     dvy : NDArray
-        Shape (6,) partial derivatives of `vy` w.r.t. `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `vy` w.r.t. `(t0, p, a, i, e, w, lan)`.
     dvz : NDArray
-        Shape (6,) partial derivatives of `vz` w.r.t. `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `vz` w.r.t. `(t0, p, a, i, e, w, lan)`.
 
     Notes
     -----
@@ -76,10 +76,10 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     vy = c[1, 1] + time * (2.0 * c[1, 2] + time * (3.0 * c[1, 3] + time * 4.0 * c[1, 4]))
     vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
 
-    dvx = zeros(6)
-    dvy = zeros(6)
-    dvz = zeros(6)
-    for k in range(6):
+    dvx = zeros(7)
+    dvy = zeros(7)
+    dvz = zeros(7)
+    for k in range(7):
         dvx[k] = dc[k, 0, 1] + time * (2.0 * dc[k, 0, 2] + time * (3.0 * dc[k, 0, 3] + time * 4.0 * dc[k, 0, 4]))
         dvy[k] = dc[k, 1, 1] + time * (2.0 * dc[k, 1, 2] + time * (3.0 * dc[k, 1, 3] + time * 4.0 * dc[k, 1, 4]))
         dvz[k] = dc[k, 2, 1] + time * (2.0 * dc[k, 2, 2] + time * (3.0 * dc[k, 2, 3] + time * 4.0 * dc[k, 2, 4]))
@@ -94,7 +94,7 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
 
     Centered companion to `velocity3d.zvel_c` that additionally
     returns the partial derivatives of the line-of-sight velocity
-    with respect to each of the six orbital parameters. Only the
+    with respect to each of the seven orbital parameters. Only the
     z-direction polynomials are evaluated; the x and y rows of `c`
     and `dc` are not read.
 
@@ -106,9 +106,9 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
         A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
         (the z-direction coefficients) is read.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by
+        A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`, with the leading axis ordered as
-        `(t0, p, a, i, e, w)`. Only the slice `dc[:, 2, :]` is read.
+        `(t0, p, a, i, e, w, lan)`. Only the slice `dc[:, 2, :]` is read.
 
     Returns
     -------
@@ -116,12 +116,12 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer.
     dvz : NDArray
-        Shape (6,) partial derivatives of `vz` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `vz` with respect to
+        `(t0, p, a, i, e, w, lan)`.
     """
     vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
-    dvz = zeros(6)
-    for k in range(6):
+    dvz = zeros(7)
+    for k in range(7):
         dvz[k] = dc[k, 2, 1] + time * (2.0 * dc[k, 2, 2] + time * (3.0 * dc[k, 2, 3] + time * 4.0 * dc[k, 2, 4]))
     return vz, dvz
 
@@ -147,7 +147,7 @@ def zvel_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) 
         A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
         is read.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by
+        A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`. Only the slice `dc[:, 2, :]` is read.
 
     Returns
@@ -156,8 +156,8 @@ def zvel_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) 
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer.
     dvz : NDArray
-        Shape (6,) partial derivatives of `vz` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `vz` with respect to
+        `(t0, p, a, i, e, w, lan)`.
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
     return zvel_cd(time - (t0 + epoch * p), c, dc)
@@ -172,7 +172,7 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
     Converts the planet's centered line-of-sight velocity into the
     physical radial velocity of the host star, scaled by the
     semi-amplitude `k`, following Perryman (2018) Eq. 2.23. The same
-    chain rule is propagated to give the six partial derivatives of
+    chain rule is propagated to give the seven partial derivatives of
     the radial velocity with respect to the orbital parameters.
 
     Parameters
@@ -195,9 +195,9 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
         A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
         is read by the inner `zvel_cd`.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by
+        A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`, with the leading axis ordered as
-        `(t0, p, a, i, e, w)`.
+        `(t0, p, a, i, e, w, lan)`.
 
     Returns
     -------
@@ -205,8 +205,8 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
         Stellar radial velocity in the same units as `k`. Positive
         when the planet is moving toward the observer.
     drv : NDArray
-        Shape (6,) partial derivatives of `rv` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `rv` with respect to
+        `(t0, p, a, i, e, w, lan)`.
 
     Notes
     -----
@@ -224,15 +224,15 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
     vz, dvz = zvel_cd(time, c, dc)
     rv_val = s * vz
 
-    # ds/dtheta for each parameter: t0, p, a, i, e, w
-    drv = zeros(6)
-    ds = zeros(6)
+    # ds/dtheta for each parameter: t0, p, a, i, e, w, lan
+    drv = zeros(7)
+    ds = zeros(7)
     ds[1] = s / p       # ds/dp
     ds[2] = -s / a      # ds/da
     ds[3] = -s * cos(i) / sin(i)  # ds/di
     ds[4] = -s * e / (1.0 - e ** 2)  # ds/de
 
-    for j in range(6):
+    for j in range(7):
         drv[j] = s * dvz[j] + vz * ds[j]
 
     return rv_val, drv
@@ -268,7 +268,7 @@ def rv_d(time: float | NDArray, k: float, t0: float, p: float, a: float, i: floa
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by
+        A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`.
 
     Returns
@@ -276,8 +276,8 @@ def rv_d(time: float | NDArray, k: float, t0: float, p: float, a: float, i: floa
     rv : float or NDArray
         Stellar radial velocity in the same units as `k`.
     drv : NDArray
-        Shape (6,) partial derivatives of `rv` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `rv` with respect to
+        `(t0, p, a, i, e, w, lan)`.
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
     return rv_cd(time - (t0 + epoch * p), k, p, a, i, e, c, dc)

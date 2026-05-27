@@ -64,10 +64,10 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dco
     -------
     f : float
         True anomaly [radians], in :math:`[0, 2\\pi)`.
-    df : ndarray, shape (6,)
+    df : ndarray, shape (7,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
-    df = zeros(6)
+    df = zeros(7)
     nes = ex * ex + ey * ey + ez * ez
 
     if ex <= -0.9999 and nes > 0.99:
@@ -105,7 +105,7 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dco
     f = base if sign > 0.0 else 2.0 * pi - base
     denom = sqrt(1.0 - edp * edp)
     xdote = x * ex + y * ey + z * ez
-    for k in range(6):
+    for k in range(7):
         dxdote = dx[k] * ex + dy[k] * ey + dz[k] * ez
         xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
         dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
@@ -147,7 +147,7 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
     -------
     f : ndarray, shape (N,)
         True anomaly per time [radians], in :math:`[0, 2\\pi)`.
-    df : ndarray, shape (N, 6)
+    df : ndarray, shape (N, 7)
         Gradient w.r.t. ``(phase, p, a, i, e, w)`` per time. The
         ``ex, ey, ez, w`` inputs are treated as known constants — they
         are functions of the orbital parameters but the dependency is
@@ -163,7 +163,7 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
     """
     n = times.size
     f = zeros(n)
-    df = zeros((n, 6))
+    df = zeros((n, 7))
     nes = ex * ex + ey * ey + ez * ez
 
     # Circular-orbit fast path: f = 2π·(t - tpa) / p.
@@ -214,7 +214,7 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
             # d(arccos(edp))/dθ = -dedp/sqrt(1 - edp^2)
             denom = sqrt(1.0 - edp * edp)
             inv_r2 = 1.0 / r2
-            for k in range(6):
+            for k in range(7):
                 # edp = (x·e)/(r·|e|). Treat |e| (and ex,ey,ez) as constants
                 # for this routine — they're inputs. d(edp)/dθ_k
                 # = (dx·e)/(r·|e|) - (x·e)·(x·dx)/(r^3·|e|)

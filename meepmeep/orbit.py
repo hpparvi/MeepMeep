@@ -31,8 +31,10 @@ either ``tc`` (transit center, the time of inferior conjunction) or ``tp``
 (time of periastron passage); :meth:`Orbit.set_pars` accepts either and
 stores both internally. The remaining elements are ``p`` (orbital period
 in days), ``a`` (scaled semi-major axis :math:`a/R_\\star`), ``i``
-(inclination in radians), ``e`` (eccentricity), and ``w`` (argument of
-periastron in radians). Internally the Taylor backend anchors its knot
+(inclination in radians), ``e`` (eccentricity), ``w`` (argument of
+periastron in radians), and the optional ``lan`` (longitude of the
+ascending node in radians, a sky-plane rotation about the line of sight;
+defaults to 0). Internally the Taylor backend anchors its knot
 grid at periastron, so :meth:`Orbit.set_pars` converts once and stores
 the periastron-anchor time as ``self._tp`` and the transit-center time
 as ``self._tc``.
@@ -65,7 +67,7 @@ class Orbit:
     phase angle, radial velocity, reflected-light and thermal phase
     curves, ellipsoidal variation, light travel time. Construct with
     ``derivatives=True`` to additionally receive the analytic gradient of
-    each quantity w.r.t. the six orbital parameters (and any
+    each quantity w.r.t. the seven orbital parameters (and any
     method-specific extras such as ``k`` or ``ag``), which is what a
     gradient-based optimiser or HMC sampler wants.
 
@@ -89,7 +91,7 @@ class Orbit:
     derivatives : bool
         If ``True``, every evaluator method also returns parameter
         derivatives in addition to its value(s). The derivative ordering is
-        ``(phase, p, a, i, e, w)`` followed by per-method physical extras
+        ``(phase, p, a, i, e, w, lan)`` followed by per-method physical extras
         (e.g. ``k`` for :meth:`radial_velocity`; ``ag, k`` for
         :meth:`lambert_phase_curve`; ``alpha, mass_ratio, inc`` for
         :meth:`ellipsoidal_variation`; see the underlying ``*_od`` routines
@@ -99,10 +101,10 @@ class Orbit:
         With ``derivatives=True``, multi-coordinate returns are extended
         with derivative arrays (e.g. :meth:`xyz` returns
         ``(xs, ys, zs, dxs, dys, dzs)`` with each ``d*s`` of shape
-        ``(N, 6)``); single-value returns become ``(value, dvalue)``.
+        ``(N, 7)``); single-value returns become ``(value, dvalue)``.
 
         ``rstar`` derivatives for :meth:`light_travel_time` are *not*
-        returned (per package spec); only the 6 orbital derivatives.
+        returned (per package spec); only the seven orbital derivatives.
 
     Attributes
     ----------
@@ -122,7 +124,7 @@ class Orbit:
         ``tc`` otherwise).
     _coeffs : ndarray, shape (npt, 3, 5)
         Taylor coefficient matrices at every knot, built in :meth:`set_pars`.
-    _dcoeffs : ndarray, shape (npt, 6, 3, 5) or None
+    _dcoeffs : ndarray, shape (npt, 7, 3, 5) or None
         Parameter-derivative coefficient tensors at every knot. ``None``
         unless the instance was constructed with ``derivatives=True``.
     _points : ndarray, shape (npt,)
@@ -162,6 +164,7 @@ class Orbit:
         self._i: Optional[float] = None
         self._e: Optional[float] = None
         self._w: Optional[float] = None
+        self._lan: Optional[float] = None
         self._derivatives: bool = derivatives
 
         self._points, self._change_times, self._dt, self._tptable = create_knots(npt, 0.2, knot_placement)
@@ -182,7 +185,7 @@ class Orbit:
         """
         self.times = times
 
-    def set_pars(self, *, tc=None, tp=None, p, a, i, e, w):
+    def set_pars(self, *, tc=None, tp=None, p, a, i, e, w, lan=0.0):
         """Bind orbital parameters and (re-)compute the per-knot Taylor coefficients.
 
         The time anchor is specified by exactly one of ``tc`` (transit
@@ -212,6 +215,12 @@ class Orbit:
             Eccentricity, :math:`0 \\le e < 1`.
         w : float
             Argument of periastron [radians].
+        lan : float, optional
+            Longitude of the ascending node [radians]. A constant rotation of
+            the sky-plane (x, y) coordinates about the line of sight; the
+            line-of-sight (z) coordinate is unaffected. Defaults to 0.0. In
+            derivative mode the gradient w.r.t. ``lan`` is returned as the
+            seventh orbital-parameter column.
 
         Raises
         ------
@@ -242,10 +251,11 @@ class Orbit:
         self._i = i
         self._e = e
         self._w = w
+        self._lan = lan
         if self._derivatives:
-            self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w, self.npt)
+            self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w, self.npt, lan)
         else:
-            self._coeffs = solve_xyz_o5s(self._points, p, a, i, e, w, self.npt)
+            self._coeffs = solve_xyz_o5s(self._points, p, a, i, e, w, self.npt, lan)
 
     def mean_anomaly(self):
         """Mean anomaly at every bound time, wrapped into :math:`[0, 2\\pi)`.
@@ -277,7 +287,7 @@ class Orbit:
         -------
         f : ndarray, shape (N,)
             True anomaly per time in radians, in :math:`[0, 2\\pi)`.
-        df : ndarray, shape (N, 6)
+        df : ndarray, shape (N, 7)
             Gradient w.r.t. ``(phase, p, a, i, e, w)``. Only returned when
             ``self._derivatives`` is ``True`` (and ``exact`` is ``False``).
 
@@ -314,7 +324,7 @@ class Orbit:
             Position components in units of the stellar radius. ``xs``,
             ``ys`` are the sky-plane coordinates; ``zs`` is the
             line-of-sight depth (positive toward the observer).
-        dxs, dys, dzs : ndarray, shape (N, 6)
+        dxs, dys, dzs : ndarray, shape (N, 7)
             Gradients w.r.t. ``(phase, p, a, i, e, w)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
@@ -346,7 +356,7 @@ class Orbit:
         -------
         vxs, vys, vzs : ndarray, shape (N,)
             Velocity components in :math:`R_\\star/\\mathrm{day}`.
-        dvxs, dvys, dvzs : ndarray, shape (N, 6)
+        dvxs, dvys, dvzs : ndarray, shape (N, 7)
             Gradients w.r.t. ``(phase, p, a, i, e, w)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
@@ -366,7 +376,7 @@ class Orbit:
         -------
         ca : ndarray, shape (N,)
             Cosine of the phase angle per time, in :math:`[-1, 1]`.
-        dca : ndarray, shape (N, 6)
+        dca : ndarray, shape (N, 7)
             Gradient w.r.t. ``(phase, p, a, i, e, w)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
@@ -399,7 +409,7 @@ class Orbit:
         ph : ndarray, shape (N,)
             Phase angle per time in radians, in :math:`[0, \\pi]`. Zero at
             superior conjunction, :math:`\\pi` at inferior conjunction.
-        dph : ndarray, shape (N, 6)
+        dph : ndarray, shape (N, 7)
             Gradient w.r.t. ``(phase, p, a, i, e, w)``. Only returned when
             ``self._derivatives`` is ``True``.
 
@@ -434,7 +444,7 @@ class Orbit:
         -------
         th : ndarray, shape (N,)
             Supplement angle per time in radians, in :math:`[0, \\pi]`.
-        dth : ndarray, shape (N, 6)
+        dth : ndarray, shape (N, 7)
             Gradient w.r.t. ``(phase, p, a, i, e, w)``. Only returned when
             ``self._derivatives`` is ``True``.
 
@@ -471,7 +481,7 @@ class Orbit:
         -------
         r : ndarray, shape (N,)
             3D star-planet separation per time, in stellar radii.
-        dr : ndarray, shape (N, 6)
+        dr : ndarray, shape (N, 7)
             Gradient w.r.t. ``(phase, p, a, i, e, w)``. Only returned when
             ``self._derivatives`` is ``True``.
         """
@@ -498,7 +508,7 @@ class Orbit:
         -------
         ltt : ndarray, shape (N,)
             Light travel time correction per time [days].
-        dltt : ndarray, shape (N, 6)
+        dltt : ndarray, shape (N, 7)
             Gradient w.r.t. ``(phase, p, a, i, e, w)``. Only returned when
             ``self._derivatives`` is ``True``. The derivative w.r.t.
             ``rstar`` is intentionally *not* returned (per package spec).
@@ -525,7 +535,7 @@ class Orbit:
         -------
         rvs : ndarray, shape (N,)
             Radial velocity per time [m s\\ :sup:`-1`].
-        drvs : ndarray, shape (N, 7)
+        drvs : ndarray, shape (N, 8)
             Gradient w.r.t. ``(phase, p, a, i, e, w, k)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
@@ -556,7 +566,7 @@ class Orbit:
         -------
         flux : ndarray, shape (N,)
             Reflected planet-to-star flux ratio per time.
-        dflux : ndarray, shape (N, 8)
+        dflux : ndarray, shape (N, 9)
             Gradient w.r.t. ``(phase, p, a, i, e, w, ag, k)``. Only
             returned when ``self._derivatives`` is ``True``.
         """
@@ -598,11 +608,11 @@ class Orbit:
             Reflected (Lambertian) flux ratio per time.
         emi : ndarray, shape (N,)
             Thermal-emission flux ratio per time.
-        dref : ndarray, shape (N, 11)
+        dref : ndarray, shape (N, 12)
             Gradient of ``ref`` w.r.t.
             ``(phase, p, a, i, e, w, ag, fr_night, fr_day, emi_offset, k)``.
             Only returned when ``self._derivatives`` is ``True``.
-        demi : ndarray, shape (N, 11)
+        demi : ndarray, shape (N, 12)
             Gradient of ``emi`` w.r.t. the same parameter block. Only
             returned when ``self._derivatives`` is ``True``.
         """
@@ -635,7 +645,7 @@ class Orbit:
         -------
         ev : ndarray, shape (N,)
             Relative flux variation due to ellipsoidal distortion.
-        dev : ndarray, shape (N, 9)
+        dev : ndarray, shape (N, 10)
             Gradient w.r.t.
             ``(phase, p, a, i, e, w, alpha, mass_ratio, inc)``. Only
             returned when ``self._derivatives`` is ``True``.

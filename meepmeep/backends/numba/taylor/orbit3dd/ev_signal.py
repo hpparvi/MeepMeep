@@ -29,7 +29,7 @@ def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeff
     """Ellipsoidal variation signal and derivatives at scalar time.
 
     Scalar counterpart of :func:`_ev_signal_ovd`. Derivative ordering:
-    ``(phase, p, a, i, e, w, alpha, mass_ratio, inc)`` — length 9.
+    ``(phase, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` — length 10.
 
     Parameters
     ----------
@@ -48,8 +48,8 @@ def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeff
     -------
     out : float
         Ellipsoidal variation signal.
-    dout : ndarray, shape (9,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, alpha, mass_ratio, inc)``.
+    dout : ndarray, shape (10,)
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan, alpha, mass_ratio, inc)``.
     """
     sin_inc = sin(inc)
     cos_inc = cos(inc)
@@ -65,16 +65,16 @@ def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeff
 
     d5 = d2 * d2 * d
     A = 2.0 * z * z - d2
-    dout = zeros(9)
-    for kk in range(6):
+    dout = zeros(10)
+    for kk in range(7):
         xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
         dd = xdotdx / d
         dA = -2.0 * (x * dx[kk] + y * dy[kk]) + 2.0 * z * dz[kk]
         dg = (dA - 5.0 * A * dd / d2) / d5
         dout[kk] = pre * dg
-    dout[6] = -mass_ratio * sin2_inc * g
-    dout[7] = -alpha * sin2_inc * g
-    dout[8] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
+    dout[7] = -mass_ratio * sin2_inc * g
+    dout[8] = -alpha * sin2_inc * g
+    dout[9] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
     return out, dout
 
 
@@ -89,8 +89,8 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
     inclination ``i`` — callers that share them should sum the two
     derivative slots.
 
-    Derivative ordering: ``(phase, p, a, i, e, w, alpha, mass_ratio, inc)`` —
-    length 9.
+    Derivative ordering: ``(phase, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` —
+    length 10.
 
     Parameters
     ----------
@@ -110,13 +110,13 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
     -------
     out : ndarray, shape (N,)
         Ellipsoidal variation signal per time.
-    dout : ndarray, shape (N, 9)
+    dout : ndarray, shape (N, 10)
         Gradient w.r.t.
-        ``(phase, p, a, i, e, w, alpha, mass_ratio, inc)`` per time.
+        ``(phase, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` per time.
     """
     n = times.size
     out = zeros(n)
-    dout = zeros((n, 9))
+    dout = zeros((n, 10))
     sin_inc = sin(inc)
     cos_inc = cos(inc)
     sin2_inc = sin_inc * sin_inc
@@ -141,19 +141,19 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
         #    = (dA - 5 A · dd / d^2) / d^5.
         d5 = d2 * d2 * d
         A = 2.0 * z * z - d2
-        for kk in range(6):
+        for kk in range(7):
             xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
             dd = xdotdx / d
             dA = -2.0 * (x * dx[kk] + y * dy[kk]) + 2.0 * z * dz[kk]
             dg = (dA - 5.0 * A * dd / d2) / d5
             dout[j, kk] = pre * dg
         # Extras (no orbital chain).
-        # alpha (6): dS/dalpha = -mass_ratio · sin2_inc · g
-        dout[j, 6] = -mass_ratio * sin2_inc * g
-        # mass_ratio (7): dS/dmr = -alpha · sin2_inc · g
-        dout[j, 7] = -alpha * sin2_inc * g
-        # inc (8): d(sin^2 inc)/dinc = 2 sin_inc · cos_inc
-        dout[j, 8] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
+        # alpha (7): dS/dalpha = -mass_ratio · sin2_inc · g
+        dout[j, 7] = -mass_ratio * sin2_inc * g
+        # mass_ratio (8): dS/dmr = -alpha · sin2_inc · g
+        dout[j, 8] = -alpha * sin2_inc * g
+        # inc (9): d(sin^2 inc)/dinc = 2 sin_inc · cos_inc
+        dout[j, 9] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
 
     return out, dout
 

@@ -29,7 +29,7 @@ def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Sky-projected planet-star separation and orbital-parameter derivatives at scalar time.
 
     Returns :math:`\\sqrt{x^2 + y^2}` together with its gradient w.r.t.
-    the six orbital parameters. The chain rule
+    the seven orbital parameters. The chain rule
     :math:`\\partial d/\\partial \\theta = (p_x \\partial p_x / \\partial \\theta + p_y \\partial p_y / \\partial \\theta)/d`
     is applied inside :func:`~meepmeep.backends.numba.taylor.position3dd.sep_cd`;
     this dispatcher just locates the knot.
@@ -45,7 +45,7 @@ def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     d : float
         Sky-projected separation [stellar radii].
-    dd : ndarray, shape (6,)
+    dd : ndarray, shape (7,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
     epoch = floor((t - tpa) / p)
@@ -69,16 +69,16 @@ def _sep_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     ds : ndarray, shape (N,)
         Sky-projected separations per time.
-    dds : ndarray, shape (N, 6)
+    dds : ndarray, shape (N, 7)
         Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
     """
     n = times.size
     ds = zeros(n)
-    dds = zeros((n, 6))
+    dds = zeros((n, 7))
     for j in range(n):
         d, dd = _sep_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         ds[j] = d
-        for k in range(6):
+        for k in range(7):
             dds[j, k] = dd[k]
     return ds, dds
 

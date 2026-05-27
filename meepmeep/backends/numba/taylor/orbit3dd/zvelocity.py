@@ -42,7 +42,7 @@ def _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     vz : float
         Line-of-sight velocity [:math:`R_\\star/\\mathrm{day}`].
-    dvz : ndarray, shape (6,)
+    dvz : ndarray, shape (7,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
     epoch = floor((t - tpa) / p)
@@ -66,16 +66,16 @@ def _zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     vzs : ndarray, shape (N,)
         Line-of-sight velocities per time.
-    dvzs : ndarray, shape (N, 6)
+    dvzs : ndarray, shape (N, 7)
         Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
     """
     n = times.size
     vzs = zeros(n)
-    dvzs = zeros((n, 6))
+    dvzs = zeros((n, 7))
     for j in range(n):
         vz, dvz = _zvel_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         vzs[j] = vz
-        for k in range(6):
+        for k in range(7):
             dvzs[j, k] = dvz[k]
     return vzs, dvzs
 

@@ -90,9 +90,9 @@ class TestPythonDispatch:
                         a["pkt"], a["pts"], a["c_d"], a["dc_d"])
         assert len(result) == 6  # x, y, z, dx, dy, dz
         # last three are derivative arrays of shape (6,)
-        assert result[3].shape == (6,)
-        assert result[4].shape == (6,)
-        assert result[5].shape == (6,)
+        assert result[3].shape == (7,)
+        assert result[4].shape == (7,)
+        assert result[5].shape == (7,)
 
     def test_pos_od_array_returns_per_time_gradients(self, orbit_args):
         a = orbit_args
@@ -101,7 +101,7 @@ class TestPythonDispatch:
         n = a["t_array"].size
         # x, y, z arrays shape (N,); dx, dy, dz shape (N, 6)
         assert result[0].shape == (n,)
-        assert result[3].shape == (n, 6)
+        assert result[3].shape == (n, 7)
 
 
 class TestNjitDispatch:

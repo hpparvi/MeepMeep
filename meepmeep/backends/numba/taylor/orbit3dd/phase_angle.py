@@ -51,17 +51,17 @@ def _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     ca : float
         Cosine of the phase angle.
-    dca : ndarray, shape (6,)
+    dca : ndarray, shape (7,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
     x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     r2 = x * x + y * y + z * z
     r = sqrt(r2)
     ca = -z / r
-    dca = zeros(6)
+    dca = zeros(7)
     inv_r = 1.0 / r
     inv_r3 = inv_r / r2
-    for k in range(6):
+    for k in range(7):
         # d(-z/r)/dθ = -dz/r + z·(x·dx + y·dy + z·dz)/r^3
         dca[k] = -dz[k] * inv_r + z * (x * dx[k] + y * dy[k] + z * dz[k]) * inv_r3
     return ca, dca
@@ -84,16 +84,16 @@ def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     cas : ndarray, shape (N,)
         Cosine of the phase angle per time.
-    dcas : ndarray, shape (N, 6)
+    dcas : ndarray, shape (N, 7)
         Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
     """
     n = times.size
     cas = zeros(n)
-    dcas = zeros((n, 6))
+    dcas = zeros((n, 7))
     for j in range(n):
         ca, dca = _cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         cas[j] = ca
-        for k in range(6):
+        for k in range(7):
             dcas[j, k] = dca[k]
     return cas, dcas
 

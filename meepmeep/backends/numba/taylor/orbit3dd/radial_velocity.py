@@ -29,7 +29,7 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     """Radial velocity and parameter derivatives at scalar time.
 
     Scalar counterpart of :func:`_rv_ovd`. Derivative ordering:
-    ``(phase, p, a, i, e, w, k)`` — length 7.
+    ``(phase, p, a, i, e, w, lan, k)`` — length 8.
 
     Parameters
     ----------
@@ -44,18 +44,18 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     -------
     rv : float
         Radial velocity [m s\\ :sup:`-1`].
-    drv : ndarray, shape (7,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, k)``.
+    drv : ndarray, shape (8,)
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan, k)``.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
     tcc = tc - points[ix] * p
     rv_val, drv_orb = rv_cd(tcc, k, p, a, i, e, coeffs[ix], dcoeffs[ix])
-    drv = zeros(7)
-    for kk in range(6):
+    drv = zeros(8)
+    for kk in range(7):
         drv[kk] = drv_orb[kk]
-    drv[6] = rv_val / k if k != 0.0 else 0.0
+    drv[7] = rv_val / k if k != 0.0 else 0.0
     return rv_val, drv
 
 
@@ -63,7 +63,7 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
 def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     """Radial velocity and parameter derivatives at array of times.
 
-    Derivative ordering: ``(phase, p, a, i, e, w, k)`` — length 7.
+    Derivative ordering: ``(phase, p, a, i, e, w, lan, k)`` — length 8.
 
     Parameters
     ----------
@@ -88,12 +88,12 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     -------
     rvs : ndarray, shape (N,)
         Radial velocities per time [m s\\ :sup:`-1`].
-    drvs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(phase, p, a, i, e, w, k)`` per time.
+    drvs : ndarray, shape (N, 8)
+        Gradients w.r.t. ``(phase, p, a, i, e, w, lan, k)`` per time.
     """
     n = times.size
     rvs = zeros(n)
-    drvs = zeros((n, 7))
+    drvs = zeros((n, 8))
     for j in range(n):
         t = times[j]
         epoch = floor((t - tpa) / p)
@@ -102,10 +102,10 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
         tcc = tc - points[ix] * p
         rv_val, drv_orb = rv_cd(tcc, k, p, a, i, e, coeffs[ix], dcoeffs[ix])
         rvs[j] = rv_val
-        for kk in range(6):
+        for kk in range(7):
             drvs[j, kk] = drv_orb[kk]
         # drv/dk = rv / k  (rv is linear in k via the scale factor s = k/n).
-        drvs[j, 6] = rv_val / k if k != 0.0 else 0.0
+        drvs[j, 7] = rv_val / k if k != 0.0 else 0.0
     return rvs, drvs
 
 

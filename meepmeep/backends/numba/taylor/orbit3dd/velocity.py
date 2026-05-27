@@ -39,7 +39,7 @@ def _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     vx, vy, vz : float
         Velocity components in :math:`R_\\star/\\mathrm{day}`.
-    dvx, dvy, dvz : ndarray, shape (6,)
+    dvx, dvy, dvz : ndarray, shape (7,)
         Gradients w.r.t. ``(phase, p, a, i, e, w)``.
     """
     epoch = floor((t - tpa) / p)
@@ -63,22 +63,22 @@ def _vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     vxs, vys, vzs : ndarray, shape (N,)
         Velocity components per time.
-    dvxs, dvys, dvzs : ndarray, shape (N, 6)
+    dvxs, dvys, dvzs : ndarray, shape (N, 7)
         Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
     """
     n = times.size
     vxs = zeros(n)
     vys = zeros(n)
     vzs = zeros(n)
-    dvxs = zeros((n, 6))
-    dvys = zeros((n, 6))
-    dvzs = zeros((n, 6))
+    dvxs = zeros((n, 7))
+    dvys = zeros((n, 7))
+    dvzs = zeros((n, 7))
     for j in range(n):
         vx, vy, vz, dvx, dvy, dvz = _vel_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         vxs[j] = vx
         vys[j] = vy
         vzs[j] = vz
-        for k in range(6):
+        for k in range(7):
             dvxs[j, k] = dvx[k]
             dvys[j, k] = dvy[k]
             dvzs[j, k] = dvz[k]

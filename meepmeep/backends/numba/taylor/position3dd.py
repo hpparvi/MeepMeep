@@ -26,7 +26,7 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Centered companion to `position3d.pos_c` that additionally returns
     the partial derivatives of the sky-frame position with respect to
-    each of the six orbital parameters. Both the position polynomials
+    each of the seven orbital parameters. Both the position polynomials
     and the eighteen derivative polynomials are evaluated using Horner's
     scheme on the same centered time `time`.
 
@@ -40,9 +40,9 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         from position through snap (pre-scaled by the factorial of the
         order).
     dc : NDArray
-        A (6, 3, 5) tensor of parameter-derivative coefficients produced
-        by `solve3d_d`. The leading axis enumerates the six Keplerian
-        parameters in the canonical order `(t0, p, a, i, e, w)`; the
+        A (7, 3, 5) tensor of parameter-derivative coefficients produced
+        by `solve3d_d`. The leading axis enumerates the seven Keplerian
+        parameters in the canonical order `(t0, p, a, i, e, w, lan)`; the
         remaining axes mirror the layout of `c`.
 
     Returns
@@ -55,24 +55,24 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         Line-of-sight z position in units of stellar radii. Positive
         values point toward the observer.
     dpx : NDArray
-        Shape (6,) array of partial derivatives of `px` with respect to
-        `(t0, p, a, i, e, w)`, in that order.
+        Shape (7,) array of partial derivatives of `px` with respect to
+        `(t0, p, a, i, e, w, lan)`, in that order.
     dpy : NDArray
-        Shape (6,) array of partial derivatives of `py` with respect to
-        the same six parameters.
+        Shape (7,) array of partial derivatives of `py` with respect to
+        the same seven parameters.
     dpz : NDArray
-        Shape (6,) array of partial derivatives of `pz` with respect to
-        the same six parameters.
+        Shape (7,) array of partial derivatives of `pz` with respect to
+        the same seven parameters.
 
     """
     px = c[0, 0] + time * (c[0, 1] + time * (c[0, 2] + time * (c[0, 3] + time * c[0, 4])))
     py = c[1, 0] + time * (c[1, 1] + time * (c[1, 2] + time * (c[1, 3] + time * c[1, 4])))
     pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
 
-    dpx = zeros(6)
-    dpy = zeros(6)
-    dpz = zeros(6)
-    for k in range(6):
+    dpx = zeros(7)
+    dpy = zeros(7)
+    dpz = zeros(7)
+    for k in range(7):
         dpx[k] = dc[k, 0, 0] + time * (dc[k, 0, 1] + time * (dc[k, 0, 2] + time * (dc[k, 0, 3] + time * dc[k, 0, 4])))
         dpy[k] = dc[k, 1, 0] + time * (dc[k, 1, 1] + time * (dc[k, 1, 2] + time * (dc[k, 1, 3] + time * dc[k, 1, 4])))
         dpz[k] = dc[k, 2, 0] + time * (dc[k, 2, 1] + time * (dc[k, 2, 2] + time * (dc[k, 2, 3] + time * dc[k, 2, 4])))
@@ -101,8 +101,8 @@ def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     c : NDArray
         A (3, 5) Taylor coefficient matrix produced by `solve3d`.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w)`.
+        A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
+        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
 
     Returns
     -------
@@ -114,11 +114,11 @@ def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
         Line-of-sight z position in units of stellar radii. Positive
         values point toward the observer.
     dpx : NDArray
-        Shape (6,) partial derivatives of `px` w.r.t. `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `px` w.r.t. `(t0, p, a, i, e, w, lan)`.
     dpy : NDArray
-        Shape (6,) partial derivatives of `py` w.r.t. `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `py` w.r.t. `(t0, p, a, i, e, w, lan)`.
     dpz : NDArray
-        Shape (6,) partial derivatives of `pz` w.r.t. `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `pz` w.r.t. `(t0, p, a, i, e, w, lan)`.
 
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
@@ -143,8 +143,8 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         A (3, 5) Taylor coefficient matrix produced by `solve3d`. Only
         rows 0 and 1 (x and y) are read.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w)`. Only
+        A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
+        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`. Only
         slices `dc[:, 0, :]` and `dc[:, 1, :]` are read.
 
     Returns
@@ -152,8 +152,8 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     d : float
         Sky-projected planet-star separation in units of stellar radii.
     dd : NDArray
-        Shape (6,) partial derivatives of `d` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `d` with respect to
+        `(t0, p, a, i, e, w, lan)`.
 
     Notes
     -----
@@ -165,15 +165,15 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Unlike the 2D analogue, which delegates to `pos_cd`, this routine
     inlines the px/py polynomial passes to avoid the seven wasted
-    Horner evaluations that computing `pz` and its six derivatives
+    Horner evaluations that computing `pz` and its seven derivatives
     would otherwise incur.
     """
     px = c[0, 0] + time * (c[0, 1] + time * (c[0, 2] + time * (c[0, 3] + time * c[0, 4])))
     py = c[1, 0] + time * (c[1, 1] + time * (c[1, 2] + time * (c[1, 3] + time * c[1, 4])))
     d = sqrt(px ** 2 + py ** 2)
 
-    dd = zeros(6)
-    for k in range(6):
+    dd = zeros(7)
+    for k in range(7):
         dpx = dc[k, 0, 0] + time * (dc[k, 0, 1] + time * (dc[k, 0, 2] + time * (dc[k, 0, 3] + time * dc[k, 0, 4])))
         dpy = dc[k, 1, 0] + time * (dc[k, 1, 1] + time * (dc[k, 1, 2] + time * (dc[k, 1, 3] + time * dc[k, 1, 4])))
         dd[k] = (px * dpx + py * dpy) / d
@@ -199,16 +199,16 @@ def sep_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     c : NDArray
         A (3, 5) Taylor coefficient matrix produced by `solve3d`.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w)`.
+        A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
+        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
 
     Returns
     -------
     d : float
         Sky-projected planet-star separation in units of stellar radii.
     dd : NDArray
-        Shape (6,) partial derivatives of `d` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `d` with respect to
+        `(t0, p, a, i, e, w, lan)`.
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
     return sep_cd(time - (t0 + epoch * p), c, dc)
@@ -221,7 +221,7 @@ def pz_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArr
 
     Centered companion to `position3d.pz_c` that additionally returns
     the partial derivatives of the line-of-sight coordinate with
-    respect to each of the six orbital parameters. Only the z-direction
+    respect to each of the seven orbital parameters. Only the z-direction
     polynomials are evaluated; the x and y rows of `c` and `dc` are not
     read.
 
@@ -233,8 +233,8 @@ def pz_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArr
         A (3, 5) Taylor coefficient matrix produced by `solve3d`. Only
         row 2 (the z-direction coefficients) is read.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w)`. Only
+        A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
+        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`. Only
         the slice `dc[:, 2, :]` is read.
 
     Returns
@@ -243,12 +243,12 @@ def pz_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArr
         Line-of-sight z position in units of stellar radii. Positive
         values point toward the observer.
     dpz : NDArray
-        Shape (6,) partial derivatives of `pz` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `pz` with respect to
+        `(t0, p, a, i, e, w, lan)`.
     """
     pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
-    dpz = zeros(6)
-    for k in range(6):
+    dpz = zeros(7)
+    for k in range(7):
         dpz[k] = dc[k, 2, 0] + time * (dc[k, 2, 1] + time * (dc[k, 2, 2] + time * (dc[k, 2, 3] + time * dc[k, 2, 4])))
     return pz, dpz
 
@@ -272,8 +272,8 @@ def pz_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) ->
     c : NDArray
         A (3, 5) Taylor coefficient matrix produced by `solve3d`.
     dc : NDArray
-        A (6, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w)`.
+        A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
+        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
 
     Returns
     -------
@@ -283,8 +283,8 @@ def pz_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) ->
         The sign distinguishes the transit (positive z) and eclipse
         (negative z) branches of the orbit.
     dpz : NDArray
-        Shape (6,) partial derivatives of `pz` with respect to
-        `(t0, p, a, i, e, w)`.
+        Shape (7,) partial derivatives of `pz` with respect to
+        `(t0, p, a, i, e, w, lan)`.
     """
     epoch = floor((time - t0 + 0.5 * p) / p)
     return pz_cd(time - (t0 + epoch * p), c, dc)

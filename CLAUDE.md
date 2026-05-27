@@ -170,8 +170,10 @@ array stores position, velocity, acceleration, jerk, and snap at each knot.
 **Coefficient matrices**: `solve2d` returns a `(2, 5)` matrix, `solve3d` returns a `(3, 5)` matrix. Rows are spatial 
 dimensions (x, y or x, y, z), columns are Taylor order (position through snap, pre-scaled by factorial).
 
-**Derivative coefficient matrices**: `solve2d_d` and `solve3d_d` return an additional `(6, D, 5)` matrix containing 
-partial derivatives of the Taylor coefficients w.r.t. the 6 orbital parameters (phase, p, a, i, e, w).
+**Derivative coefficient matrices**: `solve2d_d` and `solve3d_d` return an additional `(7, D, 5)` matrix containing 
+partial derivatives of the Taylor coefficients w.r.t. the 7 orbital parameters (phase, p, a, i, e, w, lan). The 
+seventh parameter, `lan` (longitude of the ascending node), is an optional argument defaulting to 0.0; it is a 
+constant rotation of the sky-plane (x, y) about the line of sight (in 3D, the line-of-sight z is unaffected).
 
 ### Orbital Parameters
 
@@ -182,6 +184,7 @@ Standard Keplerian elements used throughout:
 - `i`: Inclination [radians]
 - `e`: Eccentricity
 - `w`: Argument of periastron [radians]
+- `lan`: Longitude of the ascending node [radians] (optional, defaults to 0.0) — a sky-plane rotation about the line of sight
 
 ### Performance Considerations
 
@@ -202,7 +205,7 @@ The `taylor/` module follows a consistent pattern. For each quantity there are t
 1. **Centered (`X_c`)**: Takes time `t` already relative to the expansion point, plus coefficient matrix `c`
 2. **Direct (`X`)**: Takes absolute time `t`, reference time `t0`, period `p`, and `c`. Handles epoch-folding internally.
 
-For parameter derivatives, the centered variant gets a `_cd` suffix and the direct variant a `_d` suffix (e.g., `pos_cd`, `pos_d`). These take an additional `dc` array of shape `(6, D, 5)`.
+For parameter derivatives, the centered variant gets a `_cd` suffix and the direct variant a `_d` suffix (e.g., `pos_cd`, `pos_d`). These take an additional `dc` array of shape `(7, D, 5)`.
 
 To add a new quantity:
 1. Implement the centered version using Horner-scheme evaluation of the coefficient polynomial

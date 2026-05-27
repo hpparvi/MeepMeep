@@ -35,7 +35,7 @@ def _is_1d_array(typ):
 
 
 @njit
-def solve3d_orbit_d(knot_times, p, a, i, e, w, npt):
+def solve3d_orbit_d(knot_times, p, a, i, e, w, npt, lan=0.0):
     """Pre-compute Taylor and derivative coefficients at every knot of one orbit.
 
     Derivative-returning counterpart of
@@ -63,15 +63,18 @@ def solve3d_orbit_d(knot_times, p, a, i, e, w, npt):
         Argument of periastron [radians].
     npt : int
         Number of knots, including the periodic-image slot.
+    lan : float, optional
+        Longitude of the ascending node [radians]. Constant rotation of the
+        sky-plane (x, y) coordinates about the line of sight. Defaults to 0.0.
 
     Returns
     -------
     coeffs : ndarray, shape (npt, 3, 5)
         Taylor coefficient matrices at every knot (same layout as in
         :func:`~meepmeep.backends.numba.taylor.orbit3d.solve3d_orbit`).
-    dcoeffs : ndarray, shape (npt, 6, 3, 5)
+    dcoeffs : ndarray, shape (npt, 7, 3, 5)
         Parameter-derivative tensors at every knot. The second axis is
-        ordered ``(phase, p, a, i, e, w)``.
+        ordered ``(phase, p, a, i, e, w, lan)``.
 
     Notes
     -----
@@ -79,10 +82,10 @@ def solve3d_orbit_d(knot_times, p, a, i, e, w, npt):
     contract yourself; ``knots.create_knots`` does this automatically.
     """
     coeffs = zeros((npt, 3, 5))
-    dcoeffs = zeros((npt, 6, 3, 5))
+    dcoeffs = zeros((npt, 7, 3, 5))
     to = mean_anomaly_at_transit(e, w) / (2 * pi) * p
     for ix in range(npt - 1):
-        cf, dcf = solve3d_d(p * knot_times[ix] - to, p, a, i, e, w)
+        cf, dcf = solve3d_d(p * knot_times[ix] - to, p, a, i, e, w, lan)
         coeffs[ix, :, :] = cf
         dcoeffs[ix, :, :, :] = dcf
     coeffs[-1, :, :] = coeffs[0]

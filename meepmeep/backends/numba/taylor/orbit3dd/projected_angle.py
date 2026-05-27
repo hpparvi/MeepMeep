@@ -29,7 +29,7 @@ def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Cosine of the angle between planet position and a fixed reference vector at scalar time.
 
     Scalar counterpart of :func:`_cos_v_p_angle_ovd`. The reference vector
-    ``v`` is treated as a constant; gradients are w.r.t. the 6 orbital
+    ``v`` is treated as a constant; gradients are w.r.t. the seven orbital
     parameters only.
 
     Parameters
@@ -45,7 +45,7 @@ def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     cs : float
         Cosine of the angle.
-    dcs : ndarray, shape (6,)
+    dcs : ndarray, shape (7,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
@@ -56,8 +56,8 @@ def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     inv_r3 = inv_r / r2
     dot = x * v[0] + y * v[1] + z * v[2]
     cs = dot * inv_nv * inv_r
-    dcs = zeros(6)
-    for k in range(6):
+    dcs = zeros(7)
+    for k in range(7):
         ddot = dx[k] * v[0] + dy[k] * v[1] + dz[k] * v[2]
         xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
         dcs[k] = inv_nv * (ddot * inv_r - dot * xdotdx * inv_r3)
@@ -69,7 +69,7 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Cosine of the angle between planet position and a fixed reference vector ``v``.
 
     The reference vector ``v`` is treated as a constant; gradients are
-    computed w.r.t. the 6 orbital parameters only.
+    computed w.r.t. the seven orbital parameters only.
 
     Parameters
     ----------
@@ -85,12 +85,12 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     -------
     cs : ndarray, shape (N,)
         Cosine values per time.
-    dcs : ndarray, shape (N, 6)
+    dcs : ndarray, shape (N, 7)
         Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
     """
     n = times.size
     cs = zeros(n)
-    dcs = zeros((n, 6))
+    dcs = zeros((n, 7))
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     for j in range(n):
         x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
@@ -101,7 +101,7 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         dot = x * v[0] + y * v[1] + z * v[2]
         cs[j] = dot * inv_nv * inv_r
         # d/dθ[(x·v)/(|x|·|v|)] = ((dx·v)/|x| - (x·v)·(x·dx)/|x|^3) / |v|
-        for k in range(6):
+        for k in range(7):
             ddot = dx[k] * v[0] + dy[k] * v[1] + dz[k] * v[2]
             xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
             dcs[j, k] = inv_nv * (ddot * inv_r - dot * xdotdx * inv_r3)

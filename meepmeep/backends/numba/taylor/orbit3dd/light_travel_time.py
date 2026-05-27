@@ -63,7 +63,7 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
     -------
     z_tr : float
         Line-of-sight planet coordinate at transit time.
-    dz_tr_total : ndarray, shape (6,)
+    dz_tr_total : ndarray, shape (7,)
         Full total derivative of ``z(t_transit)`` w.r.t.
         ``(phase, p, a, i, e, w)``.
 
@@ -84,13 +84,13 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
     vz_tr = _zvel_os(t_transit, tpa, p, dt, pktable, points, coeffs)
 
     # dto/dθ: only slots 1 (p), 4 (e), 5 (w) are non-zero.
-    dto = zeros(6)
+    dto = zeros(7)
     dto[1] = m_tr / two_pi
     dto[4] = dm_tr_de * p / two_pi
     dto[5] = dm_tr_dw * p / two_pi
 
-    dz_tr_total = zeros(6)
-    for k in range(6):
+    dz_tr_total = zeros(7)
+    for k in range(7):
         dz_tr_total[k] = vz_tr * dto[k] + dz_tr_partial[k]
     return z_tr, dz_tr_total
 
@@ -133,7 +133,7 @@ def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, 
     where :math:`t_\\mathrm{transit} = t_\\mathrm{pa} + M_\\mathrm{tr}(e, w)\\,p/(2\\pi)`.
 
     Per spec, the partial derivative w.r.t. ``rstar`` is *not* returned —
-    only the 6 orbital derivatives in the canonical
+    only the seven orbital derivatives in the canonical
     ``(phase, p, a, i, e, w)`` order. The reference ``z(t_transit)`` and
     its parameter derivatives are computed by :func:`_ltt_transit_z_and_d`,
     which includes the chain rule through ``t_transit(p, e, w)`` using
@@ -160,15 +160,15 @@ def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, 
     -------
     ltt : float
         Light travel time correction [days].
-    dltt : ndarray, shape (6,)
+    dltt : ndarray, shape (7,)
         Gradient w.r.t. ``(phase, p, a, i, e, w)``.
     """
     z_t, dz_t = _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
     ltt = factor * (z_t - z_tr)
-    dltt = zeros(6)
-    for k in range(6):
+    dltt = zeros(7)
+    for k in range(7):
         dltt[k] = factor * (dz_t[k] - dz_tr[k])
     return ltt, dltt
 
@@ -192,19 +192,19 @@ def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coef
     -------
     ltt : ndarray, shape (N,)
         Light travel time corrections [days].
-    dltt : ndarray, shape (N, 6)
+    dltt : ndarray, shape (N, 7)
         Gradient w.r.t. ``(phase, p, a, i, e, w)`` per time.
     """
     n = times.size
     ltt = zeros(n)
-    dltt = zeros((n, 6))
+    dltt = zeros((n, 7))
     factor = -rstar * LTT_DAYS_PER_RSUN
     # Reference (z and its full derivative chain) computed once.
     z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
     for j in range(n):
         z, dz = _zpos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         ltt[j] = factor * (z - z_tr)
-        for k in range(6):
+        for k in range(7):
             dltt[j, k] = factor * (dz[k] - dz_tr[k])
     return ltt, dltt
 

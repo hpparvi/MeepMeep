@@ -68,7 +68,7 @@ def _lambert_kernel_d(cos_alpha):
 def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian phase-curve flux and parameter derivatives at scalar time.
 
-    Derivative ordering: ``(phase, p, a, i, e, w, ag, k)`` — length 8.
+    Derivative ordering: ``(phase, p, a, i, e, w, lan, ag, k)`` — length 8.
 
     Parameters
     ----------
@@ -87,24 +87,24 @@ def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs
     -------
     flux : float
         Reflected planet-to-star flux ratio.
-    dflux : ndarray, shape (8,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, ag, k)``.
+    dflux : ndarray, shape (9,)
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan, ag, k)``.
     """
     amplitude = k * k * ag / (a * a)
     ca, dca = _cos_alpha_osd(time, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     phase, _, dphase_dc = _lambert_kernel_d(ca)
     flux = amplitude * phase
 
-    dflux = zeros(8)
+    dflux = zeros(9)
     # Orbital block — chain through cos_alpha and through amplitude (only `a` matters).
-    for kk in range(6):
+    for kk in range(7):
         dflux[kk] = amplitude * dphase_dc * dca[kk]
     # Add d(amplitude)/da contribution to the `a` slot (index 2):
     # damplitude/da = -2 k^2 ag / a^3.
     dflux[2] += -2.0 * k * k * ag / (a * a * a) * phase
-    # Extras: ag (index 6), k (index 7).
-    dflux[6] = (k * k / (a * a)) * phase
-    dflux[7] = (2.0 * k * ag / (a * a)) * phase
+    # Extras: ag (index 7), k (index 8).
+    dflux[7] = (k * k / (a * a)) * phase
+    dflux[8] = (2.0 * k * ag / (a * a)) * phase
     return flux, dflux
 
 
@@ -123,12 +123,12 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
     -------
     flux : ndarray, shape (N,)
         Reflected planet-to-star flux ratio per time.
-    dflux : ndarray, shape (N, 8)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, ag, k)`` per time.
+    dflux : ndarray, shape (N, 9)
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan, ag, k)`` per time.
     """
     n = times.size
     flux = zeros(n)
-    dflux = zeros((n, 8))
+    dflux = zeros((n, 9))
     inv_a2 = 1.0 / (a * a)
     amplitude = k * k * ag * inv_a2
     da_amp = -2.0 * k * k * ag / (a * a * a)
@@ -138,11 +138,11 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
         ca, dca = _cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
         phase, _, dphase_dc = _lambert_kernel_d(ca)
         flux[j] = amplitude * phase
-        for kk in range(6):
+        for kk in range(7):
             dflux[j, kk] = amplitude * dphase_dc * dca[kk]
         dflux[j, 2] += da_amp * phase
-        dflux[j, 6] = dag_amp * phase
-        dflux[j, 7] = dk_amp * phase
+        dflux[j, 7] = dag_amp * phase
+        dflux[j, 8] = dk_amp * phase
     return flux, dflux
 
 
@@ -152,8 +152,8 @@ def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
     """Lambertian reflection plus cosine-emission day/night model with derivatives at scalar time.
 
     Scalar counterpart of :func:`_lambert_and_emission_ovd`. Derivative
-    ordering: ``(phase, p, a, i, e, w, ag, fr_night, fr_day, emi_offset, k)``
-    — length 11.
+    ordering: ``(phase, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
+    — length 12.
 
     Parameters
     ----------
@@ -168,10 +168,10 @@ def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
         Reflected (Lambertian) flux contribution.
     emi : float
         Thermal emission contribution.
-    dref : ndarray, shape (11,)
+    dref : ndarray, shape (12,)
         Gradient of ``ref`` w.r.t.
-        ``(phase, p, a, i, e, w, ag, fr_night, fr_day, emi_offset, k)``.
-    demi : ndarray, shape (11,)
+        ``(phase, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
+    demi : ndarray, shape (12,)
         Gradient of ``emi`` w.r.t. the same parameter block.
     """
     k2 = k * k
@@ -184,15 +184,15 @@ def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
     ca, dca = _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     phase, alpha, dphase_dc = _lambert_kernel_d(ca)
 
-    dref = zeros(11)
-    demi = zeros(11)
+    dref = zeros(12)
+    demi = zeros(12)
 
     ref = aref * phase
-    for kk in range(6):
+    for kk in range(7):
         dref[kk] = aref * dphase_dc * dca[kk]
     dref[2] += daref_da * phase
-    dref[6] = daref_dag * phase
-    dref[10] = daref_dk * phase
+    dref[7] = daref_dag * phase
+    dref[11] = daref_dk * phase
 
     cs = cos(alpha + emi_offset)
     sn = sin(alpha + emi_offset)
@@ -210,12 +210,12 @@ def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
     else:
         dalpha_dc = -1.0 / s
     demi_dalpha = k2 * (fr_day - fr_night) * 0.5 * sn
-    for kk in range(6):
+    for kk in range(7):
         demi[kk] = demi_dalpha * dalpha_dc * dca[kk]
-    demi[7] = k2 * (1.0 - 0.5 * (1.0 - cs))
-    demi[8] = k2 * 0.5 * (1.0 - cs)
-    demi[9] = k2 * (fr_day - fr_night) * 0.5 * sn
-    demi[10] = 2.0 * k * bracket
+    demi[8] = k2 * (1.0 - 0.5 * (1.0 - cs))
+    demi[9] = k2 * 0.5 * (1.0 - cs)
+    demi[10] = k2 * (fr_day - fr_night) * 0.5 * sn
+    demi[11] = 2.0 * k * bracket
 
     return ref, emi, dref, demi
 
@@ -225,8 +225,8 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
                              tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian reflection plus cosine-emission day/night model with parameter derivatives.
 
-    Derivative ordering: ``(phase, p, a, i, e, w, ag, fr_night, fr_day, emi_offset, k)``
-    — length 11.
+    Derivative ordering: ``(phase, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
+    — length 12.
 
     Parameters
     ----------
@@ -253,17 +253,17 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
         Reflected (Lambertian) flux contribution per time.
     emi : ndarray, shape (N,)
         Thermal emission contribution per time.
-    dref : ndarray, shape (N, 11)
+    dref : ndarray, shape (N, 12)
         Gradient of ``ref`` w.r.t.
-        ``(phase, p, a, i, e, w, ag, fr_night, fr_day, emi_offset, k)``.
-    demi : ndarray, shape (N, 11)
+        ``(phase, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
+    demi : ndarray, shape (N, 12)
         Gradient of ``emi`` w.r.t. the same parameter block.
     """
     n = times.size
     ref = zeros(n)
     emi = zeros(n)
-    dref = zeros((n, 11))
-    demi = zeros((n, 11))
+    dref = zeros((n, 12))
+    demi = zeros((n, 12))
     k2 = k * k
     inv_a2 = 1.0 / (a * a)
     aref = k2 * ag * inv_a2
@@ -277,12 +277,12 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
 
         # --- reflected component ---
         ref[j] = aref * phase
-        for kk in range(6):
+        for kk in range(7):
             dref[j, kk] = aref * dphase_dc * dca[kk]
         dref[j, 2] += daref_da * phase
-        dref[j, 6] = daref_dag * phase
-        # fr_night, fr_day, emi_offset (indices 7..9) are zero for ref.
-        dref[j, 10] = daref_dk * phase
+        dref[j, 7] = daref_dag * phase
+        # fr_night, fr_day, emi_offset (indices 8..10) are zero for ref.
+        dref[j, 11] = daref_dk * phase
 
         # --- emission component ---
         # emi = k^2 · (fr_night + (fr_day - fr_night) · 0.5 · (1 - cos(alpha + emi_offset)))
@@ -306,17 +306,17 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
         # demi/dorbital via cos_alpha → alpha → bracket
         # demi/dα = k^2 · (fr_day - fr_night) · 0.5 · sin(alpha + emi_offset)
         demi_dalpha = k2 * (fr_day - fr_night) * 0.5 * sn
-        for kk in range(6):
+        for kk in range(7):
             demi[j, kk] = demi_dalpha * dalpha_dc * dca[kk]
-        # ag (6) does not enter emi; leave 0.
-        # fr_night (7): k^2 · (1 - 0.5·(1-cs)) = k^2 · (0.5 + 0.5·cs)
-        demi[j, 7] = k2 * (1.0 - 0.5 * (1.0 - cs))
-        # fr_day (8):   k^2 · 0.5 · (1 - cs)
-        demi[j, 8] = k2 * 0.5 * (1.0 - cs)
-        # emi_offset (9): k^2 · (fr_day - fr_night) · 0.5 · sin(alpha + emi_offset)
-        demi[j, 9] = k2 * (fr_day - fr_night) * 0.5 * sn
-        # k (10): 2k · bracket
-        demi[j, 10] = 2.0 * k * bracket
+        # ag (7) does not enter emi; leave 0.
+        # fr_night (8): k^2 · (1 - 0.5·(1-cs)) = k^2 · (0.5 + 0.5·cs)
+        demi[j, 8] = k2 * (1.0 - 0.5 * (1.0 - cs))
+        # fr_day (9):   k^2 · 0.5 · (1 - cs)
+        demi[j, 9] = k2 * 0.5 * (1.0 - cs)
+        # emi_offset (10): k^2 · (fr_day - fr_night) · 0.5 · sin(alpha + emi_offset)
+        demi[j, 10] = k2 * (fr_day - fr_night) * 0.5 * sn
+        # k (11): 2k · bracket
+        demi[j, 11] = 2.0 * k * bracket
 
     return ref, emi, dref, demi
 

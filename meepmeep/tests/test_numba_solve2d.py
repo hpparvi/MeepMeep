@@ -8,6 +8,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.taylor.solve2d import solve2d
+from meepmeep.backends.numba.taylor.solve2dd import solve2d_d
 from meepmeep.backends.numba.taylor.position2d import pos_c
 from meepmeep.backends.numba.newton.newton import xy_newton_v
 
@@ -205,6 +206,119 @@ class TestSolve2dEdgeCases:
         params = {"p": 100.0, "a": 50.0, "i": 1.5, "e": 0.2, "w": 0.5}
         cf = solve2d(0.0, **params)
         assert np.all(np.isfinite(cf))
+
+
+class TestSolve2dLan:
+    """Test the longitude of the ascending node (lan) rotation in solve2d."""
+
+    def test_lan_zero_identity(self, eccentric_orbit):
+        """lan=0.0 must reproduce the call without lan exactly."""
+        cf = solve2d(0.0, **eccentric_orbit)
+        cf_lan0 = solve2d(0.0, **eccentric_orbit, lan=0.0)
+        assert_allclose(cf_lan0, cf, rtol=0, atol=0)
+
+    def test_lan_default_is_zero(self, eccentric_orbit):
+        """The default value of lan is 0.0 (no rotation)."""
+        cf = solve2d(0.0, **eccentric_orbit)
+        cf_default = solve2d(0.0, eccentric_orbit["p"], eccentric_orbit["a"],
+                             eccentric_orbit["i"], eccentric_orbit["e"], eccentric_orbit["w"])
+        assert_allclose(cf_default, cf, rtol=0, atol=0)
+
+    def test_quarter_turn(self, eccentric_orbit):
+        """lan=pi/2 maps each Taylor column (x, y) -> (-y, x)."""
+        cf = solve2d(0.0, **eccentric_orbit)
+        rot = solve2d(0.0, **eccentric_orbit, lan=np.pi / 2)
+        assert_allclose(rot[0], -cf[1], rtol=1e-12, atol=1e-12)
+        assert_allclose(rot[1], cf[0], rtol=1e-12, atol=1e-12)
+
+    def test_half_turn(self, eccentric_orbit):
+        """lan=pi negates the sky-plane coordinates."""
+        cf = solve2d(0.0, **eccentric_orbit)
+        rot = solve2d(0.0, **eccentric_orbit, lan=np.pi)
+        assert_allclose(rot, -cf, rtol=1e-12, atol=1e-12)
+
+    def test_inverse_rotation(self, eccentric_orbit):
+        """Rotating by lan and then by -lan returns the original coefficients."""
+        lan = 0.7
+        cf = solve2d(0.0, **eccentric_orbit)
+        rot = solve2d(0.0, **eccentric_orbit, lan=lan)
+        # Apply the inverse rotation R(-lan) by hand to the rotated coefficients.
+        cO, sO = np.cos(-lan), np.sin(-lan)
+        back = np.empty_like(rot)
+        back[0] = cO * rot[0] - sO * rot[1]
+        back[1] = sO * rot[0] + cO * rot[1]
+        assert_allclose(back, cf, rtol=1e-12, atol=1e-12)
+
+    def test_column_norm_invariant(self, eccentric_orbit):
+        """A rotation preserves the (x, y) norm of every Taylor column."""
+        cf = solve2d(0.0, **eccentric_orbit)
+        rot = solve2d(0.0, **eccentric_orbit, lan=1.1)
+        norm_base = np.hypot(cf[0], cf[1])
+        norm_rot = np.hypot(rot[0], rot[1])
+        assert_allclose(norm_rot, norm_base, rtol=1e-12, atol=1e-12)
+
+
+class TestSolve2dDLan:
+    """Test the lan parameter and its derivative row in solve2d_d."""
+
+    def test_gradient_shape(self, eccentric_orbit):
+        """The derivative tensor gains a 7th row for lan: (7, 2, 5)."""
+        cf, dcf = solve2d_d(0.0, **eccentric_orbit)
+        assert cf.shape == (2, 5)
+        assert dcf.shape == (7, 2, 5)
+
+    def test_cf_matches_solve2d(self, eccentric_orbit):
+        """The cf returned by solve2d_d matches solve2d for non-zero lan."""
+        lan = 0.6
+        cf_d, _ = solve2d_d(0.0, **eccentric_orbit, lan=lan)
+        cf = solve2d(0.0, **eccentric_orbit, lan=lan)
+        assert_allclose(cf_d, cf, rtol=1e-12, atol=1e-12)
+
+    def test_lan_derivative_at_zero(self, eccentric_orbit):
+        """At lan=0, the lan-derivative row equals (-y, x) per column."""
+        cf, dcf = solve2d_d(0.0, **eccentric_orbit, lan=0.0)
+        assert_allclose(dcf[6, 0], -cf[1], rtol=1e-12, atol=1e-12)
+        assert_allclose(dcf[6, 1], cf[0], rtol=1e-12, atol=1e-12)
+
+    @pytest.mark.parametrize("lan", [0.0, 0.4, 1.3, 2.5])
+    def test_lan_derivative_vs_finite_diff(self, eccentric_orbit, lan):
+        """The analytic lan-derivative row matches a central finite difference."""
+        h = 1e-6
+        cf_p = solve2d(0.0, **eccentric_orbit, lan=lan + h)
+        cf_m = solve2d(0.0, **eccentric_orbit, lan=lan - h)
+        fd = (cf_p - cf_m) / (2 * h)
+        _, dcf = solve2d_d(0.0, **eccentric_orbit, lan=lan)
+        assert_allclose(dcf[6], fd, rtol=1e-6, atol=1e-8)
+
+    def test_existing_rows_are_rotated(self, eccentric_orbit):
+        """For non-zero lan, derivative rows 0..5 equal R(lan) applied to the
+        lan=0 derivative rows (the rotation commutes with parameter differentiation)."""
+        lan = 0.9
+        _, dcf0 = solve2d_d(0.0, **eccentric_orbit, lan=0.0)
+        _, dcf = solve2d_d(0.0, **eccentric_orbit, lan=lan)
+        cO, sO = np.cos(lan), np.sin(lan)
+        for k in range(6):
+            expected_x = cO * dcf0[k, 0] - sO * dcf0[k, 1]
+            expected_y = sO * dcf0[k, 0] + cO * dcf0[k, 1]
+            assert_allclose(dcf[k, 0], expected_x, rtol=1e-12, atol=1e-12)
+            assert_allclose(dcf[k, 1], expected_y, rtol=1e-12, atol=1e-12)
+
+    @pytest.mark.parametrize("kidx", [0, 1, 2, 3, 4, 5])
+    def test_kepler_derivatives_vs_finite_diff(self, eccentric_orbit, kidx):
+        """With a non-zero lan, the first six derivative rows still match finite
+        differences w.r.t. their parameters (phase, p, a, i, e, w)."""
+        lan = 0.8
+        params = [0.0, eccentric_orbit["p"], eccentric_orbit["a"],
+                  eccentric_orbit["i"], eccentric_orbit["e"], eccentric_orbit["w"]]
+        h = 1e-6
+        pp = list(params); pp[kidx] += h
+        pm = list(params); pm[kidx] -= h
+        cf_p = solve2d(pp[0], pp[1], pp[2], pp[3], pp[4], pp[5], lan=lan)
+        cf_m = solve2d(pm[0], pm[1], pm[2], pm[3], pm[4], pm[5], lan=lan)
+        fd = (cf_p - cf_m) / (2 * h)
+        _, dcf = solve2d_d(params[0], params[1], params[2], params[3],
+                           params[4], params[5], lan=lan)
+        assert_allclose(dcf[kidx], fd, rtol=1e-5, atol=1e-7)
 
 
 if __name__ == "__main__":

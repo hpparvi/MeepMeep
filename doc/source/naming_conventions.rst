@@ -90,8 +90,8 @@ Parameter-derivative suffix
 The gradient-returning variants live in the ``*dd``-suffixed modules
 (``position2dd.py``, ``position3dd.py``, ``velocity3dd.py``,
 ``solve2dd.py``, ``solve3dd.py``, and the ``orbit3dd/`` package) and return *both* the
-quantity and its partial derivatives with respect to the six orbital
-parameters ``(t0, p, a, i, e, w)``. The suffix encodes whether the
+quantity and its partial derivatives with respect to the seven orbital
+parameters ``(t0, p, a, i, e, w, lan)``. The suffix encodes whether the
 underlying evaluator is centered or direct:
 
 ==========================  ==============================================
@@ -103,7 +103,7 @@ Suffix                      Meaning
                             w.r.t. orbital parameters.
 ==========================  ==============================================
 
-These functions accept an additional argument ``dc`` — a ``(6, D, 5)``
+These functions accept an additional argument ``dc`` — a ``(7, D, 5)``
 parameter-derivative tensor produced by
 :func:`~meepmeep.backends.numba.taylor.solve2dd.solve2d_d` or
 :func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d`.

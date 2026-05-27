@@ -15,12 +15,12 @@ error, and the result drops straight into a fitter or sampler.
 
 In concrete terms, every quantity that the Taylor backend evaluates is
 also exposed in a ``_d``-suffixed variant that returns the value
-alongside its analytic partial derivatives w.r.t. the six orbital
+alongside its analytic partial derivatives w.r.t. the seven orbital
 parameters
 
 .. math::
 
-   \boldsymbol{\theta} = (\phi_0,\, p,\, a,\, i,\, e,\, w),
+   \boldsymbol{\theta} = (\phi_0,\, p,\, a,\, i,\, e,\, w,\, \Omega),
 
 where :math:`\phi_0` is the expansion phase passed to the solver (in
 the single-knot transit-modelling workflow, :math:`\phi_0 \equiv t_0`,
@@ -49,7 +49,7 @@ manipulation and one-line chain rules.
   :func:`~meepmeep.backends.numba.taylor.solve2dd.solve2d_d` and
   :func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d` produce
   the Taylor coefficient matrix ``c`` of shape ``(D, 5)`` *and* a
-  parameter-derivative tensor ``dc`` of shape ``(6, D, 5)``. The
+  parameter-derivative tensor ``dc`` of shape ``(7, D, 5)``. The
   element ``dc[k, d, n]`` is
   :math:`\partial c[d, n] / \partial \theta_k`. All non-trivial
   calculus lives here: Kepler's equation, the orbital-plane state, the
@@ -58,7 +58,8 @@ manipulation and one-line chain rules.
 * **Layer B — evaluator propagation.** Every ``_d`` evaluator
   (positions, distances, velocities, RVs, phase-curve outputs) takes
   ``c`` and ``dc`` and reduces them to the final quantity together with
-  its 6-vector gradient. The reductions are either trivial polynomial
+  its 7-vector gradient (the seventh entry being the longitude of the
+  ascending node). The reductions are either trivial polynomial
   evaluations or simple chain-rule applications.
 
 The two layers are documented separately below.
@@ -84,7 +85,18 @@ k    Parameter   Comment
 3    :math:`i`        Inclination
 4    :math:`e`        Eccentricity
 5    :math:`w`        Argument of periastron
+6    :math:`\Omega`   Longitude of the ascending node
 ==  ==========  ==============================================
+
+The first six parameters drive Kepler's equation and the orbital-plane
+state; their analytic partials are built with the length-6 working
+arrays described below. The seventh, :math:`\Omega`, is a constant
+rotation of the sky-plane :math:`(x, y)` about the line of sight and
+does *not* enter the Kepler solve. It is applied as a post-processing
+rotation of the assembled coefficients: the six Kepler-parameter rows
+are rotated by :math:`R(\Omega)`, and the new :math:`\Omega` row is
+:math:`R'(\Omega)` applied to the unrotated position coefficients (the
+line-of-sight :math:`z` row of the :math:`\Omega` derivative is zero).
 
 
 Step 1 — auxiliary partials
@@ -480,7 +492,7 @@ The orbit-spanning solver
 applies
 :func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d` once per
 knot and stacks the results into arrays of shape ``(N, 3, 5)`` for
-``coeffs`` and ``(N, 6, 3, 5)`` for ``dcoeffs``. The periodic-image
+``coeffs`` and ``(N, 7, 3, 5)`` for ``dcoeffs``. The periodic-image
 contract on the last knot is honoured for both arrays — they share
 their final slot with the first.
 

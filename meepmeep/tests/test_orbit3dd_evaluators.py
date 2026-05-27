@@ -113,7 +113,7 @@ class TestValueParity:
         assert_allclose(x, x_b, rtol=1e-12)
         assert_allclose(y, y_b, rtol=1e-12)
         assert_allclose(z, z_b, rtol=1e-12)
-        assert dx.shape == (NTIMES, 6)
+        assert dx.shape == (NTIMES, 7)
         assert np.all(np.isfinite(dx))
         assert np.all(np.isfinite(dy))
         assert np.all(np.isfinite(dz))
@@ -123,7 +123,7 @@ class TestValueParity:
         z_b = zpos_o(times, tc, orbit_case["p"], dt, pkt, pts, c)
         z, dz = zpos_od(times, tc, orbit_case["p"], dt, pkt, pts, c, dc)
         assert_allclose(z, z_b, rtol=1e-12)
-        assert dz.shape == (NTIMES, 6)
+        assert dz.shape == (NTIMES, 7)
         assert np.all(np.isfinite(dz))
 
     def test_sep_od(self, orbit_case):
@@ -132,7 +132,7 @@ class TestValueParity:
             d_b = sep_o(t, tc, orbit_case["p"], dt, pkt, pts, c)
             d_v, dd_v = sep_od(t, tc, orbit_case["p"], dt, pkt, pts, c, dc)
             assert_allclose(d_v, d_b, rtol=1e-12)
-            assert dd_v.shape == (6,)
+            assert dd_v.shape == (7,)
             assert np.all(np.isfinite(dd_v))
 
     def test_vel_od(self, orbit_case):
@@ -142,7 +142,7 @@ class TestValueParity:
         assert_allclose(vx, vx_b, rtol=1e-12)
         assert_allclose(vy, vy_b, rtol=1e-12)
         assert_allclose(vz, vz_b, rtol=1e-12)
-        assert dvx.shape == (NTIMES, 6)
+        assert dvx.shape == (NTIMES, 7)
         assert np.all(np.isfinite(dvx))
 
     def test_zvel_od(self, orbit_case):
@@ -175,7 +175,7 @@ class TestValueParity:
                                                 tpa=tc, p=orbit_case["p"], dt=dt,
                                                 pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(flux, flux_b, rtol=1e-10, atol=1e-20)
-        assert dflux.shape == (NTIMES, 8)
+        assert dflux.shape == (NTIMES, 9)
         assert np.all(np.isfinite(dflux))
 
     def test_lambert_and_emission_od(self, orbit_case):
@@ -190,8 +190,8 @@ class TestValueParity:
             pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(ref, ref_b, rtol=1e-10, atol=1e-20)
         assert_allclose(emi, emi_b, rtol=1e-10, atol=1e-20)
-        assert dref.shape == (NTIMES, 11)
-        assert demi.shape == (NTIMES, 11)
+        assert dref.shape == (NTIMES, 12)
+        assert demi.shape == (NTIMES, 12)
         assert np.all(np.isfinite(dref))
         assert np.all(np.isfinite(demi))
 
@@ -204,7 +204,7 @@ class TestValueParity:
                                   t=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                   pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(ev, ev_b, rtol=1e-10, atol=1e-20)
-        assert dev.shape == (NTIMES, 9)
+        assert dev.shape == (NTIMES, 10)
         assert np.all(np.isfinite(dev))
 
     def test_rv_od(self, orbit_case):
@@ -216,7 +216,7 @@ class TestValueParity:
                            i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
                            points=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(rv, rv_b, rtol=1e-12)
-        assert drv.shape == (NTIMES, 7)
+        assert drv.shape == (NTIMES, 8)
         assert np.all(np.isfinite(drv))
 
     def test_true_anomaly_ovd_eccentric(self, test_orbital_params):
@@ -231,7 +231,7 @@ class TestValueParity:
         # Compare via cos/sin to be invariant to wrap-around.
         assert_allclose(np.cos(f), np.cos(f_b), atol=1e-10)
         assert_allclose(np.sin(f), np.sin(f_b), atol=1e-10)
-        assert df.shape == (NTIMES, 6)
+        assert df.shape == (NTIMES, 7)
         assert np.all(np.isfinite(df))
 
 
@@ -298,7 +298,7 @@ class TestChainRuleConsistency:
 class TestExtraParameterFD:
 
     def test_lambert_phase_curve_d_ag(self, orbit_case):
-        """dflux/d(ag) at index 6 (second-to-last)."""
+        """dflux/d(ag) at index 7 (second-to-last)."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ag, a, k = 0.3, orbit_case["a"], 0.1
         h = 1e-7
@@ -307,10 +307,10 @@ class TestExtraParameterFD:
         fd = (f_p - f_m) / (2 * h)
         _, dflux = lambert_phase_curve_od(times, ag, a, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
-        assert_allclose(dflux[:, 6], fd, rtol=1e-5, atol=1e-10)
+        assert_allclose(dflux[:, 7], fd, rtol=1e-5, atol=1e-10)
 
     def test_lambert_phase_curve_d_k(self, orbit_case):
-        """dflux/dk at index 7."""
+        """dflux/dk at index 8."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ag, a, k = 0.3, orbit_case["a"], 0.1
         h = 1e-8
@@ -319,7 +319,7 @@ class TestExtraParameterFD:
         fd = (f_p - f_m) / (2 * h)
         _, dflux = lambert_phase_curve_od(times, ag, a, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
-        assert_allclose(dflux[:, 7], fd, rtol=1e-5, atol=1e-10)
+        assert_allclose(dflux[:, 8], fd, rtol=1e-5, atol=1e-10)
 
     def test_lambert_and_emission_extras(self, orbit_case):
         """FD all 5 extras (ag, fr_night, fr_day, emi_offset, k)."""
@@ -329,8 +329,8 @@ class TestExtraParameterFD:
             times, ag, fn, fd_, eo, a, k, tc, orbit_case["p"], dt,
             pkt, pts, c, dc)
         h = 1e-7
-        # Indices 6=ag, 7=fr_night, 8=fr_day, 9=emi_offset, 10=k.
-        for slot, perturb in [(6, "ag"), (7, "fn"), (8, "fd"), (9, "eo"), (10, "k")]:
+        # Indices 7=ag, 8=fr_night, 9=fr_day, 10=emi_offset, 11=k.
+        for slot, perturb in [(7, "ag"), (8, "fn"), (9, "fd"), (10, "eo"), (11, "k")]:
             args_p = dict(ag=ag, fr_night=fn, fr_day=fd_, emi_offset=eo, a=a, k=k)
             args_m = dict(args_p)
             key = {"ag": "ag", "fn": "fr_night", "fd": "fr_day",
@@ -347,14 +347,14 @@ class TestExtraParameterFD:
                             rtol=1e-4, atol=1e-9, err_msg=f"demi slot {slot} ({perturb})")
 
     def test_ev_signal_extras(self, orbit_case):
-        """FD on alpha (6), mass_ratio (7), inc (8)."""
+        """FD on alpha (7), mass_ratio (8), inc (9)."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         alpha, mr, inc = 1.0, 1e-3, orbit_case["i"]
         _, dev = ev_signal_od(alpha=alpha, mass_ratio=mr, inc=inc,
                                  t=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                  pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
         h = 1e-7
-        for slot, name in [(6, "alpha"), (7, "mr"), (8, "inc")]:
+        for slot, name in [(7, "alpha"), (8, "mr"), (9, "inc")]:
             kwargs_p = {"alpha": alpha, "mass_ratio": mr, "inc": inc}
             kwargs_m = dict(kwargs_p)
             real_key = {"alpha": "alpha", "mr": "mass_ratio", "inc": "inc"}[name]
@@ -368,21 +368,21 @@ class TestExtraParameterFD:
                             rtol=1e-4, atol=1e-10, err_msg=f"slot {slot} ({name})")
 
     def test_rv_d_k(self, orbit_case):
-        """drv/dk at slot 6. RV is linear in k, so drv/dk = rv/k exactly."""
+        """drv/dk at slot 7. RV is linear in k, so drv/dk = rv/k exactly."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         k = 0.05
         rv, drv = rv_od(times, k=k, tpa=tc, p=orbit_case["p"], a=orbit_case["a"],
                            i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
                            points=pts, coeffs=c, dcoeffs=dc)
         # drv/dk should equal rv / k (linearity in k).
-        assert_allclose(drv[:, 6], rv / k, rtol=1e-12)
+        assert_allclose(drv[:, 7], rv / k, rtol=1e-12)
         # Also FD-cross-check.
         h = 1e-8
         rv_p = rv_o(times, k + h, tc, orbit_case["p"], orbit_case["a"],
                      orbit_case["i"], orbit_case["e"], dt, pkt, pts, c)
         rv_m = rv_o(times, k - h, tc, orbit_case["p"], orbit_case["a"],
                      orbit_case["i"], orbit_case["e"], dt, pkt, pts, c)
-        assert_allclose(drv[:, 6], (rv_p - rv_m) / (2 * h), rtol=1e-5, atol=1e-10)
+        assert_allclose(drv[:, 7], (rv_p - rv_m) / (2 * h), rtol=1e-5, atol=1e-10)
 
 
 # ---------------------------------------------------------------------------
@@ -460,7 +460,7 @@ class TestLightTravelTime:
     ``t0`` is the time of periastron passage (the convention used by every
     other ``*_o5*`` evaluator in ``orbit3d.py``).
 
-    Derivative is computed only w.r.t. the 6 orbital parameters; rstar is
+    Derivative is computed only w.r.t. the seven orbital parameters; rstar is
     treated as a known constant (per spec).
     """
 
@@ -472,7 +472,7 @@ class TestLightTravelTime:
         ltt, dltt = light_travel_time_od(times, tc, p, e, w, rstar,
                                             dt, pkt, pts, c, dc)
         assert_allclose(ltt, ltt_b, rtol=1e-10, atol=1e-18)
-        assert dltt.shape == (NTIMES, 6)
+        assert dltt.shape == (NTIMES, 7)
         assert np.all(np.isfinite(dltt))
 
     def test_o5s_matches_o5v(self, orbit_case):

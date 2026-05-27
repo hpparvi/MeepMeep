@@ -8,6 +8,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.taylor.solve3d import solve3d
+from meepmeep.backends.numba.taylor.solve3dd import solve3d_d
 from meepmeep.backends.numba.taylor.position3d import pos_c
 from meepmeep.backends.numba.taylor.velocity3d import vel_c
 from meepmeep.backends.numba.newton.newton import xyz_newton_v
@@ -200,6 +201,116 @@ class TestSolve3dEdgeCases:
         params = {"p": 100.0, "a": 50.0, "i": 1.5, "e": 0.2, "w": 0.5}
         cf = solve3d(0.0, **params)
         assert np.all(np.isfinite(cf))
+
+
+class TestSolve3dLan:
+    """Test the longitude of the ascending node (lan) rotation in solve3d.
+
+    In 3D the rotation is about the line of sight, so x and y rotate while
+    the line-of-sight z coordinate is unchanged.
+    """
+
+    def test_lan_zero_identity(self, eccentric_orbit):
+        """lan=0.0 must reproduce the call without lan exactly."""
+        cf = solve3d(0.0, **eccentric_orbit)
+        cf_lan0 = solve3d(0.0, **eccentric_orbit, lan=0.0)
+        assert_allclose(cf_lan0, cf, rtol=0, atol=0)
+
+    def test_lan_default_is_zero(self, eccentric_orbit):
+        """The default value of lan is 0.0 (no rotation)."""
+        cf = solve3d(0.0, **eccentric_orbit)
+        cf_default = solve3d(0.0, eccentric_orbit["p"], eccentric_orbit["a"],
+                             eccentric_orbit["i"], eccentric_orbit["e"], eccentric_orbit["w"])
+        assert_allclose(cf_default, cf, rtol=0, atol=0)
+
+    def test_quarter_turn(self, eccentric_orbit):
+        """lan=pi/2 maps each column (x, y) -> (-y, x) and leaves z unchanged."""
+        cf = solve3d(0.0, **eccentric_orbit)
+        rot = solve3d(0.0, **eccentric_orbit, lan=np.pi / 2)
+        assert_allclose(rot[0], -cf[1], rtol=1e-12, atol=1e-12)
+        assert_allclose(rot[1], cf[0], rtol=1e-12, atol=1e-12)
+        assert_allclose(rot[2], cf[2], rtol=1e-12, atol=1e-12)
+
+    def test_z_invariant(self, eccentric_orbit):
+        """The line-of-sight z row is invariant under any lan."""
+        cf = solve3d(0.0, **eccentric_orbit)
+        for lan in (0.3, 1.1, 2.7):
+            rot = solve3d(0.0, **eccentric_orbit, lan=lan)
+            assert_allclose(rot[2], cf[2], rtol=1e-12, atol=1e-12)
+
+    def test_xy_norm_invariant(self, eccentric_orbit):
+        """A rotation about the line of sight preserves the (x, y) norm."""
+        cf = solve3d(0.0, **eccentric_orbit)
+        rot = solve3d(0.0, **eccentric_orbit, lan=1.1)
+        assert_allclose(np.hypot(rot[0], rot[1]), np.hypot(cf[0], cf[1]), rtol=1e-12, atol=1e-12)
+
+
+class TestSolve3dDLan:
+    """Test the lan parameter and its derivative row in solve3d_d."""
+
+    def test_gradient_shape(self, eccentric_orbit):
+        """The derivative tensor gains a 7th row for lan: (7, 3, 5)."""
+        cf, dcf = solve3d_d(0.0, **eccentric_orbit)
+        assert cf.shape == (3, 5)
+        assert dcf.shape == (7, 3, 5)
+
+    def test_cf_matches_solve3d(self, eccentric_orbit):
+        """The cf returned by solve3d_d matches solve3d for non-zero lan."""
+        lan = 0.6
+        cf_d, _ = solve3d_d(0.0, **eccentric_orbit, lan=lan)
+        cf = solve3d(0.0, **eccentric_orbit, lan=lan)
+        assert_allclose(cf_d, cf, rtol=1e-12, atol=1e-12)
+
+    def test_lan_derivative_z_row_zero(self, eccentric_orbit):
+        """The z row of the lan-derivative is zero (z is lan-independent)."""
+        _, dcf = solve3d_d(0.0, **eccentric_orbit, lan=0.4)
+        assert_allclose(dcf[6, 2], 0.0, atol=1e-14)
+
+    def test_lan_derivative_at_zero(self, eccentric_orbit):
+        """At lan=0, the lan-derivative row equals (-y, x, 0) per column."""
+        cf, dcf = solve3d_d(0.0, **eccentric_orbit, lan=0.0)
+        assert_allclose(dcf[6, 0], -cf[1], rtol=1e-12, atol=1e-12)
+        assert_allclose(dcf[6, 1], cf[0], rtol=1e-12, atol=1e-12)
+        assert_allclose(dcf[6, 2], 0.0, atol=1e-14)
+
+    @pytest.mark.parametrize("lan", [0.0, 0.4, 1.3, 2.5])
+    def test_lan_derivative_vs_finite_diff(self, eccentric_orbit, lan):
+        """The analytic lan-derivative row matches a central finite difference."""
+        h = 1e-6
+        cf_p = solve3d(0.0, **eccentric_orbit, lan=lan + h)
+        cf_m = solve3d(0.0, **eccentric_orbit, lan=lan - h)
+        fd = (cf_p - cf_m) / (2 * h)
+        _, dcf = solve3d_d(0.0, **eccentric_orbit, lan=lan)
+        assert_allclose(dcf[6], fd, rtol=1e-6, atol=1e-8)
+
+    def test_existing_rows_are_rotated(self, eccentric_orbit):
+        """For non-zero lan, derivative rows 0..5 equal R(lan) applied (in x, y) to
+        the lan=0 derivative rows; the z row is unchanged."""
+        lan = 0.9
+        _, dcf0 = solve3d_d(0.0, **eccentric_orbit, lan=0.0)
+        _, dcf = solve3d_d(0.0, **eccentric_orbit, lan=lan)
+        cO, sO = np.cos(lan), np.sin(lan)
+        for k in range(6):
+            assert_allclose(dcf[k, 0], cO * dcf0[k, 0] - sO * dcf0[k, 1], rtol=1e-12, atol=1e-12)
+            assert_allclose(dcf[k, 1], sO * dcf0[k, 0] + cO * dcf0[k, 1], rtol=1e-12, atol=1e-12)
+            assert_allclose(dcf[k, 2], dcf0[k, 2], rtol=1e-12, atol=1e-12)
+
+    @pytest.mark.parametrize("kidx", [0, 1, 2, 3, 4, 5])
+    def test_kepler_derivatives_vs_finite_diff(self, eccentric_orbit, kidx):
+        """With a non-zero lan, the first six derivative rows still match finite
+        differences w.r.t. their parameters (phase, p, a, i, e, w)."""
+        lan = 0.8
+        params = [0.0, eccentric_orbit["p"], eccentric_orbit["a"],
+                  eccentric_orbit["i"], eccentric_orbit["e"], eccentric_orbit["w"]]
+        h = 1e-6
+        pp = list(params); pp[kidx] += h
+        pm = list(params); pm[kidx] -= h
+        cf_p = solve3d(pp[0], pp[1], pp[2], pp[3], pp[4], pp[5], lan=lan)
+        cf_m = solve3d(pm[0], pm[1], pm[2], pm[3], pm[4], pm[5], lan=lan)
+        fd = (cf_p - cf_m) / (2 * h)
+        _, dcf = solve3d_d(params[0], params[1], params[2], params[3],
+                           params[4], params[5], lan=lan)
+        assert_allclose(dcf[kidx], fd, rtol=1e-5, atol=1e-7)
 
 
 if __name__ == "__main__":
