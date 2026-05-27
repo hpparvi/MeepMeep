@@ -46,7 +46,7 @@ def solve2d_d(t, p, a, i, e, w, lan: float = 0.0):
     Returns
     -------
     cf : ndarray (2, 5)
-        Position Taylor coefficients (identical to solve_xy_p5 output).
+        Position Taylor coefficients (identical to solve2d output).
     dcf : ndarray (7, 2, 5)
         Parameter derivative coefficients. dcf[k] = d(cf)/d(theta_k)
         for theta = (phase, p, a, i, e, w, lan). Row 6 is the derivative

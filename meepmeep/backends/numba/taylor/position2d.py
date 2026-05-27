@@ -24,7 +24,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     """
     Evaluate the planet's sky-plane (x, y) position at a knot-centered time.
 
-    This is the "centered" variant of `p2d`: it assumes the caller has
+    This is the "centered" variant of `pos`: it assumes the caller has
     already subtracted the expansion time `t0` (and any epoch offset) so
     that `t` is a small displacement around the knot. The polynomial is
     evaluated using Horner's scheme.
@@ -36,7 +36,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
         `t = tc - (t0 + epoch*p)`. Must lie within the knot's region of
         validity for the truncation error to remain small.
     c : NDArray
-        A (2, 5) coefficient matrix produced by `solve2d`. See `p2d` for
+        A (2, 5) coefficient matrix produced by `solve2d`. See `pos` for
         the column ordering convention.
 
     Returns
@@ -105,9 +105,9 @@ def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     """
     Evaluate the sky-projected planet-star separation in the units of stellar radii at a knot-centered time.
 
-    Centered counterpart of `d2d`: assumes `tc` has already been shifted
+    Centered counterpart of `sep`: assumes `tc` has already been shifted
     to be relative to the expansion point, evaluates the 2D position via
-    `p2dc`, and returns `sqrt(x^2 + y^2)`.
+    `pos_c`, and returns `sqrt(x^2 + y^2)`.
 
     Parameters
     ----------
@@ -130,7 +130,7 @@ def sep(time, t0, p, c):
     """
     Evaluate the projected planet-star separation at an absolute time.
 
-    Computes the sky-plane (x, y) position via `p2d` and returns the
+    Computes the sky-plane (x, y) position via `pos` and returns the
     Euclidean distance `sqrt(x^2 + y^2)`. This is the quantity most
     commonly used by transit light-curve models, where it represents the
     center-to-center separation between the planet and star projected
@@ -165,7 +165,7 @@ def pos_and_sep_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, f
 
     Returns the sky-plane coordinates and the Euclidean distance
     `sqrt(x^2 + y^2)` from a single Horner-scheme evaluation, saving the
-    redundant polynomial work that would occur if `p2dc` and `d2dc` were
+    redundant polynomial work that would occur if `pos_c` and `sep_c` were
     called separately.
 
     Parameters
@@ -197,7 +197,7 @@ def pos_and_sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple
 
     Returns the sky-plane coordinates and the Euclidean distance
     `sqrt(x^2 + y^2)` from a single Horner-scheme evaluation, saving the
-    redundant polynomial work that would occur if `p2dc` and `d2dc` were
+    redundant polynomial work that would occur if `pos_c` and `sep_c` were
     called separately.
 
     Parameters

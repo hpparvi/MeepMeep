@@ -46,7 +46,7 @@ def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     cs : float
         Cosine of the angle.
     dcs : ndarray, shape (7,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w)``.
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)``.
     """
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
@@ -86,7 +86,7 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     cs : ndarray, shape (N,)
         Cosine values per time.
     dcs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
+        Gradients w.r.t. ``(phase, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     cs = zeros(n)

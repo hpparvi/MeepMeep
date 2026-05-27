@@ -18,18 +18,18 @@
 
 Derivative-returning counterparts of the routines in the ``orbit3d``
 package. Every function returns both the value and its partial derivatives
-with respect to the orbital parameters ``(phase, p, a, i, e, w)`` and any
+with respect to the orbital parameters ``(phase, p, a, i, e, w, lan)`` and any
 extra physical inputs the routine takes (appended to the orbital block in
 argument order).
 
 Coefficient layout:
 - ``coeffs`` : ``(npt, 3, 5)`` — Taylor coefficients, as in ``orbit3d``.
-- ``dcoeffs`` : ``(npt, 6, 3, 5)`` — derivatives of the Taylor coefficients
+- ``dcoeffs`` : ``(npt, 7, 3, 5)`` — derivatives of the Taylor coefficients
   w.r.t. the 6 orbital parameters, produced by ``solve3d_orbit_d``.
 
 Vector evaluators (``*_ovd``) return per-coordinate derivative arrays of
-shape ``(N, ndp)`` where ``ndp`` is ``6`` for orbital-only routines and
-``6 + n_extra`` for routines with extra physical inputs.
+shape ``(N, ndp)`` where ``ndp`` is ``7`` for orbital-only routines and
+``7 + n_extra`` for routines with extra physical inputs.
 
 Each physical quantity lives in its own module, holding that quantity's
 scalar kernel (``_X_osd``), vector kernel (``_X_ovd``), public dispatcher

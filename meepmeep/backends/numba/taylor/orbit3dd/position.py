@@ -48,7 +48,7 @@ def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         Normalised knot phases in ``[0, 1]``.
     coeffs : ndarray, shape (npt, 3, 5)
         Per-knot Taylor coefficient matrices from :func:`solve3d_orbit_d`.
-    dcoeffs : ndarray, shape (npt, 6, 3, 5)
+    dcoeffs : ndarray, shape (npt, 7, 3, 5)
         Per-knot derivative-coefficient tensors from
         :func:`solve3d_orbit_d`.
 
@@ -57,7 +57,7 @@ def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     px, py, pz : float
         Sky-frame position components in units of the stellar radius.
     dpx, dpy, dpz : ndarray, shape (7,)
-        Gradients w.r.t. ``(phase, p, a, i, e, w)``.
+        Gradients w.r.t. ``(phase, p, a, i, e, w, lan)``.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
@@ -81,7 +81,7 @@ def _pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     xs, ys, zs : ndarray, shape (N,)
         Position components per time.
     dxs, dys, dzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
+        Gradients w.r.t. ``(phase, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     xs = zeros(n)

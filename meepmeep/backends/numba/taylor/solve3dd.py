@@ -48,7 +48,7 @@ def solve3d_d(phase, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]
     Returns
     -------
     cf : ndarray (3, 5)
-        Position Taylor coefficients (identical to solve_xyz_p5 output).
+        Position Taylor coefficients (identical to solve3d output).
     dcf : ndarray (7, 3, 5)
         Parameter derivative coefficients. dcf[k] = d(cf)/d(theta_k)
         for theta = (phase, p, a, i, e, w, lan). Row 6 is the derivative

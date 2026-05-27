@@ -46,7 +46,7 @@ def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     d : float
         Sky-projected separation [stellar radii].
     dd : ndarray, shape (7,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w)``.
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)``.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
@@ -70,7 +70,7 @@ def _sep_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ds : ndarray, shape (N,)
         Sky-projected separations per time.
     dds : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(phase, p, a, i, e, w)`` per time.
+        Gradients w.r.t. ``(phase, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     ds = zeros(n)

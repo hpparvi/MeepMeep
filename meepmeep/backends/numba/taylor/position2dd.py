@@ -24,7 +24,7 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
     Evaluate the (x, y) position and its orbital-parameter derivatives at a knot-centered time.
 
-    Centered companion to `position2d.p2dc` that additionally returns the
+    Centered companion to `position2d.pos_c` that additionally returns the
     partial derivatives of the sky-plane position with respect to each of
     the six orbital parameters. Both the position polynomial and the six
     derivative polynomials are evaluated using Horner's scheme on the same
@@ -75,9 +75,9 @@ def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     """
     Evaluate the (x, y) position and its orbital-parameter derivatives at an absolute time.
 
-    Direct counterpart of `p2dc_d`: accepts an absolute observation time
+    Direct counterpart of `pos_cd`: accepts an absolute observation time
     `time`, folds it back into a single orbital epoch around the expansion
-    time `t0`, and delegates the polynomial evaluation to `p2dc_d`.
+    time `t0`, and delegates the polynomial evaluation to `pos_cd`.
 
     Parameters
     ----------
@@ -114,7 +114,7 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
     Evaluate the projected planet-star separation and its parameter derivatives at a knot-centered time.
 
-    Computes the sky-plane position via `p2dc_d` and reduces it to the
+    Computes the sky-plane position via `pos_cd` and reduces it to the
     Euclidean distance `d = sqrt(px^2 + py^2)`, propagating the parameter
     derivatives using the chain rule.
 
@@ -157,8 +157,8 @@ def sep_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
     """
     Evaluate the projected planet-star distance and its parameter derivatives at an absolute time.
 
-    Direct counterpart of `d2dc_d`: epoch-folds the absolute time `time`
-    around the expansion point `t0` and delegates to `d2dc_d`.
+    Direct counterpart of `sep_cd`: epoch-folds the absolute time `time`
+    around the expansion point `t0` and delegates to `sep_cd`.
 
     Parameters
     ----------

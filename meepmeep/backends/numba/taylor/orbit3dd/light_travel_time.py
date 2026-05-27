@@ -65,7 +65,7 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
         Line-of-sight planet coordinate at transit time.
     dz_tr_total : ndarray, shape (7,)
         Full total derivative of ``z(t_transit)`` w.r.t.
-        ``(phase, p, a, i, e, w)``.
+        ``(phase, p, a, i, e, w, lan)``.
 
     Notes
     -----
@@ -134,7 +134,7 @@ def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, 
 
     Per spec, the partial derivative w.r.t. ``rstar`` is *not* returned —
     only the seven orbital derivatives in the canonical
-    ``(phase, p, a, i, e, w)`` order. The reference ``z(t_transit)`` and
+    ``(phase, p, a, i, e, w, lan)`` order. The reference ``z(t_transit)`` and
     its parameter derivatives are computed by :func:`_ltt_transit_z_and_d`,
     which includes the chain rule through ``t_transit(p, e, w)`` using
     ``vz(t_transit)``.
@@ -161,7 +161,7 @@ def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, 
     ltt : float
         Light travel time correction [days].
     dltt : ndarray, shape (7,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w)``.
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)``.
     """
     z_t, dz_t = _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
@@ -193,7 +193,7 @@ def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coef
     ltt : ndarray, shape (N,)
         Light travel time corrections [days].
     dltt : ndarray, shape (N, 7)
-        Gradient w.r.t. ``(phase, p, a, i, e, w)`` per time.
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     ltt = zeros(n)

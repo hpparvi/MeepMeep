@@ -65,7 +65,7 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dco
     f : float
         True anomaly [radians], in :math:`[0, 2\\pi)`.
     df : ndarray, shape (7,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w)``.
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)``.
     """
     df = zeros(7)
     nes = ex * ex + ey * ey + ez * ez
@@ -148,7 +148,7 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
     f : ndarray, shape (N,)
         True anomaly per time [radians], in :math:`[0, 2\\pi)`.
     df : ndarray, shape (N, 7)
-        Gradient w.r.t. ``(phase, p, a, i, e, w)`` per time. The
+        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)`` per time. The
         ``ex, ey, ez, w`` inputs are treated as known constants — they
         are functions of the orbital parameters but the dependency is
         captured implicitly through the geometric chain rule on the
