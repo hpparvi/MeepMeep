@@ -24,7 +24,7 @@ At those points the analytic derivative diverges; we set it to zero so
 downstream gradient-based fits don't get a NaN. The circular fast path
 (``ex ≤ -0.9999`` sentinel from ``eccentricity_vector``) collapses true
 anomaly to mean anomaly: ``f = 2π(t - tpa)/p`` ⇒ analytic derivatives are
-trivial in (phase, p) and zero in the rest.
+trivial in (t0, p) and zero in the rest.
 """
 
 from numba import njit, types
@@ -65,7 +65,7 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dco
     f : float
         True anomaly [radians], in :math:`[0, 2\\pi)`.
     df : ndarray, shape (7,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)``.
+        Gradient w.r.t. ``(t0, p, a, i, e, w, lan)``.
     """
     df = zeros(7)
     nes = ex * ex + ey * ey + ez * ez
@@ -148,7 +148,7 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
     f : ndarray, shape (N,)
         True anomaly per time [radians], in :math:`[0, 2\\pi)`.
     df : ndarray, shape (N, 7)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)`` per time. The
+        Gradient w.r.t. ``(t0, p, a, i, e, w, lan)`` per time. The
         ``ex, ey, ez, w`` inputs are treated as known constants — they
         are functions of the orbital parameters but the dependency is
         captured implicitly through the geometric chain rule on the
@@ -167,9 +167,9 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
     nes = ex * ex + ey * ey + ez * ez
 
     # Circular-orbit fast path: f = 2π·(t - tpa) / p.
-    # df/d(phase) = -2π/p (since phase parameter shifts tpa by 1 unit of phase
-    # which is equivalent to a +1-day shift here — solve3d_d's "phase" is in
-    # days, so dphase = +1 ⇒ dtpa = +1 ⇒ df = -2π/p).
+    # Slot 0 is d/dt0 (transit-center time). The orbit depends on (t - t0),
+    # so df/dt0 = -2π/p, matching solve3d_d's slot-0 convention used by the
+    # eccentric branch below.
     # df/dp = -2π·(t - tpa) / p^2.
     if ex <= -0.9999 and nes > 0.99:
         twopi = 2.0 * pi

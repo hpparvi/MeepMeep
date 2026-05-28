@@ -68,7 +68,7 @@ def _lambert_kernel_d(cos_alpha):
 def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian phase-curve flux and parameter derivatives at scalar time.
 
-    Derivative ordering: ``(phase, p, a, i, e, w, lan, ag, k)`` — length 8.
+    Derivative ordering: ``(t0, p, a, i, e, w, lan, ag, k)`` — length 8.
 
     Parameters
     ----------
@@ -88,7 +88,7 @@ def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs
     flux : float
         Reflected planet-to-star flux ratio.
     dflux : ndarray, shape (9,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, lan, ag, k)``.
+        Gradient w.r.t. ``(t0, p, a, i, e, w, lan, ag, k)``.
     """
     amplitude = k * k * ag / (a * a)
     ca, dca = _cos_alpha_osd(time, tpa, p, dt, pktable, points, coeffs, dcoeffs)
@@ -124,7 +124,7 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
     flux : ndarray, shape (N,)
         Reflected planet-to-star flux ratio per time.
     dflux : ndarray, shape (N, 9)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, lan, ag, k)`` per time.
+        Gradient w.r.t. ``(t0, p, a, i, e, w, lan, ag, k)`` per time.
     """
     n = times.size
     flux = zeros(n)
@@ -152,7 +152,7 @@ def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
     """Lambertian reflection plus cosine-emission day/night model with derivatives at scalar time.
 
     Scalar counterpart of :func:`_lambert_and_emission_ovd`. Derivative
-    ordering: ``(phase, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
+    ordering: ``(t0, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
     — length 12.
 
     Parameters
@@ -170,7 +170,7 @@ def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
         Thermal emission contribution.
     dref : ndarray, shape (12,)
         Gradient of ``ref`` w.r.t.
-        ``(phase, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
+        ``(t0, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
     demi : ndarray, shape (12,)
         Gradient of ``emi`` w.r.t. the same parameter block.
     """
@@ -225,7 +225,7 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
                              tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian reflection plus cosine-emission day/night model with parameter derivatives.
 
-    Derivative ordering: ``(phase, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
+    Derivative ordering: ``(t0, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
     — length 12.
 
     Parameters
@@ -255,7 +255,7 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
         Thermal emission contribution per time.
     dref : ndarray, shape (N, 12)
         Gradient of ``ref`` w.r.t.
-        ``(phase, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
+        ``(t0, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
     demi : ndarray, shape (N, 12)
         Gradient of ``emi`` w.r.t. the same parameter block.
     """

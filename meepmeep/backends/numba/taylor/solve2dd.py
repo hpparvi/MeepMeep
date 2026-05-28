@@ -51,10 +51,11 @@ def solve2d_d(t, p, a, i, e, w, lan: float = 0.0):
         Position Taylor coefficients (identical to solve2d output).
     dcf : ndarray (7, 2, 5)
         Parameter derivative coefficients. dcf[k] = d(cf)/d(theta_k)
-        for theta = (t, p, a, i, e, w, lan). Row 6 is the derivative
-        with respect to the longitude of the ascending node.
+        for theta = (t0, p, a, i, e, w, lan). Row 0 is the derivative with
+        respect to the transit-center time t0 (dM/dt0 = -n); row 6 is the
+        derivative with respect to the longitude of the ascending node.
     """
-    # Parameter indices: 0=t, 1=p, 2=a, 3=i, 4=e, 5=w, 6=lan
+    # Parameter indices: 0=t0, 1=p, 2=a, 3=i, 4=e, 5=w, 6=lan
 
     # ================================================================
     # Step 1: Constants and their derivatives
@@ -100,7 +101,9 @@ def solve2d_d(t, p, a, i, e, w, lan: float = 0.0):
     ma = (TWO_PI * t / p + offset) % TWO_PI
 
     dma = zeros(6)
-    dma[0] = TWO_PI / p
+    # Slot 0 is d/dt0 (transit-center time). The position depends on
+    # (t_obs - t0), so d/dt0 = -d/dt and dM/dt0 = -n = -TWO_PI/p.
+    dma[0] = -TWO_PI / p
     dma[1] = -TWO_PI * t / p ** 2
     dma[4] = doffset[4]
     dma[5] = doffset[5]

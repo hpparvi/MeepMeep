@@ -52,7 +52,7 @@ def _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ca : float
         Cosine of the phase angle.
     dca : ndarray, shape (7,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)``.
+        Gradient w.r.t. ``(t0, p, a, i, e, w, lan)``.
     """
     x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     r2 = x * x + y * y + z * z
@@ -85,7 +85,7 @@ def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     cas : ndarray, shape (N,)
         Cosine of the phase angle per time.
     dcas : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(phase, p, a, i, e, w, lan)`` per time.
+        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     cas = zeros(n)

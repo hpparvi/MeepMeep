@@ -29,7 +29,7 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     """Radial velocity and parameter derivatives at scalar time.
 
     Scalar counterpart of :func:`_rv_ovd`. Derivative ordering:
-    ``(phase, p, a, i, e, w, lan, k)`` — length 8.
+    ``(t0, p, a, i, e, w, lan, k)`` — length 8.
 
     Parameters
     ----------
@@ -45,7 +45,7 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     rv : float
         Radial velocity [m s\\ :sup:`-1`].
     drv : ndarray, shape (8,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, lan, k)``.
+        Gradient w.r.t. ``(t0, p, a, i, e, w, lan, k)``.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
@@ -63,7 +63,7 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
 def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     """Radial velocity and parameter derivatives at array of times.
 
-    Derivative ordering: ``(phase, p, a, i, e, w, lan, k)`` — length 8.
+    Derivative ordering: ``(t0, p, a, i, e, w, lan, k)`` — length 8.
 
     Parameters
     ----------
@@ -89,7 +89,7 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     rvs : ndarray, shape (N,)
         Radial velocities per time [m s\\ :sup:`-1`].
     drvs : ndarray, shape (N, 8)
-        Gradients w.r.t. ``(phase, p, a, i, e, w, lan, k)`` per time.
+        Gradients w.r.t. ``(t0, p, a, i, e, w, lan, k)`` per time.
     """
     n = times.size
     rvs = zeros(n)

@@ -10,6 +10,7 @@ from numpy.testing import assert_allclose
 from meepmeep.backends.numba.taylor.solve3d import solve3d
 from meepmeep.backends.numba.taylor.solve3dd import solve3d_d
 from meepmeep.backends.numba.taylor.position3d import pos_c
+from meepmeep.backends.numba.taylor.position3dd import pos_d, sep_d
 from meepmeep.backends.numba.taylor.velocity3d import vel_c
 from meepmeep.backends.numba.newton.newton import xyz_newton_v
 
@@ -298,7 +299,7 @@ class TestSolve3dDLan:
     @pytest.mark.parametrize("kidx", [0, 1, 2, 3, 4, 5])
     def test_kepler_derivatives_vs_finite_diff(self, eccentric_orbit, kidx):
         """With a non-zero lan, the first six derivative rows still match finite
-        differences w.r.t. their parameters (phase, p, a, i, e, w)."""
+        differences w.r.t. their parameters (t0, p, a, i, e, w)."""
         lan = 0.8
         params = [0.0, eccentric_orbit["p"], eccentric_orbit["a"],
                   eccentric_orbit["i"], eccentric_orbit["e"], eccentric_orbit["w"]]
@@ -310,7 +311,50 @@ class TestSolve3dDLan:
         fd = (cf_p - cf_m) / (2 * h)
         _, dcf = solve3d_d(params[0], params[1], params[2], params[3],
                            params[4], params[5], lan=lan)
-        assert_allclose(dcf[kidx], fd, rtol=1e-5, atol=1e-7)
+        # Slot 0 is the derivative w.r.t. the transit-center time t0. The orbit
+        # depends on (t_obs - t0), so d/dt0 = -d/dt; the finite difference above
+        # perturbs the solver's expansion-time argument t (= d/dt), so the
+        # slot-0 reference is negated.
+        expected = -fd if kidx == 0 else fd
+        assert_allclose(dcf[kidx], expected, rtol=1e-5, atol=1e-7)
+
+
+class TestT0Derivative:
+    """Slot 0 of the derivative tensor is the partial w.r.t. the transit-center
+    time t0."""
+
+    @pytest.mark.parametrize("orbit_fixture", ["circular_orbit", "eccentric_orbit", "high_e_orbit"])
+    def test_slot0_equals_negative_next_coefficient(self, orbit_fixture, request):
+        """Exact, truncation-free check of the t0 convention. Because the Taylor
+        coefficient c[:, n] = P^(n)(0)/n! and d/dt0 = -d/dt, the (n+1)-th
+        coefficient is the t-derivative of the n-th, so the t0-derivative obeys
+        dc[0, :, n] = -(n+1) * c[:, n+1] for n = 0..3 (to machine precision).
+        With the old +TWO_PI/p sign this identity would be off by a sign."""
+        orbit = request.getfixturevalue(orbit_fixture)
+        cf, dcf = solve3d_d(0.0, **orbit)
+        for n in range(4):
+            assert_allclose(dcf[0, :, n], -(n + 1) * cf[:, n + 1], rtol=1e-7, atol=1e-9)
+
+    @pytest.mark.parametrize("time", [0.005, 0.01, 0.02, -0.02])
+    def test_sep_d_and_pos_d_dt0_finite_difference(self, eccentric_orbit, time):
+        """End-to-end: slot 0 of sep_d/pos_d matches a central difference of the
+        value w.r.t. the t0 argument. Times are kept near the knot so the Taylor
+        truncation (the value model's own accuracy limit) stays below tolerance."""
+        c, dc = solve3d_d(0.0, **eccentric_orbit)
+        p = eccentric_orbit["p"]
+        t0, h = 0.0, 1e-6
+
+        _, dd = sep_d(time, t0, p, c, dc)
+        dp, _ = sep_d(time, t0 + h, p, c, dc)
+        dm, _ = sep_d(time, t0 - h, p, c, dc)
+        assert_allclose(dd[0], (dp - dm) / (2 * h), rtol=1e-5, atol=1e-6)
+
+        _, _, _, dpx, dpy, dpz = pos_d(time, t0, p, c, dc)
+        pxp, pyp, pzp, _, _, _ = pos_d(time, t0 + h, p, c, dc)
+        pxm, pym, pzm, _, _, _ = pos_d(time, t0 - h, p, c, dc)
+        assert_allclose(dpx[0], (pxp - pxm) / (2 * h), rtol=1e-5, atol=1e-6)
+        assert_allclose(dpy[0], (pyp - pym) / (2 * h), rtol=1e-5, atol=1e-6)
+        assert_allclose(dpz[0], (pzp - pzm) / (2 * h), rtol=1e-5, atol=1e-6)
 
 
 if __name__ == "__main__":

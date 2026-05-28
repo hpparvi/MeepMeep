@@ -43,7 +43,7 @@ def _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     pz : float
         Line-of-sight planet coordinate [stellar radii].
     dpz : ndarray, shape (7,)
-        Gradient w.r.t. ``(phase, p, a, i, e, w, lan)``.
+        Gradient w.r.t. ``(t0, p, a, i, e, w, lan)``.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
@@ -67,7 +67,7 @@ def _zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     zs : ndarray, shape (N,)
         Line-of-sight coordinates per time.
     dzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(phase, p, a, i, e, w, lan)`` per time.
+        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     zs = zeros(n)

@@ -57,7 +57,7 @@ def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     px, py, pz : float
         Sky-frame position components in units of the stellar radius.
     dpx, dpy, dpz : ndarray, shape (7,)
-        Gradients w.r.t. ``(phase, p, a, i, e, w, lan)``.
+        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)``.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
@@ -81,7 +81,7 @@ def _pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     xs, ys, zs : ndarray, shape (N,)
         Position components per time.
     dxs, dys, dzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(phase, p, a, i, e, w, lan)`` per time.
+        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     xs = zeros(n)

@@ -423,5 +423,57 @@ class TestLongitudeOfAscendingNode:
         assert_allclose(drv[:, 6], 0.0, atol=1e-10)
 
 
+class TestTransitCenterTimeDerivative:
+    """Slot 0 of every Orbit gradient is the partial w.r.t. the transit-center
+    time tc. Validated end-to-end by central-differencing tc through the full
+    pipeline (the position depends on t_obs - tc, so this is the d/dt0 the
+    fitting layer needs)."""
+
+    # Times are kept near the transit center (the transit-modelling regime) so
+    # the Taylor truncation of the value model stays below the FD tolerance; a
+    # slot-0 sign error would still show as a ~200% discrepancy everywhere.
+    TIMES = np.linspace(-0.05, 0.05, 21)
+
+    @staticmethod
+    def _orbit(pars, times, derivatives=True):
+        o = Orbit(npt=15, derivatives=derivatives)
+        o.set_pars(**pars)
+        o.set_data(times)
+        return o
+
+    def test_xyz_dtc(self):
+        h = 1e-6
+        _, _, _, dx, dy, dz = self._orbit(PARS, self.TIMES).xyz()
+        xp, yp, zp = self._orbit({**PARS, "tc": PARS["tc"] + h}, self.TIMES, False).xyz()
+        xm, ym, zm = self._orbit({**PARS, "tc": PARS["tc"] - h}, self.TIMES, False).xyz()
+        # Tolerance is set above the multi-knot Taylor truncation (the value
+        # model's own accuracy at npt=15) -- the exact d/dt0 identity is proved
+        # to machine precision in test_numba_solve{2,3}d; this only guards the
+        # sign through the full epoch-fold + knot-dispatch path.
+        assert_allclose(dx[:, 0], (xp - xm) / (2 * h), rtol=5e-3, atol=1e-2)
+        assert_allclose(dy[:, 0], (yp - ym) / (2 * h), rtol=5e-3, atol=1e-2)
+        assert_allclose(dz[:, 0], (zp - zm) / (2 * h), rtol=5e-3, atol=1e-2)
+
+    def test_separation_dtc(self):
+        h = 1e-6
+        _, dr = self._orbit(PARS, self.TIMES).star_planet_distance()
+        rp = self._orbit({**PARS, "tc": PARS["tc"] + h}, self.TIMES, False).star_planet_distance()
+        rm = self._orbit({**PARS, "tc": PARS["tc"] - h}, self.TIMES, False).star_planet_distance()
+        assert_allclose(dr[:, 0], (rp - rm) / (2 * h), rtol=5e-3, atol=1e-2)
+
+    @pytest.mark.parametrize("e,w", [(0.0, 0.0), (0.3, 0.5)])
+    def test_true_anomaly_dtc(self, e, w):
+        """Both the circular fast path (e=0) and the eccentric geometric path
+        report df/dtc with the same (transit-center-time) sign convention."""
+        h = 1e-6
+        pars = {**PARS, "e": e, "w": w}
+        _, df = self._orbit(pars, self.TIMES).true_anomaly()
+        fp = self._orbit({**pars, "tc": pars["tc"] + h}, self.TIMES, False).true_anomaly()
+        fm = self._orbit({**pars, "tc": pars["tc"] - h}, self.TIMES, False).true_anomaly()
+        # Wrap the tiny difference into (-pi, pi] to avoid 2*pi jumps.
+        diff = (fp - fm + np.pi) % (2 * np.pi) - np.pi
+        assert_allclose(df[:, 0], diff / (2 * h), rtol=1e-3, atol=1e-3)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

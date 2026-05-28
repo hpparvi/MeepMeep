@@ -74,7 +74,7 @@ def solve3d_orbit_d(knot_times, p, a, i, e, w, lan=0.0, npt=15):
         :func:`~meepmeep.backends.numba.taylor.orbit3d.solve3d_orbit`).
     dcoeffs : ndarray, shape (npt, 7, 3, 5)
         Parameter-derivative tensors at every knot. The second axis is
-        ordered ``(phase, p, a, i, e, w, lan)``.
+        ordered ``(t0, p, a, i, e, w, lan)``.
 
     Notes
     -----
