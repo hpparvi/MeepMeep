@@ -29,7 +29,9 @@ def solve3d(t: float, p: float, a: float, i: float, e: float, w: float, lan: flo
     Parameters
     ----------
     t : float
-        Time for the Taylor series expansion [days], t=0 for the transit center.
+        Time of the Taylor series expansion [days], measured with respect to the
+        transit center time (time of inferior conjunction). t=0 corresponds to the
+        transit center.
     p : float
         Orbital period [days].
     a : float

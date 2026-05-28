@@ -22,10 +22,11 @@ parameters
 
    \boldsymbol{\theta} = (\phi_0,\, p,\, a,\, i,\, e,\, w,\, \Omega),
 
-where :math:`\phi_0` is the expansion phase passed to the solver (in
-the single-knot transit-modelling workflow, :math:`\phi_0 \equiv t_0`,
-the time of transit center). The leading axis of every ``dc`` tensor
-follows this ordering. This page documents how those derivatives are
+where :math:`\phi_0` is the expansion time passed to the solver as its
+``t`` argument: a time in days relative to the transit center, with
+:math:`\phi_0 = 0` at the transit center (time of inferior
+conjunction). The leading axis of every ``dc`` tensor follows this
+ordering. This page documents how those derivatives are
 computed, the explicit formulas at each stage, and the practical
 regime in which they are accurate — useful when you are verifying the
 math, extending the backend with a new observable, or debugging a
@@ -76,17 +77,17 @@ same structure with one extra row in the final rotation matrix.
 
 The parameter indexing throughout is
 
-==  ==========  ==============================================
-k    Parameter   Comment
-==  ==========  ==============================================
-0    :math:`\phi_0`   Taylor expansion phase / time of transit
-1    :math:`p`        Orbital period
-2    :math:`a`        Scaled semi-major axis
-3    :math:`i`        Inclination
-4    :math:`e`        Eccentricity
-5    :math:`w`        Argument of periastron
-6    :math:`\Omega`   Longitude of the ascending node
-==  ==========  ==============================================
+==  ==============  ========================================================
+k   Parameter       Comment
+==  ==============  ========================================================
+0   :math:`\phi_0`  Taylor expansion time ``t`` [days], =0 at transit center
+1   :math:`p`       Orbital period
+2   :math:`a`       Scaled semi-major axis
+3   :math:`i`       Inclination
+4   :math:`e`       Eccentricity
+5   :math:`w`       Argument of periastron
+6   :math:`\Omega`  Longitude of the ascending node
+==  ==============  ========================================================
 
 The first six parameters drive Kepler's equation and the orbital-plane
 state; their analytic partials are built with the length-6 working
@@ -542,10 +543,12 @@ Numerical regime and pitfalls
   :math:`10^{-9}` relative error for typical transit parameters — the
   same envelope the value-only evaluators inhabit.
 
-* **Slot-0 convention.** In the single-knot transit workflow the
-  expansion phase :math:`\phi_0` coincides with the time of transit
-  center :math:`t_0` and slot 0 is read directly as
-  :math:`\partial / \partial t_0`. In the multi-knot workflow each
-  knot's expansion phase is fixed at construction time; slot 0 then
-  describes the sensitivity to that shared phase offset, which the
-  high-level fitting layer maps onto :math:`t_0` as appropriate.
+* **Slot-0 convention.** Slot 0 is the partial with respect to the
+  expansion time :math:`\phi_0` (the solver's ``t`` argument, in days
+  relative to the transit center). In the single-knot transit workflow
+  the expansion is placed at the transit center, so slot 0 is read
+  directly as :math:`\partial / \partial t_0`. In the multi-knot
+  workflow each knot's expansion time is fixed at construction time;
+  slot 0 then describes the sensitivity to that shared time offset,
+  which the high-level fitting layer maps onto :math:`t_0` as
+  appropriate.

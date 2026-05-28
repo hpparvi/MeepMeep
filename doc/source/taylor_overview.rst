@@ -145,8 +145,9 @@ dimension.
 Single-knot evaluation
 ----------------------
 
-Pick a phase :math:`\phi_0` of interest (for example, the transit
-center :math:`\phi_0 = 0`). A single call to
+Pick a time :math:`t` of interest, measured in days relative to the
+transit center (for example, the transit center itself, :math:`t = 0`).
+A single call to
 :func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` (or
 :func:`~meepmeep.backends.numba.taylor.solve3d.solve3d` for 3D) builds
 the ``(D, 5)`` coefficient matrix at that knot:
@@ -155,7 +156,7 @@ the ``(D, 5)`` coefficient matrix at that knot:
 
    from meepmeep.backends.numba.taylor.solve2d import solve2d
 
-   c = solve2d(phase, p, a, i, e, w)   # shape (2, 5)
+   c = solve2d(t, p, a, i, e, w)   # shape (2, 5)
 
 The Taylor expansion is accurate inside a window around the knot whose
 size depends on the orbit (more eccentric orbits have shorter windows
@@ -217,7 +218,7 @@ into single-knot pipelines such as transit duration calculators.
    # Orbital parameters
    t0, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
 
-   # One knot at the transit center (phase = 0)
+   # One knot at the transit center (t = 0)
    c = solve2d(0.0, p, a, i, e, w)
 
    # Centered evaluation: t is measured from the knot

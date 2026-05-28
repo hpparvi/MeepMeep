@@ -23,12 +23,14 @@ from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 @njit(fastmath=True)
 def solve2d_d(t, p, a, i, e, w, lan: float = 0.0):
-    """Calculate Taylor expansion coefficients and their parameter derivatives around a given time.
+    """Calculate Taylor expansion coefficients and their parameter derivatives around a given time relative to the transit center.
 
     Parameters
     ----------
     t : float
-        Time for the Taylor series expansion [days], t=0 for the transit center.
+        Time of the Taylor series expansion [days], measured with respect to the
+        transit center time (time of inferior conjunction). t=0 corresponds to the
+        transit center.
     p : float
         Orbital period [days].
     a : float
@@ -49,10 +51,10 @@ def solve2d_d(t, p, a, i, e, w, lan: float = 0.0):
         Position Taylor coefficients (identical to solve2d output).
     dcf : ndarray (7, 2, 5)
         Parameter derivative coefficients. dcf[k] = d(cf)/d(theta_k)
-        for theta = (phase, p, a, i, e, w, lan). Row 6 is the derivative
+        for theta = (t, p, a, i, e, w, lan). Row 6 is the derivative
         with respect to the longitude of the ascending node.
     """
-    # Parameter indices: 0=phase, 1=p, 2=a, 3=i, 4=e, 5=w, 6=lan
+    # Parameter indices: 0=t, 1=p, 2=a, 3=i, 4=e, 5=w, 6=lan
 
     # ================================================================
     # Step 1: Constants and their derivatives
