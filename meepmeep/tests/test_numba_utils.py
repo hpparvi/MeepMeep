@@ -244,9 +244,9 @@ class TestMeanAnomalyAtTransit:
     @pytest.mark.parametrize("e", [0.0, 0.2, 0.5])
     @pytest.mark.parametrize("w", [0.0, 0.6, 2.0])
     def test_kepler_consistency_with_newton(self, e, w):
-        """ta_newton_s at t0 must return f = pi/2 - w (the transit anomaly)."""
-        t0, p = 0.0, 3.0
-        f = ta_newton_s(t0, t0, p, e, w)
+        """ta_newton_s at tc must return f = pi/2 - w (the transit anomaly)."""
+        tc, p = 0.0, 3.0
+        f = ta_newton_s(tc, tc, p, e, w)
         expected_f = np.arctan2(np.sin(HALF_PI - w), np.cos(HALF_PI - w))
         assert_allclose(f, expected_f, atol=1e-7)
 
@@ -297,20 +297,20 @@ class TestMeanAnomaly:
 
     @pytest.mark.parametrize("e", [0.0, 0.2, 0.6])
     @pytest.mark.parametrize("w", [0.0, 0.5, 2.1])
-    def test_at_t0_equals_transit_anomaly_mod_2pi(self, e, w):
-        """At t = t0 the mean anomaly equals mean_anomaly_at_transit mod 2pi."""
-        t0, p = 0.0, 3.0
-        m = mean_anomaly(t0, t0, p, e, w)
+    def test_at_tc_equals_transit_anomaly_mod_2pi(self, e, w):
+        """At t = tc the mean anomaly equals mean_anomaly_at_transit mod 2pi."""
+        tc, p = 0.0, 3.0
+        m = mean_anomaly(tc, tc, p, e, w)
         m_tr = mean_anomaly_at_transit(e, w) % TWO_PI
         assert_allclose(m, m_tr, atol=1e-12)
 
     @pytest.mark.parametrize("e", [0.0, 0.3, 0.7])
     def test_periodicity(self, e):
         """m(t) and m(t + p) must agree."""
-        t0, p, w = 0.0, 3.0, 0.4
+        tc, p, w = 0.0, 3.0, 0.4
         for t in np.linspace(0.0, p, 8):
-            m1 = mean_anomaly(t, t0, p, e, w)
-            m2 = mean_anomaly(t + p, t0, p, e, w)
+            m1 = mean_anomaly(t, tc, p, e, w)
+            m2 = mean_anomaly(t + p, tc, p, e, w)
             assert_allclose(m1, m2, atol=1e-12)
 
 
@@ -325,44 +325,44 @@ class TestMeanAnomalyWithDerivatives:
     @pytest.mark.parametrize("w", [0.3, 1.5])
     def test_value_matches_wrapped(self, e, w):
         """Unwrapped m mod 2pi must equal mean_anomaly."""
-        t, t0, p = 1.0, 0.0, 3.0
-        m, *_ = mean_anomaly_with_derivatives(t, t0, p, e, w)
-        m_ref = mean_anomaly(t, t0, p, e, w)
+        t, tc, p = 1.0, 0.0, 3.0
+        m, *_ = mean_anomaly_with_derivatives(t, tc, p, e, w)
+        m_ref = mean_anomaly(t, tc, p, e, w)
         assert_allclose(m % TWO_PI, m_ref, atol=1e-12)
 
-    def test_dt0_matches_finite_difference(self):
-        t, t0, p, e, w = 1.0, 0.0, 3.0, 0.3, 0.7
+    def test_dtc_matches_finite_difference(self):
+        t, tc, p, e, w = 1.0, 0.0, 3.0, 0.3, 0.7
         h = 1e-6
-        _, dm_dt0, _, _, _ = mean_anomaly_with_derivatives(t, t0, p, e, w)
-        m_plus, *_ = mean_anomaly_with_derivatives(t, t0 + h, p, e, w)
-        m_minus, *_ = mean_anomaly_with_derivatives(t, t0 - h, p, e, w)
+        _, dm_dtc, _, _, _ = mean_anomaly_with_derivatives(t, tc, p, e, w)
+        m_plus, *_ = mean_anomaly_with_derivatives(t, tc + h, p, e, w)
+        m_minus, *_ = mean_anomaly_with_derivatives(t, tc - h, p, e, w)
         fd = (m_plus - m_minus) / (2 * h)
-        assert_allclose(dm_dt0, fd, atol=1e-7)
+        assert_allclose(dm_dtc, fd, atol=1e-7)
 
     def test_dp_matches_finite_difference(self):
-        t, t0, p, e, w = 1.0, 0.0, 3.0, 0.3, 0.7
+        t, tc, p, e, w = 1.0, 0.0, 3.0, 0.3, 0.7
         h = 1e-6
-        _, _, dm_dp, _, _ = mean_anomaly_with_derivatives(t, t0, p, e, w)
-        m_plus, *_ = mean_anomaly_with_derivatives(t, t0, p + h, e, w)
-        m_minus, *_ = mean_anomaly_with_derivatives(t, t0, p - h, e, w)
+        _, _, dm_dp, _, _ = mean_anomaly_with_derivatives(t, tc, p, e, w)
+        m_plus, *_ = mean_anomaly_with_derivatives(t, tc, p + h, e, w)
+        m_minus, *_ = mean_anomaly_with_derivatives(t, tc, p - h, e, w)
         fd = (m_plus - m_minus) / (2 * h)
         assert_allclose(dm_dp, fd, atol=1e-7)
 
     def test_de_matches_finite_difference(self):
-        t, t0, p, e, w = 1.0, 0.0, 3.0, 0.3, 0.7
+        t, tc, p, e, w = 1.0, 0.0, 3.0, 0.3, 0.7
         h = 1e-6
-        _, _, _, dm_de, _ = mean_anomaly_with_derivatives(t, t0, p, e, w)
-        m_plus, *_ = mean_anomaly_with_derivatives(t, t0, p, e + h, w)
-        m_minus, *_ = mean_anomaly_with_derivatives(t, t0, p, e - h, w)
+        _, _, _, dm_de, _ = mean_anomaly_with_derivatives(t, tc, p, e, w)
+        m_plus, *_ = mean_anomaly_with_derivatives(t, tc, p, e + h, w)
+        m_minus, *_ = mean_anomaly_with_derivatives(t, tc, p, e - h, w)
         fd = (m_plus - m_minus) / (2 * h)
         assert_allclose(dm_de, fd, atol=1e-7)
 
     def test_dw_matches_finite_difference(self):
-        t, t0, p, e, w = 1.0, 0.0, 3.0, 0.3, 0.7
+        t, tc, p, e, w = 1.0, 0.0, 3.0, 0.3, 0.7
         h = 1e-6
-        _, _, _, _, dm_dw = mean_anomaly_with_derivatives(t, t0, p, e, w)
-        m_plus, *_ = mean_anomaly_with_derivatives(t, t0, p, e, w + h)
-        m_minus, *_ = mean_anomaly_with_derivatives(t, t0, p, e, w - h)
+        _, _, _, _, dm_dw = mean_anomaly_with_derivatives(t, tc, p, e, w)
+        m_plus, *_ = mean_anomaly_with_derivatives(t, tc, p, e, w + h)
+        m_minus, *_ = mean_anomaly_with_derivatives(t, tc, p, e, w - h)
         fd = (m_plus - m_minus) / (2 * h)
         assert_allclose(dm_dw, fd, atol=1e-7)
 
@@ -399,11 +399,11 @@ class TestZFromTa:
         assert_allclose(z, 0.0, atol=1e-12)
 
     def test_matches_z_newton_at_transit(self):
-        """z_from_ta(transit anomaly) must agree with z_newton_s at t=t0."""
-        t0, p, a, i, e, w = 0.0, 3.0, 10.0, 1.45, 0.2, 0.4
-        f = ta_newton_s(t0, t0, p, e, w)
+        """z_from_ta(transit anomaly) must agree with z_newton_s at t=tc."""
+        tc, p, a, i, e, w = 0.0, 3.0, 10.0, 1.45, 0.2, 0.4
+        f = ta_newton_s(tc, tc, p, e, w)
         z_a = z_from_ta(f, a, i, e, w)
-        z_b = z_newton_s(t0, t0, p, a, i, e, w)
+        z_b = z_newton_s(tc, tc, p, a, i, e, w)
         assert_allclose(z_a, z_b, rtol=1e-7)
 
 

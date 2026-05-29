@@ -35,7 +35,7 @@ def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     tpa : float
         Periastron time anchoring the knot grid. Note the convention
         difference: the high-level :class:`~meepmeep.orbit.Orbit` API
-        takes the transit-center time as ``t0`` and converts it to
+        takes the transit-center time as ``tc`` and converts it to
         periastron time before calling functions in this module (see
         ``Orbit.__init__``).
     p : float
@@ -57,7 +57,7 @@ def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     px, py, pz : float
         Sky-frame position components in units of the stellar radius.
     dpx, dpy, dpz : ndarray, shape (7,)
-        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)``.
+        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
@@ -81,7 +81,7 @@ def _pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     xs, ys, zs : ndarray, shape (N,)
         Position components per time.
     dxs, dys, dzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)`` per time.
+        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     xs = zeros(n)

@@ -45,9 +45,9 @@ def _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
     correction should add to the timing offset between primary transit and
     secondary eclipse (and intermediate phases), not to the transit itself.
 
-    Important: the convention in this module is that ``t0`` is the
+    Important: the convention in this module is that ``tc`` is the
     **periastron** time (the same as for every other ``*_o*`` evaluator in
-    ``orbit3d``). The transit time is ``t0 + to`` where
+    ``orbit3d``). The transit time is ``tc + to`` where
     ``to = mean_anomaly_at_transit(e, w) · p / (2π)``. The ``e, w`` arguments
     are needed to determine ``to``.
 

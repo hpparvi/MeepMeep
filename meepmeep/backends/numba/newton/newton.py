@@ -61,7 +61,7 @@ def ea_from_ma(ma, ecc):
 
 
 @njit
-def ea_newton_s(t, t0, p, e, w):
+def ea_newton_s(t, tc, p, e, w):
     """Eccentric anomaly at a scalar time via Newton-Raphson.
 
     Computes the mean anomaly from the orbital elements at time ``t``,
@@ -71,7 +71,7 @@ def ea_newton_s(t, t0, p, e, w):
     ----------
     t : float
         Observation time, in the same units as ``p``.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -86,19 +86,19 @@ def ea_newton_s(t, t0, p, e, w):
         Eccentric anomaly in radians.
 
     """
-    ma = mean_anomaly(t, t0, p, e, w)
+    ma = mean_anomaly(t, tc, p, e, w)
     return ea_from_ma(ma, e)
 
 
 @njit
-def ea_newton_v(t, t0, p, e, w):
+def ea_newton_v(t, tc, p, e, w):
     """Eccentric anomaly evaluated at an array of times.
 
     Parameters
     ----------
     t : NDArray
         1D array of observation times, in the same units as ``p``.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -114,13 +114,13 @@ def ea_newton_v(t, t0, p, e, w):
     """
     ea = zeros(t.size)
     for i in range(len(t)):
-        ma = mean_anomaly(t[i], t0, p, e, w)
+        ma = mean_anomaly(t[i], tc, p, e, w)
         ea[i] = ea_from_ma(ma, e)
     return ea
 
 
 @njit
-def ta_newton_s(t, t0, p, e, w):
+def ta_newton_s(t, tc, p, e, w):
     """True anomaly at a scalar time.
 
     Composes `ea_newton_s` with `ta_from_ea` to map time directly to
@@ -131,7 +131,7 @@ def ta_newton_s(t, t0, p, e, w):
     ----------
     t : float
         Observation time, in the same units as ``p``.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -145,18 +145,18 @@ def ta_newton_s(t, t0, p, e, w):
     f : float
         True anomaly in radians, wrapped to ``(-pi, pi]`` by arctan2.
     """
-    return ta_from_ea(ea_newton_s(t, t0, p, e, w), e)
+    return ta_from_ea(ea_newton_s(t, tc, p, e, w), e)
 
 
 @njit
-def ta_newton_v(t, t0, p, e, w):
+def ta_newton_v(t, tc, p, e, w):
     """True anomaly evaluated at an array of times.
 
     Parameters
     ----------
     t : NDArray
         1D array of observation times, in the same units as ``p``.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -170,18 +170,18 @@ def ta_newton_v(t, t0, p, e, w):
     f : NDArray
         True anomaly in radians for each input time.
     """
-    return ta_from_ea(ea_newton_v(t, t0, p, e, w), e)
+    return ta_from_ea(ea_newton_v(t, tc, p, e, w), e)
 
 
 @njit(fastmath=True)
-def xy_newton_v(time, t0, p, a, i, e, w):
+def xy_newton_v(time, tc, p, a, i, e, w):
     """Sky-plane (x, y) position of the planet at an array of times.
 
     Parameters
     ----------
     time : NDArray
         1D array of observation times, in the same units as ``p``.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -208,7 +208,7 @@ def xy_newton_v(time, t0, p, a, i, e, w):
     documentation). The radial distance is ``r = a(1-e^2)/(1+e cos f)``
     and the projection drops the line-of-sight component.
     """
-    f = ta_newton_v(time, t0, p, e, w)
+    f = ta_newton_v(time, tc, p, e, w)
     r = a * (1. - e ** 2) / (1. + e * cos(f))
     x = -r * cos(w + f)
     y = -r * sin(w + f) * cos(i)
@@ -216,7 +216,7 @@ def xy_newton_v(time, t0, p, a, i, e, w):
 
 
 @njit(fastmath=True)
-def xyz_newton_v(time, t0, p, a, i, e, w):
+def xyz_newton_v(time, tc, p, a, i, e, w):
     """3D position of the planet at an array of times.
 
     Returns the full position vector including the line-of-sight
@@ -227,7 +227,7 @@ def xyz_newton_v(time, t0, p, a, i, e, w):
     ----------
     time : NDArray
         1D array of observation times, in the same units as ``p``.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -251,7 +251,7 @@ def xyz_newton_v(time, t0, p, a, i, e, w):
         toward the observer (transit side), negative on the far side
         of the orbit (eclipse side).
     """
-    f = ta_newton_v(time, t0, p, e, w)
+    f = ta_newton_v(time, tc, p, e, w)
     r = a * (1. - e ** 2) / (1. + e * cos(f))
     x = -r * cos(w + f)
     y = -r * sin(w + f) * cos(i)
@@ -260,14 +260,14 @@ def xyz_newton_v(time, t0, p, a, i, e, w):
 
 
 @njit
-def z_newton_s(time, t0, p, a, i, e, w):
+def z_newton_s(time, tc, p, a, i, e, w):
     """Signed sky-projected planet-star separation at a scalar time.
 
     Parameters
     ----------
     time : float
         Observation time, in the same units as ``p``.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -287,19 +287,19 @@ def z_newton_s(time, t0, p, a, i, e, w):
         Positive during transit (planet in front of the star),
         negative during secondary eclipse (planet behind the star).
     """
-    ta = ta_newton_s(time, t0, p, e, w)
+    ta = ta_newton_s(time, tc, p, e, w)
     return z_from_ta(ta, a, i, e, w)
 
 
 @njit
-def z_newton_v(time, t0, p, a, i, e, w):
+def z_newton_v(time, tc, p, a, i, e, w):
     """Signed sky-projected planet-star separation at an array of times.
 
     Parameters
     ----------
     time : NDArray
         1D array of observation times, in the same units as ``p``.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -318,12 +318,12 @@ def z_newton_v(time, t0, p, a, i, e, w):
         Projected separation in stellar radii per input time, signed by
         transit/eclipse side as in `z_newton_s`.
     """
-    ta = ta_newton_v(time, t0, p, e, w)
+    ta = ta_newton_v(time, tc, p, e, w)
     return z_from_ta(ta, a, i, e, w)
 
 
 @njit
-def rv_newton_v(times, k, t0, p, e, w):
+def rv_newton_v(times, k, tc, p, e, w):
     """Stellar radial velocity induced by a planet at an array of times.
 
     Implements the standard Keplerian radial-velocity model
@@ -340,7 +340,7 @@ def rv_newton_v(times, k, t0, p, e, w):
     k : float
         Radial-velocity semi-amplitude in the desired velocity units
         (e.g. m/s).
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period.
@@ -355,7 +355,7 @@ def rv_newton_v(times, k, t0, p, e, w):
         Predicted radial velocity at each input time, in the same
         units as ``k``.
     """
-    ta_n = ta_newton_v(times, t0, p, e, w)
+    ta_n = ta_newton_v(times, tc, p, e, w)
     return k * (cos(w + ta_n) + e * cos(w))
 
 

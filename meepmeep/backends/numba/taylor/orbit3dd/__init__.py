@@ -18,7 +18,7 @@
 
 Derivative-returning counterparts of the routines in the ``orbit3d``
 package. Every function returns both the value and its partial derivatives
-with respect to the orbital parameters ``(t0, p, a, i, e, w, lan)`` and any
+with respect to the orbital parameters ``(tc, p, a, i, e, w, lan)`` and any
 extra physical inputs the routine takes (appended to the orbital block in
 argument order).
 

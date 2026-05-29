@@ -25,7 +25,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     Evaluate the planet's (x, y, z) position at a knot-centered time.
 
     This is the "centered" variant of `pos`: it assumes the caller has
-    already subtracted the expansion time `t0` (and any epoch offset) so
+    already subtracted the expansion time `tk` (and any epoch offset) so
     that `time` is a small displacement around the knot. Each spatial
     coordinate is evaluated as a 5th-order polynomial using Horner's
     scheme.
@@ -34,7 +34,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     ----------
     time : float or NDArray
         Time relative to the Taylor series expansion point, i.e.
-        `time = tc - (t0 + epoch*p)`. Must lie within the knot's region
+        `time = tc - (tk + epoch*p)`. Must lie within the knot's region
         of validity for the truncation error to remain small.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. See `pos` for
@@ -64,28 +64,28 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
 
 
 @njit(fastmath=True, inline='always')
-def pos(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple[
+def pos(time: float | NDArray, tk: float, p: float, c: NDArray) -> tuple[
     float | NDArray, float | NDArray, float | NDArray]:
     """
     Evaluate the planet's (x, y, z) position at an absolute time using a 3D Taylor expansion.
 
     This is the "direct" variant of the 3D position evaluator: it
     accepts an absolute observation time `time`, folds it back into a
-    single orbital epoch around the expansion point `t0`, and then
+    single orbital epoch around the expansion point `tk`, and then
     evaluates the 5th-order Taylor polynomial stored in `c` using
     Horner's scheme via `pos_c`.
 
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `t0` and `p`
+        Absolute observation time(s) in the same units as `tk` and `p`
         (typically days). Scalar or array inputs are both accepted; the
         return type matches.
-    t0 : float
+    tk : float
         Time at which the Taylor series was expanded (the knot time).
     p : float
         Orbital period, used to fold `time` into the interval
-        `[t0 - p/2, t0 + p/2)`.
+        `[tk - p/2, tk + p/2)`.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Row 0 holds
         the x-direction coefficients, row 1 the y-direction, and row 2
@@ -104,8 +104,8 @@ def pos(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple[
         values point toward the observer.
 
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return pos_c(time - (t0 + epoch * p), c)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return pos_c(time - (tk + epoch * p), c)
 
 
 @njit(fastmath=True, inline='always')
@@ -144,7 +144,7 @@ def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
 
 
 @njit(fastmath=True, inline='always')
-def sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArray:
+def sep(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArray:
     """
     Evaluate the sky-projected planet-star separation at an absolute time.
 
@@ -158,7 +158,7 @@ def sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArr
     ----------
     time : float or NDArray
         Absolute observation time(s).
-    t0 : float
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period.
@@ -173,8 +173,8 @@ def sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArr
         (transit vs. eclipse) is not encoded here. Use `zpos` or `zpos_c`
         if the transit/eclipse branch is needed.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return sep_c(time - (t0 + epoch * p), c)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return sep_c(time - (tk + epoch * p), c)
 
 
 @njit(fastmath=True, inline='always')
@@ -215,7 +215,7 @@ def pos_and_sep_c(time: float | NDArray, c: NDArray) -> tuple[
 
 
 @njit(fastmath=True, inline='always')
-def pos_and_sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple[
+def pos_and_sep(time: float | NDArray, tk: float, p: float, c: NDArray) -> tuple[
     float | NDArray, float | NDArray, float | NDArray, float | NDArray]:
     """
     Evaluate the planet's (x, y, z) position and the sky-projected separation at an absolute time.
@@ -227,7 +227,7 @@ def pos_and_sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple
     ----------
     time : float or NDArray
         Absolute observation time(s).
-    t0 : float
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period.
@@ -246,8 +246,8 @@ def pos_and_sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple
     d : float or NDArray
         Sky-projected planet-star separation in units of stellar radii.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return pos_and_sep_c(time - (t0 + epoch * p), c)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return pos_and_sep_c(time - (tk + epoch * p), c)
 
 
 @njit(fastmath=True, inline='always')
@@ -279,7 +279,7 @@ def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
 
 
 @njit(fastmath=True, inline='always')
-def zpos(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArray:
+def zpos(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArray:
     """
     Evaluate the planet's line-of-sight z position at an absolute time.
 
@@ -290,7 +290,7 @@ def zpos(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDAr
     ----------
     time : float or NDArray
         Absolute observation time(s).
-    t0 : float
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period.
@@ -305,5 +305,5 @@ def zpos(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDAr
         The sign distinguishes the transit (positive z) and eclipse
         (negative z) branches of the orbit.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return zpos_c(time - (t0 + epoch * p), c)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return zpos_c(time - (tk + epoch * p), c)

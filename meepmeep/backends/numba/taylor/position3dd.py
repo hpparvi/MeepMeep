@@ -42,7 +42,7 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     dc : NDArray
         A (7, 3, 5) tensor of parameter-derivative coefficients produced
         by `solve3d_d`. The leading axis enumerates the seven Keplerian
-        parameters in the canonical order `(t0, p, a, i, e, w, lan)`; the
+        parameters in the canonical order `(tc, p, a, i, e, w, lan)`; the
         remaining axes mirror the layout of `c`.
 
     Returns
@@ -56,7 +56,7 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         values point toward the observer.
     dpx : NDArray
         Shape (7,) array of partial derivatives of `px` with respect to
-        `(t0, p, a, i, e, w, lan)`, in that order.
+        `(tc, p, a, i, e, w, lan)`, in that order.
     dpy : NDArray
         Shape (7,) array of partial derivatives of `py` with respect to
         the same seven parameters.
@@ -81,20 +81,20 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
 
 @njit(fastmath=True)
-def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
+def pos_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
     """
     Evaluate the (x, y, z) position and its orbital-parameter derivatives at an absolute time.
 
     Direct counterpart of `pos_cd`: accepts an absolute observation time
     `time`, folds it back into a single orbital epoch around the
-    expansion time `t0`, and delegates the polynomial evaluation to
+    expansion time `tk`, and delegates the polynomial evaluation to
     `pos_cd`.
 
     Parameters
     ----------
     time : float
-        Absolute observation time in the same units as `t0` and `p`.
-    t0 : float
+        Absolute observation time in the same units as `tk` and `p`.
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period, used for epoch folding.
@@ -102,7 +102,7 @@ def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
         A (3, 5) Taylor coefficient matrix produced by `solve3d`.
     dc : NDArray
         A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
+        with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
 
     Returns
     -------
@@ -114,15 +114,15 @@ def pos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
         Line-of-sight z position in units of stellar radii. Positive
         values point toward the observer.
     dpx : NDArray
-        Shape (7,) partial derivatives of `px` w.r.t. `(t0, p, a, i, e, w, lan)`.
+        Shape (7,) partial derivatives of `px` w.r.t. `(tc, p, a, i, e, w, lan)`.
     dpy : NDArray
-        Shape (7,) partial derivatives of `py` w.r.t. `(t0, p, a, i, e, w, lan)`.
+        Shape (7,) partial derivatives of `py` w.r.t. `(tc, p, a, i, e, w, lan)`.
     dpz : NDArray
-        Shape (7,) partial derivatives of `pz` w.r.t. `(t0, p, a, i, e, w, lan)`.
+        Shape (7,) partial derivatives of `pz` w.r.t. `(tc, p, a, i, e, w, lan)`.
 
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return pos_cd(time - (t0 + epoch * p), c, dc)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return pos_cd(time - (tk + epoch * p), c, dc)
 
 
 @njit(fastmath=True)
@@ -144,7 +144,7 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         rows 0 and 1 (x and y) are read.
     dc : NDArray
         A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`. Only
+        with the leading axis ordered as `(tc, p, a, i, e, w, lan)`. Only
         slices `dc[:, 0, :]` and `dc[:, 1, :]` are read.
 
     Returns
@@ -153,7 +153,7 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         Sky-projected planet-star separation in units of stellar radii.
     dd : NDArray
         Shape (7,) partial derivatives of `d` with respect to
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
 
     Notes
     -----
@@ -181,18 +181,18 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
 
 @njit(fastmath=True)
-def sep_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
+def sep_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
     """
     Evaluate the sky-projected planet-star separation and its parameter derivatives at an absolute time.
 
     Direct counterpart of `sep_cd`: epoch-folds the absolute time
-    `time` around the expansion point `t0` and delegates to `sep_cd`.
+    `time` around the expansion point `tk` and delegates to `sep_cd`.
 
     Parameters
     ----------
     time : float
-        Absolute observation time in the same units as `t0` and `p`.
-    t0 : float
+        Absolute observation time in the same units as `tk` and `p`.
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period, used for epoch folding.
@@ -200,7 +200,7 @@ def sep_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
         A (3, 5) Taylor coefficient matrix produced by `solve3d`.
     dc : NDArray
         A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
+        with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
 
     Returns
     -------
@@ -208,10 +208,10 @@ def sep_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray):
         Sky-projected planet-star separation in units of stellar radii.
     dd : NDArray
         Shape (7,) partial derivatives of `d` with respect to
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return sep_cd(time - (t0 + epoch * p), c, dc)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return sep_cd(time - (tk + epoch * p), c, dc)
 
 
 @njit(fastmath=True)
@@ -234,7 +234,7 @@ def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
         row 2 (the z-direction coefficients) is read.
     dc : NDArray
         A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`. Only
+        with the leading axis ordered as `(tc, p, a, i, e, w, lan)`. Only
         the slice `dc[:, 2, :]` is read.
 
     Returns
@@ -244,7 +244,7 @@ def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
         values point toward the observer.
     dpz : NDArray
         Shape (7,) partial derivatives of `pz` with respect to
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
     """
     pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
     dpz = zeros(7)
@@ -254,18 +254,18 @@ def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
 
 
 @njit(fastmath=True)
-def zpos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+def zpos_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
     """
     Evaluate the line-of-sight z position and its parameter derivatives at an absolute time.
 
     Direct counterpart of `zpos_cd`: epoch-folds the absolute time `time`
-    around the expansion point `t0` and delegates to `zpos_cd`.
+    around the expansion point `tk` and delegates to `zpos_cd`.
 
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time in the same units as `t0` and `p`.
-    t0 : float
+        Absolute observation time in the same units as `tk` and `p`.
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period, used for epoch folding.
@@ -273,7 +273,7 @@ def zpos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) 
         A (3, 5) Taylor coefficient matrix produced by `solve3d`.
     dc : NDArray
         A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
-        with the leading axis ordered as `(t0, p, a, i, e, w, lan)`.
+        with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
 
     Returns
     -------
@@ -284,7 +284,7 @@ def zpos_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) 
         (negative z) branches of the orbit.
     dpz : NDArray
         Shape (7,) partial derivatives of `pz` with respect to
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return zpos_cd(time - (t0 + epoch * p), c, dc)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return zpos_cd(time - (tk + epoch * p), c, dc)

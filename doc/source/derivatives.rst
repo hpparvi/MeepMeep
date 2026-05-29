@@ -20,14 +20,14 @@ parameters
 
 .. math::
 
-   \boldsymbol{\theta} = (t_0,\, p,\, a,\, i,\, e,\, w,\, \Omega),
+   \boldsymbol{\theta} = (t_c,\, p,\, a,\, i,\, e,\, w,\, \Omega),
 
-where :math:`t_0` is the transit-center time (time of inferior
+where :math:`t_c` is the transit-centre time (time of inferior
 conjunction). The leading axis of every ``dc`` tensor follows this
 ordering. Note the sign: the orbit position depends on the elapsed
-time :math:`t_\mathrm{obs} - t_0`, so the :math:`t_0` partial is the
-negative of the partial w.r.t. the expansion-time argument ``t`` passed
-to the solver, :math:`\partial / \partial t_0 = -\,\partial / \partial t`. This page documents how those derivatives are
+time :math:`t_\mathrm{obs} - t_c`, so the :math:`t_c` partial is the
+negative of the partial w.r.t. the knot/expansion-time argument ``tk``
+passed to the solver, :math:`\partial / \partial t_c = -\,\partial / \partial t_k`. This page documents how those derivatives are
 computed, the explicit formulas at each stage, and the practical
 regime in which they are accurate — useful when you are verifying the
 math, extending the backend with a new observable, or debugging a
@@ -81,7 +81,7 @@ The parameter indexing throughout is
 ==  ==============  ========================================================
 k   Parameter       Comment
 ==  ==============  ========================================================
-0   :math:`t_0`     Transit-center time [days], inferior conjunction
+0   :math:`t_c`     Transit-centre time [days], inferior conjunction
 1   :math:`p`       Orbital period
 2   :math:`a`       Scaled semi-major axis
 3   :math:`i`       Inclination
@@ -154,21 +154,22 @@ this composite. The solver stores the result in ``doffset[4]`` and
 Step 3 — mean anomaly and its gradient
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The mean anomaly at the expansion-time argument :math:`t` (the solver's
-``t``, the elapsed time since transit center :math:`t = t_\mathrm{obs} - t_0`) is
+The mean anomaly at the knot time :math:`t_k` (the solver's ``tk``
+argument, measured relative to the transit centre, with
+:math:`t_k = t_\mathrm{obs} - t_c` at evaluation) is
 
 .. math::
 
-   M(t; p, e, w) \;=\; \frac{2\pi\, t}{p} \;+\; M_\text{tr}(e, w) \pmod{2\pi},
+   M(t_k; p, e, w) \;=\; \frac{2\pi\, t_k}{p} \;+\; M_\text{tr}(e, w) \pmod{2\pi},
 
 so, differentiating w.r.t. the parameter vector (slot 0 is the
-transit-center time :math:`t_0`, and :math:`\partial M/\partial t_0 =
--\,\partial M/\partial t`),
+transit-centre time :math:`t_c`, with :math:`\partial M/\partial t_c =
+-\,\partial M/\partial t_k`),
 
 .. math::
 
-   \frac{\partial M}{\partial t_0} = -\frac{2\pi}{p}, \qquad
-   \frac{\partial M}{\partial p} = -\frac{2\pi\, t}{p^2}, \qquad
+   \frac{\partial M}{\partial t_c} = -\frac{2\pi}{p}, \qquad
+   \frac{\partial M}{\partial p} = -\frac{2\pi\, t_k}{p^2}, \qquad
    \frac{\partial M}{\partial e} = \frac{\partial M_\text{tr}}{\partial e}, \qquad
    \frac{\partial M}{\partial w} = \frac{\partial M_\text{tr}}{\partial w},
 
@@ -323,7 +324,7 @@ rotation:
    \;}
 
 Only :math:`R` depends on :math:`(i, w)`; only :math:`q^{(n)}` carries
-the dependence on :math:`(t_0, p, a, e)`. The output ``dcf`` is the
+the dependence on :math:`(t_c, p, a, e)`. The output ``dcf`` is the
 tensor whose entries are exactly the right-hand side of this boxed
 identity.
 
@@ -443,7 +444,7 @@ with closed-form non-zero entries
    \qquad
    \frac{\partial s}{\partial e} = -\frac{s\, e}{1 - e^2}.
 
-The :math:`(t_0, w)` partials of :math:`s` vanish. Implemented in
+The :math:`(t_c, w)` partials of :math:`s` vanish. Implemented in
 :func:`~meepmeep.backends.numba.taylor.velocity3dd.rv_cd` and
 :func:`~meepmeep.backends.numba.taylor.velocity3dd.rv_d`.
 
@@ -548,11 +549,11 @@ Numerical regime and pitfalls
   same envelope the value-only evaluators inhabit.
 
 * **Slot-0 convention.** Slot 0 is the partial with respect to the
-  transit-center time :math:`t_0`. Because the orbit depends on the
-  elapsed time :math:`t_\mathrm{obs} - t_0`, this equals the negative of
-  the partial w.r.t. the solver's expansion-time argument ``t``:
-  :math:`\partial / \partial t_0 = -\,\partial / \partial t`. The sign
+  transit-centre time :math:`t_c`. Because the orbit depends on the
+  elapsed time :math:`t_\mathrm{obs} - t_c`, this equals the negative of
+  the partial w.r.t. the solver's knot/expansion-time argument ``tk``:
+  :math:`\partial / \partial t_c = -\,\partial / \partial t_k`. The sign
   is applied once at the source (``dma[0] = -2\pi/p`` in ``solve2d_d`` /
   ``solve3d_d``) and propagates linearly through every evaluator, so all
-  ``_d`` / ``_od`` outputs report :math:`\partial / \partial t_0`
+  ``_d`` / ``_od`` outputs report :math:`\partial / \partial t_c`
   consistently.

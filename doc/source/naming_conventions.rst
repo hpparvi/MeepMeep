@@ -59,7 +59,17 @@ Centered vs. direct suffix
 A trailing ``_c`` marks a function as the **centered** variant: it takes a
 time argument already shifted to lie close to a knot and skips the
 epoch-folding step. Functions without the ``_c`` are **direct** variants
-that accept an absolute time together with ``t0`` and ``p``.
+that accept an absolute time together with the knot time ``tk`` and ``p``.
+
+.. note::
+
+   Two time names are used consistently throughout the backend. ``tc`` is
+   the **transit-centre** time (time of inferior conjunction; the orbital
+   element the gradient slot 0 is taken with respect to). ``tk`` is the
+   **knot time** — the time at which a Taylor series was expanded (the
+   ``solve*`` first argument, and the fold reference of the direct
+   evaluators). ``tk`` need not equal ``tc``: it equals ``tc`` only when
+   the knot is placed at the transit centre.
 
 ==========================  ==============================================
 Suffix                      Meaning
@@ -91,7 +101,7 @@ The gradient-returning variants live in the ``*dd``-suffixed modules
 (``position2dd.py``, ``position3dd.py``, ``velocity3dd.py``,
 ``solve2dd.py``, ``solve3dd.py``, and the ``orbit3dd/`` package) and return *both* the
 quantity and its partial derivatives with respect to the seven orbital
-parameters ``(t0, p, a, i, e, w, lan)``. The suffix encodes whether the
+parameters ``(tc, p, a, i, e, w, lan)``. The suffix encodes whether the
 underlying evaluator is centered or direct:
 
 ==========================  ==============================================

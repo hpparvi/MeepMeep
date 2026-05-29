@@ -99,7 +99,7 @@ def knot_ix(t, tpa, p, dt, pktable) -> int:
     tpa : float
         Periastron time anchoring the knot grid. Note the convention
         difference: the high-level :class:`~meepmeep.orbit.Orbit` API
-        takes the transit-center time as ``t0`` and converts it to
+        takes the transit-center time as ``tc`` and converts it to
         periastron time before calling functions in this module (see
         ``Orbit.__init__``).
     p : float

@@ -183,7 +183,7 @@ class TestProjectedDistance:
         # Taylor approximation using centered version
         d_taylor = np.array([sep_c(t, coeffs) for t in times])
 
-        # Newton-Raphson ground truth (times relative to t0=0)
+        # Newton-Raphson ground truth (times relative to tc=0)
         d_newton = z_newton_v(times, 0.0, circular_orbit["p"], circular_orbit["a"], circular_orbit["i"],
             circular_orbit["e"], circular_orbit["w"])
 

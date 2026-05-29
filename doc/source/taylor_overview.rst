@@ -97,7 +97,7 @@ The Keplerian parameter set used by every low-level function is:
 ============  ====================================================
 Symbol        Meaning
 ============  ====================================================
-``t0``        Time of inferior conjunction (transit center).
+``tc``        Time of inferior conjunction (transit center).
 ``p``         Orbital period [days].
 ``a``         Scaled semi-major axis :math:`a/R_\star`.
 ``i``         Inclination [radians]. :math:`i = \pi/2` is edge-on.
@@ -106,7 +106,7 @@ Symbol        Meaning
 ============  ====================================================
 
 When parameter derivatives are returned, the canonical ordering is
-``(t0, p, a, i, e, w)``. The leading axis of every ``dc`` derivative
+``(tc, p, a, i, e, w)``. The leading axis of every ``dc`` derivative
 tensor follows this order.
 
 Both :func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` and
@@ -145,8 +145,8 @@ dimension.
 Single-knot evaluation
 ----------------------
 
-Pick a time :math:`t` of interest, measured in days relative to the
-transit center (for example, the transit center itself, :math:`t = 0`).
+Pick a knot time :math:`t_k` of interest, measured in days relative to
+the transit centre (for example, the transit centre itself, :math:`t_k = 0`).
 A single call to
 :func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` (or
 :func:`~meepmeep.backends.numba.taylor.solve3d.solve3d` for 3D) builds
@@ -156,7 +156,7 @@ the ``(D, 5)`` coefficient matrix at that knot:
 
    from meepmeep.backends.numba.taylor.solve2d import solve2d
 
-   c = solve2d(t, p, a, i, e, w)   # shape (2, 5)
+   c = solve2d(tk, p, a, i, e, w)   # shape (2, 5)
 
 The Taylor expansion is accurate inside a window around the knot whose
 size depends on the orbit (more eccentric orbits have shorter windows
@@ -180,8 +180,8 @@ variants and the choice belongs entirely in this single-knot mode:
   :func:`~meepmeep.backends.numba.taylor.position3d.zpos_c`.
 
 * **Direct** variants (no ``c`` suffix) accept an absolute time
-  together with ``t0`` and ``p`` and epoch-fold internally via
-  ``epoch = floor((t - t0 + p/2) / p)`` so the residual lies in
+  together with the knot time ``tk`` and ``p`` and epoch-fold internally via
+  ``epoch = floor((t - tk + p/2) / p)`` so the residual lies in
   :math:`[-p/2,\, p/2)`. Use them when callers prefer to hand in raw
   observation times.
   Examples: :func:`~meepmeep.backends.numba.taylor.position2d.pos`,
@@ -215,10 +215,10 @@ into single-knot pipelines such as transit duration calculators.
    from meepmeep.backends.numba.taylor.solve2d import solve2d
    from meepmeep.backends.numba.taylor.position2d import sep_c
 
-   # Orbital parameters
-   t0, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
+   # Orbital parameters (tc is the transit-centre time)
+   tc, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
 
-   # One knot at the transit center (t = 0)
+   # One knot at the transit centre (tk = 0, so the knot sits at tc)
    c = solve2d(0.0, p, a, i, e, w)
 
    # Centered evaluation: t is measured from the knot
@@ -226,7 +226,8 @@ into single-knot pipelines such as transit duration calculators.
    d = sep_c(dt, c)
 
 If you would rather hand in absolute times, swap ``sep_c(dt, c)`` for
-``sep(t, t0, p, c)`` and pass ``t = t0 + dt``. The result is identical;
+``sep(t, tc, p, c)`` and pass ``t = tc + dt`` (the knot is at the transit
+centre, so its ``tk`` equals ``tc`` here). The result is identical;
 only the epoch-folding is now done by the evaluator.
 
 **Single-knot gradients.** For analytic derivatives with respect to the
@@ -324,12 +325,12 @@ evaluate at an array of times:
    from meepmeep.backends.numba.taylor.orbit3d import solve3d_orbit, pos_ov
    from meepmeep.backends.numba.utils import mean_anomaly_at_transit
 
-   # Orbital parameters (t0 is the transit-center time, the high-level convention)
-   t0, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
+   # Orbital parameters (tc is the transit-center time, the high-level convention)
+   tc, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
 
    # The orbit3d dispatchers anchor their knot grid at periastron, so
    # convert the user-facing transit-center time to the periastron-anchor time.
-   tpa = t0 - mean_anomaly_at_transit(e, w) / (2.0 * np.pi) * p
+   tpa = tc - mean_anomaly_at_transit(e, w) / (2.0 * np.pi) * p
 
    # Knot grid (eccentric-anomaly placement) and the time-to-knot table
    npt = 15
@@ -364,7 +365,7 @@ For **single-knot gradients**, swap
 **derivative tensor** ``dc`` of shape ``(6, D, 5)``:
 
 * Axis 0 — orbital parameter index in the canonical order
-  ``(t0, p, a, i, e, w)``.
+  ``(tc, p, a, i, e, w)``.
 * Axes 1, 2 — spatial dimension and Taylor order, matching ``c``.
 
 Every gradient-returning evaluator

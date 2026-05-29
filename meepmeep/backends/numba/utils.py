@@ -327,7 +327,7 @@ def mean_anomaly_at_transit_with_derivatives(ecc, w):
 
 
 @njit
-def mean_anomaly(t, t0, p, e, w):
+def mean_anomaly(t, tc, p, e, w):
     """
     Calculate the Mean Anomaly at time t, bounded between [0, 2pi].
 
@@ -335,7 +335,7 @@ def mean_anomaly(t, t0, p, e, w):
     ----------
     t : float
         Observation time.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period in the same units as t.
@@ -350,19 +350,19 @@ def mean_anomaly(t, t0, p, e, w):
         Mean Anomaly in radians, wrapped to the interval [0, 2pi].
     """
     offset = mean_anomaly_at_transit(e, w)
-    return mod(TWO_PI * (t - (t0 - offset * p / TWO_PI)) / p, TWO_PI)
+    return mod(TWO_PI * (t - (tc - offset * p / TWO_PI)) / p, TWO_PI)
 
 
 @njit(fastmath=True)
-def mean_anomaly_with_derivatives(t, t0, p, ecc, w):
+def mean_anomaly_with_derivatives(t, tc, p, ecc, w):
     """
-    Calculate the Mean Anomaly and its partial derivatives w.r.t. t0, p, e, and w.
+    Calculate the Mean Anomaly and its partial derivatives w.r.t. tc, p, e, and w.
 
     Parameters
     ----------
     t : float
         Observation time.
-    t0 : float
+    tc : float
         Time of primary transit center.
     p : float
         Orbital period in the same units as t.
@@ -375,7 +375,7 @@ def mean_anomaly_with_derivatives(t, t0, p, ecc, w):
     -------
     m : float
         Mean Anomaly in radians.
-    dm_dt0 : float
+    dm_dtc : float
         Partial derivative of m w.r.t. transit center time.
     dm_dp : float
         Partial derivative of m w.r.t. orbital period.
@@ -385,14 +385,14 @@ def mean_anomaly_with_derivatives(t, t0, p, ecc, w):
         Partial derivative of m w.r.t. argument of periastron.
     """
     m_tr, dm_tr_de, dm_tr_dw = mean_anomaly_at_transit_with_derivatives(ecc, w)
-    dt = t - t0
+    dt = t - tc
     mean_motion = TWO_PI / p
     m = mean_motion * dt + m_tr
-    dm_dt0 = -mean_motion
+    dm_dtc = -mean_motion
     dm_dp  = -TWO_PI * dt / (p**2)
     dm_de  = dm_tr_de
     dm_dw  = dm_tr_dw
-    return m, dm_dt0, dm_dp, dm_de, dm_dw
+    return m, dm_dtc, dm_dp, dm_de, dm_dw
 
 
 @njit

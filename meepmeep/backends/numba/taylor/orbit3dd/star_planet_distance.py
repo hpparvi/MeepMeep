@@ -45,7 +45,7 @@ def _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     r : float
         3D star-planet distance [stellar radii].
     dr : ndarray, shape (7,)
-        Gradient w.r.t. ``(t0, p, a, i, e, w, lan)``.
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
     """
     x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     r = sqrt(x * x + y * y + z * z)
@@ -76,7 +76,7 @@ def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeff
     rs : ndarray, shape (N,)
         3D star-planet separations per time.
     drs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)`` per time.
+        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     rs = zeros(n)

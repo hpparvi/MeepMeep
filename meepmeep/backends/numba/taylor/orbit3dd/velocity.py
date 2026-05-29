@@ -40,7 +40,7 @@ def _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     vx, vy, vz : float
         Velocity components in :math:`R_\\star/\\mathrm{day}`.
     dvx, dvy, dvz : ndarray, shape (7,)
-        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)``.
+        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
@@ -64,7 +64,7 @@ def _vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     vxs, vys, vzs : ndarray, shape (N,)
         Velocity components per time.
     dvxs, dvys, dvzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(t0, p, a, i, e, w, lan)`` per time.
+        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
     """
     n = times.size
     vxs = zeros(n)

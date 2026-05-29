@@ -29,7 +29,7 @@ def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeff
     """Ellipsoidal variation signal and derivatives at scalar time.
 
     Scalar counterpart of :func:`_ev_signal_ovd`. Derivative ordering:
-    ``(t0, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` — length 10.
+    ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` — length 10.
 
     Parameters
     ----------
@@ -49,7 +49,7 @@ def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeff
     out : float
         Ellipsoidal variation signal.
     dout : ndarray, shape (10,)
-        Gradient w.r.t. ``(t0, p, a, i, e, w, lan, alpha, mass_ratio, inc)``.
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)``.
     """
     sin_inc = sin(inc)
     cos_inc = cos(inc)
@@ -89,7 +89,7 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
     inclination ``i`` — callers that share them should sum the two
     derivative slots.
 
-    Derivative ordering: ``(t0, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` —
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` —
     length 10.
 
     Parameters
@@ -112,7 +112,7 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
         Ellipsoidal variation signal per time.
     dout : ndarray, shape (N, 10)
         Gradient w.r.t.
-        ``(t0, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` per time.
+        ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` per time.
     """
     n = times.size
     out = zeros(n)

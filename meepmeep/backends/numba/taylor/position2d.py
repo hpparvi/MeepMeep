@@ -25,7 +25,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     Evaluate the planet's sky-plane (x, y) position at a knot-centered time.
 
     This is the "centered" variant of `pos`: it assumes the caller has
-    already subtracted the expansion time `t0` (and any epoch offset) so
+    already subtracted the expansion time `tk` (and any epoch offset) so
     that `t` is a small displacement around the knot. The polynomial is
     evaluated using Horner's scheme.
 
@@ -33,7 +33,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     ----------
     time : float
         Time relative to the Taylor series expansion point, i.e.
-        `t = tc - (t0 + epoch*p)`. Must lie within the knot's region of
+        `t = tc - (tk + epoch*p)`. Must lie within the knot's region of
         validity for the truncation error to remain small.
     c : NDArray
         A (2, 5) coefficient matrix produced by `solve2d`. See `pos` for
@@ -58,25 +58,25 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
 
 
 @njit(fastmath=True, inline='always')
-def pos(time: float | NDArray, t0: float, p: float, c: NDArray):
+def pos(time: float | NDArray, tk: float, p: float, c: NDArray):
     """
     Evaluate the planet's sky-plane (x, y) position at an absolute time using a 2D Taylor expansion.
 
     This is the "direct" variant of the 2D position evaluator: it accepts an
     absolute observation time `tc`, folds it back into a single orbital epoch
-    around the expansion point `t0`, and then evaluates the 5th-order Taylor
+    around the expansion point `tk`, and then evaluates the 5th-order Taylor
     polynomial stored in `c` using Horner's scheme.
 
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `t0` and `p`
+        Absolute observation time(s) in the same units as `tk` and `p`
         (typically days). Scalar or array inputs are both accepted; the
         return type matches.
-    t0 : float
+    tk : float
         Time at which the Taylor series was expanded (the knot time).
     p : float
-        Orbital period, used to fold `tc` into the interval `[t0 - p/2, t0 + p/2)`.
+        Orbital period, used to fold `tc` into the interval `[tk - p/2, tk + p/2)`.
     c : NDArray
         A (2, 5) coefficient matrix produced by `solve2d`. Row 0 holds the
         x-direction coefficients and row 1 the y-direction coefficients,
@@ -92,12 +92,12 @@ def pos(time: float | NDArray, t0: float, p: float, c: NDArray):
 
     Notes
     -----
-    Epoch folding uses `epoch = floor((tc - t0 + p/2) / p)`, which centers the
-    residual `t = tc - (t0 + epoch*p)` on the knot. This keeps the polynomial
+    Epoch folding uses `epoch = floor((tc - tk + p/2) / p)`, which centers the
+    residual `t = tc - (tk + epoch*p)` on the knot. This keeps the polynomial
     argument small and preserves the accuracy of the truncated Taylor series.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return pos_c(time - (t0 + epoch * p), c)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return pos_c(time - (tk + epoch * p), c)
 
 
 @njit(fastmath=True, inline='always')
@@ -126,7 +126,7 @@ def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
 
 
 @njit(fastmath=True, inline='always')
-def sep(time, t0, p, c):
+def sep(time, tk, p, c):
     """
     Evaluate the projected planet-star separation at an absolute time.
 
@@ -140,7 +140,7 @@ def sep(time, t0, p, c):
     ----------
     time : float or NDArray
         Absolute observation time(s).
-    t0 : float
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period.
@@ -154,7 +154,7 @@ def sep(time, t0, p, c):
         Always non-negative; the sign of the line-of-sight depth (transit
         vs. eclipse) is not encoded here.
     """
-    px, py = pos(time, t0, p, c)
+    px, py = pos(time, tk, p, c)
     return sqrt(px ** 2 + py ** 2)
 
 
@@ -190,7 +190,7 @@ def pos_and_sep_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, f
 
 
 @njit(fastmath=True, inline='always')
-def pos_and_sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple[
+def pos_and_sep(time: float | NDArray, tk: float, p: float, c: NDArray) -> tuple[
     float | NDArray, float | NDArray, float | NDArray]:
     """
     Evaluate the planet's (x, y) position and the projected distance jointly.
@@ -216,5 +216,5 @@ def pos_and_sep(time: float | NDArray, t0: float, p: float, c: NDArray) -> tuple
     d : float or NDArray
         Projected planet-star center distance in units of stellar radii.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return pos_and_sep_c(time - (t0 + epoch * p), c)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return pos_and_sep_c(time - (tk + epoch * p), c)

@@ -30,7 +30,7 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     `time` that are evaluated using Horner's scheme. The same
     differentiation is applied to the parameter-derivative
     coefficients so the result is the velocity together with its seven
-    partial derivatives with respect to `(t0, p, a, i, e, w, lan)`.
+    partial derivatives with respect to `(tc, p, a, i, e, w, lan)`.
 
     Parameters
     ----------
@@ -44,7 +44,7 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     dc : NDArray
         A (7, 3, 5) tensor of parameter-derivative coefficients
         produced by `solve3d_d`. The leading axis enumerates the seven
-        Keplerian parameters in the canonical order `(t0, p, a, i, e, w, lan)`;
+        Keplerian parameters in the canonical order `(tc, p, a, i, e, w, lan)`;
         the remaining axes mirror the layout of `c`.
 
     Returns
@@ -57,11 +57,11 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer.
     dvx : NDArray
-        Shape (7,) partial derivatives of `vx` w.r.t. `(t0, p, a, i, e, w, lan)`.
+        Shape (7,) partial derivatives of `vx` w.r.t. `(tc, p, a, i, e, w, lan)`.
     dvy : NDArray
-        Shape (7,) partial derivatives of `vy` w.r.t. `(t0, p, a, i, e, w, lan)`.
+        Shape (7,) partial derivatives of `vy` w.r.t. `(tc, p, a, i, e, w, lan)`.
     dvz : NDArray
-        Shape (7,) partial derivatives of `vz` w.r.t. `(t0, p, a, i, e, w, lan)`.
+        Shape (7,) partial derivatives of `vz` w.r.t. `(tc, p, a, i, e, w, lan)`.
 
     Notes
     -----
@@ -108,7 +108,7 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
     dc : NDArray
         A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`, with the leading axis ordered as
-        `(t0, p, a, i, e, w, lan)`. Only the slice `dc[:, 2, :]` is read.
+        `(tc, p, a, i, e, w, lan)`. Only the slice `dc[:, 2, :]` is read.
 
     Returns
     -------
@@ -117,7 +117,7 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
         Positive values indicate motion toward the observer.
     dvz : NDArray
         Shape (7,) partial derivatives of `vz` with respect to
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
     """
     vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
     dvz = zeros(7)
@@ -127,19 +127,19 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
 
 
 @njit(fastmath=True)
-def zvel_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+def zvel_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
     """
     Evaluate the line-of-sight velocity and its parameter derivatives at an absolute time.
 
     Direct counterpart of `zvel_cd`: epoch-folds the absolute time
-    `time` around the expansion point `t0` and delegates to
+    `time` around the expansion point `tk` and delegates to
     `zvel_cd`.
 
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `t0` and `p`.
-    t0 : float
+        Absolute observation time(s) in the same units as `tk` and `p`.
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period, used for epoch folding.
@@ -157,10 +157,10 @@ def zvel_d(time: float | NDArray, t0: float, p: float, c: NDArray, dc: NDArray) 
         Positive values indicate motion toward the observer.
     dvz : NDArray
         Shape (7,) partial derivatives of `vz` with respect to
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return zvel_cd(time - (t0 + epoch * p), c, dc)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return zvel_cd(time - (tk + epoch * p), c, dc)
 
 
 @njit(fastmath=True)
@@ -197,7 +197,7 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
     dc : NDArray
         A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`, with the leading axis ordered as
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
 
     Returns
     -------
@@ -206,14 +206,14 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
         when the planet is moving toward the observer.
     drv : NDArray
         Shape (7,) partial derivatives of `rv` with respect to
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
 
     Notes
     -----
     Let `s = k / n` with `n = (2*pi/p) * (a*sin(i)) / sqrt(1 - e^2)`.
     Then `rv = s * vz`, and the chain rule gives
     `d(rv)/dtheta = s * d(vz)/dtheta + vz * ds/dtheta`. The factor `s`
-    depends only on `(p, a, i, e)`; its derivatives w.r.t. `t0` and
+    depends only on `(p, a, i, e)`; its derivatives w.r.t. `tc` and
     `w` are zero. The non-trivial derivatives are
     `ds/dp = s/p`, `ds/da = -s/a`, `ds/di = -s*cot(i)`, and
     `ds/de = -s*e/(1 - e^2)`.
@@ -224,7 +224,7 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
     vz, dvz = zvel_cd(time, c, dc)
     rv_val = s * vz
 
-    # ds/dtheta for each parameter: t0, p, a, i, e, w, lan
+    # ds/dtheta for each parameter: tc, p, a, i, e, w, lan
     drv = zeros(7)
     ds = zeros(7)
     ds[1] = s / p       # ds/dp
@@ -239,23 +239,23 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
 
 
 @njit(fastmath=True)
-def rv_d(time: float | NDArray, k: float, t0: float, p: float, a: float, i: float, e: float,
+def rv_d(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float, e: float,
          c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
     """
     Evaluate the stellar radial velocity and its parameter derivatives at an absolute time.
 
     Direct counterpart of `rv_cd`: epoch-folds the absolute time
-    `time` around the expansion point `t0` and delegates to `rv_cd`.
+    `time` around the expansion point `tk` and delegates to `rv_cd`.
 
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `t0` and `p`.
+        Absolute observation time(s) in the same units as `tk` and `p`.
     k : float
         Radial-velocity semi-amplitude of the star, in physical
         velocity units (e.g. m/s). The function output inherits these
         units.
-    t0 : float
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period.
@@ -277,7 +277,7 @@ def rv_d(time: float | NDArray, k: float, t0: float, p: float, a: float, i: floa
         Stellar radial velocity in the same units as `k`.
     drv : NDArray
         Shape (7,) partial derivatives of `rv` with respect to
-        `(t0, p, a, i, e, w, lan)`.
+        `(tc, p, a, i, e, w, lan)`.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return rv_cd(time - (t0 + epoch * p), k, p, a, i, e, c, dc)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return rv_cd(time - (tk + epoch * p), k, p, a, i, e, c, dc)

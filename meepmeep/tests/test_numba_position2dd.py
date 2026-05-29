@@ -21,8 +21,8 @@ def eccentric_orbit():
     return {"p": 5.0, "a": 15.0, "i": 1.55, "e": 0.3, "w": 0.5}
 
 
-# Parameter axis of the derivative tensor: (t0, p, a, i, e, w, lan).
-PARAM_NAMES = ("t0", "p", "a", "i", "e", "w", "lan")
+# Parameter axis of the derivative tensor: (tc, p, a, i, e, w, lan).
+PARAM_NAMES = ("tc", "p", "a", "i", "e", "w", "lan")
 
 
 def _solve2d_perturbed(t_expand, orbit, lan, kidx, delta):
@@ -73,8 +73,8 @@ class TestPos2dDLan:
         xm, ym = pos_c(time, cf_m)
         dpx_fd = (xp - xm) / (2 * h)
         dpy_fd = (yp - ym) / (2 * h)
-        # Slot 0 is d/dt0; the perturbation above is in the expansion-time
-        # argument t (d/dt), and d/dt0 = -d/dt, so the slot-0 reference is negated.
+        # Slot 0 is d/dtc; the perturbation above is in the solver's knot-time
+        # argument tk (d/dtk), and d/dtc = -d/dtk, so the slot-0 reference is negated.
         if kidx == 0:
             dpx_fd, dpy_fd = -dpx_fd, -dpy_fd
 
@@ -111,8 +111,8 @@ class TestSep2dDLan:
         d_p = sep_c(time, cf_p)
         d_m = sep_c(time, cf_m)
         dd_fd = (d_p - d_m) / (2 * h)
-        # Slot 0 is d/dt0; the perturbation above is in the expansion-time
-        # argument t (d/dt), and d/dt0 = -d/dt, so the slot-0 reference is negated.
+        # Slot 0 is d/dtc; the perturbation above is in the solver's knot-time
+        # argument tk (d/dtk), and d/dtc = -d/dtk, so the slot-0 reference is negated.
         if kidx == 0:
             dd_fd = -dd_fd
 

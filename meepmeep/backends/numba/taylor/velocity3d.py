@@ -34,7 +34,7 @@ def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     ----------
     time : float or NDArray
         Time relative to the Taylor series expansion point, i.e.
-        `time = tc - (t0 + epoch*p)`. Must lie within the knot's
+        `time = tc - (tk + epoch*p)`. Must lie within the knot's
         region of validity for the truncation error to remain small.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Row 0 holds
@@ -100,19 +100,19 @@ def zvel_c(time: float | NDArray, c: NDArray) -> float | NDArray:
 
 
 @njit(fastmath=True, inline='always')
-def zvel(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDArray:
+def zvel(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArray:
     """
     Evaluate the planet's line-of-sight velocity component at an absolute time.
 
     Direct counterpart of `zvel_c`: accepts an absolute observation
     time `time`, folds it back into a single orbital epoch around the
-    expansion point `t0`, and delegates to `zvel_c`.
+    expansion point `tk`, and delegates to `zvel_c`.
 
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `t0` and `p`.
-    t0 : float
+        Absolute observation time(s) in the same units as `tk` and `p`.
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period, used for epoch folding.
@@ -126,8 +126,8 @@ def zvel(time: float | NDArray, t0: float, p: float, c: NDArray) -> float | NDAr
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer.
     """
-    epoch = floor((time - t0 + 0.5 * p) / p)
-    return zvel_c(time - (t0 + epoch * p), c)
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return zvel_c(time - (tk + epoch * p), c)
 
 
 @njit(inline='always')
@@ -181,7 +181,7 @@ def rv_c(time: float | NDArray, k: float, p: float, a: float, i: float, e: float
 
 
 @njit(inline='always')
-def rv(time: float | NDArray, k: float, t0: float, p: float, a: float, i: float, e: float, c: NDArray) -> float | NDArray:
+def rv(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float, e: float, c: NDArray) -> float | NDArray:
     """
     Evaluate the stellar radial velocity induced by the planet at an absolute time.
 
@@ -192,12 +192,12 @@ def rv(time: float | NDArray, k: float, t0: float, p: float, a: float, i: float,
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `t0` and `p`.
+        Absolute observation time(s) in the same units as `tk` and `p`.
     k : float
         Radial-velocity semi-amplitude of the star, in physical
         velocity units (e.g. m/s). The function output inherits these
         units.
-    t0 : float
+    tk : float
         Taylor series expansion time (knot time).
     p : float
         Orbital period.
@@ -219,4 +219,4 @@ def rv(time: float | NDArray, k: float, t0: float, p: float, a: float, i: float,
         reflex motion has the same sign convention).
     """
     n = 2 * pi / p * (a * sin(i)) / sqrt(1 - e ** 2)
-    return zvel(time, t0, p, c) / n * k
+    return zvel(time, tk, p, c) / n * k
