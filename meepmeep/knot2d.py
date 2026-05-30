@@ -24,63 +24,63 @@ from .backends.numba.taylor.util2d import (t12, t14, t23, t34,
 
 
 class Knot2D:
-    """High-level wrapper over the single-knot 2D Taylor evaluators.
 
-    A *knot* is a point along the orbit that serves as the center of a
-    local 5th-order Taylor expansion of the planet's trajectory in time.
-    This class builds one such expansion at a chosen knot time ``tk`` and
-    exposes the sky-plane (x, y) position, the sky-projected separation
-    between the centers of the star and planet (in units of the stellar
-    radius), and the transit contact-point / duration utilities, all
-    sharing the single ``(2, 5)`` coefficient matrix solved at
-    construction. (The name follows spline terminology, but the knot here
-    is the expansion *center*, not a segment boundary.)
+    def __init__(self, tc: float, p: float, a: float, i: float, e: float, w: float,
+                 lan: float = 0.0, tk: float = 0.0, derivatives: bool = False):
+        """High-level wrapper over the single-knot 2D Taylor evaluators.
 
-    The ``derivatives`` flag is a once-per-instance switch: when ``True``,
-    :meth:`position` and :meth:`projected_separation` return the value
-    together with its orbital-parameter derivatives; when ``False`` they
-    return the value only. This mirrors the dispatch pattern of the
-    high-level :class:`~meepmeep.orbit.Orbit` class.
+        A *knot* is a point along the orbit that serves as the center of a
+        local 5th-order Taylor expansion of the planet's trajectory in time.
+        This class builds one such expansion at a chosen knot time ``tk`` and
+        exposes the sky-plane (x, y) position, the sky-projected separation
+        between the centers of the star and planet (in units of the stellar
+        radius), and the transit contact-point / duration utilities, all
+        sharing the single ``(2, 5)`` coefficient matrix solved at
+        construction. (The name follows spline terminology, but the knot here
+        is the expansion *center*, not a segment boundary.)
 
-    Evaluation methods take **absolute** observation times. Internally the
-    instance evaluates at ``t - tc`` so that the underlying direct
-    evaluators epoch-fold around the knot.
+        The ``derivatives`` flag is a once-per-instance switch: when ``True``,
+        :meth:`position` and :meth:`projected_separation` return the value
+        together with its orbital-parameter derivatives; when ``False`` they
+        return the value only. This mirrors the dispatch pattern of the
+        high-level :class:`~meepmeep.orbit.Orbit` class.
 
-    Parameters
-    ----------
-    tk : float
-        Knot time [days], measured relative to the transit centre (time of
-        inferior conjunction). ``tk = 0`` expands the series at the transit
-        centre.
-    tc : float
-        Time of inferior conjunction (transit centre) [days], in absolute
-        time.
-    p : float
-        Orbital period [days].
-    a : float
-        Scaled semi-major axis [R_star].
-    i : float
-        Inclination [rad].
-    e : float
-        Eccentricity.
-    w : float
-        Argument of periastron [rad].
-    lan : float, optional
-        Longitude of the ascending node [rad], a constant rotation of the
-        sky plane about the line of sight. Defaults to 0.0.
-    derivatives : bool, optional
-        If ``True``, :meth:`position` and :meth:`projected_separation`
-        also return parameter derivatives. Defaults to ``False``.
+        Evaluation methods take **absolute** observation times. Internally the
+        instance evaluates at ``t - tc`` so that the underlying direct
+        evaluators epoch-fold around the knot.
 
-    Notes
-    -----
-    A joint position-and-separation method is intentionally not provided:
-    the low-level API has no derivative-returning ``pos_and_sep`` variant,
-    so it could not honour the ``derivatives`` flag symmetrically.
-    """
+        Parameters
+        ----------
+        tc : float
+            Time of inferior conjunction (transit centre) [days], in absolute
+            time.
+        p : float
+            Orbital period [days].
+        a : float
+            Scaled semi-major axis [R_star].
+        i : float
+            Inclination [rad].
+        e : float
+            Eccentricity.
+        w : float
+            Argument of periastron [rad].
+        lan : float, optional
+            Longitude of the ascending node [rad], a constant rotation of the
+            sky plane about the line of sight. Defaults to 0.0.
+        tk : float, optional
+            Knot time [days], measured relative to the transit centre (time of
+            inferior conjunction). ``tk = 0`` (the default) expands the series
+            at the transit centre.
+        derivatives : bool, optional
+            If ``True``, :meth:`position` and :meth:`projected_separation`
+            also return parameter derivatives. Defaults to ``False``.
 
-    def __init__(self, tk: float, tc: float, p: float, a: float, i: float, e: float, w: float,
-                 lan: float = 0.0, derivatives: bool = False):
+        Notes
+        -----
+        A joint position-and-separation method is intentionally not provided:
+        the low-level API has no derivative-returning ``pos_and_sep`` variant,
+        so it could not honour the ``derivatives`` flag symmetrically.
+        """
         self.derivatives = derivatives
         self.tk = tk
         self.tc = tc
