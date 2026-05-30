@@ -75,7 +75,7 @@ The Taylor series approach trades exact precision for speed by pre-computing coe
 meepmeep/
 ├── __init__.py            # Exports Orbit, eclipse_light_travel_time
 ├── orbit.py               # Main Orbit class (user-facing API)
-├── knot2d.py              # 2D knot point calculations (Knot2D, Knot2DFit)
+├── knot2d.py              # High-level single-knot 2D wrapper (Knot2D)
 ├── numba2d.py             # Public low-level 2D Taylor API (re-exports of
 │                          # backends/numba/taylor/{position2d,position2dd,
 │                          # solve2d,solve2dd,util2d}).

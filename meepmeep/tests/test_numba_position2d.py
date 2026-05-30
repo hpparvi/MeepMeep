@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.taylor.position2d import pos, pos_c, pos_and_sep, sep_c
+from meepmeep.backends.numba.taylor.position2d import pos, pos_c, pos_and_sep_c, sep_c
 from meepmeep.backends.numba.taylor.util2d import find_contact_point, bounding_box
 from meepmeep.backends.numba.taylor.solve2d import solve2d
 from meepmeep.backends.numba.newton.newton import xy_newton_v, z_newton_v
@@ -142,7 +142,7 @@ class TestPosition2dFunctions:
         coeffs = solve2d(0.0, **circular_orbit)
         t = 0.01
 
-        x, y, d = pos_and_sep(t, coeffs)
+        x, y, d = pos_and_sep_c(t, coeffs)
 
         # Distance should match sqrt(x^2 + y^2)
         expected_d = np.sqrt(x ** 2 + y ** 2)

@@ -15,33 +15,46 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-from numpy import asarray, zeros, arctan2
-
-from .backends.numba.utils import as_from_rhop, i_from_baew
-from .backends.numba.ts2d.position import pd_t15, xy_t15
 from .backends.numba.taylor.solve2d import solve2d
-from .backends.numba.ts2d.derivatives import pd_with_derivatives_v, xy_derivative_coeffs
-from .backends.numba.ts2d.par_direct import diffs as diffs_natural
-from .backends.numba.ts2d.par_fitting import partial_derivatives as diffs_fitting
+from .backends.numba.taylor.solve2dd import solve2d_d
+from .backends.numba.taylor.position2d import pos, sep
+from .backends.numba.taylor.position2dd import pos_d, sep_d
+from .backends.numba.taylor.util2d import (t12, t14, t23, t34,
+                                           bounding_box, find_contact_point, find_z_min)
+
 
 class Knot2D:
-    """Single 2D Taylor-expansion knot for sky-plane orbit evaluation.
+    """High-level wrapper over the single-knot 2D Taylor evaluators.
 
     A *knot* is a point along the orbit that serves as the center of a
     local 5th-order Taylor expansion of the planet's trajectory in time.
-    This class builds one such expansion at a chosen ``phase`` and
-    evaluates the sky-plane (x, y) position and the sky-projected
-    star-planet separation in the time window around the knot where the
-    series is accurate. (The name follows spline terminology, but the
-    knot here is the expansion *center*, not a segment boundary.)
+    This class builds one such expansion at a chosen knot time ``tk`` and
+    exposes the sky-plane (x, y) position, the sky-projected separation
+    between the centers of the star and planet (in units of the stellar
+    radius), and the transit contact-point / duration utilities, all
+    sharing the single ``(2, 5)`` coefficient matrix solved at
+    construction. (The name follows spline terminology, but the knot here
+    is the expansion *center*, not a segment boundary.)
+
+    The ``derivatives`` flag is a once-per-instance switch: when ``True``,
+    :meth:`position` and :meth:`projected_separation` return the value
+    together with its orbital-parameter derivatives; when ``False`` they
+    return the value only. This mirrors the dispatch pattern of the
+    high-level :class:`~meepmeep.orbit.Orbit` class.
+
+    Evaluation methods take **absolute** observation times. Internally the
+    instance evaluates at ``t - tc`` so that the underlying direct
+    evaluators epoch-fold around the knot.
 
     Parameters
     ----------
-    phase : float
-        Orbital phase at which the Taylor series is expanded (the knot),
-        as a fraction of the period.
-    t0 : float
-        Time of inferior conjunction (transit center) [days].
+    tk : float
+        Knot time [days], measured relative to the transit centre (time of
+        inferior conjunction). ``tk = 0`` expands the series at the transit
+        centre.
+    tc : float
+        Time of inferior conjunction (transit centre) [days], in absolute
+        time.
     p : float
         Orbital period [days].
     a : float
@@ -52,48 +65,158 @@ class Knot2D:
         Eccentricity.
     w : float
         Argument of periastron [rad].
+    lan : float, optional
+        Longitude of the ascending node [rad], a constant rotation of the
+        sky plane about the line of sight. Defaults to 0.0.
     derivatives : bool, optional
-        If ``True``, also compute the coefficient derivatives needed for
-        parameter gradients of the projected separation.
+        If ``True``, :meth:`position` and :meth:`projected_separation`
+        also return parameter derivatives. Defaults to ``False``.
+
+    Notes
+    -----
+    A joint position-and-separation method is intentionally not provided:
+    the low-level API has no derivative-returning ``pos_and_sep`` variant,
+    so it could not honour the ``derivatives`` flag symmetrically.
     """
 
-    def __init__(self, phase: float, t0: float, p: float, a: float, i: float, e: float, w: float,
-                 derivatives: bool = False):
+    def __init__(self, tk: float, tc: float, p: float, a: float, i: float, e: float, w: float,
+                 lan: float = 0.0, derivatives: bool = False):
         self.derivatives = derivatives
-        self.phase = phase
-        self.t0 = t0
+        self.tk = tk
+        self.tc = tc
         self.p = p
         self.a = a
         self.i = i
         self.e = e
         self.w = w
+        self.lan = lan
 
-        self._coeffs = solve2d(phase, p, a, i, e, w)
+        # Absolute time of the knot, used to convert centered contact-point
+        # offsets back to absolute times.
+        self._knot_time = tc + tk
+
         if derivatives:
-            self._c_derivative_coeffs()
-
-    def _c_derivative_coeffs(self):
-        d = diffs_natural(self.p, self.a, self.i, self.e, self.w, 1e-4)
-        self._coeffs_d = xy_derivative_coeffs(d, 1e-4, self._coeffs)
+            self._coeffs, self._dcoeffs = solve2d_d(tk, p, a, i, e, w, lan)
+        else:
+            self._coeffs = solve2d(tk, p, a, i, e, w, lan)
+            self._dcoeffs = None
 
     def position(self, t):
-        return xy_t15(t, self.t0, self.p, self._coeffs)
+        """Sky-plane (x, y) position at absolute time(s) ``t``.
 
-    def projected_distance(self, t):
+        Parameters
+        ----------
+        t : float or ndarray
+            Absolute observation time(s) [days].
+
+        Returns
+        -------
+        tuple
+            ``(x, y)`` if the instance was created with ``derivatives=False``;
+            ``(x, y, dx, dy)`` otherwise, where ``dx`` and ``dy`` are shape
+            ``(7,)`` arrays of partial derivatives with respect to
+            ``(tc, p, a, i, e, w, lan)``. All positions are in units of the
+            stellar radius.
+        """
         if self.derivatives:
-            return pd_with_derivatives_v(t, self.t0, self.p, self._coeffs, self._coeffs_d)
-        else:
-            return pd_t15(t, self.t0, self.p, self._coeffs)
+            return pos_d(t - self.tc, self.tk, self.p, self._coeffs, self._dcoeffs)
+        return pos(t - self.tc, self.tk, self.p, self._coeffs)
 
-    def _pd_numerical_derivatives(self, t, e=1e-4):
-        t = asarray(t)
-        res = zeros((6, t.size))
-        r0 = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i, self.e, self.w))
-        res[0] = pd_t15(t, self.t0, self.p, solve2d(self.phase + e, self.p, self.a, self.i, self.e, self.w))
-        res[1] = pd_t15(t, self.t0, self.p + e, solve2d(self.phase, self.p + e, self.a, self.i, self.e, self.w))
-        res[2] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a + e, self.i, self.e, self.w))
-        res[3] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i + e, self.e, self.w))
-        res[4] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i, self.e + e, self.w))
-        res[5] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i, self.e, self.w + e))
-        res = (res - r0) / e
-        return res
+    def projected_separation(self, t):
+        """Sky-projected star-planet separation at absolute time(s) ``t``.
+
+        The sky-projected separation between the centers of the star and
+        planet, in units of the stellar radius.
+
+        Parameters
+        ----------
+        t : float or ndarray
+            Absolute observation time(s) [days].
+
+        Returns
+        -------
+        d : float or ndarray
+            Projected separation, returned alone if ``derivatives=False``.
+        dd : ndarray
+            Only returned if ``derivatives=True``: shape ``(7,)`` partial
+            derivatives of ``d`` with respect to ``(tc, p, a, i, e, w, lan)``.
+        """
+        if self.derivatives:
+            return sep_d(t - self.tc, self.tk, self.p, self._coeffs, self._dcoeffs)
+        return sep(t - self.tc, self.tk, self.p, self._coeffs)
+
+    def duration(self, k: float, kind: int = 14) -> float:
+        """Transit duration of the requested type [days].
+
+        Parameters
+        ----------
+        k : float
+            Planet-to-star radius ratio.
+        kind : int, optional
+            Which duration to return: 14 (total, first-to-fourth contact;
+            the default), 23 (full, second-to-third contact), 12 (ingress,
+            first-to-second contact), or 34 (egress, third-to-fourth
+            contact).
+
+        Returns
+        -------
+        float
+            The requested transit duration [days].
+        """
+        durations = {14: t14, 23: t23, 12: t12, 34: t34}
+        if kind not in durations:
+            raise ValueError("kind must be one of 14, 23, 12, or 34.")
+        return durations[kind](k, self._coeffs)
+
+    def contact_point(self, k: float, point: int) -> float:
+        """Absolute time of a transit contact point [days].
+
+        Parameters
+        ----------
+        k : float
+            Planet-to-star radius ratio.
+        point : int
+            Contact point, one of 1, 2, 3, or 4.
+
+        Returns
+        -------
+        float
+            Absolute time of the requested contact point.
+        """
+        return self._knot_time + find_contact_point(k, point, self._coeffs)
+
+    def bounding_box(self, k: float):
+        """Absolute first- and fourth-contact times bracketing the transit.
+
+        Parameters
+        ----------
+        k : float
+            Planet-to-star radius ratio.
+
+        Returns
+        -------
+        tuple
+            ``(T1, T4)`` absolute contact times [days].
+        """
+        bt1, bt4 = bounding_box(k, self._coeffs)
+        return self._knot_time + bt1, self._knot_time + bt4
+
+    def min_separation(self, guess: float = 0.0):
+        """Locate the minimum projected separation near the knot.
+
+        Parameters
+        ----------
+        guess : float, optional
+            Initial guess for the time of minimum separation, as an offset
+            in days from the knot. Defaults to 0.0 (the knot itself).
+
+        Returns
+        -------
+        t_min : float
+            Absolute time of minimum projected separation [days].
+        z_min : float
+            Projected separation at the minimum, in units of the stellar
+            radius.
+        """
+        t_min, z_min = find_z_min(guess, self._coeffs)
+        return self._knot_time + t_min, z_min
