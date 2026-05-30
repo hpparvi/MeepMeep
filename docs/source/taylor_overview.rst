@@ -121,10 +121,13 @@ Symbol        Meaning
 ``i``         Inclination [radians]. :math:`i = \pi/2` is edge-on.
 ``e``         Eccentricity, :math:`0 \le e < 1`.
 ``w``         Argument of periastron [radians].
+``lan``       Longitude of the ascending node [radians], optional
+              (defaults to 0). A constant rotation of the sky-plane
+              :math:`(x, y)` about the line of sight.
 ============  ====================================================
 
 When parameter derivatives are returned, the canonical ordering is
-``(tc, p, a, i, e, w)``. The leading axis of every ``dc`` derivative
+``(tc, p, a, i, e, w, lan)``. The leading axis of every ``dc`` derivative
 tensor follows this order.
 
 Both :func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` and
@@ -249,11 +252,11 @@ centre, so its ``tk`` equals ``tc`` here). The result is identical;
 only the epoch-folding is now done by the evaluator.
 
 **Single-knot gradients.** For analytic derivatives with respect to the
-six orbital parameters, replace
+seven orbital parameters, replace
 :func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` with
 :func:`~meepmeep.backends.numba.taylor.solve2dd.solve2d_d` (or
 :func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d`). The solver
-returns both ``c`` and a ``(6, D, 5)`` derivative tensor ``dc``; feed
+returns both ``c`` and a ``(7, D, 5)`` derivative tensor ``dc``; feed
 them to the matching centered-with-derivatives evaluators
 (:func:`~meepmeep.backends.numba.taylor.position2dd.pos_cd`,
 :func:`~meepmeep.backends.numba.taylor.position2dd.sep_cd`,
@@ -370,7 +373,7 @@ Parameter derivatives
 Modules suffixed with a ``d`` (``solve2dd``, ``position2dd``,
 ``solve3dd``, ``position3dd``, ``velocity3dd``, ``orbit3dd``) extend
 the backend with analytic partial derivatives of every output with
-respect to the six orbital parameters. The same machinery is available
+respect to the seven orbital parameters. The same machinery is available
 in both usage modes. See :ref:`derivatives` for the full derivation,
 with equations for the Kepler implicit-differentiation step, the
 orbital-plane derivative chain, and the chain rules used by every
@@ -380,24 +383,24 @@ For **single-knot gradients**, swap
 :func:`~meepmeep.backends.numba.taylor.solve2d.solve2d` /
 :func:`~meepmeep.backends.numba.taylor.solve3d.solve3d` for their
 ``_d`` counterparts. They return a coefficient matrix ``c`` *and* a
-**derivative tensor** ``dc`` of shape ``(6, D, 5)``:
+**derivative tensor** ``dc`` of shape ``(7, D, 5)``:
 
 * Axis 0 — orbital parameter index in the canonical order
-  ``(tc, p, a, i, e, w)``.
+  ``(tc, p, a, i, e, w, lan)``.
 * Axes 1, 2 — spatial dimension and Taylor order, matching ``c``.
 
 Every gradient-returning evaluator
 (e.g. :func:`~meepmeep.backends.numba.taylor.position3dd.pos_d`,
 :func:`~meepmeep.backends.numba.taylor.position3dd.sep_d`,
 :func:`~meepmeep.backends.numba.taylor.velocity3dd.vel_cd`) accepts
-both ``c`` and ``dc`` and returns the value alongside a length-6
+both ``c`` and ``dc`` and returns the value alongside a length-7
 gradient vector. The naming convention is ``_d`` for direct (absolute-
 time) variants and ``_cd`` for centered ones.
 
 For **multi-knot gradients**, the assembly side becomes
 :func:`~meepmeep.backends.numba.taylor.orbit3dd.solve3d_orbit_d`, which
 returns ``(N, 3, 5)`` coefficients and an
-``(N, 6, 3, 5)`` derivative tensor. The dispatcher counterparts in
+``(N, 7, 3, 5)`` derivative tensor. The dispatcher counterparts in
 :mod:`~meepmeep.backends.numba.taylor.orbit3dd` share the names of the
 non-derivative dispatchers with an added ``_d`` suffix
 (``pos_ovd``, ``zvel_osd``, ``rv_ovd``, and so on).

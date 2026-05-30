@@ -22,7 +22,7 @@ Coefficient solvers
 
 These functions take Keplerian orbital elements and return Taylor
 coefficient matrices that the position and velocity evaluators consume.
-Variants suffixed with ``_d`` additionally return the ``(6, D, 5)``
+Variants suffixed with ``_d`` additionally return the ``(7, D, 5)``
 parameter-derivative tensor.
 
 .. currentmodule:: meepmeep.numba2d
@@ -240,7 +240,7 @@ Whole-orbit dispatchers with parameter derivatives
 
 Gradient-returning counterparts of the orbit dispatchers above. Every
 function accepts an additional ``dcoeffs`` tensor of shape
-``(N, 6, D, 5)`` (knot, parameter, dimension, Taylor order) produced by
+``(N, 7, D, 5)`` (knot, parameter, dimension, Taylor order) produced by
 :func:`~meepmeep.numba3d.solve3d_orbit_d`.
 
 .. currentmodule:: meepmeep.numba3d

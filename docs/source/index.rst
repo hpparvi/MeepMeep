@@ -4,7 +4,7 @@ MeepMeep documentation
 MeepMeep is an extremely fast Keplerian orbit evaluator for exoplanet
 light-curve and radial-velocity modelling. It calculates sky-projected
 planet-star separations, phase curves, RV signals, and other quantities
-useful in exoplanet research an order of magnitude faster than
+useful in exoplanet research — an order of magnitude faster than
 standard Newton-Raphson approaches.
 
 MeepMeep's speed comes from a Taylor-series approach presented in
@@ -13,22 +13,60 @@ Kepler's equation is solved exactly only at a small
 set of knot points along the orbit, and every orbit evaluation
 in between is just a short polynomial in time.
 
-There are two ways to use the package. The
-:class:`~meepmeep.orbit.Orbit` class is the convenience entry point:
-instantiate it once with the time array of your observations, then
-update the orbital parameters inside the fitting loop and read out
-whichever observable you need — positions, velocities, the
-sky-projected separation, the phase angle, the radial velocity,
-reflected-light and thermal phase curves, ellipsoidal variation, or
-the light-travel-time correction. The low-level functions cover the
-same ground more directly: they are all numba-jitted, so they drop
-straight into a custom transit or RV model with minimal overhead. Use
-the class when you want the batteries-included workflow; use the
-low-level functions when you are building a custom transit or RV model
-and want the orbit math to inline into your hot loop.
+
+Installation
+------------
+
+.. code-block:: bash
+
+   pip install meepmeep
+
+For a development checkout, clone the repository and install in editable
+mode:
+
+.. code-block:: bash
+
+   git clone https://github.com/hpparvi/meepmeep
+   cd meepmeep
+   pip install -e .
+
+MeepMeep runs on Python 3 and depends only on NumPy, Numba, SciPy, and
+Matplotlib, all pulled in automatically.
+
+
+Quickstart
+----------
+
+.. code-block:: python
+
+   import numpy as np
+   from meepmeep import Orbit
+
+   o = Orbit(npt=15)
+   o.set_pars(tc=0.0, p=3.0, a=8.5, i=np.radians(89.0), e=0.1, w=np.radians(90.0))
+   o.set_data(np.linspace(-0.05, 0.05, 1001))
+
+   x, y, z = o.xyz()                    # planet position per time
+   d = o.star_planet_distance()         # 3D star-planet separation
+
+See :ref:`orbit_overview` for the full tour and
+:ref:`taylor_overview` for the low-level backend.
+
+
+Two ways to use MeepMeep
+------------------------
+
+The :class:`~meepmeep.orbit.Orbit` class is the convenience entry point:
+instantiate it once with your observation times, then update the orbital
+parameters inside a fitting loop and read out whichever observable you
+need. The low-level functions cover the same ground more directly — they
+are all numba-jitted and drop straight into a custom transit or RV model
+with minimal overhead. Use the class for the batteries-included workflow;
+use the low-level functions when you want the orbit math to inline into
+your own hot loop.
 
 Derivative mode adds analytic gradients of every quantity w.r.t. the
-six orbital parameters (and any method-specific extras), making the
+seven orbital parameters (and any method-specific extras), making the
 package a natural fit for gradient-based optimisers and HMC samplers.
 
 Both the high-level class and the low-level functions are backed by a
@@ -55,3 +93,9 @@ hood.
    naming_conventions
    derivatives
    api/low_level
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Project
+
+   citing

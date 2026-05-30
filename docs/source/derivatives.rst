@@ -355,7 +355,9 @@ for each parameter :math:`k`:
 Implemented in
 :func:`~meepmeep.backends.numba.taylor.position2dd.pos_cd`,
 :func:`~meepmeep.backends.numba.taylor.position3dd.pos_cd`,
-and their direct counterparts ``pos_d``, ``pos_d`` (which epoch-fold
+and their direct counterparts
+:func:`~meepmeep.backends.numba.taylor.position2dd.pos_d` and
+:func:`~meepmeep.backends.numba.taylor.position3dd.pos_d` (which epoch-fold
 ``t`` first; the discrete epoch shift contributes no derivative).
 
 

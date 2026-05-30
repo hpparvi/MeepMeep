@@ -15,7 +15,7 @@ The available observables are planet position, velocity, sky-projected
 separation, phase angle, radial velocity, reflected-light and thermal
 phase curves, ellipsoidal variation, and light travel time. With
 ``derivatives=True`` every observable also returns analytic gradients
-w.r.t. the six orbital parameters and any method-specific extras,
+w.r.t. the seven orbital parameters and any method-specific extras,
 which is what gradient-based optimisers and HMC samplers want.
 
 .. contents::
@@ -239,8 +239,10 @@ gradient-returning form. The shape contract is uniform:
   ``dvalue`` of shape ``(N, ndp)``.
 
 The trailing axis ``ndp`` is the number of differentiable parameters.
-The first six slots are always the orbital block
-``(phase, p, a, i, e, w)``; some methods append physical extras:
+The first seven slots are always the orbital block
+``(tc, p, a, i, e, w, lan)`` — with ``tp`` replacing ``tc`` when the orbit
+is bound by periastron time (see `Convention bridge`_ below); some methods
+append physical extras:
 
 .. list-table::
    :header-rows: 1
@@ -259,7 +261,7 @@ The first six slots are always the orbital block
 
 The ``rstar`` derivative of
 :meth:`~meepmeep.orbit.Orbit.light_travel_time` is intentionally not
-returned — only the 6 orbital derivatives.
+returned — only the 7 orbital derivatives.
 
 For the gradient math (Kepler implicit-differentiation step,
 orbital-plane derivative chain, evaluator-level chain rules) see
@@ -280,7 +282,7 @@ Newton-Raphson diagnostic paths and by
 
 If you ever drop down to the Taylor backend directly, note that its
 multi-knot dispatchers
-(:func:`~meepmeep.backends.numba.taylor.orbit3d.pos_ov` and friends)
+(:func:`~meepmeep.backends.numba.taylor.orbit3d.pos_o` and friends)
 take a ``tpa`` argument that is the periastron-anchored time — not the
 transit-center time. See :ref:`taylor_overview` for the low-level
 convention and :ref:`taylor_two_modes` for when to drop down at all.
