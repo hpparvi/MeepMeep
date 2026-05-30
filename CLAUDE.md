@@ -28,6 +28,10 @@ pytest meepmeep/tests/
 
 Tests compare Taylor series approximations against exact Newton-Raphson solutions.
 
+When finite-difference-testing parameter derivatives, sample a narrow near-transit window rather than the full
+orbit: perturbing timing/period shifts the periastron anchor and can remap a sampled time across a knot boundary,
+giving O(1) FD error at isolated points. For exactness, prefer parity against the `*_od` routines.
+
 **Test markers** (defined in `pytest.ini`):
 - `slow` — long-running tests; deselect with `-m "not slow"`
 - `accuracy` — numerical accuracy validation
@@ -173,8 +177,11 @@ array stores position, velocity, acceleration, jerk, and snap at each knot.
 dimensions (x, y or x, y, z), columns are Taylor order (position through snap, pre-scaled by factorial).
 
 **Derivative coefficient matrices**: `solve2d_d` and `solve3d_d` return an additional `(7, D, 5)` matrix containing 
-partial derivatives of the Taylor coefficients w.r.t. the 7 orbital parameters (phase, p, a, i, e, w, lan). The 
-seventh parameter, `lan` (longitude of the ascending node), is an optional argument defaulting to 0.0; it is a 
+partial derivatives of the Taylor coefficients w.r.t. the 7 orbital parameters in the order (tc, p, a, i, e, w, lan).
+Slot 0 is the partial w.r.t. the transit-centre time `tc` (with e/w/p taken at constant `tc`). `Orbit` returns
+gradients in this transit-centre basis by default, or in the periastron basis (tp, p, a, i, e, w, lan) when bound via
+`set_pars(tp=...)` — applied by `tc_to_tp_gradient` (in `backends/numba/utils.py`, re-exported from `numba3d`).
+The seventh parameter, `lan` (longitude of the ascending node), is an optional argument defaulting to 0.0; it is a 
 constant rotation of the sky-plane (x, y) about the line of sight (in 3D, the line-of-sight z is unaffected).
 
 ### Orbital Parameters
