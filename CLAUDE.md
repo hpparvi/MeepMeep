@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 MeepMeep is a Python package for fast Keplerian orbit calculations optimized for exoplanet transit modeling. It uses 
 Taylor series expansions around knot points to achieve high-performance orbit evaluations.
 
-Reference notebooks live in `notebooks/` and rendered docs source in `doc/`.
+Reference notebooks live in `notebooks/` and rendered docs source in `docs/`.
 
 ## Building and Testing
 
@@ -46,13 +46,13 @@ On first use in methods sections or docstrings, expand to something like: *"the 
 
 ## Documentation
 
-Sphinx sources live in `doc/source/`; build with:
+Sphinx sources live in `docs/source/`; build with:
 
 ```bash
-cd doc && make html      # output in doc/build/html/
+cd docs && make html      # output in docs/build/html/
 ```
 
-Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`). The authoritative reference for low-level function naming is `doc/source/naming_conventions.rst` — keep it and the "Adding New Taylor Series Functions" section of this file in sync.
+Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`). The authoritative reference for low-level function naming is `docs/source/naming_conventions.rst` — keep it and the "Adding New Taylor Series Functions" section of this file in sync.
 
 **Citation.** The Taylor-series-around-knot-points method is published in Parviainen & Korth (2020), MNRAS 499, 3356; ADS bibcode `2020MNRAS.499.3356P`. Cite as "Parviainen and Korth (2020)" in docs.
 
@@ -157,7 +157,9 @@ dimension-agnostic primitives import them from
 
 ### Key Concepts
 
-**Knot Points**: The orbit is divided into segments with knots placed according to one of three strategies:
+**Knot Points**: A knot is a point along the orbit that serves as the *center* of a local 5th-order
+Taylor expansion (not a spline-style segment *boundary* — those are the `change_times` returned by
+`create_knots`). The orbit is divided into segments with knots placed according to one of three strategies:
 - `'mm'`: Mean motion (uniform time distribution)
 - `'ea'`: Eccentric anomaly (default, better for eccentric orbits)
 - `'ta'`: True anomaly
@@ -240,6 +242,6 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `_os` / `_ov` (private, leading underscore): the underlying scalar and vector kernels the dispatcher routes to; only call directly when contributing
   - `_osd` / `_ovd` (private, leading underscore): same, gradient-returning kernels
 - The authoritative reference for the full naming scheme is
-  `doc/source/naming_conventions.rst`. Update both that file and this
+  `docs/source/naming_conventions.rst`. Update both that file and this
   section if the conventions change.
 - All Taylor polynomial evaluations use Horner's method for numerical stability
