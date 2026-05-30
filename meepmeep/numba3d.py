@@ -81,6 +81,7 @@ from .backends.numba.taylor.orbit3dd import (
 
 # --- Dimension-agnostic primitives ------------------------------------
 from .backends.numba.knots import create_knots
+from .backends.numba.utils import tc_to_tp_gradient
 
 __all__ = [
     "bounding_box",
@@ -132,6 +133,7 @@ __all__ = [
     "t23",
     "t34",
     "t4",
+    "tc_to_tp_gradient",
     "true_anomaly_o",
     "true_anomaly_od",
     "vel_c",

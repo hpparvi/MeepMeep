@@ -48,7 +48,7 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 
 from .backends.numba.knots import create_knots
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
-from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector
+from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector, tc_to_tp_gradient
 from .backends.numba.taylor.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
                                             true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
                                             lambert_phase_curve_o, lambert_and_emission_o, light_travel_time_o, )
@@ -98,6 +98,15 @@ class Orbit:
         in :mod:`meepmeep.backends.numba.taylor.orbit3dd` for the full
         signatures).
 
+        The timing slot and the shape derivatives follow the timing
+        parameter bound via :meth:`set_pars`. Bind ``tc`` (the default) and
+        slot 0 is :math:`\\partial/\\partial t_c` with the ``e``, ``w``,
+        ``p`` derivatives taken at constant ``tc``; bind ``tp`` and the
+        gradient is returned in the periastron basis
+        ``(tp, p, a, i, e, w, lan)`` (constant ``tp``). See the
+        "Transit-centre vs periastron parametrisation" section of the
+        derivatives documentation for the exact relationship.
+
         With ``derivatives=True``, multi-coordinate returns are extended
         with derivative arrays (e.g. :meth:`xyz` returns
         ``(xs, ys, zs, dxs, dys, dzs)`` with each ``d*s`` of shape
@@ -122,6 +131,11 @@ class Orbit:
         orbit3dd dispatcher as their ``tpa`` argument. Set by
         :meth:`set_pars` (directly if you pass ``tp``, or derived from
         ``tc`` otherwise).
+    _timing : str
+        Which timing convention was last bound via :meth:`set_pars`,
+        ``"tc"`` (transit centre) or ``"tp"`` (periastron passage). In
+        derivative mode it selects the gradient basis: ``"tp"`` triggers a
+        reparametrisation of ``_dcoeffs`` into the periastron basis.
     _coeffs : ndarray, shape (npt, 3, 5)
         Taylor coefficient matrices at every knot, built in :meth:`set_pars`.
     _dcoeffs : ndarray, shape (npt, 7, 3, 5) or None
@@ -165,6 +179,7 @@ class Orbit:
         self._e: Optional[float] = None
         self._w: Optional[float] = None
         self._lan: Optional[float] = None
+        self._timing: str = "tc"
         self._derivatives: bool = derivatives
 
         self._points, self._change_times, self._dt, self._tptable = create_knots(npt, 0.2, knot_placement)
@@ -243,9 +258,11 @@ class Orbit:
         if tc is not None:
             self._tc = tc
             self._tp = tc - to
+            self._timing = "tc"
         else:
             self._tp = tp
             self._tc = tp + to
+            self._timing = "tp"
         self._p = p
         self._a = a
         self._i = i
@@ -255,6 +272,14 @@ class Orbit:
         if self._derivatives:
             self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w,
                                                           lan=lan, npt=self.npt)
+            # When bound with tp, reparametrise the per-knot gradient from the
+            # transit-centre basis (the solver's native basis) to the periastron
+            # basis. Each knot slice of _dcoeffs is replaced with its
+            # reparametrised copy; because every derivative-returning method
+            # reads _dcoeffs, the new basis propagates to all of them.
+            if self._timing == "tp":
+                for kn in range(self.npt):
+                    self._dcoeffs[kn] = tc_to_tp_gradient(self._dcoeffs[kn], p, e, w)
         else:
             self._coeffs = solve3d_orbit(self._points, p, a, i, e, w, lan=lan, npt=self.npt)
 

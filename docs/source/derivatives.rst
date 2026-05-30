@@ -557,3 +557,47 @@ Numerical regime and pitfalls
   ``solve3d_d``) and propagates linearly through every evaluator, so all
   ``_d`` / ``_od`` outputs report :math:`\partial / \partial t_c`
   consistently.
+
+Transit-centre vs periastron parametrisation
+--------------------------------------------
+
+The solver's native gradient basis is the **transit-centre** parametrisation:
+slot 0 is :math:`\partial / \partial t_c` and the eccentricity, argument-of-
+periastron, and period derivatives are taken holding :math:`t_c` fixed.
+
+When an :class:`~meepmeep.orbit.Orbit` is bound with the time of periastron
+passage (``set_pars(tp=...)``), the gradients are instead returned in the
+**periastron** parametrisation :math:`(t_p, p, a, i, e, w, \lambda)`, with the
+shape derivatives taken holding :math:`t_p` fixed. The basis therefore follows
+whichever timing parameter you supply: ``tc`` keeps the transit-centre basis,
+``tp`` switches to the periastron basis.
+
+The two are related by the exact, parameter-dependent offset
+
+.. math::
+
+   t_c = t_p + M_\mathrm{tr}(e, w)\, \frac{p}{2\pi},
+
+so the periastron-basis gradient is the transit-centre gradient with multiples
+of the timing row added to the :math:`p`, :math:`e`, and :math:`w` rows:
+
+.. math::
+
+   \frac{\partial f}{\partial p}\Big|_{t_p} &=
+       \frac{\partial f}{\partial p}\Big|_{t_c}
+       + \frac{\partial f}{\partial t_c}\, \frac{M_\mathrm{tr}}{2\pi}, \\
+   \frac{\partial f}{\partial e}\Big|_{t_p} &=
+       \frac{\partial f}{\partial e}\Big|_{t_c}
+       + \frac{\partial f}{\partial t_c}\, \frac{\partial M_\mathrm{tr}}{\partial e}\, \frac{p}{2\pi}, \\
+   \frac{\partial f}{\partial w}\Big|_{t_p} &=
+       \frac{\partial f}{\partial w}\Big|_{t_c}
+       + \frac{\partial f}{\partial t_c}\, \frac{\partial M_\mathrm{tr}}{\partial w}\, \frac{p}{2\pi}.
+
+The :math:`a`, :math:`i`, and :math:`\lambda` rows are unchanged, and slot 0 is
+numerically identical in both bases (it equals :math:`\partial/\partial t_c =
+\partial/\partial t_p` when the other parameters are held fixed). This change of
+basis is applied once to the per-knot coefficient derivatives by
+:func:`~meepmeep.numba3d.tc_to_tp_gradient`, so it propagates consistently to
+every derivative-returning quantity (radial velocity, position, separation,
+phase curves, ...). The relevant mean-anomaly-at-transit terms come from
+:func:`~meepmeep.backends.numba.utils.mean_anomaly_at_transit_with_derivatives`.
