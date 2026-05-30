@@ -18,7 +18,7 @@
 from .backends.numba.taylor.solve2d import solve2d
 from .backends.numba.taylor.solve2dd import solve2d_d
 from .backends.numba.taylor.position2d import pos, sep
-from .backends.numba.taylor.position2dd import pos_d, sep_d
+from .backends.numba.taylor.position2dd import pos_dv, sep_dv
 from .backends.numba.taylor.util2d import (t12, t14, t23, t34,
                                            bounding_box, find_contact_point, find_z_min)
 
@@ -35,19 +35,23 @@ class Knot2D:
         exposes the sky-plane (x, y) position, the sky-projected separation
         between the centers of the star and planet (in units of the stellar
         radius), and the transit contact-point / duration utilities, all
-        sharing the single ``(2, 5)`` coefficient matrix solved at
-        construction. (The name follows spline terminology, but the knot here
-        is the expansion *center*, not a segment boundary.)
+        sharing the single ``(2, 5)`` coefficient matrix solved by
+        :meth:`set_pars`. (The name follows spline terminology, but the knot
+        here is the expansion *center*, not a segment boundary.)
+
+        Usage mirrors the high-level :class:`~meepmeep.orbit.Orbit` class:
+        construct once, then rebind orbital elements with :meth:`set_pars` and
+        the observation times with :meth:`set_data` as needed. The
+        constructor itself simply forwards its orbital arguments to
+        :meth:`set_pars`. The :attr:`position` and :attr:`projected_separation`
+        **properties** evaluate the bound time grid; each access converts the
+        grid to ``times - tc`` internally so the underlying direct evaluators
+        epoch-fold around the knot.
 
         The ``derivatives`` flag is a once-per-instance switch: when ``True``,
-        :meth:`position` and :meth:`projected_separation` return the value
+        :attr:`position` and :attr:`projected_separation` return the value
         together with its orbital-parameter derivatives; when ``False`` they
-        return the value only. This mirrors the dispatch pattern of the
-        high-level :class:`~meepmeep.orbit.Orbit` class.
-
-        Evaluation methods take **absolute** observation times. Internally the
-        instance evaluates at ``t - tc`` so that the underlying direct
-        evaluators epoch-fold around the knot.
+        return the value only.
 
         Parameters
         ----------
@@ -70,80 +74,125 @@ class Knot2D:
         tk : float, optional
             Knot time [days], measured relative to the transit centre (time of
             inferior conjunction). ``tk = 0`` (the default) expands the series
-            at the transit centre.
+            at the transit centre. The knot time is fixed for the lifetime of
+            the instance; rebinding via :meth:`set_pars` reuses it.
         derivatives : bool, optional
-            If ``True``, :meth:`position` and :meth:`projected_separation`
+            If ``True``, :attr:`position` and :attr:`projected_separation`
             also return parameter derivatives. Defaults to ``False``.
 
         Notes
         -----
-        A joint position-and-separation method is intentionally not provided:
+        A joint position-and-separation property is intentionally not provided:
         the low-level API has no derivative-returning ``pos_and_sep`` variant,
         so it could not honour the ``derivatives`` flag symmetrically.
         """
-        self.derivatives = derivatives
+        self._derivatives = derivatives
         self.tk = tk
-        self.tc = tc
-        self.p = p
-        self.a = a
-        self.i = i
-        self.e = e
-        self.w = w
-        self.lan = lan
+        self.times = None
+        self.set_pars(tc=tc, p=p, a=a, i=i, e=e, w=w, lan=lan)
 
-        # Absolute time of the knot, used to convert centered contact-point
-        # offsets back to absolute times.
-        self._knot_time = tc + tk
+    def set_pars(self, *, tc: float, p: float, a: float, i: float, e: float, w: float,
+                 lan: float = 0.0):
+        """Bind orbital elements and (re-)solve the single-knot Taylor coefficients.
 
-        if derivatives:
-            self._coeffs, self._dcoeffs = solve2d_d(tk, p, a, i, e, w, lan)
-        else:
-            self._coeffs = solve2d(tk, p, a, i, e, w, lan)
-            self._dcoeffs = None
-
-    def position(self, t):
-        """Sky-plane (x, y) position at absolute time(s) ``t``.
+        All parameters are keyword-only, so the call site always names the
+        elements explicitly. The knot time ``tk`` is a construction-time
+        constant and is reused on every call.
 
         Parameters
         ----------
-        t : float or ndarray
-            Absolute observation time(s) [days].
+        tc : float
+            Time of inferior conjunction (transit centre) [days].
+        p : float
+            Orbital period [days].
+        a : float
+            Scaled semi-major axis [R_star].
+        i : float
+            Inclination [rad].
+        e : float
+            Eccentricity.
+        w : float
+            Argument of periastron [rad].
+        lan : float, optional
+            Longitude of the ascending node [rad]. A constant rotation of the
+            sky-plane (x, y) coordinates about the line of sight. Defaults to
+            0.0. In derivative mode the gradient w.r.t. ``lan`` is the seventh
+            orbital-parameter column.
+
+        Notes
+        -----
+        After this call, ``self._coeffs`` holds the ``(2, 5)`` coefficient
+        matrix (and ``self._dcoeffs`` the ``(7, 2, 5)`` derivative tensor when
+        the instance is in derivative mode), and ``self._knot_time`` holds the
+        absolute time of the knot (``tc + tk``).
+        """
+        self._tc = tc
+        self._p = p
+        self._a = a
+        self._i = i
+        self._e = e
+        self._w = w
+        self._lan = lan
+
+        # Absolute time of the knot, used to convert centered contact-point
+        # offsets back to absolute times.
+        self._knot_time = tc + self.tk
+
+        if self._derivatives:
+            self._coeffs, self._dcoeffs = solve2d_d(self.tk, p, a, i, e, w, lan)
+        else:
+            self._coeffs = solve2d(self.tk, p, a, i, e, w, lan)
+            self._dcoeffs = None
+
+    def set_data(self, times):
+        """Bind a time grid evaluated by the position / separation properties.
+
+        Parameters
+        ----------
+        times : ndarray, shape (N,)
+            Absolute observation times [days] at which :attr:`position` and
+            :attr:`projected_separation` evaluate the orbit.
+        """
+        self.times = times
+
+    @property
+    def position(self):
+        """Sky-plane (x, y) position at the times bound via :meth:`set_data`.
 
         Returns
         -------
         tuple
-            ``(x, y)`` if the instance was created with ``derivatives=False``;
-            ``(x, y, dx, dy)`` otherwise, where ``dx`` and ``dy`` are shape
-            ``(7,)`` arrays of partial derivatives with respect to
-            ``(tc, p, a, i, e, w, lan)``. All positions are in units of the
-            stellar radius.
+            ``(xs, ys)`` if the instance was created with
+            ``derivatives=False``; ``(xs, ys, dxs, dys)`` otherwise, where
+            ``dxs`` and ``dys`` are shape ``(N, 7)`` arrays of partial
+            derivatives with respect to ``(tc, p, a, i, e, w, lan)``. All
+            positions are in units of the stellar radius.
         """
-        if self.derivatives:
-            return pos_d(t - self.tc, self.tk, self.p, self._coeffs, self._dcoeffs)
-        return pos(t - self.tc, self.tk, self.p, self._coeffs)
+        t = self.times - self._tc
+        if self._derivatives:
+            return pos_dv(t, self.tk, self._p, self._coeffs, self._dcoeffs)
+        return pos(t, self.tk, self._p, self._coeffs)
 
-    def projected_separation(self, t):
-        """Sky-projected star-planet separation at absolute time(s) ``t``.
+    @property
+    def projected_separation(self):
+        """Sky-projected star-planet separation at the times bound via :meth:`set_data`.
 
         The sky-projected separation between the centers of the star and
         planet, in units of the stellar radius.
 
-        Parameters
-        ----------
-        t : float or ndarray
-            Absolute observation time(s) [days].
-
         Returns
         -------
-        d : float or ndarray
-            Projected separation, returned alone if ``derivatives=False``.
-        dd : ndarray
-            Only returned if ``derivatives=True``: shape ``(7,)`` partial
-            derivatives of ``d`` with respect to ``(tc, p, a, i, e, w, lan)``.
+        d : ndarray, shape (N,)
+            Projected separation per time, returned alone if
+            ``derivatives=False``.
+        dd : ndarray, shape (N, 7)
+            Only returned if ``derivatives=True``: partial derivatives of ``d``
+            with respect to ``(tc, p, a, i, e, w, lan)``.
         """
-        if self.derivatives:
-            return sep_d(t - self.tc, self.tk, self.p, self._coeffs, self._dcoeffs)
-        return sep(t - self.tc, self.tk, self.p, self._coeffs)
+        t = self.times - self._tc
+        if self._derivatives:
+            return sep_dv(t, self.tk, self._p, self._coeffs, self._dcoeffs)
+        return sep(t, self.tk, self._p, self._coeffs)
 
     def duration(self, k: float, kind: int = 14) -> float:
         """Transit duration of the requested type [days].

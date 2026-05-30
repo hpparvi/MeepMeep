@@ -184,3 +184,92 @@ def sep_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
     """
     epoch = floor((time - tk + 0.5 * p) / p)
     return sep_cd(time - (tk + epoch * p), c, dc)
+
+
+@njit(fastmath=True)
+def pos_dv(time: NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
+    """
+    Evaluate the (x, y) position and its parameter derivatives over a 1-D time array.
+
+    Vectorised counterpart of `pos_d`: applies the scalar direct evaluator at
+    each element of `time` and stacks the results. The scalar `pos_d` allocates
+    a length-7 gradient per call, so it cannot accept an array directly; this
+    wrapper supplies the array path that array callers (e.g. the high-level
+    ``Knot2D`` properties) need.
+
+    Parameters
+    ----------
+    time : NDArray
+        Absolute observation times, shape (N,), in the same units as `tk`
+        and `p`.
+    tk : float
+        Taylor series expansion time (knot time).
+    p : float
+        Orbital period, used for epoch folding.
+    c : NDArray
+        A (2, 5) Taylor coefficient matrix produced by `solve2d`.
+    dc : NDArray
+        A (7, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
+        with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
+
+    Returns
+    -------
+    px : NDArray
+        Sky-plane x positions, shape (N,), in units of stellar radii.
+    py : NDArray
+        Sky-plane y positions, shape (N,), in units of stellar radii.
+    dpx : NDArray
+        Shape (N, 7) partial derivatives of `px` w.r.t. `(tc, p, a, i, e, w, lan)`.
+    dpy : NDArray
+        Shape (N, 7) partial derivatives of `py` w.r.t. `(tc, p, a, i, e, w, lan)`.
+    """
+    n = time.size
+    px = zeros(n)
+    py = zeros(n)
+    dpx = zeros((n, 7))
+    dpy = zeros((n, 7))
+    for j in range(n):
+        px[j], py[j], dpx[j], dpy[j] = pos_d(time[j], tk, p, c, dc)
+    return px, py, dpx, dpy
+
+
+@njit(fastmath=True)
+def sep_dv(time: NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
+    """
+    Evaluate the projected separation and its parameter derivatives over a 1-D time array.
+
+    Vectorised counterpart of `sep_d`: applies the scalar direct evaluator at
+    each element of `time` and stacks the results. The scalar `sep_d` allocates
+    a length-7 gradient per call, so it cannot accept an array directly; this
+    wrapper supplies the array path that array callers (e.g. the high-level
+    ``Knot2D`` properties) need.
+
+    Parameters
+    ----------
+    time : NDArray
+        Absolute observation times, shape (N,), in the same units as `tk`
+        and `p`.
+    tk : float
+        Taylor series expansion time (knot time).
+    p : float
+        Orbital period, used for epoch folding.
+    c : NDArray
+        A (2, 5) Taylor coefficient matrix produced by `solve2d`.
+    dc : NDArray
+        A (7, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
+        with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
+
+    Returns
+    -------
+    d : NDArray
+        Projected planet-star center distances, shape (N,), in units of
+        stellar radii.
+    dd : NDArray
+        Shape (N, 7) partial derivatives of `d` w.r.t. `(tc, p, a, i, e, w, lan)`.
+    """
+    n = time.size
+    d = zeros(n)
+    dd = zeros((n, 7))
+    for j in range(n):
+        d[j], dd[j] = sep_d(time[j], tk, p, c, dc)
+    return d, dd

@@ -33,7 +33,7 @@ from .backends.numba.taylor.position2d import (
     pos_c, pos, sep_c, sep, pos_and_sep_c, pos_and_sep,
 )
 from .backends.numba.taylor.position2dd import (
-    pos_cd, pos_d, sep_cd, sep_d,
+    pos_cd, pos_d, pos_dv, sep_cd, sep_d, sep_dv,
 )
 from .backends.numba.taylor.solve2d import solve2d
 from .backends.numba.taylor.solve2dd import solve2d_d
@@ -53,10 +53,12 @@ __all__ = [
     "pos_c",
     "pos_cd",
     "pos_d",
+    "pos_dv",
     "sep",
     "sep_c",
     "sep_cd",
     "sep_d",
+    "sep_dv",
     "solve2d",
     "solve2d_d",
     "t1",

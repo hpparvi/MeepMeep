@@ -74,8 +74,10 @@ Parameter-derivative variants:
 
    pos_d
    pos_cd
+   pos_dv
    sep_d
    sep_cd
+   sep_dv
 
 
 Three-dimensional position and distance

@@ -8,8 +8,10 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.taylor.position2d import pos, pos_c, pos_and_sep_c, sep_c
+from meepmeep.backends.numba.taylor.position2dd import pos_d, sep_d, pos_dv, sep_dv
 from meepmeep.backends.numba.taylor.util2d import find_contact_point, bounding_box
 from meepmeep.backends.numba.taylor.solve2d import solve2d
+from meepmeep.backends.numba.taylor.solve2dd import solve2d_d
 from meepmeep.backends.numba.newton.newton import xy_newton_v, z_newton_v
 
 
@@ -348,6 +350,41 @@ class TestEdgeCases:
 
         assert coeffs.shape == (2, 5)
         assert np.all(np.isfinite(coeffs))
+
+
+class TestVectorizedDerivatives:
+    """The vectorized derivative kernels (pos_dv / sep_dv) must equal the
+    per-element scalar evaluators and return the (N, 7) gradient layout."""
+
+    def test_sep_dv_matches_scalar_loop(self, eccentric_orbit):
+        tk = 0.0
+        c, dc = solve2d_d(tk, **eccentric_orbit)
+        times = np.linspace(-0.02, 0.02, 9)
+
+        d, dd = sep_dv(times, tk, eccentric_orbit["p"], c, dc)
+
+        assert d.shape == (times.size,)
+        assert dd.shape == (times.size, 7)
+        for n, t in enumerate(times):
+            d_n, dd_n = sep_d(t, tk, eccentric_orbit["p"], c, dc)
+            assert_allclose(d[n], d_n, rtol=1e-12)
+            assert_allclose(dd[n], dd_n, rtol=1e-12)
+
+    def test_pos_dv_matches_scalar_loop(self, eccentric_orbit):
+        tk = 0.0
+        c, dc = solve2d_d(tk, **eccentric_orbit)
+        times = np.linspace(-0.02, 0.02, 9)
+
+        xs, ys, dxs, dys = pos_dv(times, tk, eccentric_orbit["p"], c, dc)
+
+        assert xs.shape == ys.shape == (times.size,)
+        assert dxs.shape == dys.shape == (times.size, 7)
+        for n, t in enumerate(times):
+            x_n, y_n, dx_n, dy_n = pos_d(t, tk, eccentric_orbit["p"], c, dc)
+            assert_allclose(xs[n], x_n, rtol=1e-12)
+            assert_allclose(ys[n], y_n, rtol=1e-12)
+            assert_allclose(dxs[n], dx_n, rtol=1e-12)
+            assert_allclose(dys[n], dy_n, rtol=1e-12)
 
 
 if __name__ == "__main__":

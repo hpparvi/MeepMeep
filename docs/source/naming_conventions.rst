@@ -112,6 +112,8 @@ Suffix                      Meaning
                             w.r.t. orbital parameters.
 ``_cd``                     Centered evaluator returning a gradient
                             w.r.t. orbital parameters.
+``_dv``                     Direct evaluator, gradient-returning,
+                            **vectorized** over a 1-D time array.
 ==========================  ==============================================
 
 These functions accept an additional argument ``dc`` — a ``(7, D, 5)``
@@ -124,6 +126,15 @@ Examples: :func:`~meepmeep.backends.numba.taylor.position2dd.pos_cd` and
 centered gradient-returning variants;
 :func:`~meepmeep.backends.numba.taylor.position3dd.pos_d` is the direct
 counterpart.
+
+The scalar ``_d`` / ``_cd`` evaluators allocate one length-7 gradient per
+call and therefore take a single time. The ``_dv`` variants (``pos_dv``,
+``sep_dv`` in ``meepmeep.numba2d``) apply the scalar direct evaluator
+across a 1-D time array of length ``N`` and stack the results, so the returned
+gradient gains a leading ``N`` axis (e.g. ``sep_dv`` returns ``d`` of shape
+``(N,)`` and ``dd`` of shape ``(N, 7)``). This is the array path used by the
+high-level ``Knot2D`` properties; the value-only evaluators (``pos`` / ``sep``)
+already accept scalars or arrays without a separate suffix.
 
 
 Multi-knot dispatcher suffix

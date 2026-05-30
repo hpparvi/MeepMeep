@@ -242,6 +242,7 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `_c` suffix: centered (time argument is relative to the knot)
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
+  - `_dv` suffix: direct gradient-returning evaluator vectorized over a 1-D time array. The scalar `_d` / `_cd` variants take a single time (they allocate one length-7 gradient per call); `_dv` applies the scalar `_d` across `N` times and stacks, so the returned gradient gains a leading `N` axis. Used by the array path of `Knot2D`. Examples: `pos_dv`, `sep_dv` in `position2dd`.
   - Dimensionality (2D vs 3D) is encoded by the module name (`position2d` vs `position3d`), not by the function name.
 - In the `orbit3d/` / `orbit3dd/` packages (multi-knot dispatchers):
   - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)
