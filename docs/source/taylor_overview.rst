@@ -17,6 +17,24 @@ computed analytically; from them, positions, sky-projected
 separations, the line-of-sight coordinate, velocities, contact points
 and durations all reduce to fast Horner-scheme polynomial evaluations.
 
+.. admonition:: What is a knot?
+
+   A **knot** is a point along the orbit that serves as the *center* of
+   a local 5th-order Taylor expansion of the planet's trajectory in
+   time. Each knot carries its own ``(D, 5)`` coefficient matrix, and
+   the expansion is most accurate close to the knot, degrading as you
+   move away from it.
+
+   The term is borrowed from spline interpolation, but with one
+   important difference: a spline knot marks where two neighbouring
+   polynomial pieces *join* (a segment boundary), whereas a MeepMeep
+   knot sits at the *center* of its segment. The boundaries between the
+   regions of validity of adjacent knots are a separate set of times
+   (the ``change_times`` returned by
+   :func:`~meepmeep.backends.numba.knots.create_knots`), encoded in the
+   time-to-knot table used for dispatch. So: knots are expansion
+   centers, not segment edges.
+
 .. note::
 
    The backend documented here is the **numba** implementation,

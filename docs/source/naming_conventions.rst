@@ -66,10 +66,11 @@ that accept an absolute time together with the knot time ``tk`` and ``p``.
    Two time names are used consistently throughout the backend. ``tc`` is
    the **transit-centre** time (time of inferior conjunction; the orbital
    element the gradient slot 0 is taken with respect to). ``tk`` is the
-   **knot time** — the time at which a Taylor series was expanded (the
-   ``solve*`` first argument, and the fold reference of the direct
-   evaluators). ``tk`` need not equal ``tc``: it equals ``tc`` only when
-   the knot is placed at the transit centre.
+   **knot time** — the time at the *center* of a local Taylor expansion
+   (a *knot*; see :ref:`taylor_overview`), and hence the ``solve*`` first
+   argument and the fold reference of the direct evaluators. ``tk`` need
+   not equal ``tc``: it equals ``tc`` only when the knot is placed at the
+   transit centre.
 
 ==========================  ==============================================
 Suffix                      Meaning

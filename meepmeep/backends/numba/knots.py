@@ -35,6 +35,51 @@ def true_anomaly(t, e):
 
 
 def create_knots(n_knots: int, e: float, quantity: str = 'ea', tres: int = 200):
+    """Place knots along one orbital period and build the time-to-knot table.
+
+    A *knot* is a point along the orbit that serves as the center of a
+    local 5th-order Taylor expansion of the planet's trajectory in time.
+    This function distributes ``n_knots`` such expansion centers over a
+    single period and records where the dispatch should switch from one
+    knot to the next.
+
+    Note the distinction from spline interpolation: spline knots are the
+    boundaries where neighbouring polynomial pieces join, whereas these
+    knots are the expansion *centers*. The boundaries between adjacent
+    knots' regions of validity are returned separately as ``change_times``.
+
+    Parameters
+    ----------
+    n_knots : int
+        Number of knots. Must be odd so that one knot lands at the orbit
+        midpoint.
+    e : float
+        Orbital eccentricity, used by the ``'ea'`` and ``'ta'`` placement
+        strategies to cluster knots near periastron.
+    quantity : {'mm', 'ea', 'ta'}, optional
+        Knot placement strategy: ``'mm'`` spaces knots uniformly in mean
+        motion (time), ``'ea'`` in eccentric anomaly (default), ``'ta'``
+        in true anomaly.
+    tres : int, optional
+        Resolution of the time-to-knot lookup table (number of bins per
+        period).
+
+    Returns
+    -------
+    knot_times : ndarray
+        Times of the knots (expansion centers), as fractions of the
+        orbital period in ``[0, 1]``.
+    change_times : ndarray
+        Boundary times at which the time-to-knot dispatch switches from
+        one knot to the next, i.e. the edges of each knot's region of
+        validity (one fewer than ``knot_times``).
+    dt : float
+        Width of a single time-to-knot table bin, ``1 / tres``.
+    tktable : ndarray of int
+        Time-to-knot table mapping each of the ``tres`` time bins within
+        one folded period to the index of the knot that should evaluate
+        it.
+    """
     if quantity not in ('mm', 'ea', 'ta'):
         raise ValueError("Quantity needs to be either 'mm' for mean motion, 'ea' for eccentric anomaly, or 'ta' for true anomaly.")
     if n_knots % 2 != 1:

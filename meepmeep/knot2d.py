@@ -25,6 +25,37 @@ from .backends.numba.ts2d.par_direct import diffs as diffs_natural
 from .backends.numba.ts2d.par_fitting import partial_derivatives as diffs_fitting
 
 class Knot2D:
+    """Single 2D Taylor-expansion knot for sky-plane orbit evaluation.
+
+    A *knot* is a point along the orbit that serves as the center of a
+    local 5th-order Taylor expansion of the planet's trajectory in time.
+    This class builds one such expansion at a chosen ``phase`` and
+    evaluates the sky-plane (x, y) position and the sky-projected
+    star-planet separation in the time window around the knot where the
+    series is accurate. (The name follows spline terminology, but the
+    knot here is the expansion *center*, not a segment boundary.)
+
+    Parameters
+    ----------
+    phase : float
+        Orbital phase at which the Taylor series is expanded (the knot),
+        as a fraction of the period.
+    t0 : float
+        Time of inferior conjunction (transit center) [days].
+    p : float
+        Orbital period [days].
+    a : float
+        Scaled semi-major axis [R_star].
+    i : float
+        Inclination [rad].
+    e : float
+        Eccentricity.
+    w : float
+        Argument of periastron [rad].
+    derivatives : bool, optional
+        If ``True``, also compute the coefficient derivatives needed for
+        parameter gradients of the projected separation.
+    """
 
     def __init__(self, phase: float, t0: float, p: float, a: float, i: float, e: float, w: float,
                  derivatives: bool = False):
@@ -66,22 +97,3 @@ class Knot2D:
         res[5] = pd_t15(t, self.t0, self.p, solve2d(self.phase, self.p, self.a, self.i, self.e, self.w + e))
         res = (res - r0) / e
         return res
-
-
-class Knot2DFit(Knot2D):
-
-    def __init__(self, phase: float, t0: float, p: float, rho: float, b: float, secw: float, sesw: float,
-                 derivatives: bool = False):
-        self.rho = rho
-        self.b = b
-        self.secw = secw
-        self.sesw = sesw
-        a = as_from_rhop(rho, p)
-        e = secw ** 2 + sesw ** 2
-        w = arctan2(sesw, secw)
-        i = i_from_baew(b, a, e, w)
-        super().__init__(phase, t0, p, a, i, e, w, derivatives)
-
-    def _c_derivative_coeffs(self):
-        d = diffs_fitting(self.p, self.rho, self.b, self.secw, self.sesw, 1e-4)
-        self._coeffs_d = xy_derivative_coeffs(d, 1e-4, self._coeffs)
