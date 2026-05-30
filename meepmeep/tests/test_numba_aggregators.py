@@ -86,13 +86,11 @@ def test_numba_smoke_numba2d():
 
 def test_numba_smoke_numba3d():
     from meepmeep.numba3d import (
-        TWO_PI,
         create_knots,
         solve3d_orbit,
         pos_o,
-        mean_anomaly_at_transit,
-        ta_from_ea,
     )
+    from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit, ta_from_ea
 
     NPT = 15
     p, a, i, e, w = 3.0, 10.0, 1.5, 0.0, 0.0
