@@ -20,7 +20,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..position3d import pos_c
+from ..point3d.position import pos_c
 from ._common import _is_1d_array
 
 

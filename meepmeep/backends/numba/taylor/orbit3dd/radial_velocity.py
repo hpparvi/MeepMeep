@@ -20,7 +20,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..velocity3dd import rv_cd
+from ..point3dd.radial_velocity import rv_cd
 from ._common import _is_1d_array
 
 

@@ -1,0 +1,143 @@
+#  MeepMeep: fast orbit calculations for exoplanet modelling
+#  Copyright (C) 2022-2026 Hannu Parviainen
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Single-knot stellar radial-velocity evaluators with parameter derivatives."""
+
+from numba import njit
+from numpy import floor, sqrt, sin, cos, pi, zeros
+from numpy.typing import NDArray
+
+from .zvelocity import zvel_cd
+
+
+@njit(fastmath=True)
+def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: float,
+          c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+    """
+    Evaluate the stellar radial velocity and its parameter derivatives at a knot-centered time.
+
+    Converts the planet's centered line-of-sight velocity into the
+    physical radial velocity of the host star, scaled by the
+    semi-amplitude `k`, following Perryman (2018) Eq. 2.23. The same
+    chain rule is propagated to give the seven partial derivatives of
+    the radial velocity with respect to the orbital parameters.
+
+    Parameters
+    ----------
+    time : float or NDArray
+        Time relative to the Taylor series expansion point.
+    k : float
+        Radial-velocity semi-amplitude of the star, in physical
+        velocity units (e.g. m/s). The function output inherits these
+        units.
+    p : float
+        Orbital period.
+    a : float
+        Scaled semi-major axis in units of stellar radii.
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity.
+    c : NDArray
+        A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
+        is read by the inner `zvel_cd`.
+    dc : NDArray
+        A (7, 3, 5) parameter-derivative tensor produced by
+        `solve3d_d`, with the leading axis ordered as
+        `(tc, p, a, i, e, w, lan)`.
+
+    Returns
+    -------
+    rv : float or NDArray
+        Stellar radial velocity in the same units as `k`. Positive
+        when the planet is moving toward the observer.
+    drv : NDArray
+        Shape (7,) partial derivatives of `rv` with respect to
+        `(tc, p, a, i, e, w, lan)`.
+
+    Notes
+    -----
+    Let `s = k / n` with `n = (2*pi/p) * (a*sin(i)) / sqrt(1 - e^2)`.
+    Then `rv = s * vz`, and the chain rule gives
+    `d(rv)/dtheta = s * d(vz)/dtheta + vz * ds/dtheta`. The factor `s`
+    depends only on `(p, a, i, e)`; its derivatives w.r.t. `tc` and
+    `w` are zero. The non-trivial derivatives are
+    `ds/dp = s/p`, `ds/da = -s/a`, `ds/di = -s*cot(i)`, and
+    `ds/de = -s*e/(1 - e^2)`.
+    """
+    n = 2.0 * pi / p * (a * sin(i)) / sqrt(1.0 - e ** 2)
+    s = k / n
+
+    vz, dvz = zvel_cd(time, c, dc)
+    rv_val = s * vz
+
+    # ds/dtheta for each parameter: tc, p, a, i, e, w, lan
+    drv = zeros(7)
+    ds = zeros(7)
+    ds[1] = s / p       # ds/dp
+    ds[2] = -s / a      # ds/da
+    ds[3] = -s * cos(i) / sin(i)  # ds/di
+    ds[4] = -s * e / (1.0 - e ** 2)  # ds/de
+
+    for j in range(7):
+        drv[j] = s * dvz[j] + vz * ds[j]
+
+    return rv_val, drv
+
+
+@njit(fastmath=True)
+def rv_d(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float, e: float,
+         c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+    """
+    Evaluate the stellar radial velocity and its parameter derivatives at an absolute time.
+
+    Direct counterpart of `rv_cd`: epoch-folds the absolute time
+    `time` around the expansion point `tk` and delegates to `rv_cd`.
+
+    Parameters
+    ----------
+    time : float or NDArray
+        Absolute observation time(s) in the same units as `tk` and `p`.
+    k : float
+        Radial-velocity semi-amplitude of the star, in physical
+        velocity units (e.g. m/s). The function output inherits these
+        units.
+    tk : float
+        Taylor series expansion time (knot time).
+    p : float
+        Orbital period.
+    a : float
+        Scaled semi-major axis in units of stellar radii.
+    i : float
+        Orbital inclination in radians.
+    e : float
+        Orbital eccentricity.
+    c : NDArray
+        A (3, 5) coefficient matrix produced by `solve3d`.
+    dc : NDArray
+        A (7, 3, 5) parameter-derivative tensor produced by
+        `solve3d_d`.
+
+    Returns
+    -------
+    rv : float or NDArray
+        Stellar radial velocity in the same units as `k`.
+    drv : NDArray
+        Shape (7,) partial derivatives of `rv` with respect to
+        `(tc, p, a, i, e, w, lan)`.
+    """
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return rv_cd(time - (tk + epoch * p), k, p, a, i, e, c, dc)

@@ -20,7 +20,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, pi, floor, ndarray
 
-from ..velocity3d import zvel_c
+from ..point3d.zvelocity import zvel_c
 from .zposition import _zpos_osd
 from ...utils import mean_anomaly_at_transit_with_derivatives
 from ._common import _is_1d_array

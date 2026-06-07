@@ -95,7 +95,7 @@ class TestSolve2dPhysics:
 
     def test_matches_solve3d_xy(self, eccentric_orbit):
         """The 2D coefficients should match the first two rows of solve3d."""
-        from meepmeep.backends.numba.taylor.solve3d import solve3d
+        from meepmeep.backends.numba.taylor.point3d import solve3d
         cf2d = solve2d(0.0, **eccentric_orbit)
         cf3d = solve3d(0.0, **eccentric_orbit)
         assert_allclose(cf2d, cf3d[:2, :], rtol=1e-12,

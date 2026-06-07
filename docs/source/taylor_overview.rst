@@ -102,7 +102,7 @@ The 2D evaluators in
 :mod:`~meepmeep.backends.numba.taylor.point2d.position` compute only
 :math:`(x, y)` and :math:`d`, which is sufficient for transit
 modelling. The 3D evaluators in
-:mod:`~meepmeep.backends.numba.taylor.position3d` additionally compute
+:mod:`~meepmeep.backends.numba.taylor.point3d.position` additionally compute
 :math:`z`, which is needed for eclipses, light travel time, phase
 curves, and radial velocities.
 
@@ -131,7 +131,7 @@ When parameter derivatives are returned, the canonical ordering is
 tensor follows this order.
 
 Both :func:`~meepmeep.backends.numba.taylor.point2d.solve.solve2d` and
-:func:`~meepmeep.backends.numba.taylor.solve3d.solve3d` return a
+:func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d` return a
 **coefficient matrix** ``c`` of shape ``(D, 5)``:
 
 * :math:`D = 2` for the 2D (sky-plane) solver, :math:`D = 3` for 3D.
@@ -170,7 +170,7 @@ Pick a knot time :math:`t_k` of interest, measured in days relative to
 the transit centre (for example, the transit centre itself, :math:`t_k = 0`).
 A single call to
 :func:`~meepmeep.backends.numba.taylor.point2d.solve.solve2d` (or
-:func:`~meepmeep.backends.numba.taylor.solve3d.solve3d` for 3D) builds
+:func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d` for 3D) builds
 the ``(D, 5)`` coefficient matrix at that knot:
 
 .. code-block:: python
@@ -196,9 +196,9 @@ variants and the choice belongs entirely in this single-knot mode:
   Examples: :func:`~meepmeep.backends.numba.taylor.point2d.position.pos_c`,
   :func:`~meepmeep.backends.numba.taylor.point2d.separation.sep_c`,
   :func:`~meepmeep.backends.numba.taylor.point2d.position.pos_and_sep_c`,
-  :func:`~meepmeep.backends.numba.taylor.position3d.pos_c`,
-  :func:`~meepmeep.backends.numba.taylor.position3d.sep_c`,
-  :func:`~meepmeep.backends.numba.taylor.position3d.zpos_c`.
+  :func:`~meepmeep.backends.numba.taylor.point3d.position.pos_c`,
+  :func:`~meepmeep.backends.numba.taylor.point3d.separation.sep_c`,
+  :func:`~meepmeep.backends.numba.taylor.point3d.zposition.zpos_c`.
 
 * **Direct** variants (no ``c`` suffix) accept an absolute time
   together with the knot time ``tk`` and ``p`` and epoch-fold internally via
@@ -207,13 +207,13 @@ variants and the choice belongs entirely in this single-knot mode:
   observation times.
   Examples: :func:`~meepmeep.backends.numba.taylor.point2d.position.pos`,
   :func:`~meepmeep.backends.numba.taylor.point2d.separation.sep`,
-  :func:`~meepmeep.backends.numba.taylor.position3d.pos`,
-  :func:`~meepmeep.backends.numba.taylor.position3d.sep`,
-  :func:`~meepmeep.backends.numba.taylor.position3d.zpos`.
+  :func:`~meepmeep.backends.numba.taylor.point3d.position.pos`,
+  :func:`~meepmeep.backends.numba.taylor.point3d.separation.sep`,
+  :func:`~meepmeep.backends.numba.taylor.point3d.zposition.zpos`.
 
 **Geometric helpers.** The
 :mod:`~meepmeep.backends.numba.taylor.point2d.util` and
-:mod:`~meepmeep.backends.numba.taylor.util3d` modules supply analytic
+:mod:`~meepmeep.backends.numba.taylor.point3d.util` modules supply analytic
 helpers that operate directly on a single ``c``:
 
 * ``t14`` / ``t23`` — full (first-to-fourth contact) and total
@@ -255,14 +255,14 @@ only the epoch-folding is now done by the evaluator.
 seven orbital parameters, replace
 :func:`~meepmeep.backends.numba.taylor.point2d.solve.solve2d` with
 :func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` (or
-:func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d`). The solver
+:func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d`). The solver
 returns both ``c`` and a ``(7, D, 5)`` derivative tensor ``dc``; feed
 them to the matching centered-with-derivatives evaluators
 (:func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_cd`,
 :func:`~meepmeep.backends.numba.taylor.point2dd.separation.sep_cd`,
-:func:`~meepmeep.backends.numba.taylor.position3dd.pos_cd`,
-:func:`~meepmeep.backends.numba.taylor.position3dd.sep_cd`,
-:func:`~meepmeep.backends.numba.taylor.position3dd.zpos_cd`, and so on).
+:func:`~meepmeep.backends.numba.taylor.point3dd.position.pos_cd`,
+:func:`~meepmeep.backends.numba.taylor.point3dd.separation.sep_cd`,
+:func:`~meepmeep.backends.numba.taylor.point3dd.zposition.zpos_cd`, and so on).
 See :ref:`taylor_derivatives` for the gradient conventions.
 
 
@@ -293,7 +293,7 @@ series is shortest.
 
 **Per-orbit coefficient assembly.**
 :func:`~meepmeep.backends.numba.taylor.orbit3d.solve3d_orbit` calls
-:func:`~meepmeep.backends.numba.taylor.solve3d.solve3d` once per knot
+:func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d` once per knot
 and returns an ``(N, 3, 5)`` array. The function expects the *last*
 knot time to be the periodic image of the first (i.e. one period
 later); when this is true it copies the first knot's coefficients into
@@ -316,8 +316,9 @@ suffix family from the single-knot evaluators:
 * ``*_ov`` — orbit-spanning, **v**\ ector of input times.
 
 Each dispatcher looks up the relevant knot via ``pktable`` and
-delegates to the corresponding centered evaluator in :mod:`position3d`
-/ :mod:`velocity3d`. Beyond raw positions and velocities, the module
+delegates to the corresponding centered evaluator in the
+:mod:`~meepmeep.backends.numba.taylor.point3d` package. Beyond raw
+positions and velocities, the module
 provides higher-level whole-orbit outputs:
 
 * :func:`~meepmeep.backends.numba.taylor.orbit3d.true_anomaly_ov`,
@@ -370,8 +371,8 @@ evaluate at an array of times:
 Parameter derivatives
 ---------------------
 
-Modules suffixed with a ``d`` (``solve2dd``, ``position2dd``,
-``solve3dd``, ``position3dd``, ``velocity3dd``, ``orbit3dd``) extend
+The ``d``-suffixed packages (the ``point2dd`` and ``point3dd`` single-knot
+packages and the ``orbit3dd`` multi-knot package) extend
 the backend with analytic partial derivatives of every output with
 respect to the seven orbital parameters. The same machinery is available
 in both usage modes. See :ref:`derivatives` for the full derivation,
@@ -381,7 +382,7 @@ evaluator and dispatcher.
 
 For **single-knot gradients**, swap
 :func:`~meepmeep.backends.numba.taylor.point2d.solve.solve2d` /
-:func:`~meepmeep.backends.numba.taylor.solve3d.solve3d` for their
+:func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d` for their
 ``_d`` counterparts. They return a coefficient matrix ``c`` *and* a
 **derivative tensor** ``dc`` of shape ``(7, D, 5)``:
 
@@ -390,9 +391,9 @@ For **single-knot gradients**, swap
 * Axes 1, 2 — spatial dimension and Taylor order, matching ``c``.
 
 Every gradient-returning evaluator
-(e.g. :func:`~meepmeep.backends.numba.taylor.position3dd.pos_d`,
-:func:`~meepmeep.backends.numba.taylor.position3dd.sep_d`,
-:func:`~meepmeep.backends.numba.taylor.velocity3dd.vel_cd`) accepts
+(e.g. :func:`~meepmeep.backends.numba.taylor.point3dd.position.pos_d`,
+:func:`~meepmeep.backends.numba.taylor.point3dd.separation.sep_d`,
+:func:`~meepmeep.backends.numba.taylor.point3dd.velocity.vel_cd`) accepts
 both ``c`` and ``dc`` and returns the value alongside a length-7
 gradient vector. The naming convention is ``_d`` for direct (absolute-
 time) variants and ``_cd`` for centered ones.

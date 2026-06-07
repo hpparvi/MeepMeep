@@ -20,7 +20,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..position3dd import zpos_cd
+from ..point3dd.zposition import zpos_cd
 from ._common import _is_1d_array
 
 

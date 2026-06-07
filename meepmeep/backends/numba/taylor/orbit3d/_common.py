@@ -24,7 +24,7 @@ the per-orbit coefficient builder, and the time-to-knot lookup.
 from numba import njit, types
 from numpy import zeros, pi, floor
 
-from ..solve3d import solve3d
+from ..point3d.solve import solve3d
 from ...utils import mean_anomaly_at_transit
 
 
@@ -37,7 +37,7 @@ def _is_1d_array(typ):
 def solve3d_orbit(knot_times, p, a, i, e, w, lan=0.0, npt=15):
     """Pre-compute Taylor coefficients at every knot of one orbit.
 
-    For each interior knot this calls :func:`~meepmeep.backends.numba.taylor.solve3d.solve3d`
+    For each interior knot this calls :func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d`
     once and stacks the resulting ``(3, 5)`` matrices into a single
     ``(npt, 3, 5)`` array. The last slot is the periodic image of the
     first and is copied rather than recomputed.

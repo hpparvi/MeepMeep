@@ -31,21 +31,21 @@ Stem              Quantity
 ================  ====================================================
 
 Examples: :func:`~meepmeep.backends.numba.taylor.point2d.position.pos` returns
-the (x, y) position; :func:`~meepmeep.backends.numba.taylor.position3d.sep`
+the (x, y) position; :func:`~meepmeep.backends.numba.taylor.point3d.separation.sep`
 returns the projected separation from a 3D coefficient set;
-:func:`~meepmeep.backends.numba.taylor.velocity3d.zvel` returns the
+:func:`~meepmeep.backends.numba.taylor.point3d.zvelocity.zvel` returns the
 line-of-sight velocity.
 
 
 Dimensionality lives in the module, not the function
 -----------------------------------------------------
 
-The spatial dimensionality of an evaluator is encoded by the module or
-package name (the ``point2d``/``point2dd`` packages vs the ``position3d``
-module, ``point2d.util`` vs ``util3d``) rather than by the function name.
-Both ``meepmeep.backends.numba.taylor.point2d.position`` and
-``meepmeep.backends.numba.taylor.position3d`` therefore expose a function
-called ``pos``; the 3D module additionally exposes ``zpos``,
+The spatial dimensionality of an evaluator is encoded by the package name
+(the ``point2d``/``point2dd`` packages vs the ``point3d``/``point3dd``
+packages, ``point2d.util`` vs ``point3d.util``) rather than by the
+function name. Both ``meepmeep.backends.numba.taylor.point2d.position`` and
+``meepmeep.backends.numba.taylor.point3d.position`` therefore expose a function
+called ``pos``; the 3D package additionally exposes ``zpos``,
 ``pos_and_sep``, etc.
 
 The 2D evaluators are roughly 30 percent cheaper per call and are
@@ -80,8 +80,8 @@ Suffix                      Meaning
 ``_c``                      Centered: accepts time relative to the knot.
 ==========================  ==============================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.position3d.pos` is the
-direct variant, :func:`~meepmeep.backends.numba.taylor.position3d.pos_c`
+Examples: :func:`~meepmeep.backends.numba.taylor.point3d.position.pos` is the
+direct variant, :func:`~meepmeep.backends.numba.taylor.point3d.position.pos_c`
 the centered one. Both share the same coefficient matrix.
 
 The centered evaluators are the shared workhorses for both usage modes
@@ -99,9 +99,9 @@ The 2D module follows the same rule — ``pos`` / ``pos_c``, ``sep`` /
 Parameter-derivative suffix
 ---------------------------
 
-The gradient-returning variants live in the ``*dd``-suffixed modules
-(``position2dd.py``, ``position3dd.py``, ``velocity3dd.py``,
-``solve2dd.py``, ``solve3dd.py``, and the ``orbit3dd/`` package) and return *both* the
+The gradient-returning variants live in the ``*dd``-suffixed packages
+(the ``point2dd``/``point3dd`` single-knot packages and the ``orbit3dd/``
+multi-knot package) and return *both* the
 quantity and its partial derivatives with respect to the seven orbital
 parameters ``(tc, p, a, i, e, w, lan)``. The suffix encodes whether the
 underlying evaluator is centered or direct:
@@ -120,12 +120,12 @@ Suffix                      Meaning
 These functions accept an additional argument ``dc`` — a ``(7, D, 5)``
 parameter-derivative tensor produced by
 :func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` or
-:func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d`.
+:func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d`.
 
 Examples: :func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_cd` and
-:func:`~meepmeep.backends.numba.taylor.position3dd.sep_cd` are the
+:func:`~meepmeep.backends.numba.taylor.point3dd.separation.sep_cd` are the
 centered gradient-returning variants;
-:func:`~meepmeep.backends.numba.taylor.position3dd.pos_d` is the direct
+:func:`~meepmeep.backends.numba.taylor.point3dd.position.pos_d` is the direct
 counterpart.
 
 The scalar ``_d`` / ``_cd`` evaluators allocate one length-7 gradient per
@@ -194,5 +194,5 @@ Module suffix     Contents
 *name*\ ``d``     Same module, parameter-derivative variants.
 ================  ========================================================
 
-So ``position3dd.py`` is read as "3D position evaluators, with derivatives",
+So ``point3dd/position.py`` is read as "3D position evaluators, with derivatives",
 and the ``orbit3dd/`` package as "orbit-spanning 3D dispatchers, with derivatives".

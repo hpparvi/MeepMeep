@@ -25,7 +25,7 @@ fold the epoch inline, so there is no ``knot_ix`` here.
 from numba import njit, types
 from numpy import zeros, pi
 
-from ..solve3dd import solve3d_d
+from ..point3dd.solve import solve3d_d
 from ...utils import mean_anomaly_at_transit
 
 
@@ -40,7 +40,7 @@ def solve3d_orbit_d(knot_times, p, a, i, e, w, lan=0.0, npt=15):
 
     Derivative-returning counterpart of
     :func:`~meepmeep.backends.numba.taylor.orbit3d.solve3d_orbit`. Calls
-    :func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d` once per
+    :func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d` once per
     interior knot and stacks the resulting ``(3, 5)`` and ``(6, 3, 5)``
     matrices into per-orbit arrays. The last slot is the periodic image of
     the first and is copied rather than recomputed.

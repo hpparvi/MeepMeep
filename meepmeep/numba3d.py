@@ -18,10 +18,12 @@
 This module is the canonical public entry point to MeepMeep's 3D
 Numba-jitted primitives. It bundles three layers in one flat namespace:
 
-* Single-knot 3D Taylor evaluators from
-  ``meepmeep.backends.numba.taylor.position3d`` /
-  ``velocity3d`` / ``solve3d`` / ``util3d`` and their
-  parameter-derivative counterparts in ``*dd`` modules.
+* Single-knot 3D Taylor evaluators from the
+  ``meepmeep.backends.numba.taylor.point3d`` package (per-quantity
+  ``position`` / ``zposition`` / ``separation`` / ``velocity`` /
+  ``zvelocity`` / ``radial_velocity`` modules plus ``solve`` and
+  ``util``) and their parameter-derivative counterparts in the
+  ``point3dd`` package.
 * Multi-knot orbit-spanning evaluators from
   ``meepmeep.backends.numba.taylor.orbit3d`` and ``orbit3dd`` — exposed
   as unified ``*_o`` (forward) and ``*_od`` (with gradients)
@@ -39,24 +41,18 @@ For the 2D surface see :mod:`meepmeep.numba2d`.
 """
 
 # --- 3D single-knot Taylor primitives ---------------------------------
-from .backends.numba.taylor.position3d import (
+from .backends.numba.taylor.point3d import (
     pos_c, pos, sep_c, sep, pos_and_sep_c, pos_and_sep, zpos_c, zpos,
-)
-from .backends.numba.taylor.position3dd import (
-    pos_cd, pos_d, sep_cd, sep_d, zpos_cd, zpos_d,
-)
-from .backends.numba.taylor.velocity3d import (
     vel_c, zvel_c, zvel, rv_c, rv,
-)
-from .backends.numba.taylor.velocity3dd import (
-    vel_cd, zvel_cd, zvel_d, rv_cd, rv_d,
-)
-from .backends.numba.taylor.solve3d import solve3d
-from .backends.numba.taylor.solve3dd import solve3d_d
-from .backends.numba.taylor.util3d import (
+    solve3d,
     find_contact_point, bounding_box,
     t1, t12, t14, t23, t34, t4,
     find_z_min,
+)
+from .backends.numba.taylor.point3dd import (
+    pos_cd, pos_d, sep_cd, sep_d, zpos_cd, zpos_d,
+    vel_cd, zvel_cd, zvel_d, rv_cd, rv_d,
+    solve3d_d,
 )
 
 # --- Multi-knot orbit-spanning evaluators -----------------------------

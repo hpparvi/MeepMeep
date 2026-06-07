@@ -115,13 +115,21 @@ meepmeep/
     │       │                    # mirroring point2d/: position.py (pos_cd, pos_d,
     │       │                    # pos_dv), separation.py (sep_cd, sep_d, sep_dv),
     │       │                    # solve.py (solve2d_d).
-    │       ├── position3d.py    # 3D position evaluation (pos, sep, pos_and_sep, zpos)
-    │       ├── position3dd.py   # 3D position parameter derivatives (pos_d, sep_d, zpos_d)
-    │       ├── solve3d.py       # 3D Taylor coefficient computation (solve3d)
-    │       ├── solve3dd.py      # 3D derivative coefficient computation (solve3d_d)
-    │       ├── velocity3d.py    # 3D velocity evaluation (vel_c, zvel, rv)
-    │       ├── velocity3dd.py   # 3D velocity parameter derivatives
-    │       ├── util3d.py        # 3D utilities (contact points, bounding box)
+    │       ├── point3d/         # Single-knot 3D evaluators (no derivatives),
+    │       │                    # one module per quantity plus solve/util:
+    │       │                    # position.py (pos, pos_and_sep), zposition.py
+    │       │                    # (zpos), separation.py (sep), velocity.py
+    │       │                    # (vel_c), zvelocity.py (zvel), radial_velocity.py
+    │       │                    # (rv), solve.py (solve3d), util.py (contact
+    │       │                    # points, bounding box, durations, find_z_min).
+    │       │                    # __init__.py re-exports the surface.
+    │       ├── point3dd/        # Single-knot 3D parameter-derivative evaluators
+    │       │                    # mirroring point3d/: position.py (pos_cd, pos_d),
+    │       │                    # zposition.py (zpos_cd, zpos_d), separation.py
+    │       │                    # (sep_cd, sep_d), velocity.py (vel_cd),
+    │       │                    # zvelocity.py (zvel_cd, zvel_d),
+    │       │                    # radial_velocity.py (rv_cd, rv_d),
+    │       │                    # solve.py (solve3d_d).
     │       ├── orbit3d/         # Multi-knot orbit-spanning evaluators, one
     │       │                    # module per quantity (position, separation,
     │       │                    # velocity, radial_velocity, true_anomaly,
@@ -227,24 +235,27 @@ To add a new quantity:
 4. Decorate with `@njit(fastmath=True)`
 5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-knot routines).
 
-The single-knot 2D evaluators are organised into the `point2d/` (no
-derivatives) and `point2dd/` (derivatives) packages, one module per physical
-quantity (`position.py`, `separation.py`) plus a `solve.py` module and, in
-`point2d/`, a `util.py` for transit geometry. Each package's `__init__.py`
-re-exports its surface, mirroring the `orbit3d`/`orbit3dd` layout. Unlike
-those multi-knot packages, the single-knot 2D modules keep the plain
-`_c`/direct function structure (no `_os`/`_ov`/`_o` dispatcher); a new 2D
-quantity adds `X_c`/`X` to a `point2d/<quantity>.py` module and, if needed,
-`X_cd`/`X_d`/`X_dv` to the matching `point2dd/<quantity>.py`. The
-single-knot 3D evaluators remain flat `*3d.py`/`*3dd.py` modules.
+The single-knot evaluators are organised into per-dimension packages:
+`point2d/`/`point2dd/` for 2D and `point3d/`/`point3dd/` for 3D, where the
+plain package holds the non-derivative evaluators and the `dd` package the
+parameter-derivative ones. Each has one module per physical quantity
+(`position.py`, `separation.py`, and for 3D also `zposition.py`,
+`velocity.py`, `zvelocity.py`, `radial_velocity.py`) plus a `solve.py`
+module and, in the non-derivative package, a `util.py` for transit
+geometry. Each package's `__init__.py` re-exports its surface, mirroring
+the `orbit3d`/`orbit3dd` layout. Unlike those multi-knot packages, the
+single-knot modules keep the plain `_c`/direct function structure (no
+`_os`/`_ov`/`_o` dispatcher); a new quantity adds `X_c`/`X` to a
+`point{2,3}d/<quantity>.py` module and, if needed, `X_cd`/`X_d` (plus
+`X_dv` for 2D) to the matching `point{2,3}dd/<quantity>.py`.
 
-For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d` (or their gradient variants in `position3dd`/`velocity3dd`).
+For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in the `point3d` package (or their gradient variants in `point3dd`).
 
 Note on Numba `cache=True` callers: after introducing or modifying a dispatcher, purge stale `__pycache__/*.nbi` / `*.nbc` files so Numba recompiles against the new overload registration.
 
 ### Code Style
 
-- **Docstrings follow the NumPy style** (Parameters / Returns / Notes / Examples sections, with `name : type` parameter headers). See `backends/numba/utils.py`, `backends/numba/taylor/position3d.py`, and `backends/numba/taylor/orbit3d/position.py` for the established convention.
+- **Docstrings follow the NumPy style** (Parameters / Returns / Notes / Examples sections, with `name : type` parameter headers). See `backends/numba/utils.py`, `backends/numba/taylor/point3d/position.py`, and `backends/numba/taylor/orbit3d/position.py` for the established convention.
 - Never use Unicode characters in docstrings or variable names.
 - Function naming in `taylor/` modules:
   - `pos_c`, `pos`: position (centered, direct)
