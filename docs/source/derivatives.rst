@@ -48,8 +48,8 @@ knot; the per-evaluator math in Layer B is just polynomial
 manipulation and one-line chain rules.
 
 * **Layer A — derivative coefficients.** The solvers
-  :func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` and
-  :func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d` produce
+  :func:`~meepmeep.backends.numba.point2dd.solve.solve2d_d` and
+  :func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` produce
   the Taylor coefficient matrix ``c`` of shape ``(D, 5)`` *and* a
   parameter-derivative tensor ``dc`` of shape ``(7, D, 5)``. The
   element ``dc[k, d, n]`` is
@@ -71,9 +71,9 @@ Layer A: derivative coefficients
 --------------------------------
 
 The walk-through below mirrors
-:func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` step by
+:func:`~meepmeep.backends.numba.point2dd.solve.solve2d_d` step by
 step; the 3D solver
-:func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d` follows the
+:func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` follows the
 same structure with one extra row in the final rotation matrix.
 
 The parameter indexing throughout is
@@ -353,11 +353,11 @@ for each parameter :math:`k`:
      \;=\; \sum_{n=0}^{4} dc[k, d, n]\, t^n.
 
 Implemented in
-:func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_cd`,
-:func:`~meepmeep.backends.numba.taylor.point3dd.position.pos_cd`,
+:func:`~meepmeep.backends.numba.point2dd.position.pos_cd`,
+:func:`~meepmeep.backends.numba.point3dd.position.pos_cd`,
 and their direct counterparts
-:func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_d` and
-:func:`~meepmeep.backends.numba.taylor.point3dd.position.pos_d` (which epoch-fold
+:func:`~meepmeep.backends.numba.point2dd.position.pos_d` and
+:func:`~meepmeep.backends.numba.point3dd.position.pos_d` (which epoch-fold
 ``t`` first; the discrete epoch shift contributes no derivative).
 
 
@@ -376,8 +376,8 @@ For :math:`d = \sqrt{p_x^2 + p_y^2}`, differentiating
    \;}
 
 The same reduction is applied in 2D and 3D
-(:func:`~meepmeep.backends.numba.taylor.point2dd.separation.sep_cd`,
-:func:`~meepmeep.backends.numba.taylor.point3dd.separation.sep_cd`); both
+(:func:`~meepmeep.backends.numba.point2dd.separation.sep_cd`,
+:func:`~meepmeep.backends.numba.point3dd.separation.sep_cd`); both
 treat :math:`d` as the **projected** distance. The expression is
 regular for :math:`d > 0` and ill-defined at exactly zero projected
 separation; transit modelling stays well clear of this geometric
@@ -390,7 +390,7 @@ Z-coordinate
 The line-of-sight coordinate :math:`z` is just the third row of the
 position polynomial, so its gradient is the polynomial in
 ``dc[k, 2, :]``. See
-:func:`~meepmeep.backends.numba.taylor.point3dd.zposition.zpos_cd`.
+:func:`~meepmeep.backends.numba.point3dd.zposition.zpos_cd`.
 
 
 Line-of-sight velocity
@@ -410,7 +410,7 @@ polynomial, with the factorial pre-scaling exactly cancelling the
                   + 4 c[2, 4]\, t^3.
 
 The gradient is the same polynomial pattern on ``dc``. See
-:func:`~meepmeep.backends.numba.taylor.point3dd.zvelocity.zvel_cd`.
+:func:`~meepmeep.backends.numba.point3dd.zvelocity.zvel_cd`.
 
 
 Radial velocity
@@ -447,15 +447,15 @@ with closed-form non-zero entries
    \frac{\partial s}{\partial e} = -\frac{s\, e}{1 - e^2}.
 
 The :math:`(t_c, w)` partials of :math:`s` vanish. Implemented in
-:func:`~meepmeep.backends.numba.taylor.point3dd.radial_velocity.rv_cd` and
-:func:`~meepmeep.backends.numba.taylor.point3dd.radial_velocity.rv_d`.
+:func:`~meepmeep.backends.numba.point3dd.radial_velocity.rv_cd` and
+:func:`~meepmeep.backends.numba.point3dd.radial_velocity.rv_d`.
 
 
 Phase angle and 3D separation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The whole-orbit dispatchers in
-:mod:`~meepmeep.backends.numba.taylor.orbit3dd` compose further chain
+:mod:`~meepmeep.backends.numba.orbit3dd` compose further chain
 rules on top of the position gradient. The two recurring patterns are
 the 3D separation
 
@@ -480,12 +480,12 @@ and the cosine of the phase angle :math:`\cos \alpha = -z / r`:
                        + z\, \tfrac{\partial z}{\partial \theta_k}\Bigr).
 
 These appear in
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.star_planet_distance_ovd`
+:func:`~meepmeep.backends.numba.orbit3dd.star_planet_distance_ovd`
 and
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.cos_alpha_ovd`. The
+:func:`~meepmeep.backends.numba.orbit3dd.cos_alpha_ovd`. The
 Lambertian phase-curve dispatchers
-(:func:`~meepmeep.backends.numba.taylor.orbit3dd.lambert_phase_curve_ovd`,
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.lambert_and_emission_ovd`)
+(:func:`~meepmeep.backends.numba.orbit3dd.lambert_phase_curve_ovd`,
+:func:`~meepmeep.backends.numba.orbit3dd.lambert_and_emission_ovd`)
 compose the Lambert kernel
 :math:`f(\cos\alpha) = (\sin\alpha + (\pi - \alpha)\cos\alpha)/\pi`
 on top of :math:`\cos\alpha`, with its own closed-form derivative
@@ -496,9 +496,9 @@ Multi-knot propagation
 ----------------------
 
 The orbit-spanning solver
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.solve3d_orbit_d`
+:func:`~meepmeep.backends.numba.orbit3dd.solve3d_orbit_d`
 applies
-:func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d` once per
+:func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` once per
 knot and stacks the results into arrays of shape ``(N, 3, 5)`` for
 ``coeffs`` and ``(N, 7, 3, 5)`` for ``dcoeffs``. The periodic-image
 contract on the last knot is honoured for both arrays — they share

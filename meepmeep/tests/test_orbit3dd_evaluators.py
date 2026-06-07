@@ -34,7 +34,7 @@ from meepmeep.backends.numba.utils import (
     eclipse_time_offset,
 )
 from meepmeep.backends.numba.newton.newton import eclipse_light_travel_time
-from meepmeep.backends.numba.taylor.orbit3d import (
+from meepmeep.backends.numba.orbit3d import (
     pos_o,
     zpos_o,
     vel_o,
@@ -52,7 +52,7 @@ from meepmeep.backends.numba.taylor.orbit3d import (
     light_travel_time_o,
     _lambert_kernel,
 )
-from meepmeep.backends.numba.taylor.orbit3dd import (
+from meepmeep.backends.numba.orbit3dd import (
     solve3d_orbit_d,
     pos_od,
     pos_od,

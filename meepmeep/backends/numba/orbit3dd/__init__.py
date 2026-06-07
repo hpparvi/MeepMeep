@@ -35,8 +35,7 @@ Each physical quantity lives in its own module, holding that quantity's
 scalar kernel (``_X_osd``), vector kernel (``_X_ovd``), public dispatcher
 (``X_od``), and Numba ``@overload`` registration. Shared infrastructure
 (``_is_1d_array``, ``solve3d_orbit_d``) lives in ``_common``. This
-``__init__`` re-exports the full surface so the historical
-``...taylor.orbit3dd`` import path keeps working unchanged.
+``__init__`` re-exports the full surface as the package's public API.
 """
 
 from ._common import _is_1d_array, solve3d_orbit_d

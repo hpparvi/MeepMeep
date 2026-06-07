@@ -62,7 +62,7 @@ secondary-eclipse center for an eclipse model) and evaluate positions
 or projected distance in the time window where the series is
 accurate. This is the natural mode for transit and eclipse light-curve
 codes, for contact-point and duration calculations via
-:mod:`~meepmeep.backends.numba.taylor.point2d.util`, and for inspecting orbit
+:mod:`~meepmeep.backends.numba.point2d.util`, and for inspecting orbit
 geometry at a fixed phase. See :ref:`taylor_single_knot`.
 
 **Multi-knot orbit-spanning evaluation.** Distribute :math:`N` knots
@@ -99,10 +99,10 @@ the line-of-sight depth (transit vs. eclipse) lives in :math:`z`, not
 in :math:`d`.
 
 The 2D evaluators in
-:mod:`~meepmeep.backends.numba.taylor.point2d.position` compute only
+:mod:`~meepmeep.backends.numba.point2d.position` compute only
 :math:`(x, y)` and :math:`d`, which is sufficient for transit
 modelling. The 3D evaluators in
-:mod:`~meepmeep.backends.numba.taylor.point3d.position` additionally compute
+:mod:`~meepmeep.backends.numba.point3d.position` additionally compute
 :math:`z`, which is needed for eclipses, light travel time, phase
 curves, and radial velocities.
 
@@ -130,8 +130,8 @@ When parameter derivatives are returned, the canonical ordering is
 ``(tc, p, a, i, e, w, lan)``. The leading axis of every ``dc`` derivative
 tensor follows this order.
 
-Both :func:`~meepmeep.backends.numba.taylor.point2d.solve.solve2d` and
-:func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d` return a
+Both :func:`~meepmeep.backends.numba.point2d.solve.solve2d` and
+:func:`~meepmeep.backends.numba.point3d.solve.solve3d` return a
 **coefficient matrix** ``c`` of shape ``(D, 5)``:
 
 * :math:`D = 2` for the 2D (sky-plane) solver, :math:`D = 3` for 3D.
@@ -169,13 +169,13 @@ Single-knot evaluation
 Pick a knot time :math:`t_k` of interest, measured in days relative to
 the transit centre (for example, the transit centre itself, :math:`t_k = 0`).
 A single call to
-:func:`~meepmeep.backends.numba.taylor.point2d.solve.solve2d` (or
-:func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d` for 3D) builds
+:func:`~meepmeep.backends.numba.point2d.solve.solve2d` (or
+:func:`~meepmeep.backends.numba.point3d.solve.solve3d` for 3D) builds
 the ``(D, 5)`` coefficient matrix at that knot:
 
 .. code-block:: python
 
-   from meepmeep.backends.numba.taylor.point2d import solve2d
+   from meepmeep.backends.numba.point2d import solve2d
 
    c = solve2d(tk, p, a, i, e, w)   # shape (2, 5)
 
@@ -193,27 +193,27 @@ variants and the choice belongs entirely in this single-knot mode:
   and skip any epoch arithmetic. They are the fastest path and the
   natural choice when the observation times have already been folded
   around the event.
-  Examples: :func:`~meepmeep.backends.numba.taylor.point2d.position.pos_c`,
-  :func:`~meepmeep.backends.numba.taylor.point2d.separation.sep_c`,
-  :func:`~meepmeep.backends.numba.taylor.point2d.position.pos_and_sep_c`,
-  :func:`~meepmeep.backends.numba.taylor.point3d.position.pos_c`,
-  :func:`~meepmeep.backends.numba.taylor.point3d.separation.sep_c`,
-  :func:`~meepmeep.backends.numba.taylor.point3d.zposition.zpos_c`.
+  Examples: :func:`~meepmeep.backends.numba.point2d.position.pos_c`,
+  :func:`~meepmeep.backends.numba.point2d.separation.sep_c`,
+  :func:`~meepmeep.backends.numba.point2d.position.pos_and_sep_c`,
+  :func:`~meepmeep.backends.numba.point3d.position.pos_c`,
+  :func:`~meepmeep.backends.numba.point3d.separation.sep_c`,
+  :func:`~meepmeep.backends.numba.point3d.zposition.zpos_c`.
 
 * **Direct** variants (no ``c`` suffix) accept an absolute time
   together with the knot time ``tk`` and ``p`` and epoch-fold internally via
   ``epoch = floor((t - tk + p/2) / p)`` so the residual lies in
   :math:`[-p/2,\, p/2)`. Use them when callers prefer to hand in raw
   observation times.
-  Examples: :func:`~meepmeep.backends.numba.taylor.point2d.position.pos`,
-  :func:`~meepmeep.backends.numba.taylor.point2d.separation.sep`,
-  :func:`~meepmeep.backends.numba.taylor.point3d.position.pos`,
-  :func:`~meepmeep.backends.numba.taylor.point3d.separation.sep`,
-  :func:`~meepmeep.backends.numba.taylor.point3d.zposition.zpos`.
+  Examples: :func:`~meepmeep.backends.numba.point2d.position.pos`,
+  :func:`~meepmeep.backends.numba.point2d.separation.sep`,
+  :func:`~meepmeep.backends.numba.point3d.position.pos`,
+  :func:`~meepmeep.backends.numba.point3d.separation.sep`,
+  :func:`~meepmeep.backends.numba.point3d.zposition.zpos`.
 
 **Geometric helpers.** The
-:mod:`~meepmeep.backends.numba.taylor.point2d.util` and
-:mod:`~meepmeep.backends.numba.taylor.point3d.util` modules supply analytic
+:mod:`~meepmeep.backends.numba.point2d.util` and
+:mod:`~meepmeep.backends.numba.point3d.util` modules supply analytic
 helpers that operate directly on a single ``c``:
 
 * ``t14`` / ``t23`` — full (first-to-fourth contact) and total
@@ -233,8 +233,8 @@ into single-knot pipelines such as transit duration calculators.
 .. code-block:: python
 
    import numpy as np
-   from meepmeep.backends.numba.taylor.point2d import solve2d
-   from meepmeep.backends.numba.taylor.point2d import sep_c
+   from meepmeep.backends.numba.point2d import solve2d
+   from meepmeep.backends.numba.point2d import sep_c
 
    # Orbital parameters (tc is the transit-centre time)
    tc, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
@@ -253,16 +253,16 @@ only the epoch-folding is now done by the evaluator.
 
 **Single-knot gradients.** For analytic derivatives with respect to the
 seven orbital parameters, replace
-:func:`~meepmeep.backends.numba.taylor.point2d.solve.solve2d` with
-:func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` (or
-:func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d`). The solver
+:func:`~meepmeep.backends.numba.point2d.solve.solve2d` with
+:func:`~meepmeep.backends.numba.point2dd.solve.solve2d_d` (or
+:func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d`). The solver
 returns both ``c`` and a ``(7, D, 5)`` derivative tensor ``dc``; feed
 them to the matching centered-with-derivatives evaluators
-(:func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_cd`,
-:func:`~meepmeep.backends.numba.taylor.point2dd.separation.sep_cd`,
-:func:`~meepmeep.backends.numba.taylor.point3dd.position.pos_cd`,
-:func:`~meepmeep.backends.numba.taylor.point3dd.separation.sep_cd`,
-:func:`~meepmeep.backends.numba.taylor.point3dd.zposition.zpos_cd`, and so on).
+(:func:`~meepmeep.backends.numba.point2dd.position.pos_cd`,
+:func:`~meepmeep.backends.numba.point2dd.separation.sep_cd`,
+:func:`~meepmeep.backends.numba.point3dd.position.pos_cd`,
+:func:`~meepmeep.backends.numba.point3dd.separation.sep_cd`,
+:func:`~meepmeep.backends.numba.point3dd.zposition.zpos_cd`, and so on).
 See :ref:`taylor_derivatives` for the gradient conventions.
 
 
@@ -292,8 +292,8 @@ the orbital motion is fast and the validity window of each Taylor
 series is shortest.
 
 **Per-orbit coefficient assembly.**
-:func:`~meepmeep.backends.numba.taylor.orbit3d.solve3d_orbit` calls
-:func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d` once per knot
+:func:`~meepmeep.backends.numba.orbit3d.solve3d_orbit` calls
+:func:`~meepmeep.backends.numba.point3d.solve.solve3d` once per knot
 and returns an ``(N, 3, 5)`` array. The function expects the *last*
 knot time to be the periodic image of the first (i.e. one period
 later); when this is true it copies the first knot's coefficients into
@@ -306,10 +306,10 @@ this contract yourself.
 ``pktable`` argument — a precomputed table that maps the position
 within one folded period to a knot index in :math:`O(1)`. The dispatch
 helper is
-:func:`~meepmeep.backends.numba.taylor.orbit3d.knot_ix`.
+:func:`~meepmeep.backends.numba.orbit3d.knot_ix`.
 
 **Dispatcher suffix convention.** Whole-orbit functions in
-:mod:`~meepmeep.backends.numba.taylor.orbit3d` use a different
+:mod:`~meepmeep.backends.numba.orbit3d` use a different
 suffix family from the single-knot evaluators:
 
 * ``*_os`` — orbit-spanning, **s**\ calar input time.
@@ -317,24 +317,24 @@ suffix family from the single-knot evaluators:
 
 Each dispatcher looks up the relevant knot via ``pktable`` and
 delegates to the corresponding centered evaluator in the
-:mod:`~meepmeep.backends.numba.taylor.point3d` package. Beyond raw
+:mod:`~meepmeep.backends.numba.point3d` package. Beyond raw
 positions and velocities, the module
 provides higher-level whole-orbit outputs:
 
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.true_anomaly_ov`,
-  :func:`~meepmeep.backends.numba.taylor.orbit3d.cos_alpha_ov` —
+* :func:`~meepmeep.backends.numba.orbit3d.true_anomaly_ov`,
+  :func:`~meepmeep.backends.numba.orbit3d.cos_alpha_ov` —
   phase-angle quantities.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.star_planet_distance_ov`
+* :func:`~meepmeep.backends.numba.orbit3d.star_planet_distance_ov`
   — 3D separation.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_phase_curve_ov`,
-  :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_and_emission_ov`
+* :func:`~meepmeep.backends.numba.orbit3d.lambert_phase_curve_ov`,
+  :func:`~meepmeep.backends.numba.orbit3d.lambert_and_emission_ov`
   — reflected-light and combined reflection + thermal phase curves.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.rv_ov` — radial
+* :func:`~meepmeep.backends.numba.orbit3d.rv_ov` — radial
   velocity.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.ev_signal_ov` —
+* :func:`~meepmeep.backends.numba.orbit3d.ev_signal_ov` —
   ellipsoidal-variation signal.
-* :func:`~meepmeep.backends.numba.taylor.orbit3d.light_travel_time_os`
-  / :func:`~meepmeep.backends.numba.taylor.orbit3d.light_travel_time_ov`
+* :func:`~meepmeep.backends.numba.orbit3d.light_travel_time_os`
+  / :func:`~meepmeep.backends.numba.orbit3d.light_travel_time_ov`
   — light travel time corrections.
 
 **Multi-knot quickstart.** Build the per-orbit structures once and
@@ -344,7 +344,7 @@ evaluate at an array of times:
 
    import numpy as np
    from meepmeep.backends.numba.knots import create_knots
-   from meepmeep.backends.numba.taylor.orbit3d import solve3d_orbit, pos_ov
+   from meepmeep.backends.numba.orbit3d import solve3d_orbit, pos_ov
    from meepmeep.backends.numba.utils import mean_anomaly_at_transit
 
    # Orbital parameters (tc is the transit-center time, the high-level convention)
@@ -381,8 +381,8 @@ orbital-plane derivative chain, and the chain rules used by every
 evaluator and dispatcher.
 
 For **single-knot gradients**, swap
-:func:`~meepmeep.backends.numba.taylor.point2d.solve.solve2d` /
-:func:`~meepmeep.backends.numba.taylor.point3d.solve.solve3d` for their
+:func:`~meepmeep.backends.numba.point2d.solve.solve2d` /
+:func:`~meepmeep.backends.numba.point3d.solve.solve3d` for their
 ``_d`` counterparts. They return a coefficient matrix ``c`` *and* a
 **derivative tensor** ``dc`` of shape ``(7, D, 5)``:
 
@@ -391,18 +391,18 @@ For **single-knot gradients**, swap
 * Axes 1, 2 — spatial dimension and Taylor order, matching ``c``.
 
 Every gradient-returning evaluator
-(e.g. :func:`~meepmeep.backends.numba.taylor.point3dd.position.pos_d`,
-:func:`~meepmeep.backends.numba.taylor.point3dd.separation.sep_d`,
-:func:`~meepmeep.backends.numba.taylor.point3dd.velocity.vel_cd`) accepts
+(e.g. :func:`~meepmeep.backends.numba.point3dd.position.pos_d`,
+:func:`~meepmeep.backends.numba.point3dd.separation.sep_d`,
+:func:`~meepmeep.backends.numba.point3dd.velocity.vel_cd`) accepts
 both ``c`` and ``dc`` and returns the value alongside a length-7
 gradient vector. The naming convention is ``_d`` for direct (absolute-
 time) variants and ``_cd`` for centered ones.
 
 For **multi-knot gradients**, the assembly side becomes
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.solve3d_orbit_d`, which
+:func:`~meepmeep.backends.numba.orbit3dd.solve3d_orbit_d`, which
 returns ``(N, 3, 5)`` coefficients and an
 ``(N, 7, 3, 5)`` derivative tensor. The dispatcher counterparts in
-:mod:`~meepmeep.backends.numba.taylor.orbit3dd` share the names of the
+:mod:`~meepmeep.backends.numba.orbit3dd` share the names of the
 non-derivative dispatchers with an added ``_d`` suffix
 (``pos_ovd``, ``zvel_osd``, ``rv_ovd``, and so on).
 

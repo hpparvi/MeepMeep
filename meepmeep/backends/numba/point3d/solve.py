@@ -18,8 +18,8 @@ from numba import njit
 from numpy import ndarray, sqrt, cos, sin, zeros, pi
 from numpy.typing import NDArray
 
-from ...newton.newton import ea_from_ma
-from ...utils import mean_anomaly_at_transit, TWO_PI
+from ..newton.newton import ea_from_ma
+from ..utils import mean_anomaly_at_transit, TWO_PI
 
 
 @njit(fastmath=True)

@@ -21,7 +21,7 @@ from numba.extending import overload
 from numpy import zeros, pi, ndarray
 
 from .zposition import _zpos_os
-from ...utils import mean_anomaly_at_transit
+from ..utils import mean_anomaly_at_transit
 from ._common import _is_1d_array
 
 

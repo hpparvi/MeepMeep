@@ -19,7 +19,7 @@ This module is the canonical public entry point to MeepMeep's
 2D Numba-jitted primitives: position, sky-projected separation, the
 Taylor coefficient solver, transit contact-point utilities, and their
 parameter-derivative variants. All names are re-exported verbatim from
-``meepmeep.backends.numba.taylor.*`` so user ``@njit`` kernels and
+``meepmeep.backends.numba.*`` so user ``@njit`` kernels and
 direct callers can import them from one place.
 
 For 3D Taylor primitives and multi-knot orbit-spanning routines see
@@ -29,14 +29,14 @@ solvers, orbital-mechanics utilities) are re-exported only from
 ``meepmeep.backends.numba.*`` directly.
 """
 
-from .backends.numba.taylor.point2d import (
+from .backends.numba.point2d import (
     pos_c, pos, sep_c, sep, pos_and_sep_c, pos_and_sep,
     solve2d,
     find_contact_point, bounding_box,
     t1, t12, t14, t23, t34, t4,
     find_z_min,
 )
-from .backends.numba.taylor.point2dd import (
+from .backends.numba.point2dd import (
     pos_cd, pos_d, pos_dv, sep_cd, sep_d, sep_dv,
     solve2d_d,
 )

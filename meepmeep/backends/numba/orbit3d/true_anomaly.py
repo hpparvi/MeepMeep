@@ -22,7 +22,7 @@ from numpy import zeros, pi, floor, sqrt, arccos, ndarray
 
 from ..point3d.position import pos_c
 from ..point3d.velocity import vel_c
-from ...utils import mean_anomaly
+from ..utils import mean_anomaly
 from ._common import _is_1d_array
 
 

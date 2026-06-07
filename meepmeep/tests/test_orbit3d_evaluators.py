@@ -16,7 +16,7 @@ from meepmeep.backends.numba.newton.newton import (
     xyz_newton_v,
     rv_newton_v,
 )
-from meepmeep.backends.numba.taylor.orbit3d import (
+from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
     pos_o,
     vel_o,

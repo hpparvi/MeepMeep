@@ -1,4 +1,4 @@
-"""Test suite for the meepmeep.backends.numba.taylor.point3d.solve and point3dd.solve modules.
+"""Test suite for the meepmeep.backends.numba.point3d.solve and point3dd.solve modules.
 
 Tests validate the solve3d function which computes (3, 5) Taylor coefficient
 matrices for 3D Keplerian position using analytic derivatives.
@@ -7,8 +7,8 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.taylor.point3d import solve3d, pos_c, vel_c
-from meepmeep.backends.numba.taylor.point3dd import solve3d_d, pos_d, sep_d
+from meepmeep.backends.numba.point3d import solve3d, pos_c, vel_c
+from meepmeep.backends.numba.point3dd import solve3d_d, pos_d, sep_d
 from meepmeep.backends.numba.newton.newton import xyz_newton_v
 
 

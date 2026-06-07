@@ -8,7 +8,7 @@ Two-part strategy:
 
 2. **Underlying-function parity**: the derivative output of each method
    exactly matches a direct call to the corresponding ``*_od`` routine
-   in ``meepmeep.backends.numba.taylor.orbit3dd`` using the same
+   in ``meepmeep.backends.numba.orbit3dd`` using the same
    ``coeffs/dcoeffs`` arrays — this confirms the wrapper does no
    unintended math.
 
@@ -21,7 +21,7 @@ from numpy.testing import assert_allclose
 
 from meepmeep.orbit import Orbit
 from meepmeep.backends.numba.utils import eccentricity_vector
-from meepmeep.backends.numba.taylor.orbit3dd import (
+from meepmeep.backends.numba.orbit3dd import (
     pos_od,
     vel_od,
     cos_alpha_od,

@@ -1,4 +1,4 @@
-"""Test suite for the meepmeep.backends.numba.taylor.point2d.solve and point2dd.solve modules.
+"""Test suite for the meepmeep.backends.numba.point2d.solve and point2dd.solve modules.
 
 Tests validate the solve2d function which computes (2, 5) Taylor coefficient
 matrices for 2D sky-plane Keplerian position using analytic derivatives.
@@ -7,8 +7,8 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.taylor.point2d import solve2d, pos_c
-from meepmeep.backends.numba.taylor.point2dd import solve2d_d, pos_d, sep_d
+from meepmeep.backends.numba.point2d import solve2d, pos_c
+from meepmeep.backends.numba.point2dd import solve2d_d, pos_d, sep_d
 from meepmeep.backends.numba.newton.newton import xy_newton_v
 
 
@@ -95,7 +95,7 @@ class TestSolve2dPhysics:
 
     def test_matches_solve3d_xy(self, eccentric_orbit):
         """The 2D coefficients should match the first two rows of solve3d."""
-        from meepmeep.backends.numba.taylor.point3d import solve3d
+        from meepmeep.backends.numba.point3d import solve3d
         cf2d = solve2d(0.0, **eccentric_orbit)
         cf3d = solve3d(0.0, **eccentric_orbit)
         assert_allclose(cf2d, cf3d[:2, :], rtol=1e-12,

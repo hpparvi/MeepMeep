@@ -49,10 +49,10 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 from .backends.numba.knots import create_knots
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
 from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector, tc_to_tp_gradient
-from .backends.numba.taylor.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
+from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
                                             true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
                                             lambert_phase_curve_o, lambert_and_emission_o, light_travel_time_o, )
-from .backends.numba.taylor.orbit3dd import (solve3d_orbit_d, pos_od, cos_alpha_od, vel_od, true_anomaly_od, rv_od,
+from .backends.numba.orbit3dd import (solve3d_orbit_d, pos_od, cos_alpha_od, vel_od, true_anomaly_od, rv_od,
                                              star_planet_distance_od, ev_signal_od, lambert_phase_curve_od,
                                              lambert_and_emission_od, light_travel_time_od, )
 
@@ -95,7 +95,7 @@ class Orbit:
         (e.g. ``k`` for :meth:`radial_velocity`; ``ag, k`` for
         :meth:`lambert_phase_curve`; ``alpha, mass_ratio, inc`` for
         :meth:`ellipsoidal_variation`; see the underlying ``*_od`` routines
-        in :mod:`meepmeep.backends.numba.taylor.orbit3dd` for the full
+        in :mod:`meepmeep.backends.numba.orbit3dd` for the full
         signatures).
 
         The timing slot and the shape derivatives follow the timing
@@ -611,7 +611,7 @@ class Orbit:
         The emission model is a smooth interpolation between night-side and
         day-side levels driven by :math:`\\cos\\alpha`. The emission peak
         offset (advection) parameter is fixed at zero here; use the
-        low-level :func:`~meepmeep.backends.numba.taylor.orbit3d.lambert_and_emission_o`
+        low-level :func:`~meepmeep.backends.numba.orbit3d.lambert_and_emission_o`
         directly if you need it.
 
         Parameters

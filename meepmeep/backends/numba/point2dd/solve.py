@@ -17,8 +17,8 @@
 from numba import njit
 from numpy import zeros, sqrt, cos, sin
 
-from ...newton.newton import ea_from_ma
-from ...utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
+from ..newton.newton import ea_from_ma
+from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 
 @njit(fastmath=True)

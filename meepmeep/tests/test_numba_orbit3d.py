@@ -1,4 +1,4 @@
-"""Test suite for meepmeep.backends.numba.taylor.orbit3d module.
+"""Test suite for meepmeep.backends.numba.orbit3d module.
 
 Tests validate solve3d_orbit (Taylor coefficient computation at knot points)
 and knot_ix (time-to-knot index mapping) against solve3d and Newton-Raphson
@@ -8,8 +8,8 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.taylor.orbit3d import solve3d_orbit, knot_ix
-from meepmeep.backends.numba.taylor.point3d import solve3d, pos_c
+from meepmeep.backends.numba.orbit3d import solve3d_orbit, knot_ix
+from meepmeep.backends.numba.point3d import solve3d, pos_c
 from meepmeep.backends.numba.knots import create_knots
 from meepmeep.backends.numba.newton.newton import xyz_newton_v
 from meepmeep.backends.numba.utils import mean_anomaly_at_transit, TWO_PI

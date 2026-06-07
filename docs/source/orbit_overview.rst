@@ -282,7 +282,7 @@ Newton-Raphson diagnostic paths and by
 
 If you ever drop down to the Taylor backend directly, note that its
 multi-knot dispatchers
-(:func:`~meepmeep.backends.numba.taylor.orbit3d.pos_o` and friends)
+(:func:`~meepmeep.backends.numba.orbit3d.pos_o` and friends)
 take a ``tpa`` argument that is the periastron-anchored time — not the
 transit-center time. See :ref:`taylor_overview` for the low-level
 convention and :ref:`taylor_two_modes` for when to drop down at all.

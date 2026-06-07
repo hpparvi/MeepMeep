@@ -17,7 +17,7 @@ from meepmeep.backends.numba.utils import (
     mean_anomaly_at_transit,
     eccentricity_vector,
 )
-from meepmeep.backends.numba.taylor.orbit3d import (
+from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
     _pos_os, _pos_ov,
     _zpos_os, _zpos_ov,
@@ -34,7 +34,7 @@ from meepmeep.backends.numba.taylor.orbit3d import (
     _rv_os, _rv_ov,
     _light_travel_time_os, _light_travel_time_ov,
 )
-from meepmeep.backends.numba.taylor.orbit3dd import (
+from meepmeep.backends.numba.orbit3dd import (
     solve3d_orbit_d,
     _pos_osd, _pos_ovd,
     _zpos_osd, _zpos_ovd,

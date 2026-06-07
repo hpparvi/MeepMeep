@@ -31,7 +31,7 @@ def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     Returns :math:`\\sqrt{x^2 + y^2}` together with its gradient w.r.t.
     the seven orbital parameters. The chain rule
     :math:`\\partial d/\\partial \\theta = (p_x \\partial p_x / \\partial \\theta + p_y \\partial p_y / \\partial \\theta)/d`
-    is applied inside :func:`~meepmeep.backends.numba.taylor.point3dd.separation.sep_cd`;
+    is applied inside :func:`~meepmeep.backends.numba.point3dd.separation.sep_cd`;
     this dispatcher just locates the knot.
 
     Parameters

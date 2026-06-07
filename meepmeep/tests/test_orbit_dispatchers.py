@@ -16,12 +16,12 @@ from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.knots import create_knots
 from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit
-from meepmeep.backends.numba.taylor.orbit3d import (
+from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
     pos_o, sep_o, rv_o,
     _pos_os, _pos_ov, _sep_os, _sep_ov, _rv_os, _rv_ov,
 )
-from meepmeep.backends.numba.taylor.orbit3dd import (
+from meepmeep.backends.numba.orbit3dd import (
     solve3d_orbit_d,
     pos_od, sep_od,
     _pos_osd, _pos_ovd, _sep_osd, _sep_ovd,

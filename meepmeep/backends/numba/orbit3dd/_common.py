@@ -26,7 +26,7 @@ from numba import njit, types
 from numpy import zeros, pi
 
 from ..point3dd.solve import solve3d_d
-from ...utils import mean_anomaly_at_transit
+from ..utils import mean_anomaly_at_transit
 
 
 def _is_1d_array(typ):
@@ -39,8 +39,8 @@ def solve3d_orbit_d(knot_times, p, a, i, e, w, lan=0.0, npt=15):
     """Pre-compute Taylor and derivative coefficients at every knot of one orbit.
 
     Derivative-returning counterpart of
-    :func:`~meepmeep.backends.numba.taylor.orbit3d.solve3d_orbit`. Calls
-    :func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d` once per
+    :func:`~meepmeep.backends.numba.orbit3d.solve3d_orbit`. Calls
+    :func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` once per
     interior knot and stacks the resulting ``(3, 5)`` and ``(6, 3, 5)``
     matrices into per-orbit arrays. The last slot is the periodic image of
     the first and is copied rather than recomputed.
@@ -71,7 +71,7 @@ def solve3d_orbit_d(knot_times, p, a, i, e, w, lan=0.0, npt=15):
     -------
     coeffs : ndarray, shape (npt, 3, 5)
         Taylor coefficient matrices at every knot (same layout as in
-        :func:`~meepmeep.backends.numba.taylor.orbit3d.solve3d_orbit`).
+        :func:`~meepmeep.backends.numba.orbit3d.solve3d_orbit`).
     dcoeffs : ndarray, shape (npt, 7, 3, 5)
         Parameter-derivative tensors at every knot. The second axis is
         ordered ``(tc, p, a, i, e, w, lan)``.

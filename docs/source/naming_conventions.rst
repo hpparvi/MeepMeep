@@ -30,10 +30,10 @@ Stem              Quantity
 ``rv``            Radial velocity (line-of-sight velocity, scaled).
 ================  ====================================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.point2d.position.pos` returns
-the (x, y) position; :func:`~meepmeep.backends.numba.taylor.point3d.separation.sep`
+Examples: :func:`~meepmeep.backends.numba.point2d.position.pos` returns
+the (x, y) position; :func:`~meepmeep.backends.numba.point3d.separation.sep`
 returns the projected separation from a 3D coefficient set;
-:func:`~meepmeep.backends.numba.taylor.point3d.zvelocity.zvel` returns the
+:func:`~meepmeep.backends.numba.point3d.zvelocity.zvel` returns the
 line-of-sight velocity.
 
 
@@ -43,8 +43,8 @@ Dimensionality lives in the module, not the function
 The spatial dimensionality of an evaluator is encoded by the package name
 (the ``point2d``/``point2dd`` packages vs the ``point3d``/``point3dd``
 packages, ``point2d.util`` vs ``point3d.util``) rather than by the
-function name. Both ``meepmeep.backends.numba.taylor.point2d.position`` and
-``meepmeep.backends.numba.taylor.point3d.position`` therefore expose a function
+function name. Both ``meepmeep.backends.numba.point2d.position`` and
+``meepmeep.backends.numba.point3d.position`` therefore expose a function
 called ``pos``; the 3D package additionally exposes ``zpos``,
 ``pos_and_sep``, etc.
 
@@ -80,8 +80,8 @@ Suffix                      Meaning
 ``_c``                      Centered: accepts time relative to the knot.
 ==========================  ==============================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.point3d.position.pos` is the
-direct variant, :func:`~meepmeep.backends.numba.taylor.point3d.position.pos_c`
+Examples: :func:`~meepmeep.backends.numba.point3d.position.pos` is the
+direct variant, :func:`~meepmeep.backends.numba.point3d.position.pos_c`
 the centered one. Both share the same coefficient matrix.
 
 The centered evaluators are the shared workhorses for both usage modes
@@ -119,13 +119,13 @@ Suffix                      Meaning
 
 These functions accept an additional argument ``dc`` — a ``(7, D, 5)``
 parameter-derivative tensor produced by
-:func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` or
-:func:`~meepmeep.backends.numba.taylor.point3dd.solve.solve3d_d`.
+:func:`~meepmeep.backends.numba.point2dd.solve.solve2d_d` or
+:func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d`.
 
-Examples: :func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_cd` and
-:func:`~meepmeep.backends.numba.taylor.point3dd.separation.sep_cd` are the
+Examples: :func:`~meepmeep.backends.numba.point2dd.position.pos_cd` and
+:func:`~meepmeep.backends.numba.point3dd.separation.sep_cd` are the
 centered gradient-returning variants;
-:func:`~meepmeep.backends.numba.taylor.point3dd.position.pos_d` is the direct
+:func:`~meepmeep.backends.numba.point3dd.position.pos_d` is the direct
 counterpart.
 
 The scalar ``_d`` / ``_cd`` evaluators allocate one length-7 gradient per
@@ -144,7 +144,7 @@ Multi-knot dispatcher suffix
 When the workflow needs a whole-orbit dispatcher — for example to
 evaluate a phase curve or an RV time series across an arbitrary range
 of times — the functions in
-:mod:`~meepmeep.backends.numba.taylor.orbit3d` look up the appropriate
+:mod:`~meepmeep.backends.numba.orbit3d` look up the appropriate
 knot via ``pktable`` and delegate to a centered evaluator. The public
 surface is a single overloaded entry point per quantity that accepts
 either a scalar time or a 1-D array of times and dispatches at compile
@@ -158,10 +158,10 @@ Suffix        Meaning
 ``_od``       Same, with gradients w.r.t. orbital parameters.
 ============  ==============================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.orbit3d.pos_o`,
-:func:`~meepmeep.backends.numba.taylor.orbit3d.zvel_o`,
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.pos_od`,
-:func:`~meepmeep.backends.numba.taylor.orbit3dd.rv_od`.
+Examples: :func:`~meepmeep.backends.numba.orbit3d.pos_o`,
+:func:`~meepmeep.backends.numba.orbit3d.zvel_o`,
+:func:`~meepmeep.backends.numba.orbit3dd.pos_od`,
+:func:`~meepmeep.backends.numba.orbit3dd.rv_od`.
 
 Internally each dispatcher routes to a private kernel with the explicit
 ``_os`` / ``_ov`` (scalar / vector) suffix — e.g. ``_pos_os`` and

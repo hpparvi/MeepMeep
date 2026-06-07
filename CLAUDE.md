@@ -81,7 +81,7 @@ meepmeep/
 ├── orbit.py               # Main Orbit class (user-facing API)
 ├── knot2d.py              # High-level single-knot 2D wrapper (Knot2D)
 ├── numba2d.py             # Public low-level 2D Taylor API (re-exports of
-│                          # backends/numba/taylor/{point2d,point2dd}).
+│                          # backends/numba/{point2d,point2dd}).
 ├── numba3d.py             # Public low-level 3D Taylor API: single-knot 3D
 │                          # Taylor evaluators, multi-knot orbit-spanning
 │                          # routines, and dimension-agnostic primitives
@@ -104,41 +104,40 @@ meepmeep/
     │   ├── knots.py       # Knot placement strategies (mm, ea, ta)
     │   ├── newton/
     │   │   └── newton.py  # Exact Kepler equation solvers (Newton-Raphson)
-    │   └── taylor/        # Taylor series expansion modules
-    │       ├── point2d/         # Single-knot 2D evaluators (no derivatives),
-    │       │                    # one module per quantity plus solve/util:
-    │       │                    # position.py (pos, pos_and_sep), separation.py
-    │       │                    # (sep), solve.py (solve2d), util.py (contact
-    │       │                    # points, bounding box, durations, find_z_min).
-    │       │                    # __init__.py re-exports the surface.
-    │       ├── point2dd/        # Single-knot 2D parameter-derivative evaluators
-    │       │                    # mirroring point2d/: position.py (pos_cd, pos_d,
-    │       │                    # pos_dv), separation.py (sep_cd, sep_d, sep_dv),
-    │       │                    # solve.py (solve2d_d).
-    │       ├── point3d/         # Single-knot 3D evaluators (no derivatives),
-    │       │                    # one module per quantity plus solve/util:
-    │       │                    # position.py (pos, pos_and_sep), zposition.py
-    │       │                    # (zpos), separation.py (sep), velocity.py
-    │       │                    # (vel_c), zvelocity.py (zvel), radial_velocity.py
-    │       │                    # (rv), solve.py (solve3d), util.py (contact
-    │       │                    # points, bounding box, durations, find_z_min).
-    │       │                    # __init__.py re-exports the surface.
-    │       ├── point3dd/        # Single-knot 3D parameter-derivative evaluators
-    │       │                    # mirroring point3d/: position.py (pos_cd, pos_d),
-    │       │                    # zposition.py (zpos_cd, zpos_d), separation.py
-    │       │                    # (sep_cd, sep_d), velocity.py (vel_cd),
-    │       │                    # zvelocity.py (zvel_cd, zvel_d),
-    │       │                    # radial_velocity.py (rv_cd, rv_d),
-    │       │                    # solve.py (solve3d_d).
-    │       ├── orbit3d/         # Multi-knot orbit-spanning evaluators, one
-    │       │                    # module per quantity (position, separation,
-    │       │                    # velocity, radial_velocity, true_anomaly,
-    │       │                    # phase_angle, lambert, ev_signal, ...). Shared
-    │       │                    # helpers in _common.py; __init__.py re-exports
-    │       │                    # the full surface.
-    │       └── orbit3dd/        # Multi-knot orbit-spanning gradient evaluators,
-    │                            # mirroring orbit3d/ one module per quantity
-    │                            # (the *_od / *_osd / *_ovd families).
+    │   ├── point2d/         # Single-knot 2D evaluators (no derivatives),
+    │   │                    # one module per quantity plus solve/util:
+    │   │                    # position.py (pos, pos_and_sep), separation.py
+    │   │                    # (sep), solve.py (solve2d), util.py (contact
+    │   │                    # points, bounding box, durations, find_z_min).
+    │   │                    # __init__.py re-exports the surface.
+    │   ├── point2dd/        # Single-knot 2D parameter-derivative evaluators
+    │   │                    # mirroring point2d/: position.py (pos_cd, pos_d,
+    │   │                    # pos_dv), separation.py (sep_cd, sep_d, sep_dv),
+    │   │                    # solve.py (solve2d_d).
+    │   ├── point3d/         # Single-knot 3D evaluators (no derivatives),
+    │   │                    # one module per quantity plus solve/util:
+    │   │                    # position.py (pos, pos_and_sep), zposition.py
+    │   │                    # (zpos), separation.py (sep), velocity.py
+    │   │                    # (vel_c), zvelocity.py (zvel), radial_velocity.py
+    │   │                    # (rv), solve.py (solve3d), util.py (contact
+    │   │                    # points, bounding box, durations, find_z_min).
+    │   │                    # __init__.py re-exports the surface.
+    │   ├── point3dd/        # Single-knot 3D parameter-derivative evaluators
+    │   │                    # mirroring point3d/: position.py (pos_cd, pos_d),
+    │   │                    # zposition.py (zpos_cd, zpos_d), separation.py
+    │   │                    # (sep_cd, sep_d), velocity.py (vel_cd),
+    │   │                    # zvelocity.py (zvel_cd, zvel_d),
+    │   │                    # radial_velocity.py (rv_cd, rv_d),
+    │   │                    # solve.py (solve3d_d).
+    │   ├── orbit3d/         # Multi-knot orbit-spanning evaluators, one
+    │   │                    # module per quantity (position, separation,
+    │   │                    # velocity, radial_velocity, true_anomaly,
+    │   │                    # phase_angle, lambert, ev_signal, ...). Shared
+    │   │                    # helpers in _common.py; __init__.py re-exports
+    │   │                    # the full surface.
+    │   └── orbit3dd/        # Multi-knot orbit-spanning gradient evaluators,
+    │                        # mirroring orbit3d/ one module per quantity
+    │                        # (the *_od / *_osd / *_ovd families).
     └── jax/               # JAX backend (automatic differentiation)
         ├── ea.py          # Eccentric anomaly with custom JVP for AD
         └── ts2d/
@@ -183,7 +182,7 @@ Taylor expansion (not a spline-style segment *boundary* — those are the `chang
 **Taylor Expansion**: At each knot point, position is expanded as a 5th-order Taylor series in time. The `_coeffs` 
 array stores position, velocity, acceleration, jerk, and snap at each knot.
 
-**Time-to-Knot Table** (`pktable`): Maps normalized time to the appropriate knot segment for fast lookups during evaluation. Used by `knot_ix` in `backends/numba/taylor/orbit3d/_common.py` to dispatch a time to its knot.
+**Time-to-Knot Table** (`pktable`): Maps normalized time to the appropriate knot segment for fast lookups during evaluation. Used by `knot_ix` in `backends/numba/orbit3d/_common.py` to dispatch a time to its knot.
 
 **Coefficient matrices**: `solve2d` returns a `(2, 5)` matrix, `solve3d` returns a `(3, 5)` matrix. Rows are spatial 
 dimensions (x, y or x, y, z), columns are Taylor order (position through snap, pre-scaled by factorial).
@@ -221,7 +220,7 @@ Standard Keplerian elements used throughout:
 
 ### Adding New Taylor Series Functions
 
-The `taylor/` module follows a consistent pattern. For each quantity there are two function variants:
+The Taylor backend modules follow a consistent pattern. For each quantity there are two function variants:
 
 1. **Centered (`X_c`)**: Takes time `t` already relative to the expansion point, plus coefficient matrix `c`
 2. **Direct (`X`)**: Takes absolute time `t`, reference time `t0`, period `p`, and `c`. Handles epoch-folding internally.
@@ -255,9 +254,9 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
 
 ### Code Style
 
-- **Docstrings follow the NumPy style** (Parameters / Returns / Notes / Examples sections, with `name : type` parameter headers). See `backends/numba/utils.py`, `backends/numba/taylor/point3d/position.py`, and `backends/numba/taylor/orbit3d/position.py` for the established convention.
+- **Docstrings follow the NumPy style** (Parameters / Returns / Notes / Examples sections, with `name : type` parameter headers). See `backends/numba/utils.py`, `backends/numba/point3d/position.py`, and `backends/numba/orbit3d/position.py` for the established convention.
 - Never use Unicode characters in docstrings or variable names.
-- Function naming in `taylor/` modules:
+- Function naming in the Taylor backend modules:
   - `pos_c`, `pos`: position (centered, direct)
   - `sep_c`, `sep`: sky-projected separation
   - `pos_and_sep_c`, `pos_and_sep`: position and projected separation, returned jointly

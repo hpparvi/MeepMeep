@@ -1,4 +1,4 @@
-"""Test suite for the meepmeep.backends.numba.taylor.point2dd package (position and separation derivatives).
+"""Test suite for the meepmeep.backends.numba.point2dd package (position and separation derivatives).
 
 Validates the 2D parameter-derivative evaluators (pos_cd, pos_d, sep_cd,
 sep_d) against finite differences of the corresponding plain evaluators.
@@ -10,8 +10,8 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.taylor.point2d import solve2d, pos_c, sep_c
-from meepmeep.backends.numba.taylor.point2dd import solve2d_d, pos_cd, pos_d, sep_cd, sep_d
+from meepmeep.backends.numba.point2d import solve2d, pos_c, sep_c
+from meepmeep.backends.numba.point2dd import solve2d_d, pos_cd, pos_d, sep_cd, sep_d
 
 
 @pytest.fixture

@@ -19,13 +19,13 @@ This module is the canonical public entry point to MeepMeep's 3D
 Numba-jitted primitives. It bundles three layers in one flat namespace:
 
 * Single-knot 3D Taylor evaluators from the
-  ``meepmeep.backends.numba.taylor.point3d`` package (per-quantity
+  ``meepmeep.backends.numba.point3d`` package (per-quantity
   ``position`` / ``zposition`` / ``separation`` / ``velocity`` /
   ``zvelocity`` / ``radial_velocity`` modules plus ``solve`` and
   ``util``) and their parameter-derivative counterparts in the
   ``point3dd`` package.
 * Multi-knot orbit-spanning evaluators from
-  ``meepmeep.backends.numba.taylor.orbit3d`` and ``orbit3dd`` — exposed
+  ``meepmeep.backends.numba.orbit3d`` and ``orbit3dd`` — exposed
   as unified ``*_o`` (forward) and ``*_od`` (with gradients)
   dispatchers that accept either a scalar time or a 1-D float64 array
   of times and route at compile time to the appropriate
@@ -41,7 +41,7 @@ For the 2D surface see :mod:`meepmeep.numba2d`.
 """
 
 # --- 3D single-knot Taylor primitives ---------------------------------
-from .backends.numba.taylor.point3d import (
+from .backends.numba.point3d import (
     pos_c, pos, sep_c, sep, pos_and_sep_c, pos_and_sep, zpos_c, zpos,
     vel_c, zvel_c, zvel, rv_c, rv,
     solve3d,
@@ -49,14 +49,14 @@ from .backends.numba.taylor.point3d import (
     t1, t12, t14, t23, t34, t4,
     find_z_min,
 )
-from .backends.numba.taylor.point3dd import (
+from .backends.numba.point3dd import (
     pos_cd, pos_d, sep_cd, sep_d, zpos_cd, zpos_d,
     vel_cd, zvel_cd, zvel_d, rv_cd, rv_d,
     solve3d_d,
 )
 
 # --- Multi-knot orbit-spanning evaluators -----------------------------
-from .backends.numba.taylor.orbit3d import (
+from .backends.numba.orbit3d import (
     solve3d_orbit, knot_ix,
     pos_o, zpos_o, sep_o,
     vel_o, zvel_o,
@@ -65,7 +65,7 @@ from .backends.numba.taylor.orbit3d import (
     lambert_phase_curve_o, lambert_and_emission_o,
     ev_signal_o, rv_o, light_travel_time_o,
 )
-from .backends.numba.taylor.orbit3dd import (
+from .backends.numba.orbit3dd import (
     solve3d_orbit_d,
     pos_od, zpos_od, sep_od,
     vel_od, zvel_od,
