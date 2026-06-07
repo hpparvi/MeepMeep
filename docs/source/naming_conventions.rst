@@ -30,7 +30,7 @@ Stem              Quantity
 ``rv``            Radial velocity (line-of-sight velocity, scaled).
 ================  ====================================================
 
-Examples: :func:`~meepmeep.backends.numba.taylor.position2d.pos` returns
+Examples: :func:`~meepmeep.backends.numba.taylor.point2d.position.pos` returns
 the (x, y) position; :func:`~meepmeep.backends.numba.taylor.position3d.sep`
 returns the projected separation from a 3D coefficient set;
 :func:`~meepmeep.backends.numba.taylor.velocity3d.zvel` returns the
@@ -40,11 +40,12 @@ line-of-sight velocity.
 Dimensionality lives in the module, not the function
 -----------------------------------------------------
 
-The spatial dimensionality of an evaluator is encoded by the module name
-(``position2d`` vs ``position3d``, ``util2d`` vs ``util3d``) rather than
-by the function name. Both ``meepmeep.backends.numba.taylor.position2d``
-and ``meepmeep.backends.numba.taylor.position3d`` therefore expose a
-function called ``pos``; the 3D module additionally exposes ``zpos``,
+The spatial dimensionality of an evaluator is encoded by the module or
+package name (the ``point2d``/``point2dd`` packages vs the ``position3d``
+module, ``point2d.util`` vs ``util3d``) rather than by the function name.
+Both ``meepmeep.backends.numba.taylor.point2d.position`` and
+``meepmeep.backends.numba.taylor.position3d`` therefore expose a function
+called ``pos``; the 3D module additionally exposes ``zpos``,
 ``pos_and_sep``, etc.
 
 The 2D evaluators are roughly 30 percent cheaper per call and are
@@ -118,10 +119,10 @@ Suffix                      Meaning
 
 These functions accept an additional argument ``dc`` — a ``(7, D, 5)``
 parameter-derivative tensor produced by
-:func:`~meepmeep.backends.numba.taylor.solve2dd.solve2d_d` or
+:func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` or
 :func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d`.
 
-Examples: :func:`~meepmeep.backends.numba.taylor.position2dd.pos_cd` and
+Examples: :func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_cd` and
 :func:`~meepmeep.backends.numba.taylor.position3dd.sep_cd` are the
 centered gradient-returning variants;
 :func:`~meepmeep.backends.numba.taylor.position3dd.pos_d` is the direct

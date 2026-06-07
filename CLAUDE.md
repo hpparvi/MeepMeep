@@ -81,8 +81,7 @@ meepmeep/
 ├── orbit.py               # Main Orbit class (user-facing API)
 ├── knot2d.py              # High-level single-knot 2D wrapper (Knot2D)
 ├── numba2d.py             # Public low-level 2D Taylor API (re-exports of
-│                          # backends/numba/taylor/{position2d,position2dd,
-│                          # solve2d,solve2dd,util2d}).
+│                          # backends/numba/taylor/{point2d,point2dd}).
 ├── numba3d.py             # Public low-level 3D Taylor API: single-knot 3D
 │                          # Taylor evaluators, multi-knot orbit-spanning
 │                          # routines, and dimension-agnostic primitives
@@ -106,11 +105,16 @@ meepmeep/
     │   ├── newton/
     │   │   └── newton.py  # Exact Kepler equation solvers (Newton-Raphson)
     │   └── taylor/        # Taylor series expansion modules
-    │       ├── position2d.py    # 2D position evaluation (pos, sep, pos_and_sep)
-    │       ├── position2dd.py   # 2D position parameter derivatives (pos_d, sep_d)
-    │       ├── solve2d.py       # 2D Taylor coefficient computation (solve2d)
-    │       ├── solve2dd.py      # 2D derivative coefficient computation (solve2d_d)
-    │       ├── util2d.py        # 2D utilities (contact points, bounding box)
+    │       ├── point2d/         # Single-knot 2D evaluators (no derivatives),
+    │       │                    # one module per quantity plus solve/util:
+    │       │                    # position.py (pos, pos_and_sep), separation.py
+    │       │                    # (sep), solve.py (solve2d), util.py (contact
+    │       │                    # points, bounding box, durations, find_z_min).
+    │       │                    # __init__.py re-exports the surface.
+    │       ├── point2dd/        # Single-knot 2D parameter-derivative evaluators
+    │       │                    # mirroring point2d/: position.py (pos_cd, pos_d,
+    │       │                    # pos_dv), separation.py (sep_cd, sep_d, sep_dv),
+    │       │                    # solve.py (solve2d_d).
     │       ├── position3d.py    # 3D position evaluation (pos, sep, pos_and_sep, zpos)
     │       ├── position3dd.py   # 3D position parameter derivatives (pos_d, sep_d, zpos_d)
     │       ├── solve3d.py       # 3D Taylor coefficient computation (solve3d)
@@ -219,9 +223,20 @@ For parameter derivatives, the centered variant gets a `_cd` suffix and the dire
 To add a new quantity:
 1. Implement the centered version using Horner-scheme evaluation of the coefficient polynomial
 2. Implement the direct version that epoch-folds and delegates to the centered version
-3. If derivatives are needed, add `_d` variants in the corresponding `*d.py` module
+3. If derivatives are needed, add `_d`/`_cd` variants in the corresponding derivative module (`point2dd/<quantity>.py` for single-knot 2D, a `*dd.py` module such as `position3dd.py` for 3D)
 4. Decorate with `@njit(fastmath=True)`
 5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-knot routines).
+
+The single-knot 2D evaluators are organised into the `point2d/` (no
+derivatives) and `point2dd/` (derivatives) packages, one module per physical
+quantity (`position.py`, `separation.py`) plus a `solve.py` module and, in
+`point2d/`, a `util.py` for transit geometry. Each package's `__init__.py`
+re-exports its surface, mirroring the `orbit3d`/`orbit3dd` layout. Unlike
+those multi-knot packages, the single-knot 2D modules keep the plain
+`_c`/direct function structure (no `_os`/`_ov`/`_o` dispatcher); a new 2D
+quantity adds `X_c`/`X` to a `point2d/<quantity>.py` module and, if needed,
+`X_cd`/`X_d`/`X_dv` to the matching `point2dd/<quantity>.py`. The
+single-knot 3D evaluators remain flat `*3d.py`/`*3dd.py` modules.
 
 For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in `position3d`/`velocity3d` (or their gradient variants in `position3dd`/`velocity3dd`).
 
@@ -242,8 +257,8 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `_c` suffix: centered (time argument is relative to the knot)
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
-  - `_dv` suffix: direct gradient-returning evaluator vectorized over a 1-D time array. The scalar `_d` / `_cd` variants take a single time (they allocate one length-7 gradient per call); `_dv` applies the scalar `_d` across `N` times and stacks, so the returned gradient gains a leading `N` axis. Used by the array path of `Knot2D`. Examples: `pos_dv`, `sep_dv` in `position2dd`.
-  - Dimensionality (2D vs 3D) is encoded by the module name (`position2d` vs `position3d`), not by the function name.
+  - `_dv` suffix: direct gradient-returning evaluator vectorized over a 1-D time array. The scalar `_d` / `_cd` variants take a single time (they allocate one length-7 gradient per call); `_dv` applies the scalar `_d` across `N` times and stacks, so the returned gradient gains a leading `N` axis. Used by the array path of `Knot2D`. Examples: `pos_dv` in `point2dd/position.py`, `sep_dv` in `point2dd/separation.py`.
+  - Dimensionality (2D vs 3D) is encoded by the module or package name (the `point2d`/`point2dd` packages vs `position3d`), not by the function name.
 - In the `orbit3d/` / `orbit3dd/` packages (multi-knot dispatchers):
   - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)
   - `_od`: same, gradient-returning (in the `orbit3dd/` package; e.g. `pos_od`, `rv_od`)

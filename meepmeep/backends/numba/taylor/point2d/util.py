@@ -17,7 +17,7 @@
 from numba import njit
 from numpy.typing import NDArray
 
-from .position2d import sep_c
+from .separation import sep_c
 
 
 @njit

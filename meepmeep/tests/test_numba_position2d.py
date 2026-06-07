@@ -1,4 +1,4 @@
-"""Test suite for meepmeep.backends.numba.taylor.position2d module.
+"""Test suite for the meepmeep.backends.numba.taylor.point2d package (position and separation).
 
 This test suite validates the Taylor series approximation functions against
 the exact Newton-Raphson methods as ground truth.
@@ -7,11 +7,10 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.taylor.position2d import pos, pos_c, pos_and_sep_c, sep_c
-from meepmeep.backends.numba.taylor.position2dd import pos_d, sep_d, pos_dv, sep_dv
-from meepmeep.backends.numba.taylor.util2d import find_contact_point, bounding_box
-from meepmeep.backends.numba.taylor.solve2d import solve2d
-from meepmeep.backends.numba.taylor.solve2dd import solve2d_d
+from meepmeep.backends.numba.taylor.point2d import (
+    pos, pos_c, pos_and_sep_c, sep_c, find_contact_point, bounding_box, solve2d,
+)
+from meepmeep.backends.numba.taylor.point2dd import pos_d, sep_d, pos_dv, sep_dv, solve2d_d
 from meepmeep.backends.numba.newton.newton import xy_newton_v, z_newton_v
 
 

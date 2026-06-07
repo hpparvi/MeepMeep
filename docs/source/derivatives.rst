@@ -48,7 +48,7 @@ knot; the per-evaluator math in Layer B is just polynomial
 manipulation and one-line chain rules.
 
 * **Layer A — derivative coefficients.** The solvers
-  :func:`~meepmeep.backends.numba.taylor.solve2dd.solve2d_d` and
+  :func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` and
   :func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d` produce
   the Taylor coefficient matrix ``c`` of shape ``(D, 5)`` *and* a
   parameter-derivative tensor ``dc`` of shape ``(7, D, 5)``. The
@@ -71,7 +71,7 @@ Layer A: derivative coefficients
 --------------------------------
 
 The walk-through below mirrors
-:func:`~meepmeep.backends.numba.taylor.solve2dd.solve2d_d` step by
+:func:`~meepmeep.backends.numba.taylor.point2dd.solve.solve2d_d` step by
 step; the 3D solver
 :func:`~meepmeep.backends.numba.taylor.solve3dd.solve3d_d` follows the
 same structure with one extra row in the final rotation matrix.
@@ -353,10 +353,10 @@ for each parameter :math:`k`:
      \;=\; \sum_{n=0}^{4} dc[k, d, n]\, t^n.
 
 Implemented in
-:func:`~meepmeep.backends.numba.taylor.position2dd.pos_cd`,
+:func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_cd`,
 :func:`~meepmeep.backends.numba.taylor.position3dd.pos_cd`,
 and their direct counterparts
-:func:`~meepmeep.backends.numba.taylor.position2dd.pos_d` and
+:func:`~meepmeep.backends.numba.taylor.point2dd.position.pos_d` and
 :func:`~meepmeep.backends.numba.taylor.position3dd.pos_d` (which epoch-fold
 ``t`` first; the discrete epoch shift contributes no derivative).
 
@@ -376,7 +376,7 @@ For :math:`d = \sqrt{p_x^2 + p_y^2}`, differentiating
    \;}
 
 The same reduction is applied in 2D and 3D
-(:func:`~meepmeep.backends.numba.taylor.position2dd.sep_cd`,
+(:func:`~meepmeep.backends.numba.taylor.point2dd.separation.sep_cd`,
 :func:`~meepmeep.backends.numba.taylor.position3dd.sep_cd`); both
 treat :math:`d` as the **projected** distance. The expression is
 regular for :math:`d > 0` and ill-defined at exactly zero projected

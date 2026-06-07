@@ -15,8 +15,8 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-from .solve2d import solve2d
-from .solve2dd import solve2d_d
+from .point2d.solve import solve2d
+from .point2dd.solve import solve2d_d
 from .solve3d import solve3d
 from .solve3dd import solve3d_d
 

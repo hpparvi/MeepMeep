@@ -15,12 +15,10 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-from .backends.numba.taylor.solve2d import solve2d
-from .backends.numba.taylor.solve2dd import solve2d_d
-from .backends.numba.taylor.position2d import pos, sep
-from .backends.numba.taylor.position2dd import pos_dv, sep_dv
-from .backends.numba.taylor.util2d import (t12, t14, t23, t34,
-                                           bounding_box, find_contact_point, find_z_min)
+from .backends.numba.taylor.point2d import (solve2d, pos, sep,
+                                            t12, t14, t23, t34,
+                                            bounding_box, find_contact_point, find_z_min)
+from .backends.numba.taylor.point2dd import solve2d_d, pos_dv, sep_dv
 
 
 class Knot2D:
