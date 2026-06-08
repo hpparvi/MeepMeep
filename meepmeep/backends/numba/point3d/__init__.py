@@ -31,7 +31,7 @@ This ``__init__`` re-exports the full surface. The multi-knot dispatchers in
 ``orbit3d`` delegate to the single-knot evaluators defined here.
 """
 
-from .position import pos_c, pos, pos_and_sep_c, pos_and_sep
+from .position import pos_c, pos
 from .zposition import zpos_c, zpos
 from .separation import sep_c, sep
 from .velocity import vel_c

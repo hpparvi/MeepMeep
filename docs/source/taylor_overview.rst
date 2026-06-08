@@ -195,7 +195,6 @@ variants and the choice belongs entirely in this single-knot mode:
   around the event.
   Examples: :func:`~meepmeep.backends.numba.point2d.position.pos_c`,
   :func:`~meepmeep.backends.numba.point2d.separation.sep_c`,
-  :func:`~meepmeep.backends.numba.point2d.position.pos_and_sep_c`,
   :func:`~meepmeep.backends.numba.point3d.position.pos_c`,
   :func:`~meepmeep.backends.numba.point3d.separation.sep_c`,
   :func:`~meepmeep.backends.numba.point3d.zposition.zpos_c`.

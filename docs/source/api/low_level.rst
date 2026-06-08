@@ -62,8 +62,6 @@ dispatchers that batch these calls across a knot grid live in
    pos_c
    sep
    sep_c
-   pos_and_sep
-   pos_and_sep_c
 
 Parameter-derivative variants:
 
@@ -100,8 +98,6 @@ in :ref:`api.lowlevel.orbit_dispatchers`.
    pos_c
    sep
    sep_c
-   pos_and_sep
-   pos_and_sep_c
    zpos
    zpos_c
 

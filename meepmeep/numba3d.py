@@ -42,7 +42,7 @@ For the 2D surface see :mod:`meepmeep.numba2d`.
 
 # --- 3D single-knot Taylor primitives ---------------------------------
 from .backends.numba.point3d import (
-    pos_c, pos, sep_c, sep, pos_and_sep_c, pos_and_sep, zpos_c, zpos,
+    pos_c, pos, sep_c, sep, zpos_c, zpos,
     vel_c, zvel_c, zvel, rv_c, rv,
     solve3d,
     find_contact_point, bounding_box,
@@ -98,8 +98,6 @@ __all__ = [
     "light_travel_time_o",
     "light_travel_time_od",
     "pos",
-    "pos_and_sep",
-    "pos_and_sep_c",
     "pos_c",
     "pos_cd",
     "pos_d",

@@ -33,7 +33,7 @@ builds the coefficient matrix and ``util`` holds the transit-geometry
 helpers. This ``__init__`` re-exports the full surface.
 """
 
-from .position import pos_c, pos, pos_and_sep_c, pos_and_sep
+from .position import pos_c, pos
 from .separation import sep_c, sep
 from .solve import solve2d
 from .util import (

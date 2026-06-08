@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.point2d import (
-    pos, pos_c, pos_and_sep_c, sep_c, find_contact_point, bounding_box, solve2d,
+    pos, pos_c, sep_c, find_contact_point, bounding_box, solve2d,
 )
 from meepmeep.backends.numba.point2dd import pos_d, sep_d, pos_dv, sep_dv, solve2d_d
 from meepmeep.backends.numba.newton.newton import xy_newton_v, z_newton_v
@@ -138,14 +138,14 @@ class TestPosition2dFunctions:
         assert np.isfinite(x)
         assert np.isfinite(y)
 
-    def test_pd2d(self, circular_orbit):
-        """Test pd2d returns position and distance."""
+    def test_sep_matches_pos(self, circular_orbit):
+        """The projected separation equals sqrt(x^2 + y^2) of the position."""
         coeffs = solve2d(0.0, **circular_orbit)
         t = 0.01
 
-        x, y, d = pos_and_sep_c(t, coeffs)
+        x, y = pos_c(t, coeffs)
+        d = sep_c(t, coeffs)
 
-        # Distance should match sqrt(x^2 + y^2)
         expected_d = np.sqrt(x ** 2 + y ** 2)
         assert_allclose(d, expected_d, rtol=1e-12)
 

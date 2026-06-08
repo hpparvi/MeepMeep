@@ -30,7 +30,7 @@ solvers, orbital-mechanics utilities) are re-exported only from
 """
 
 from .backends.numba.point2d import (
-    pos_c, pos, sep_c, sep, pos_and_sep_c, pos_and_sep,
+    pos_c, pos, sep_c, sep,
     solve2d,
     find_contact_point, bounding_box,
     t1, t12, t14, t23, t34, t4,
@@ -46,8 +46,6 @@ __all__ = [
     "find_contact_point",
     "find_z_min",
     "pos",
-    "pos_and_sep",
-    "pos_and_sep_c",
     "pos_c",
     "pos_cd",
     "pos_d",

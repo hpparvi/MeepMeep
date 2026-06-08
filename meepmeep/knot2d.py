@@ -77,12 +77,6 @@ class Knot2D:
         derivatives : bool, optional
             If ``True``, :attr:`position` and :attr:`projected_separation`
             also return parameter derivatives. Defaults to ``False``.
-
-        Notes
-        -----
-        A joint position-and-separation property is intentionally not provided:
-        the low-level API has no derivative-returning ``pos_and_sep`` variant,
-        so it could not honour the ``derivatives`` flag symmetrically.
         """
         self._derivatives = derivatives
         self.tk = tk

@@ -9,6 +9,15 @@ Taylor series expansions around knot points to achieve high-performance orbit ev
 
 Reference notebooks live in `notebooks/` and rendered docs source in `docs/`.
 
+## Project status: major refactor in progress
+
+The whole `meepmeep` package is undergoing a major refactor to improve clarity and
+usability. **Breaking API changes are acceptable when justified by clarity or
+usability** — do not preserve backward compatibility for its own sake; choose the
+cleaner design and update every call site. The only stability contract is the public
+aggregator surface (`meepmeep.numba2d` / `meepmeep.numba3d`, via their `__all__`);
+everything under `backends/numba/` is implementation detail and may be restructured freely.
+
 ## Building and Testing
 
 **Install for development:**
@@ -31,6 +40,13 @@ Tests compare Taylor series approximations against exact Newton-Raphson solution
 When finite-difference-testing parameter derivatives, sample a narrow near-transit window rather than the full
 orbit: perturbing timing/period shifts the periastron anchor and can remap a sampled time across a knot boundary,
 giving O(1) FD error at isolated points. For exactness, prefer parity against the `*_od` routines.
+
+**Relocating/renaming backend modules** (common during the refactor): use `git mv` to
+preserve history; when a module changes package depth, adjust the relative-import dot
+count (escaping imports lose/gain one dot per level crossed, intra-subtree imports are
+unchanged); purge stale Numba caches
+(`find meepmeep/backends/numba -name '*.nbi' -o -name '*.nbc' | xargs rm`); then verify
+with `pytest -m "not slow"` — the Newton-Raphson parity tests catch any behavioural drift.
 
 **Test markers** (defined in `pytest.ini`):
 - `slow` — long-running tests; deselect with `-m "not slow"`
@@ -57,6 +73,8 @@ cd docs && make html      # output in docs/build/html/
 ```
 
 Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`). The authoritative reference for low-level function naming is `docs/source/naming_conventions.rst` — keep it and the "Adding New Taylor Series Functions" section of this file in sync.
+
+The build carries a residual backlog of ~110 Sphinx cross-reference warnings (the low-level `backends/numba/` modules are not autodoc'd, so `:func:`/`:mod:` links into them stay unresolved). These are known, not regressions — only chase *new* warnings beyond the baseline.
 
 **Citation.** The Taylor-series-around-knot-points method is published in Parviainen & Korth (2020), MNRAS 499, 3356; ADS bibcode `2020MNRAS.499.3356P`. Cite as "Parviainen and Korth (2020)" in docs.
 
@@ -106,7 +124,7 @@ meepmeep/
     │   │   └── newton.py  # Exact Kepler equation solvers (Newton-Raphson)
     │   ├── point2d/         # Single-knot 2D evaluators (no derivatives),
     │   │                    # one module per quantity plus solve/util:
-    │   │                    # position.py (pos, pos_and_sep), separation.py
+    │   │                    # position.py (pos), separation.py
     │   │                    # (sep), solve.py (solve2d), util.py (contact
     │   │                    # points, bounding box, durations, find_z_min).
     │   │                    # __init__.py re-exports the surface.
@@ -116,7 +134,7 @@ meepmeep/
     │   │                    # solve.py (solve2d_d).
     │   ├── point3d/         # Single-knot 3D evaluators (no derivatives),
     │   │                    # one module per quantity plus solve/util:
-    │   │                    # position.py (pos, pos_and_sep), zposition.py
+    │   │                    # position.py (pos), zposition.py
     │   │                    # (zpos), separation.py (sep), velocity.py
     │   │                    # (vel_c), zvelocity.py (zvel), radial_velocity.py
     │   │                    # (rv), solve.py (solve3d), util.py (contact
@@ -259,7 +277,6 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
 - Function naming in the Taylor backend modules:
   - `pos_c`, `pos`: position (centered, direct)
   - `sep_c`, `sep`: sky-projected separation
-  - `pos_and_sep_c`, `pos_and_sep`: position and projected separation, returned jointly
   - `zpos_c`, `zpos`: line-of-sight (z) coordinate only
   - `vel_c`: velocity vector (centered)
   - `zvel_c`, `zvel`: line-of-sight velocity component

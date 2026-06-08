@@ -23,7 +23,6 @@ Stem              Quantity
 ================  ====================================================
 ``pos``           Position (vector of coordinates).
 ``sep``           Sky-projected planet-star separation, :math:`\sqrt{x^2+y^2}`.
-``pos_and_sep``   Position and projected separation, returned jointly.
 ``zpos``          Line-of-sight (:math:`z`) coordinate only.
 ``vel``           Velocity vector (3D modules only).
 ``zvel``          Line-of-sight velocity component.
@@ -45,8 +44,7 @@ The spatial dimensionality of an evaluator is encoded by the package name
 packages, ``point2d.util`` vs ``point3d.util``) rather than by the
 function name. Both ``meepmeep.backends.numba.point2d.position`` and
 ``meepmeep.backends.numba.point3d.position`` therefore expose a function
-called ``pos``; the 3D package additionally exposes ``zpos``,
-``pos_and_sep``, etc.
+called ``pos``; the 3D package additionally exposes ``zpos``, etc.
 
 The 2D evaluators are roughly 30 percent cheaper per call and are
 sufficient for transit modelling; switch to 3D whenever the
@@ -93,7 +91,7 @@ through a ``pktable`` lookup that yields a knot index and a
 centered time.
 
 The 2D module follows the same rule — ``pos`` / ``pos_c``, ``sep`` /
-``sep_c``, ``pos_and_sep`` / ``pos_and_sep_c``.
+``sep_c``.
 
 
 Parameter-derivative suffix

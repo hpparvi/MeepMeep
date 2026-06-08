@@ -17,7 +17,7 @@
 """Single-knot 2D planet sky-plane (x, y) position evaluators."""
 
 from numba import njit
-from numpy import floor, sqrt
+from numpy import floor
 from numpy.typing import NDArray
 
 
@@ -100,65 +100,3 @@ def pos(time: float | NDArray, tk: float, p: float, c: NDArray):
     """
     epoch = floor((time - tk + 0.5 * p) / p)
     return pos_c(time - (tk + epoch * p), c)
-
-
-@njit(fastmath=True, inline='always')
-def pos_and_sep_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray, float | NDArray]:
-    """
-    Evaluate the planet's (x, y) position and the projected distance jointly.
-
-    Returns the sky-plane coordinates and the Euclidean distance
-    `sqrt(x^2 + y^2)` from a single Horner-scheme evaluation, saving the
-    redundant polynomial work that would occur if `pos_c` and `sep_c` were
-    called separately.
-
-    Parameters
-    ----------
-    time : float or NDArray
-        Time relative to the Taylor series expansion point.
-    c : NDArray
-        A (2, 5) coefficient matrix produced by `solve2d`.
-
-    Returns
-    -------
-    px : float or NDArray
-        Sky-plane x position in units of stellar radii.
-    py : float or NDArray
-        Sky-plane y position in units of stellar radii.
-    d : float or NDArray
-        Projected planet-star center distance in units of stellar radii.
-    """
-    px = c[0, 0] + time * (c[0, 1] + time * (c[0, 2] + time * (c[0, 3] + time * c[0, 4])))
-    py = c[1, 0] + time * (c[1, 1] + time * (c[1, 2] + time * (c[1, 3] + time * c[1, 4])))
-    return px, py, sqrt(px ** 2 + py ** 2)
-
-
-@njit(fastmath=True, inline='always')
-def pos_and_sep(time: float | NDArray, tk: float, p: float, c: NDArray) -> tuple[
-    float | NDArray, float | NDArray, float | NDArray]:
-    """
-    Evaluate the planet's (x, y) position and the projected distance jointly.
-
-    Returns the sky-plane coordinates and the Euclidean distance
-    `sqrt(x^2 + y^2)` from a single Horner-scheme evaluation, saving the
-    redundant polynomial work that would occur if `pos_c` and `sep_c` were
-    called separately.
-
-    Parameters
-    ----------
-    time : float or NDArray
-        Time relative to the Taylor series expansion point.
-    c : NDArray
-        A (2, 5) coefficient matrix produced by `solve2d`.
-
-    Returns
-    -------
-    px : float or NDArray
-        Sky-plane x position in units of stellar radii.
-    py : float or NDArray
-        Sky-plane y position in units of stellar radii.
-    d : float or NDArray
-        Projected planet-star center distance in units of stellar radii.
-    """
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return pos_and_sep_c(time - (tk + epoch * p), c)
