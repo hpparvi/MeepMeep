@@ -79,6 +79,21 @@ def create_knots(n_knots: int, e: float, quantity: str = 'ea', tres: int = 200):
         Time-to-knot table mapping each of the ``tres`` time bins within
         one folded period to the index of the knot that should evaluate
         it.
+
+    Notes
+    -----
+    The ``'ea'`` and ``'ta'`` grids are *not* uniform in their anomaly, and
+    in particular do not reduce to the ``'mm'`` grid at zero eccentricity.
+    The knots are spaced ``2*pi/n_knots`` apart in anomaly even though the
+    grid holds only ``n_knots - 1`` distinct knots (the last slot is the
+    periodic image of the first), and the midpoint knot is pinned at
+    anomaly pi, which is not a multiple of that spacing. The leftover space
+    collects as a 1.5x-wide gap on each side of the midpoint knot, whose
+    region of validity is therefore twice as wide as the others'. This is
+    benign for accuracy: the midpoint knot sits at apoastron, where the
+    planet moves slowest and the Taylor truncation error is smallest, while
+    the remaining knots are spaced tighter than uniform near periastron,
+    where the error budget is actually spent.
     """
     if quantity not in ('mm', 'ea', 'ta'):
         raise ValueError("Quantity needs to be either 'mm' for mean motion, 'ea' for eccentric anomaly, or 'ta' for true anomaly.")
