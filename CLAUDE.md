@@ -129,9 +129,11 @@ meepmeep/
     │   │                    # points, bounding box, durations, find_z_min).
     │   │                    # __init__.py re-exports the surface.
     │   ├── point2dd/        # Single-knot 2D parameter-derivative evaluators
-    │   │                    # mirroring point2d/: position.py (pos_cd, pos_d,
-    │   │                    # pos_dv), separation.py (sep_cd, sep_d, sep_dv),
-    │   │                    # solve.py (solve2d_d).
+    │   │                    # mirroring point2d/: position.py (pos_cd, pos_d),
+    │   │                    # separation.py (sep_cd, sep_d), solve.py
+    │   │                    # (solve2d_d). pos_cd/pos_d/sep_cd/sep_d are
+    │   │                    # scalar-or-array @overload dispatchers (like
+    │   │                    # orbit3d's *_o) over private _s/_v kernels.
     │   ├── point3d/         # Single-knot 3D evaluators (no derivatives),
     │   │                    # one module per quantity plus solve/util:
     │   │                    # position.py (pos), zposition.py
@@ -260,11 +262,22 @@ parameter-derivative ones. Each has one module per physical quantity
 `velocity.py`, `zvelocity.py`, `radial_velocity.py`) plus a `solve.py`
 module and, in the non-derivative package, a `util.py` for transit
 geometry. Each package's `__init__.py` re-exports its surface, mirroring
-the `orbit3d`/`orbit3dd` layout. Unlike those multi-knot packages, the
-single-knot modules keep the plain `_c`/direct function structure (no
-`_os`/`_ov`/`_o` dispatcher); a new quantity adds `X_c`/`X` to a
-`point{2,3}d/<quantity>.py` module and, if needed, `X_cd`/`X_d` (plus
-`X_dv` for 2D) to the matching `point{2,3}dd/<quantity>.py`.
+the `orbit3d`/`orbit3dd` layout. The non-derivative single-knot evaluators
+(`point2d`/`point3d`) keep the plain `_c`/direct structure and rely on NumPy
+broadcasting to accept scalar or array times. A new quantity adds `X_c`/`X` to
+a `point{2,3}d/<quantity>.py` module and, if needed, `X_cd`/`X_d` to the
+matching `point{2,3}dd/<quantity>.py`.
+
+The **2D derivative** evaluators (`point2dd`) cannot broadcast (the gradient
+allocation is `(7,)` for a scalar but `(N, 7)` for an array), so `pos_cd`,
+`pos_d`, `sep_cd`, `sep_d` are scalar-or-array `numba.extending.overload`
+dispatchers — same pattern as `orbit3d`'s `*_o` — each a plain-Python fallback
+plus an `@overload` routing to private `_X_..._s` (scalar) and `_X_..._v`
+(vector) kernels. `_is_1d_array` lives in `point2dd/_common.py`. This is the
+array path `Knot2D` uses, so there is no separate `_dv` variant. The **3D
+derivative** evaluators (`point3dd`) stay scalar-only: their array path is
+supplied one layer up by the `orbit3dd` vector kernels (`_X_ovd`), which loop
+the scalar `point3dd` evaluator.
 
 For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in the `point3d` package (or their gradient variants in `point3dd`).
 
@@ -284,7 +297,7 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `_c` suffix: centered (time argument is relative to the knot)
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
-  - `_dv` suffix: direct gradient-returning evaluator vectorized over a 1-D time array. The scalar `_d` / `_cd` variants take a single time (they allocate one length-7 gradient per call); `_dv` applies the scalar `_d` across `N` times and stacks, so the returned gradient gains a leading `N` axis. Used by the array path of `Knot2D`. Examples: `pos_dv` in `point2dd/position.py`, `sep_dv` in `point2dd/separation.py`.
+  - In `point2dd`, `pos_cd`/`pos_d`/`sep_cd`/`sep_d` are scalar-or-array `@overload` dispatchers (a scalar time gives a `(7,)` gradient; a 1-D time array of length `N` gives a leading-`N` axis, e.g. `sep_d` returns `d` shape `(N,)` and `dd` shape `(N, 7)`). Internally each routes to private `_s` (scalar) and `_v` (vector) kernels, e.g. `_pos_cd_s`/`_pos_cd_v` in `point2dd/position.py`. This is the array path used by `Knot2D`; there is no `_dv` variant.
   - Dimensionality (2D vs 3D) is encoded by the module or package name (the `point2d`/`point2dd` packages vs `position3d`), not by the function name.
 - In the `orbit3d/` / `orbit3dd/` packages (multi-knot dispatchers):
   - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)

@@ -125,5 +125,67 @@ class TestSep2dDLan:
         assert_allclose(dd[6], 0.0, atol=1e-10)
 
 
+class TestArrayDispatch:
+    """All four derivative evaluators accept a 1-D time array via the same
+    name they take a scalar with, returning the (N,) / (N, 7) layout and
+    matching the per-element scalar evaluation."""
+
+    def test_pos_cd_array_matches_scalar_loop(self, eccentric_orbit):
+        cf, dcf = solve2d_d(0.0, **eccentric_orbit, lan=0.7)
+        times = np.linspace(-0.02, 0.02, 9)
+
+        xs, ys, dxs, dys = pos_cd(times, cf, dcf)
+
+        assert xs.shape == ys.shape == (times.size,)
+        assert dxs.shape == dys.shape == (times.size, 7)
+        for n, t in enumerate(times):
+            x_n, y_n, dx_n, dy_n = pos_cd(t, cf, dcf)
+            assert_allclose(xs[n], x_n, rtol=1e-12)
+            assert_allclose(ys[n], y_n, rtol=1e-12)
+            assert_allclose(dxs[n], dx_n, rtol=1e-12)
+            assert_allclose(dys[n], dy_n, rtol=1e-12)
+
+    def test_sep_cd_array_matches_scalar_loop(self, eccentric_orbit):
+        cf, dcf = solve2d_d(0.0, **eccentric_orbit, lan=0.7)
+        times = np.linspace(-0.02, 0.02, 9)
+
+        d, dd = sep_cd(times, cf, dcf)
+
+        assert d.shape == (times.size,)
+        assert dd.shape == (times.size, 7)
+        for n, t in enumerate(times):
+            d_n, dd_n = sep_cd(t, cf, dcf)
+            assert_allclose(d[n], d_n, rtol=1e-12)
+            assert_allclose(dd[n], dd_n, rtol=1e-12)
+
+    def test_pos_d_array_matches_scalar_loop(self, eccentric_orbit):
+        cf, dcf = solve2d_d(0.0, **eccentric_orbit, lan=0.7)
+        times = np.linspace(-0.02, 0.02, 9)
+
+        xs, ys, dxs, dys = pos_d(times, 0.0, eccentric_orbit["p"], cf, dcf)
+
+        assert xs.shape == ys.shape == (times.size,)
+        assert dxs.shape == dys.shape == (times.size, 7)
+        for n, t in enumerate(times):
+            x_n, y_n, dx_n, dy_n = pos_d(t, 0.0, eccentric_orbit["p"], cf, dcf)
+            assert_allclose(xs[n], x_n, rtol=1e-12)
+            assert_allclose(ys[n], y_n, rtol=1e-12)
+            assert_allclose(dxs[n], dx_n, rtol=1e-12)
+            assert_allclose(dys[n], dy_n, rtol=1e-12)
+
+    def test_sep_d_array_matches_scalar_loop(self, eccentric_orbit):
+        cf, dcf = solve2d_d(0.0, **eccentric_orbit, lan=0.7)
+        times = np.linspace(-0.02, 0.02, 9)
+
+        d, dd = sep_d(times, 0.0, eccentric_orbit["p"], cf, dcf)
+
+        assert d.shape == (times.size,)
+        assert dd.shape == (times.size, 7)
+        for n, t in enumerate(times):
+            d_n, dd_n = sep_d(t, 0.0, eccentric_orbit["p"], cf, dcf)
+            assert_allclose(d[n], d_n, rtol=1e-12)
+            assert_allclose(dd[n], dd_n, rtol=1e-12)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

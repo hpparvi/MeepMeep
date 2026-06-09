@@ -37,7 +37,7 @@ from .backends.numba.point2d import (
     find_z_min,
 )
 from .backends.numba.point2dd import (
-    pos_cd, pos_d, pos_dv, sep_cd, sep_d, sep_dv,
+    pos_cd, pos_d, sep_cd, sep_d,
     solve2d_d,
 )
 
@@ -49,12 +49,10 @@ __all__ = [
     "pos_c",
     "pos_cd",
     "pos_d",
-    "pos_dv",
     "sep",
     "sep_c",
     "sep_cd",
     "sep_d",
-    "sep_dv",
     "solve2d",
     "solve2d_d",
     "t1",

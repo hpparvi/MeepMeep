@@ -111,8 +111,6 @@ Suffix                      Meaning
                             w.r.t. orbital parameters.
 ``_cd``                     Centered evaluator returning a gradient
                             w.r.t. orbital parameters.
-``_dv``                     Direct evaluator, gradient-returning,
-                            **vectorized** over a 1-D time array.
 ==========================  ==============================================
 
 These functions accept an additional argument ``dc`` — a ``(7, D, 5)``
@@ -126,14 +124,20 @@ centered gradient-returning variants;
 :func:`~meepmeep.backends.numba.point3dd.position.pos_d` is the direct
 counterpart.
 
-The scalar ``_d`` / ``_cd`` evaluators allocate one length-7 gradient per
-call and therefore take a single time. The ``_dv`` variants (``pos_dv``,
-``sep_dv`` in ``meepmeep.numba2d``) apply the scalar direct evaluator
-across a 1-D time array of length ``N`` and stack the results, so the returned
-gradient gains a leading ``N`` axis (e.g. ``sep_dv`` returns ``d`` of shape
-``(N,)`` and ``dd`` of shape ``(N, 7)``). This is the array path used by the
-high-level ``Knot2D`` properties; the value-only evaluators (``pos`` / ``sep``)
-already accept scalars or arrays without a separate suffix.
+Like their value-only twins (``pos`` / ``sep``), the ``_d`` / ``_cd``
+evaluators accept **either** a scalar time **or** a 1-D array of times and
+dispatch via ``numba.extending.overload`` at compile time (inside ``@njit``)
+or at call time (pure Python) — exactly like the ``_o`` / ``_od`` multi-knot
+dispatchers below. A scalar time yields a length-7 gradient; a 1-D array of
+length ``N`` yields results with a leading ``N`` axis (e.g. ``sep_d`` returns
+``d`` of shape ``(N,)`` and ``dd`` of shape ``(N, 7)``). The array path is the
+one used by the high-level ``Knot2D`` properties.
+
+Internally each dispatcher routes to a private kernel with the explicit
+``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``_pos_cd_v``
+in the ``point2dd/`` package. Reach for those private kernels only when you need
+to avoid the dispatcher's type check (rarely useful) or when contributing to
+MeepMeep itself.
 
 
 Multi-knot dispatcher suffix

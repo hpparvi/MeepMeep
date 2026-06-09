@@ -18,7 +18,7 @@
 from .backends.numba.point2d import (solve2d, pos, sep,
                                             t12, t14, t23, t34,
                                             bounding_box, find_contact_point, find_z_min)
-from .backends.numba.point2dd import solve2d_d, pos_dv, sep_dv
+from .backends.numba.point2dd import solve2d_d, pos_d, sep_d
 
 
 class Knot2D:
@@ -162,7 +162,7 @@ class Knot2D:
         """
         t = self.times - self._tc
         if self._derivatives:
-            return pos_dv(t, self.tk, self._p, self._coeffs, self._dcoeffs)
+            return pos_d(t, self.tk, self._p, self._coeffs, self._dcoeffs)
         return pos(t, self.tk, self._p, self._coeffs)
 
     @property
@@ -183,7 +183,7 @@ class Knot2D:
         """
         t = self.times - self._tc
         if self._derivatives:
-            return sep_dv(t, self.tk, self._p, self._coeffs, self._dcoeffs)
+            return sep_d(t, self.tk, self._p, self._coeffs, self._dcoeffs)
         return sep(t, self.tk, self._p, self._coeffs)
 
     def duration(self, k: float, kind: int = 14) -> float:

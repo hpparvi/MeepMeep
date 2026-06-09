@@ -10,7 +10,7 @@ from numpy.testing import assert_allclose
 from meepmeep.backends.numba.point2d import (
     pos, pos_c, sep_c, find_contact_point, bounding_box, solve2d,
 )
-from meepmeep.backends.numba.point2dd import pos_d, sep_d, pos_dv, sep_dv, solve2d_d
+from meepmeep.backends.numba.point2dd import pos_d, sep_d, solve2d_d
 from meepmeep.backends.numba.newton.newton import xy_newton_v, z_newton_v
 
 
@@ -352,15 +352,16 @@ class TestEdgeCases:
 
 
 class TestVectorizedDerivatives:
-    """The vectorized derivative kernels (pos_dv / sep_dv) must equal the
-    per-element scalar evaluators and return the (N, 7) gradient layout."""
+    """The array path of the derivative dispatchers (pos_d / sep_d called with a
+    1-D time array) must equal the per-element scalar evaluators and return the
+    (N, 7) gradient layout. The same function name also serves scalar time."""
 
-    def test_sep_dv_matches_scalar_loop(self, eccentric_orbit):
+    def test_sep_d_array_matches_scalar_loop(self, eccentric_orbit):
         tk = 0.0
         c, dc = solve2d_d(tk, **eccentric_orbit)
         times = np.linspace(-0.02, 0.02, 9)
 
-        d, dd = sep_dv(times, tk, eccentric_orbit["p"], c, dc)
+        d, dd = sep_d(times, tk, eccentric_orbit["p"], c, dc)
 
         assert d.shape == (times.size,)
         assert dd.shape == (times.size, 7)
@@ -369,12 +370,12 @@ class TestVectorizedDerivatives:
             assert_allclose(d[n], d_n, rtol=1e-12)
             assert_allclose(dd[n], dd_n, rtol=1e-12)
 
-    def test_pos_dv_matches_scalar_loop(self, eccentric_orbit):
+    def test_pos_d_array_matches_scalar_loop(self, eccentric_orbit):
         tk = 0.0
         c, dc = solve2d_d(tk, **eccentric_orbit)
         times = np.linspace(-0.02, 0.02, 9)
 
-        xs, ys, dxs, dys = pos_dv(times, tk, eccentric_orbit["p"], c, dc)
+        xs, ys, dxs, dys = pos_d(times, tk, eccentric_orbit["p"], c, dc)
 
         assert xs.shape == ys.shape == (times.size,)
         assert dxs.shape == dys.shape == (times.size, 7)
@@ -384,6 +385,23 @@ class TestVectorizedDerivatives:
             assert_allclose(ys[n], y_n, rtol=1e-12)
             assert_allclose(dxs[n], dx_n, rtol=1e-12)
             assert_allclose(dys[n], dy_n, rtol=1e-12)
+
+    def test_pos_d_scalar_returns_length7_gradient(self, eccentric_orbit):
+        """The same name dispatches a scalar time to (7,) gradients."""
+        tk = 0.0
+        c, dc = solve2d_d(tk, **eccentric_orbit)
+        x, y, dx, dy = pos_d(0.003, tk, eccentric_orbit["p"], c, dc)
+        assert np.isscalar(x) and np.isscalar(y)
+        assert dx.shape == (7,)
+        assert dy.shape == (7,)
+
+    def test_sep_d_scalar_returns_length7_gradient(self, eccentric_orbit):
+        """The same name dispatches a scalar time to a (7,) gradient."""
+        tk = 0.0
+        c, dc = solve2d_d(tk, **eccentric_orbit)
+        d, dd = sep_d(0.003, tk, eccentric_orbit["p"], c, dc)
+        assert np.isscalar(d)
+        assert dd.shape == (7,)
 
 
 if __name__ == "__main__":

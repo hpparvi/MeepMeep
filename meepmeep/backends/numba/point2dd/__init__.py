@@ -31,6 +31,7 @@ enumerates the seven parameters in the canonical order
 This ``__init__`` re-exports the full derivative surface.
 """
 
-from .position import pos_cd, pos_d, pos_dv
-from .separation import sep_cd, sep_d, sep_dv
+from ._common import _is_1d_array
+from .position import pos_cd, pos_d, _pos_cd_s, _pos_cd_v, _pos_d_s, _pos_d_v
+from .separation import sep_cd, sep_d, _sep_cd_s, _sep_cd_v, _sep_d_s, _sep_d_v
 from .solve import solve2d_d
