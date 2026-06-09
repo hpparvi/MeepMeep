@@ -26,27 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
-    """Radial velocity and parameter derivatives at scalar time.
-
-    Scalar counterpart of :func:`_rv_ovd`. Derivative ordering:
-    ``(tc, p, a, i, e, w, lan, k)`` — length 8.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the radial velocity and gradient.
-    k : float
-        Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
-    tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_rv_ovd`.
-
-    Returns
-    -------
-    rv : float
-        Radial velocity [m s\\ :sup:`-1`].
-    drv : ndarray, shape (8,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, k)``.
-    """
+    """Scalar kernel for :func:`rv_od`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -61,36 +41,7 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
 
 @njit(fastmath=True)
 def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
-    """Radial velocity and parameter derivatives at array of times.
-
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, k)`` — length 8.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the radial velocity and gradient.
-    k : float
-        Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
-    tpa : float
-        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
-    p : float
-        Orbital period [days].
-    a : float
-        Scaled semi-major axis :math:`a/R_\\star`.
-    i : float
-        Inclination [radians].
-    e : float
-        Eccentricity.
-    dt, pktable, points, coeffs, dcoeffs :
-        Multi-knot dispatch arrays.
-
-    Returns
-    -------
-    rvs : ndarray, shape (N,)
-        Radial velocities per time [m s\\ :sup:`-1`].
-    drvs : ndarray, shape (N, 8)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan, k)`` per time.
-    """
+    """Vector kernel for :func:`rv_od`. See that function for documentation."""
     n = times.size
     rvs = zeros(n)
     drvs = zeros((n, 8))
@@ -110,7 +61,42 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
 
 
 def rv_od(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
-    """Radial velocity with gradients. See :func:`_rv_osd` / :func:`_rv_ovd`."""
+    """Radial velocity and parameter derivatives.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_rv_osd`) or vector (:func:`_rv_ovd`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, k)`` - length 8.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the radial velocity and gradient.
+    k : float
+        Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
+    tpa : float
+        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
+    p : float
+        Orbital period [days].
+    a : float
+        Scaled semi-major axis :math:`a/R_\\star`.
+    i : float
+        Inclination [radians].
+    e : float
+        Eccentricity.
+    dt, pktable, points, coeffs, dcoeffs :
+        Multi-knot dispatch arrays.
+
+    Returns
+    -------
+    rv : float or ndarray
+        Radial velocity [m s\\ :sup:`-1`]. Arrays of shape (N,) for an array
+        ``t``.
+    drv : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, k)``. Shape (8,) for a
+        scalar ``t``, (N, 8) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _rv_ovd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
     return _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)

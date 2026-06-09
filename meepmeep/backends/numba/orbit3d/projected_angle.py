@@ -26,24 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _cos_v_p_angle_os(v, t, tpa, p, dt, pktable, points, coeffs):
-    """Cosine of the angle between the planet position and a fixed reference vector at scalar time.
-
-    Scalar counterpart of :func:`_cos_v_p_angle_ov`.
-
-    Parameters
-    ----------
-    v : ndarray, shape (3,)
-        Reference vector. Need not be unit-norm.
-    t : float
-        Time at which to evaluate the angle.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    cos_theta : float
-        Cosine of the angle, in :math:`[-1, 1]`.
-    """
+    """Scalar kernel for :func:`cos_v_p_angle_o`. See that function for documentation."""
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
     return (x * v[0] + y * v[1] + z * v[2]) * inv_nv / sqrt(x * x + y * y + z * z)
@@ -51,27 +34,7 @@ def _cos_v_p_angle_os(v, t, tpa, p, dt, pktable, points, coeffs):
 
 @njit(fastmath=True)
 def _cos_v_p_angle_ov(v, times, tpa, p, dt, pktable, points, coeffs):
-    """Cosine of the angle between the planet position and a fixed reference vector.
-
-    Useful for projecting the planet position onto an arbitrary
-    line-of-sight axis (e.g. the spin axis of an oblate star).
-
-    Parameters
-    ----------
-    v : ndarray, shape (3,)
-        Reference vector. Need not be unit-norm; the cosine is computed
-        from the dot product divided by the product of the norms.
-    times : ndarray, shape (N,)
-        Times at which to evaluate the angle.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    cos_theta : ndarray, shape (N,)
-        Cosine of the angle between the planet position vector and
-        ``v``, in :math:`[-1, 1]`.
-    """
+    """Vector kernel for :func:`cos_v_p_angle_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
@@ -82,9 +45,30 @@ def _cos_v_p_angle_ov(v, times, tpa, p, dt, pktable, points, coeffs):
 
 
 def cos_v_p_angle_o(v, t, tpa, p, dt, pktable, points, coeffs):
-    """Cosine of angle between planet position and a fixed vector.
+    """Cosine of the angle between the planet position and a fixed reference vector.
 
-    See :func:`_cos_v_p_angle_os` / :func:`_cos_v_p_angle_ov`.
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_cos_v_p_angle_os`) or vector (:func:`_cos_v_p_angle_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Useful for projecting the planet position onto an arbitrary
+    line-of-sight axis (e.g. the spin axis of an oblate star).
+
+    Parameters
+    ----------
+    v : ndarray, shape (3,)
+        Reference vector. Need not be unit-norm; the cosine is computed
+        from the dot product divided by the product of the norms.
+    t : float or ndarray
+        Time(s) at which to evaluate the angle.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    cos_theta : float or ndarray
+        Cosine of the angle between the planet position vector and
+        ``v``, in :math:`[-1, 1]`. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
         return _cos_v_p_angle_ov(v, t, tpa, p, dt, pktable, points, coeffs)

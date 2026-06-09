@@ -32,11 +32,32 @@ LTT_DAYS_PER_RSUN = 2.685885891543453e-05
 
 @njit(fastmath=True)
 def _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
-    """Light travel time correction at a scalar time, referenced to primary transit.
+    """Scalar kernel for :func:`light_travel_time_o`. See that function for documentation."""
+    to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
+    z_t = _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
+    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
+    return -(z_t - z_tr) * rstar * LTT_DAYS_PER_RSUN
+
+
+@njit(fastmath=True)
+def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+    """Vector kernel for :func:`light_travel_time_o`. See that function for documentation."""
+    n = times.size
+    ltt = zeros(n)
+    to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
+    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
+    factor = -rstar * LTT_DAYS_PER_RSUN
+    for j in range(n):
+        ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, pktable, points, coeffs) - z_tr)
+    return ltt
+
+
+def light_travel_time_o(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+    """Light travel time correction, referenced to primary transit.
 
     The correction is
 
-        ltt(t) = -(z(t) - z(t_transit)) · rstar · (R_sun / c)
+        ltt(t) = -(z(t) - z(t_transit)) * rstar * (R_sun / c)
 
     with z in stellar radii, rstar in solar radii, result in days. The
     reference is the primary transit (inferior conjunction): ``ltt(t_transit)
@@ -45,16 +66,21 @@ def _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
     correction should add to the timing offset between primary transit and
     secondary eclipse (and intermediate phases), not to the transit itself.
 
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_light_travel_time_os`) or vector
+    (:func:`_light_travel_time_ov`) kernel at compile time (inside
+    ``@njit``) or at call time (pure Python).
+
     Important: the convention in this module is that ``tc`` is the
     **periastron** time (the same as for every other ``*_o*`` evaluator in
     ``orbit3d``). The transit time is ``tc + to`` where
-    ``to = mean_anomaly_at_transit(e, w) · p / (2π)``. The ``e, w`` arguments
+    ``to = mean_anomaly_at_transit(e, w) * p / (2*pi)``. The ``e, w`` arguments
     are needed to determine ``to``.
 
     Parameters
     ----------
-    t : float
-        Time at which to evaluate the correction.
+    t : float or ndarray
+        Time(s) at which to evaluate the correction.
     tpa : float
         Time of periastron passage.
     p : float
@@ -70,60 +96,9 @@ def _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
 
     Returns
     -------
-    ltt : float
-        Light travel time correction [days].
-    """
-    to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_t = _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
-    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
-    return -(z_t - z_tr) * rstar * LTT_DAYS_PER_RSUN
-
-
-@njit(fastmath=True)
-def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
-    """Light travel time correction at an array of times, referenced to primary transit.
-
-    Vectorised version of :func:`_light_travel_time_os`. Caches the
-    transit-time z-coordinate ``z_tr`` once outside the loop and reuses
-    it for every input time.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the correction.
-    tpa : float
-        Periastron time.
-    p : float
-        Orbital period [days].
-    e : float
-        Eccentricity.
-    w : float
-        Argument of periastron [radians].
-    rstar : float
-        Stellar radius [R_sun].
-    dt, pktable, points, coeffs :
-        Multi-knot dispatch arrays from :func:`solve3d_orbit` /
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
-
-    Returns
-    -------
-    ltt : ndarray, shape (N,)
-        Light travel time correction at each input time [days].
-    """
-    n = times.size
-    ltt = zeros(n)
-    to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
-    factor = -rstar * LTT_DAYS_PER_RSUN
-    for j in range(n):
-        ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, pktable, points, coeffs) - z_tr)
-    return ltt
-
-
-def light_travel_time_o(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
-    """Light travel time correction.
-
-    See :func:`_light_travel_time_os` / :func:`_light_travel_time_ov`.
+    ltt : float or ndarray
+        Light travel time correction [days]. Arrays of shape (N,) for an
+        array time argument.
     """
     if isinstance(t, ndarray):
         return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)

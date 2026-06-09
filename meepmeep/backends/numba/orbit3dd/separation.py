@@ -26,28 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Sky-projected planet-star separation and orbital-parameter derivatives at scalar time.
-
-    Returns :math:`\\sqrt{x^2 + y^2}` together with its gradient w.r.t.
-    the seven orbital parameters. The chain rule
-    :math:`\\partial d/\\partial \\theta = (p_x \\partial p_x / \\partial \\theta + p_y \\partial p_y / \\partial \\theta)/d`
-    is applied inside :func:`~meepmeep.backends.numba.point3dd.separation.sep_cd`;
-    this dispatcher just locates the knot.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the separation and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    d : float
-        Sky-projected separation [stellar radii].
-    dd : ndarray, shape (7,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`sep_od`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -56,22 +35,7 @@ def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 @njit(fastmath=True)
 def _sep_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Sky-projected planet-star separation and orbital-parameter derivatives at array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the separation and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    ds : ndarray, shape (N,)
-        Sky-projected separations per time.
-    dds : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
+    """Vector kernel for :func:`sep_od`. See that function for documentation."""
     n = times.size
     ds = zeros(n)
     dds = zeros((n, 7))
@@ -84,7 +48,34 @@ def _sep_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 def sep_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Sky-projected separation with gradients. See :func:`_sep_osd` / :func:`_sep_ovd`."""
+    """Sky-projected planet-star separation and orbital-parameter derivatives for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_sep_osd`) or vector (:func:`_sep_ovd`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Returns :math:`\\sqrt{x^2 + y^2}` together with its gradient w.r.t.
+    the seven orbital parameters. The chain rule
+    :math:`\\partial d/\\partial \\theta = (p_x \\partial p_x / \\partial \\theta + p_y \\partial p_y / \\partial \\theta)/d`
+    is applied inside :func:`~meepmeep.backends.numba.point3dd.separation.sep_cd`;
+    this dispatcher just locates the knot.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time at which to evaluate the separation and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
+
+    Returns
+    -------
+    d : float or ndarray
+        Sky-projected separation [stellar radii]. Arrays of shape (N,)
+        for an array ``t``.
+    dd : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
+        scalar ``t``, (N, 7) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _sep_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     return _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

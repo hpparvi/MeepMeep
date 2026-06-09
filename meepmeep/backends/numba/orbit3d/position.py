@@ -26,12 +26,34 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _pos_os(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet (x, y, z) position at scalar time ``t`` for any orbital phase.
+    """Scalar kernel for :func:`pos_o`. See that function for documentation."""
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    return pos_c(tc - points[ix] * p, coeffs[ix])
+
+
+@njit(fastmath=True)
+def _pos_ov(times, tpa, p, dt, pktable, points, coeffs):
+    """Vector kernel for :func:`pos_o`. See that function for documentation."""
+    npt = times.size
+    xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
+    for i in range(npt):
+        xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+    return xs, ys, zs
+
+
+def pos_o(t, tpa, p, dt, pktable, points, coeffs):
+    """Planet (x, y, z) position for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_pos_os`) or vector (:func:`_pos_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
 
     Parameters
     ----------
-    t : float
-        Time at which to evaluate the position.
+    t : float or ndarray
+        Time(s) at which to evaluate the position.
     tpa : float
         Periastron time anchoring the knot grid.
     p : float
@@ -47,42 +69,11 @@ def _pos_os(t, tpa, p, dt, pktable, points, coeffs):
 
     Returns
     -------
-    x, y, z : float
+    x, y, z : float or ndarray
         Planet position in units of the stellar radius. ``x``, ``y`` are
         the sky-plane coordinates; ``z`` is the line-of-sight depth
-        (positive toward the observer).
+        (positive toward the observer). Arrays of shape (N,) for an array ``t``.
     """
-    epoch = floor((t - tpa) / p)
-    tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return pos_c(tc - points[ix] * p, coeffs[ix])
-
-
-@njit(fastmath=True)
-def _pos_ov(times, tpa, p, dt, pktable, points, coeffs):
-    """Planet (x, y, z) position at an array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the position.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    xs, ys, zs : ndarray, shape (N,)
-        Planet position arrays in units of the stellar radius.
-    """
-    npt = times.size
-    xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
-    for i in range(npt):
-        xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
-    return xs, ys, zs
-
-
-def pos_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet (x, y, z) position. See :func:`_pos_os` / :func:`_pos_ov`."""
     if isinstance(t, ndarray):
         return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
     return _pos_os(t, tpa, p, dt, pktable, points, coeffs)

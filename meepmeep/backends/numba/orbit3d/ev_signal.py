@@ -26,29 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
-    """Ellipsoidal variation signal at scalar time.
-
-    Scalar counterpart of :func:`_ev_signal_ov`. See that function for the
-    physical model (Lillo-Box et al. 2014, Eqs. 6-10).
-
-    Parameters
-    ----------
-    alpha : float
-        Gravity-darkening coefficient.
-    mass_ratio : float
-        Planet-to-star mass ratio :math:`M_p / M_\\star`.
-    inc : float
-        Orbital inclination [radians].
-    t : float
-        Time at which to evaluate the signal.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    ev : float
-        Relative flux variation due to ellipsoidal distortion.
-    """
+    """Scalar kernel for :func:`ev_signal_o`. See that function for documentation."""
     sin2_inc = sin(inc) ** 2
     pre = -alpha * mass_ratio * sin2_inc
     x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
@@ -60,37 +38,7 @@ def _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs
 
 @njit(fastmath=True)
 def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs):
-    """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6–10).
-
-    Returns the relative flux variation induced by the tidally distorted
-    primary as a function of the orbital phase. The amplitude scales
-    with the mass ratio, the projected-area factor :math:`\\sin^2 i`,
-    and the inverse cube of the instantaneous 3D separation.
-
-    Parameters
-    ----------
-    alpha : float
-        Gravity-darkening coefficient (Lillo-Box et al. 2014, Eq. 7).
-    mass_ratio : float
-        Planet-to-star mass ratio :math:`M_p / M_\\star`.
-    inc : float
-        Orbital inclination [radians].
-    times : ndarray, shape (N,)
-        Times at which to evaluate the signal.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    ev : ndarray, shape (N,)
-        Relative flux variation due to ellipsoidal distortion at each
-        input time.
-
-    Notes
-    -----
-    Uses the identity :math:`\\cos(2\\arccos u) = 2u^2 - 1` to skip a
-    redundant arccos/cos pair.
-    """
+    """Vector kernel for :func:`ev_signal_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     sin2_inc = sin(inc) ** 2
@@ -105,10 +53,41 @@ def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, co
 
 
 def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
-    """Ellipsoidal variation signal.
+    """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6-10).
 
-    Time argument is the 4th positional. See :func:`_ev_signal_os` /
-    :func:`_ev_signal_ov`.
+    Returns the relative flux variation induced by the tidally distorted
+    primary as a function of the orbital phase. The amplitude scales
+    with the mass ratio, the projected-area factor :math:`\\sin^2 i`,
+    and the inverse cube of the instantaneous 3D separation.
+
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    scalar (:func:`_ev_signal_os`) or vector (:func:`_ev_signal_ov`) kernel
+    at compile time (inside ``@njit``) or at call time (pure Python). Time
+    argument is the 4th positional.
+
+    Parameters
+    ----------
+    alpha : float
+        Gravity-darkening coefficient (Lillo-Box et al. 2014, Eq. 7).
+    mass_ratio : float
+        Planet-to-star mass ratio :math:`M_p / M_\\star`.
+    inc : float
+        Orbital inclination [radians].
+    t : float or ndarray
+        Time(s) at which to evaluate the signal.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    ev : float or ndarray
+        Relative flux variation due to ellipsoidal distortion. Arrays of
+        shape (N,) for an array time argument.
+
+    Notes
+    -----
+    Uses the identity :math:`\\cos(2\\arccos u) = 2u^2 - 1` to skip a
+    redundant arccos/cos pair.
     """
     if isinstance(t, ndarray):
         return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)

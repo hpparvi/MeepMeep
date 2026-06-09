@@ -26,27 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """3D star-planet distance and orbital-parameter derivatives at scalar time.
-
-    Scalar counterpart of :func:`_star_planet_distance_ovd`. Returns
-    :math:`r = \\sqrt{x^2 + y^2 + z^2}` and
-    :math:`\\partial r/\\partial \\theta_k = (x\\,\\partial x/\\partial \\theta_k
-    + y\\,\\partial y/\\partial \\theta_k + z\\,\\partial z/\\partial \\theta_k)/r`.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the separation and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    r : float
-        3D star-planet distance [stellar radii].
-    dr : ndarray, shape (7,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`star_planet_distance_od`. See that function for documentation."""
     x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     r = sqrt(x * x + y * y + z * z)
     inv_r = 1.0 / r
@@ -58,26 +38,7 @@ def _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 @njit(fastmath=True)
 def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """3D star-planet distance and orbital-parameter derivatives at array of times.
-
-    Returns :math:`r = \\sqrt{x^2 + y^2 + z^2}` and
-    :math:`\\partial r/\\partial \\theta_k = (x\\,\\partial x/\\partial \\theta_k
-    + y\\,\\partial y/\\partial \\theta_k + z\\,\\partial z/\\partial \\theta_k)/r`.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the separation and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    rs : ndarray, shape (N,)
-        3D star-planet separations per time.
-    drs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
+    """Vector kernel for :func:`star_planet_distance_od`. See that function for documentation."""
     n = times.size
     rs = zeros(n)
     drs = zeros((n, 7))
@@ -92,9 +53,32 @@ def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeff
 
 
 def star_planet_distance_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """3D star-planet distance with gradients.
+    """3D star-planet distance and orbital-parameter derivatives.
 
-    See :func:`_star_planet_distance_osd` / :func:`_star_planet_distance_ovd`.
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_star_planet_distance_osd`) or vector
+    (:func:`_star_planet_distance_ovd`) kernel at compile time (inside
+    ``@njit``) or at call time (pure Python).
+
+    Returns :math:`r = \\sqrt{x^2 + y^2 + z^2}` and
+    :math:`\\partial r/\\partial \\theta_k = (x\\,\\partial x/\\partial \\theta_k
+    + y\\,\\partial y/\\partial \\theta_k + z\\,\\partial z/\\partial \\theta_k)/r`.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the separation and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    r : float or ndarray
+        3D star-planet distance [stellar radii]. Arrays of shape (N,) for an
+        array ``t``.
+    dr : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
+        ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
         return _star_planet_distance_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

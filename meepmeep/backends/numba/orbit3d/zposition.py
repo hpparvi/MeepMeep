@@ -26,24 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _zpos_os(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet z-position at scalar time ``t`` for any orbital phase.
-
-    Cheaper than :func:`_pos_os` when only the line-of-sight coordinate is
-    needed (e.g. for light travel time and eclipse-side geometry).
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the z-coordinate.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    z : float
-        Line-of-sight planet coordinate [stellar radii], positive toward
-        the observer.
-    """
+    """Scalar kernel for :func:`zpos_o`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -52,20 +35,7 @@ def _zpos_os(t, tpa, p, dt, pktable, points, coeffs):
 
 @njit(fastmath=True)
 def _zpos_ov(times, tpa, p, dt, pktable, points, coeffs):
-    """Planet z-position at an array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the z-coordinate.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    zs : ndarray, shape (N,)
-        Line-of-sight planet coordinates [stellar radii].
-    """
+    """Vector kernel for :func:`zpos_o`. See that function for documentation."""
     npt = times.size
     zs = zeros(npt)
     for i in range(npt):
@@ -74,7 +44,28 @@ def _zpos_ov(times, tpa, p, dt, pktable, points, coeffs):
 
 
 def zpos_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet z-position. See :func:`_zpos_os` / :func:`_zpos_ov`."""
+    """Planet z-position (line-of-sight coordinate) for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_zpos_os`) or vector (:func:`_zpos_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Cheaper than :func:`pos_o` when only the line-of-sight coordinate is
+    needed (e.g. for light travel time and eclipse-side geometry).
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the z-coordinate.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`pos_o`.
+
+    Returns
+    -------
+    z : float or ndarray
+        Line-of-sight planet coordinate [stellar radii], positive toward
+        the observer. Arrays of shape (N,) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _zpos_ov(t, tpa, p, dt, pktable, points, coeffs)
     return _zpos_os(t, tpa, p, dt, pktable, points, coeffs)

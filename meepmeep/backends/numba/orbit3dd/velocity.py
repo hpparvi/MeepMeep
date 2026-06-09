@@ -26,22 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet (vx, vy, vz) velocity and orbital-parameter derivatives at scalar time.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the velocity and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    vx, vy, vz : float
-        Velocity components in :math:`R_\\star/\\mathrm{day}`.
-    dvx, dvy, dvz : ndarray, shape (7,)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`vel_od`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -50,22 +35,7 @@ def _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 @njit(fastmath=True)
 def _vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet (vx, vy, vz) velocity and orbital-parameter derivatives at array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the velocity and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    vxs, vys, vzs : ndarray, shape (N,)
-        Velocity components per time.
-    dvxs, dvys, dvzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
+    """Vector kernel for :func:`vel_od`. See that function for documentation."""
     n = times.size
     vxs = zeros(n)
     vys = zeros(n)
@@ -86,7 +56,28 @@ def _vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 def vel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet velocity with gradients. See :func:`_vel_osd` / :func:`_vel_ovd`."""
+    """Planet (vx, vy, vz) velocity and orbital-parameter derivatives for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_vel_osd`) or vector (:func:`_vel_ovd`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time at which to evaluate the velocity and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
+
+    Returns
+    -------
+    vx, vy, vz : float or ndarray
+        Velocity components in :math:`R_\\star/\\mathrm{day}`. Arrays of
+        shape (N,) for an array ``t``.
+    dvx, dvy, dvz : ndarray
+        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
+        scalar ``t``, (N, 7) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _vel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     return _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

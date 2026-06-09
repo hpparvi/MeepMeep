@@ -26,23 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _sep_os(t, tpa, p, dt, pktable, points, coeffs):
-    """Sky-projected planet-star separation at scalar time ``t``.
-
-    Returns :math:`\\sqrt{x^2 + y^2}` in units of the stellar radius —
-    the quantity transit light-curve models consume directly.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the separation.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    sep : float
-        Sky-projected separation [stellar radii], always non-negative.
-    """
+    """Scalar kernel for :func:`sep_o`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -51,20 +35,7 @@ def _sep_os(t, tpa, p, dt, pktable, points, coeffs):
 
 @njit(fastmath=True)
 def _sep_ov(times, tpa, p, dt, pktable, points, coeffs):
-    """Sky-projected planet-star separation at an array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the separation.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    seps : ndarray, shape (N,)
-        Sky-projected separations [stellar radii], always non-negative.
-    """
+    """Vector kernel for :func:`sep_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     for j in range(n):
@@ -73,7 +44,28 @@ def _sep_ov(times, tpa, p, dt, pktable, points, coeffs):
 
 
 def sep_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Sky-projected separation. See :func:`_sep_os` / :func:`_sep_ov`."""
+    """Sky-projected planet-star separation for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_sep_os`) or vector (:func:`_sep_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Returns :math:`\\sqrt{x^2 + y^2}` in units of the stellar radius -
+    the quantity transit light-curve models consume directly.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the separation.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`pos_o`.
+
+    Returns
+    -------
+    sep : float or ndarray
+        Sky-projected separation [stellar radii], always non-negative.
+        Arrays of shape (N,) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
     return _sep_os(t, tpa, p, dt, pktable, points, coeffs)

@@ -26,23 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet z-velocity at scalar time ``t`` for any orbital phase.
-
-    Cheaper than :func:`_vel_os` when only the line-of-sight component is
-    needed (e.g. for radial velocity).
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the z-velocity.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    vz : float
-        Line-of-sight velocity [:math:`R_\\star/\\mathrm{day}`].
-    """
+    """Scalar kernel for :func:`zvel_o`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -51,20 +35,7 @@ def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
 
 @njit(fastmath=True)
 def _zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
-    """Planet z-velocity at an array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the z-velocity.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    vzs : ndarray, shape (N,)
-        Line-of-sight velocities [:math:`R_\\star/\\mathrm{day}`].
-    """
+    """Vector kernel for :func:`zvel_o`. See that function for documentation."""
     npt = times.size
     vzs = zeros(npt)
     for i in range(npt):
@@ -73,7 +44,28 @@ def _zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
 
 
 def zvel_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet z-velocity. See :func:`_zvel_os` / :func:`_zvel_ov`."""
+    """Planet z-velocity (line-of-sight component) for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_zvel_os`) or vector (:func:`_zvel_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Cheaper than :func:`vel_o` when only the line-of-sight component is
+    needed (e.g. for radial velocity).
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the z-velocity.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`pos_o`.
+
+    Returns
+    -------
+    vz : float or ndarray
+        Line-of-sight velocity [:math:`R_\\star/\\mathrm{day}`].
+        Arrays of shape (N,) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
     return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)

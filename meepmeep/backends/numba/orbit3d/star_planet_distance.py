@@ -26,47 +26,14 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _star_planet_distance_os(t, tpa, p, dt, pktable, points, coeffs):
-    """3D star-planet distance at scalar time.
-
-    Returns :math:`\\sqrt{x^2 + y^2 + z^2}`. Distinct from :func:`_sep_os`,
-    which projects out the line-of-sight component.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the distance.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    r : float
-        3D star-planet distance [stellar radii].
-    """
+    """Scalar kernel for :func:`star_planet_distance_o`. See that function for documentation."""
     x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
     return sqrt(x * x + y * y + z * z)
 
 
 @njit(fastmath=True)
 def _star_planet_distance_ov(times, tpa, p, dt, pktable, points, coeffs):
-    """3D star-planet distance at an array of times.
-
-    Returns :math:`\\sqrt{x^2 + y^2 + z^2}`, the full Euclidean separation
-    in 3D. Distinct from :func:`_sep_os`, which projects out the
-    line-of-sight component.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the separation.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    r : ndarray, shape (N,)
-        3D star-planet separation [stellar radii].
-    """
+    """Vector kernel for :func:`star_planet_distance_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     for i in range(n):
@@ -76,9 +43,27 @@ def _star_planet_distance_ov(times, tpa, p, dt, pktable, points, coeffs):
 
 
 def star_planet_distance_o(t, tpa, p, dt, pktable, points, coeffs):
-    """3D star-planet distance.
+    """3D star-planet distance at an array of times.
 
-    See :func:`_star_planet_distance_os` / :func:`_star_planet_distance_ov`.
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_star_planet_distance_os`) or vector (:func:`_star_planet_distance_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Returns :math:`\\sqrt{x^2 + y^2 + z^2}`, the full Euclidean separation
+    in 3D. Distinct from :func:`_sep_os`, which projects out the
+    line-of-sight component.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the separation.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    r : float or ndarray
+        3D star-planet separation [stellar radii]. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
         return _star_planet_distance_ov(t, tpa, p, dt, pktable, points, coeffs)

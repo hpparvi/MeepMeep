@@ -64,31 +64,7 @@ def _lambert_kernel(cos_alpha):
 
 @njit(fastmath=True, inline="always")
 def _lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, pktable, points, coeffs):
-    """Lambertian phase-curve flux contribution at a scalar time.
-
-    Evaluates :math:`F(t) = (k/a)^2\\, A_g\\, f(\\alpha(t))` where
-    :math:`f` is the Lambert kernel and :math:`\\alpha(t)` is the
-    instantaneous phase angle. The result is the planet-to-star flux
-    ratio of reflected light at full phase scaled by the phase function.
-
-    Parameters
-    ----------
-    time : float
-        Time at which to evaluate the flux contribution.
-    ag : float
-        Geometric albedo.
-    a : float
-        Scaled semi-major axis :math:`a/R_\\star`.
-    k : float
-        Planet-to-star radius ratio :math:`R_p/R_\\star`.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    flux : float
-        Reflected planet-to-star flux ratio at the given time.
-    """
+    """Scalar kernel for :func:`lambert_phase_curve_o`. See that function for documentation."""
     amplitude = k * k * ag / (a * a)
     cos_alpha = _cos_alpha_os(time, tpa, p, dt, pktable, points, coeffs)
     phase, _ = _lambert_kernel(cos_alpha)
@@ -97,20 +73,7 @@ def _lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, pktable, points, coeffs)
 
 @njit(fastmath=True)
 def _lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, pktable, points, coeffs):
-    """Lambertian phase-curve flux contribution at an array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the flux contribution.
-    ag, a, k, tpa, p, dt, pktable, points, coeffs :
-        See :func:`_lambert_phase_curve_os`.
-
-    Returns
-    -------
-    flux : ndarray, shape (N,)
-        Reflected planet-to-star flux ratio at each input time.
-    """
+    """Vector kernel for :func:`lambert_phase_curve_o`. See that function for documentation."""
     n = times.size
     res = zeros(n)
     amplitude = k * k * ag / (a * a)
@@ -124,25 +87,7 @@ def _lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, pktable, points, coeffs
 @njit(fastmath=True, inline="always")
 def _lambert_and_emission_os(t, ag, fr_night, fr_day, emi_offset, a, k,
                              tpa, p, dt, pktable, points, coeffs):
-    """Lambertian reflection plus cosine-emission day/night model at scalar time.
-
-    Scalar counterpart of :func:`_lambert_and_emission_ov`. See that
-    function for the physical model.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the flux contributions.
-    ag, fr_night, fr_day, emi_offset, a, k, tpa, p, dt, pktable, points, coeffs :
-        See :func:`_lambert_and_emission_ov`.
-
-    Returns
-    -------
-    ref : float
-        Reflected-light flux ratio.
-    emi : float
-        Thermal-emission flux ratio.
-    """
+    """Scalar kernel for :func:`lambert_and_emission_o`. See that function for documentation."""
     k2 = k * k
     aref = k2 * ag / (a * a)
     cos_alpha = _cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs)
@@ -155,42 +100,7 @@ def _lambert_and_emission_os(t, ag, fr_night, fr_day, emi_offset, a, k,
 @njit(fastmath=True)
 def _lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
                             tpa, p, dt, pktable, points, coeffs):
-    """Lambertian reflection plus a simple cosine-emission day/night model.
-
-    Returns the reflected and thermal-emission flux ratios separately so
-    callers can combine them with their own bolometric weighting. The
-    emission model is a smoothly varying interpolation between night-side
-    and day-side levels driven by :math:`\\cos(\\alpha + \\delta)`, where
-    :math:`\\delta` is an optional offset that captures advection.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the flux contributions.
-    ag : float
-        Geometric albedo (reflected component).
-    fr_night : float
-        Night-side flux ratio (planet/star).
-    fr_day : float
-        Day-side flux ratio (planet/star).
-    emi_offset : float
-        Phase-angle offset of the emission peak [radians]. ``0`` puts
-        peak emission at superior conjunction; non-zero values shift it
-        to model day-to-night advection.
-    a : float
-        Scaled semi-major axis :math:`a/R_\\star`.
-    k : float
-        Planet-to-star radius ratio :math:`R_p/R_\\star`.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    ref : ndarray, shape (N,)
-        Reflected-light flux ratio at each input time.
-    emi : ndarray, shape (N,)
-        Thermal-emission flux ratio at each input time.
-    """
+    """Vector kernel for :func:`lambert_and_emission_o`. See that function for documentation."""
     n = times.size
     ref, emi = zeros(n), zeros(n)
     k2 = k * k
@@ -204,9 +114,36 @@ def _lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
 
 
 def lambert_phase_curve_o(t, ag, a, k, tpa, p, dt, pktable, points, coeffs):
-    """Lambertian phase-curve flux.
+    """Lambertian phase-curve flux contribution.
 
-    See :func:`_lambert_phase_curve_os` / :func:`_lambert_phase_curve_ov`.
+    Evaluates :math:`F(t) = (k/a)^2\\, A_g\\, f(\\alpha(t))` where
+    :math:`f` is the Lambert kernel and :math:`\\alpha(t)` is the
+    instantaneous phase angle. The result is the planet-to-star flux
+    ratio of reflected light at full phase scaled by the phase function.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_lambert_phase_curve_os`) or vector
+    (:func:`_lambert_phase_curve_ov`) kernel at compile time (inside
+    ``@njit``) or at call time (pure Python).
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the flux contribution.
+    ag : float
+        Geometric albedo.
+    a : float
+        Scaled semi-major axis :math:`a/R_\\star`.
+    k : float
+        Planet-to-star radius ratio :math:`R_p/R_\\star`.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    flux : float or ndarray
+        Reflected planet-to-star flux ratio. Arrays of shape (N,) for an
+        array time argument.
     """
     if isinstance(t, ndarray):
         return _lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, pktable, points, coeffs)
@@ -228,9 +165,48 @@ def _lambert_phase_curve_o_overload(t, ag, a, k, tpa, p, dt, pktable, points, co
 
 def lambert_and_emission_o(t, ag, fr_night, fr_day, emi_offset, a, k,
                            tpa, p, dt, pktable, points, coeffs):
-    """Lambertian reflection plus cosine-emission day/night flux.
+    """Lambertian reflection plus a simple cosine-emission day/night model.
 
-    See :func:`_lambert_and_emission_os` / :func:`_lambert_and_emission_ov`.
+    Returns the reflected and thermal-emission flux ratios separately so
+    callers can combine them with their own bolometric weighting. The
+    emission model is a smoothly varying interpolation between night-side
+    and day-side levels driven by :math:`\\cos(\\alpha + \\delta)`, where
+    :math:`\\delta` is an optional offset that captures advection.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_lambert_and_emission_os`) or vector
+    (:func:`_lambert_and_emission_ov`) kernel at compile time (inside
+    ``@njit``) or at call time (pure Python).
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the flux contributions.
+    ag : float
+        Geometric albedo (reflected component).
+    fr_night : float
+        Night-side flux ratio (planet/star).
+    fr_day : float
+        Day-side flux ratio (planet/star).
+    emi_offset : float
+        Phase-angle offset of the emission peak [radians]. ``0`` puts
+        peak emission at superior conjunction; non-zero values shift it
+        to model day-to-night advection.
+    a : float
+        Scaled semi-major axis :math:`a/R_\\star`.
+    k : float
+        Planet-to-star radius ratio :math:`R_p/R_\\star`.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`_pos_os`.
+
+    Returns
+    -------
+    ref : float or ndarray
+        Reflected-light flux ratio. Arrays of shape (N,) for an array time
+        argument.
+    emi : float or ndarray
+        Thermal-emission flux ratio. Arrays of shape (N,) for an array time
+        argument.
     """
     if isinstance(t, ndarray):
         return _lambert_and_emission_ov(t, ag, fr_night, fr_day, emi_offset, a, k,

@@ -26,22 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _vel_os(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet (vx, vy, vz) velocity at scalar time ``t`` for any orbital phase.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the velocity.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    vx, vy, vz : float
-        Velocity components in :math:`R_\\star/\\mathrm{day}`. ``vx``,
-        ``vy`` are the sky-plane components; ``vz`` is the line-of-sight
-        component (positive toward the observer).
-    """
+    """Scalar kernel for :func:`vel_o`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -50,20 +35,7 @@ def _vel_os(t, tpa, p, dt, pktable, points, coeffs):
 
 @njit(fastmath=True)
 def _vel_ov(times, tpa, p, dt, pktable, points, coeffs):
-    """Planet (vx, vy, vz) velocity at an array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the velocity.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    vxs, vys, vzs : ndarray, shape (N,)
-        Velocity component arrays in :math:`R_\\star/\\mathrm{day}`.
-    """
+    """Vector kernel for :func:`vel_o`. See that function for documentation."""
     npt = times.size
     vxs, vys, vzs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
@@ -72,7 +44,27 @@ def _vel_ov(times, tpa, p, dt, pktable, points, coeffs):
 
 
 def vel_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Planet (vx, vy, vz) velocity. See :func:`_vel_os` / :func:`_vel_ov`."""
+    """Planet (vx, vy, vz) velocity for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_vel_os`) or vector (:func:`_vel_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the velocity.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`pos_o`.
+
+    Returns
+    -------
+    vx, vy, vz : float or ndarray
+        Velocity components in :math:`R_\\star/\\mathrm{day}`. ``vx``,
+        ``vy`` are the sky-plane components; ``vz`` is the line-of-sight
+        component (positive toward the observer). Arrays of shape (N,) for
+        an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
     return _vel_os(t, tpa, p, dt, pktable, points, coeffs)

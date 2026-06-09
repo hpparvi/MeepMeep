@@ -66,30 +66,7 @@ def _lambert_kernel_d(cos_alpha):
 
 @njit(fastmath=True)
 def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Lambertian phase-curve flux and parameter derivatives at scalar time.
-
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, ag, k)`` — length 8.
-
-    Parameters
-    ----------
-    time : float
-        Time at which to evaluate the flux contribution and gradient.
-    ag : float
-        Geometric albedo.
-    a : float
-        Scaled semi-major axis :math:`a/R_\\star`.
-    k : float
-        Planet-to-star radius ratio :math:`R_p/R_\\star`.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    flux : float
-        Reflected planet-to-star flux ratio.
-    dflux : ndarray, shape (9,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, ag, k)``.
-    """
+    """Scalar kernel for :func:`lambert_phase_curve_od`. See that function for documentation."""
     amplitude = k * k * ag / (a * a)
     ca, dca = _cos_alpha_osd(time, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     phase, _, dphase_dc = _lambert_kernel_d(ca)
@@ -110,22 +87,7 @@ def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs
 
 @njit(fastmath=True)
 def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Lambertian phase-curve flux and parameter derivatives at array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the flux contribution and gradient.
-    ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_lambert_phase_curve_osd`.
-
-    Returns
-    -------
-    flux : ndarray, shape (N,)
-        Reflected planet-to-star flux ratio per time.
-    dflux : ndarray, shape (N, 9)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, ag, k)`` per time.
-    """
+    """Vector kernel for :func:`lambert_phase_curve_od`. See that function for documentation."""
     n = times.size
     flux = zeros(n)
     dflux = zeros((n, 9))
@@ -149,31 +111,7 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
 @njit(fastmath=True)
 def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
                               tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Lambertian reflection plus cosine-emission day/night model with derivatives at scalar time.
-
-    Scalar counterpart of :func:`_lambert_and_emission_ovd`. Derivative
-    ordering: ``(tc, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
-    — length 12.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the flux contributions and gradients.
-    ag, fr_night, fr_day, emi_offset, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_lambert_and_emission_ovd`.
-
-    Returns
-    -------
-    ref : float
-        Reflected (Lambertian) flux contribution.
-    emi : float
-        Thermal emission contribution.
-    dref : ndarray, shape (12,)
-        Gradient of ``ref`` w.r.t.
-        ``(tc, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
-    demi : ndarray, shape (12,)
-        Gradient of ``emi`` w.r.t. the same parameter block.
-    """
+    """Scalar kernel for :func:`lambert_and_emission_od`. See that function for documentation."""
     k2 = k * k
     inv_a2 = 1.0 / (a * a)
     aref = k2 * ag * inv_a2
@@ -223,42 +161,7 @@ def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
 @njit(fastmath=True)
 def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
                              tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Lambertian reflection plus cosine-emission day/night model with parameter derivatives.
-
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
-    — length 12.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the flux contributions and gradients.
-    ag : float
-        Geometric albedo (reflected component).
-    fr_night : float
-        Night-side flux ratio (planet/star).
-    fr_day : float
-        Day-side flux ratio (planet/star).
-    emi_offset : float
-        Phase-angle offset of the emission peak [radians].
-    a : float
-        Scaled semi-major axis :math:`a/R_\\star`.
-    k : float
-        Planet-to-star radius ratio :math:`R_p/R_\\star`.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    ref : ndarray, shape (N,)
-        Reflected (Lambertian) flux contribution per time.
-    emi : ndarray, shape (N,)
-        Thermal emission contribution per time.
-    dref : ndarray, shape (N, 12)
-        Gradient of ``ref`` w.r.t.
-        ``(tc, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
-    demi : ndarray, shape (N, 12)
-        Gradient of ``emi`` w.r.t. the same parameter block.
-    """
+    """Vector kernel for :func:`lambert_and_emission_od`. See that function for documentation."""
     n = times.size
     ref = zeros(n)
     emi = zeros(n)
@@ -324,7 +227,34 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
 def lambert_phase_curve_od(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian phase-curve flux with gradients.
 
-    See :func:`_lambert_phase_curve_osd` / :func:`_lambert_phase_curve_ovd`.
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    scalar (:func:`_lambert_phase_curve_osd`) or vector
+    (:func:`_lambert_phase_curve_ovd`) kernel at compile time (inside
+    ``@njit``) or at call time (pure Python).
+
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, ag, k)`` - length 9.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the flux contribution and gradient.
+    ag : float
+        Geometric albedo.
+    a : float
+        Scaled semi-major axis :math:`a/R_\\star`.
+    k : float
+        Planet-to-star radius ratio :math:`R_p/R_\\star`.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    flux : float or ndarray
+        Reflected planet-to-star flux ratio. Arrays of shape (N,) for an array
+        time argument.
+    dflux : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, ag, k)``. Shape (9,) for a
+        scalar time, (N, 9) for an array time.
     """
     if isinstance(t, ndarray):
         return _lambert_phase_curve_ovd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
@@ -348,7 +278,48 @@ def lambert_and_emission_od(t, ag, fr_night, fr_day, emi_offset, a, k,
                             tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian reflection plus emission with gradients.
 
-    See :func:`_lambert_and_emission_osd` / :func:`_lambert_and_emission_ovd`.
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    scalar (:func:`_lambert_and_emission_osd`) or vector
+    (:func:`_lambert_and_emission_ovd`) kernel at compile time (inside
+    ``@njit``) or at call time (pure Python).
+
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
+    - length 12.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the flux contributions and gradients.
+    ag : float
+        Geometric albedo (reflected component).
+    fr_night : float
+        Night-side flux ratio (planet/star).
+    fr_day : float
+        Day-side flux ratio (planet/star).
+    emi_offset : float
+        Phase-angle offset of the emission peak [radians].
+    a : float
+        Scaled semi-major axis :math:`a/R_\\star`.
+    k : float
+        Planet-to-star radius ratio :math:`R_p/R_\\star`.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    ref : float or ndarray
+        Reflected (Lambertian) flux contribution. Arrays of shape (N,) for an
+        array time argument.
+    emi : float or ndarray
+        Thermal emission contribution. Arrays of shape (N,) for an array time
+        argument.
+    dref : ndarray
+        Gradient of ``ref`` w.r.t.
+        ``(tc, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
+        Shape (12,) for a scalar time, (N, 12) for an array time.
+    demi : ndarray
+        Gradient of ``emi`` w.r.t. the same parameter block. Shape (12,) for a
+        scalar time, (N, 12) for an array time.
     """
     if isinstance(t, ndarray):
         return _lambert_and_emission_ovd(t, ag, fr_night, fr_day, emi_offset, a, k,

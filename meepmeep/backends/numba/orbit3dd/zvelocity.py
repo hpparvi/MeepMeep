@@ -26,25 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet z-velocity and orbital-parameter derivatives at scalar time.
-
-    Cheaper than :func:`_vel_osd` when only the line-of-sight component is
-    needed (e.g. for radial-velocity gradients).
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the z-velocity and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    vz : float
-        Line-of-sight velocity [:math:`R_\\star/\\mathrm{day}`].
-    dvz : ndarray, shape (7,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`zvel_od`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -53,22 +35,7 @@ def _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 @njit(fastmath=True)
 def _zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet z-velocity and orbital-parameter derivatives at array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the z-velocity and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    vzs : ndarray, shape (N,)
-        Line-of-sight velocities per time.
-    dvzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
+    """Vector kernel for :func:`zvel_od`. See that function for documentation."""
     n = times.size
     vzs = zeros(n)
     dvzs = zeros((n, 7))
@@ -81,7 +48,32 @@ def _zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 def zvel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet z-velocity with gradients. See :func:`_zvel_osd` / :func:`_zvel_ovd`."""
+    """Planet z-velocity and orbital-parameter derivatives for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_zvel_osd`) or vector (:func:`_zvel_ovd`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Cheaper than :func:`~meepmeep.backends.numba.orbit3dd.velocity.vel_od` when
+    only the line-of-sight component is needed (e.g. for radial-velocity
+    gradients).
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time at which to evaluate the z-velocity and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
+
+    Returns
+    -------
+    vz : float or ndarray
+        Line-of-sight velocity [:math:`R_\\star/\\mathrm{day}`]. Arrays of
+        shape (N,) for an array ``t``.
+    dvz : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
+        scalar ``t``, (N, 7) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _zvel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     return _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

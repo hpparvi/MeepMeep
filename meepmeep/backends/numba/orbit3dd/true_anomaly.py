@@ -38,35 +38,7 @@ from ._common import _is_1d_array
 
 @njit
 def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
-    """True anomaly and orbital-parameter derivatives at scalar time.
-
-    Scalar counterpart of :func:`_true_anomaly_ovd`. See that function for
-    the geometric derivation, the singular-configuration policy
-    (``df = 0`` at ``edp = +/-1``), and the circular-orbit fast path.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the true anomaly and gradient.
-    tpa : float
-        Periastron time.
-    p : float
-        Orbital period [days].
-    ex, ey, ez : float
-        Components of the eccentricity vector. ``(-1, 0, 0)`` triggers the
-        circular-orbit fast path.
-    w : float
-        Argument of periastron [radians]. Kept for signature parity.
-    dt, pktable, points, coeffs, dcoeffs :
-        Multi-knot dispatch arrays.
-
-    Returns
-    -------
-    f : float
-        True anomaly [radians], in :math:`[0, 2\\pi)`.
-    df : ndarray, shape (7,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`true_anomaly_od`. See that function for documentation."""
     df = zeros(7)
     nes = ex * ex + ey * ey + ez * ez
 
@@ -116,51 +88,7 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dco
 
 @njit
 def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
-    """True anomaly and its orbital-parameter derivatives at array of times.
-
-    Computed from the geometric angle between the planet position vector
-    and the eccentricity vector :math:`(e_x, e_y, e_z)`, with
-    :math:`r \\cdot v` resolving the two branches of :math:`\\arccos`.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the true anomaly and gradient.
-    tpa : float
-        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
-    p : float
-        Orbital period [days].
-    ex, ey, ez : float
-        Components of the eccentricity vector. ``(-1, 0, 0)`` is the
-        sentinel produced by
-        :func:`~meepmeep.backends.numba.utils.eccentricity_vector` for
-        near-circular orbits and triggers the closed-form fast path.
-    w : float
-        Argument of periastron [radians]. Kept for signature parity with
-        the base function; currently unused inside this routine because
-        the eccentricity vector is passed explicitly.
-    dt, pktable, points, coeffs, dcoeffs :
-        Multi-knot dispatch arrays from :func:`solve3d_orbit_d` /
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
-
-    Returns
-    -------
-    f : ndarray, shape (N,)
-        True anomaly per time [radians], in :math:`[0, 2\\pi)`.
-    df : ndarray, shape (N, 7)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)`` per time. The
-        ``ex, ey, ez, w`` inputs are treated as known constants — they
-        are functions of the orbital parameters but the dependency is
-        captured implicitly through the geometric chain rule on the
-        position vector.
-
-    Notes
-    -----
-    At the singular configurations ``edp = ±1`` (``edp`` = cosine of the
-    angle between position and eccentricity vector) the analytic gradient
-    diverges and is replaced by zero. The circular-orbit fast path uses
-    the mean-anomaly identity :math:`f = 2\\pi(t - t_\\mathrm{pa}) / p`.
-    """
+    """Vector kernel for :func:`true_anomaly_od`. See that function for documentation."""
     n = times.size
     f = zeros(n)
     df = zeros((n, 7))
@@ -229,7 +157,56 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
 
 
 def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
-    """True anomaly with gradients. See :func:`_true_anomaly_osd` / :func:`_true_anomaly_ovd`."""
+    """True anomaly and its orbital-parameter derivatives.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_true_anomaly_osd`) or vector (:func:`_true_anomaly_ovd`)
+    kernel at compile time (inside ``@njit``) or at call time (pure Python).
+
+    Computed from the geometric angle between the planet position vector
+    and the eccentricity vector :math:`(e_x, e_y, e_z)`, with
+    :math:`r \\cdot v` resolving the two branches of :math:`\\arccos`.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the true anomaly and gradient.
+    tpa : float
+        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
+    p : float
+        Orbital period [days].
+    ex, ey, ez : float
+        Components of the eccentricity vector. ``(-1, 0, 0)`` is the
+        sentinel produced by
+        :func:`~meepmeep.backends.numba.utils.eccentricity_vector` for
+        near-circular orbits and triggers the closed-form fast path.
+    w : float
+        Argument of periastron [radians]. Kept for signature parity with
+        the base function; currently unused inside this routine because
+        the eccentricity vector is passed explicitly.
+    dt, pktable, points, coeffs, dcoeffs :
+        Multi-knot dispatch arrays from :func:`solve3d_orbit_d` /
+        :func:`~meepmeep.backends.numba.knots.create_knots`.
+
+    Returns
+    -------
+    f : float or ndarray
+        True anomaly [radians], in :math:`[0, 2\\pi)`. Arrays of shape (N,)
+        for an array ``t``.
+    df : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
+        ``t``, (N, 7) for an array ``t``. The ``ex, ey, ez, w`` inputs are
+        treated as known constants - they are functions of the orbital
+        parameters but the dependency is captured implicitly through the
+        geometric chain rule on the position vector.
+
+    Notes
+    -----
+    At the singular configurations ``edp = +/-1`` (``edp`` = cosine of the
+    angle between position and eccentricity vector) the analytic gradient
+    diverges and is replaced by zero. The circular-orbit fast path uses
+    the mean-anomaly identity :math:`f = 2\\pi(t - t_\\mathrm{pa}) / p`.
+    """
     if isinstance(t, ndarray):
         return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
     return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)

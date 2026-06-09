@@ -26,11 +26,45 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet (x, y, z) position and orbital-parameter derivatives at scalar time.
+    """Scalar kernel for :func:`pos_od`. See that function for documentation."""
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    return pos_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+
+
+@njit(fastmath=True)
+def _pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Vector kernel for :func:`pos_od`. See that function for documentation."""
+    n = times.size
+    xs = zeros(n)
+    ys = zeros(n)
+    zs = zeros(n)
+    dxs = zeros((n, 7))
+    dys = zeros((n, 7))
+    dzs = zeros((n, 7))
+    for j in range(n):
+        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        xs[j] = x
+        ys[j] = y
+        zs[j] = z
+        for k in range(7):
+            dxs[j, k] = dx[k]
+            dys[j, k] = dy[k]
+            dzs[j, k] = dz[k]
+    return xs, ys, zs, dxs, dys, dzs
+
+
+def pos_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Planet (x, y, z) position and orbital-parameter derivatives for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_pos_osd`) or vector (:func:`_pos_ovd`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
 
     Parameters
     ----------
-    t : float
+    t : float or ndarray
         Time at which to evaluate the position and gradient.
     tpa : float
         Periastron time anchoring the knot grid. Note the convention
@@ -54,56 +88,13 @@ def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
     Returns
     -------
-    px, py, pz : float
+    px, py, pz : float or ndarray
         Sky-frame position components in units of the stellar radius.
-    dpx, dpy, dpz : ndarray, shape (7,)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``.
+        Arrays of shape (N,) for an array ``t``.
+    dpx, dpy, dpz : ndarray
+        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
+        scalar ``t``, (N, 7) for an array ``t``.
     """
-    epoch = floor((t - tpa) / p)
-    tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return pos_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
-
-
-@njit(fastmath=True)
-def _pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet (x, y, z) position and orbital-parameter derivatives at array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the position and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    xs, ys, zs : ndarray, shape (N,)
-        Position components per time.
-    dxs, dys, dzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
-    n = times.size
-    xs = zeros(n)
-    ys = zeros(n)
-    zs = zeros(n)
-    dxs = zeros((n, 7))
-    dys = zeros((n, 7))
-    dzs = zeros((n, 7))
-    for j in range(n):
-        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        xs[j] = x
-        ys[j] = y
-        zs[j] = z
-        for k in range(7):
-            dxs[j, k] = dx[k]
-            dys[j, k] = dy[k]
-            dzs[j, k] = dz[k]
-    return xs, ys, zs, dxs, dys, dzs
-
-
-def pos_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet (x, y, z) position with gradients. See :func:`_pos_osd` / :func:`_pos_ovd`."""
     if isinstance(t, ndarray):
         return _pos_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     return _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

@@ -26,28 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Cosine of the angle between planet position and a fixed reference vector at scalar time.
-
-    Scalar counterpart of :func:`_cos_v_p_angle_ovd`. The reference vector
-    ``v`` is treated as a constant; gradients are w.r.t. the seven orbital
-    parameters only.
-
-    Parameters
-    ----------
-    v : ndarray, shape (3,)
-        Fixed reference vector.
-    t : float
-        Time at which to evaluate the cosine and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    cs : float
-        Cosine of the angle.
-    dcs : ndarray, shape (7,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`cos_v_p_angle_od`. See that function for documentation."""
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     r2 = x * x + y * y + z * z
@@ -66,28 +45,7 @@ def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 @njit(fastmath=True)
 def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Cosine of the angle between planet position and a fixed reference vector ``v``.
-
-    The reference vector ``v`` is treated as a constant; gradients are
-    computed w.r.t. the seven orbital parameters only.
-
-    Parameters
-    ----------
-    v : ndarray, shape (3,)
-        Fixed reference vector. Need not be unit-norm; the cosine is
-        normalised internally.
-    times : ndarray, shape (N,)
-        Times at which to evaluate the cosine and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    cs : ndarray, shape (N,)
-        Cosine values per time.
-    dcs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
+    """Vector kernel for :func:`cos_v_p_angle_od`. See that function for documentation."""
     n = times.size
     cs = zeros(n)
     dcs = zeros((n, 7))
@@ -109,9 +67,32 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 def cos_v_p_angle_od(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Cosine of angle between planet position and fixed vector, with gradients.
+    """Cosine of the angle between planet position and a fixed reference vector ``v``, with gradients.
 
-    See :func:`_cos_v_p_angle_osd` / :func:`_cos_v_p_angle_ovd`.
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_cos_v_p_angle_osd`) or vector (:func:`_cos_v_p_angle_ovd`)
+    kernel at compile time (inside ``@njit``) or at call time (pure Python).
+
+    The reference vector ``v`` is treated as a constant; gradients are
+    computed w.r.t. the seven orbital parameters only.
+
+    Parameters
+    ----------
+    v : ndarray, shape (3,)
+        Fixed reference vector. Need not be unit-norm; the cosine is
+        normalised internally.
+    t : float or ndarray
+        Time(s) at which to evaluate the cosine and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    cs : float or ndarray
+        Cosine of the angle. Arrays of shape (N,) for an array ``t``.
+    dcs : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
+        ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
         return _cos_v_p_angle_ovd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

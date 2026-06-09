@@ -28,37 +28,7 @@ from ._common import _is_1d_array
 
 @njit
 def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
-    """True anomaly at scalar time.
-
-    Scalar counterpart of :func:`_true_anomaly_ov`. See that function for
-    the geometric definition, the sign convention from
-    :math:`\\mathbf{r}\\cdot\\mathbf{v}`, and the near-circular fast-path
-    sentinel.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the true anomaly.
-    tpa : float
-        Periastron time anchoring the knot grid.
-    p : float
-        Orbital period [days].
-    ex, ey, ez : float
-        Components of the eccentricity vector. ``(-1, 0, 0)`` triggers the
-        circular-orbit fast path (see :func:`_true_anomaly_ov`).
-    w : float
-        Argument of periastron [radians]. Kept for signature parity with
-        :func:`_true_anomaly_ov`; unused (the circular fast path collapses
-        to mean anomaly with ``w = 0``).
-    dt, pktable, points, coeffs :
-        Multi-knot dispatch arrays from :func:`solve3d_orbit` /
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
-
-    Returns
-    -------
-    f : float
-        True anomaly [radians], in :math:`[0, 2\\pi)`.
-    """
+    """Scalar kernel for :func:`true_anomaly_o`. See that function for documentation."""
     nes = ex * ex + ey * ey + ez * ez
 
     if ex <= -0.9999 and nes > 0.99:
@@ -89,46 +59,7 @@ def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
 
 @njit
 def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
-    """True anomaly at an array of times.
-
-    Computed from the angle between the planet position vector and the
-    eccentricity vector :math:`(e_x, e_y, e_z)`. The sign of
-    :math:`\\mathbf{r}\\cdot\\mathbf{v}` disambiguates the two branches of
-    :math:`\\arccos`.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the true anomaly.
-    tpa : float
-        Periastron time.
-    p : float
-        Orbital period [days].
-    ex, ey, ez : float
-        Components of the eccentricity vector pointing from the focus
-        toward periastron. ``(-1, 0, 0)`` is the sentinel that
-        :func:`~meepmeep.backends.numba.utils.eccentricity_vector`
-        returns for near-circular orbits and triggers the fast path.
-    w : float
-        Argument of periastron [radians]. Used only on the
-        circular-orbit fast path, where the true anomaly is
-        approximated by the mean anomaly.
-    dt, pktable, points, coeffs :
-        Multi-knot dispatch arrays from :func:`solve3d_orbit` /
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
-
-    Returns
-    -------
-    f : ndarray, shape (N,)
-        True anomaly at each input time [radians], in :math:`[0, 2\\pi)`.
-
-    Notes
-    -----
-    The circular-orbit fast path skips the geometric chain to avoid
-    division by a near-zero :math:`|\\mathbf{e}|`. ``utils.eccentricity_vector``
-    emits the ``(-1, 0, 0)`` sentinel when ``e < 1e-5``, and the test
-    here matches that sentinel.
-    """
+    """Vector kernel for :func:`true_anomaly_o`. See that function for documentation."""
     npt = times.size
     f = zeros(npt)
     nes = ex * ex + ey * ey + ez * ez
@@ -159,7 +90,50 @@ def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
 
 
 def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
-    """True anomaly. See :func:`_true_anomaly_os` / :func:`_true_anomaly_ov`."""
+    """True anomaly at an array of times.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_true_anomaly_os`) or vector (:func:`_true_anomaly_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Computed from the angle between the planet position vector and the
+    eccentricity vector :math:`(e_x, e_y, e_z)`. The sign of
+    :math:`\\mathbf{r}\\cdot\\mathbf{v}` disambiguates the two branches of
+    :math:`\\arccos`.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the true anomaly.
+    tpa : float
+        Periastron time.
+    p : float
+        Orbital period [days].
+    ex, ey, ez : float
+        Components of the eccentricity vector pointing from the focus
+        toward periastron. ``(-1, 0, 0)`` is the sentinel that
+        :func:`~meepmeep.backends.numba.utils.eccentricity_vector`
+        returns for near-circular orbits and triggers the fast path.
+    w : float
+        Argument of periastron [radians]. Used only on the
+        circular-orbit fast path, where the true anomaly is
+        approximated by the mean anomaly.
+    dt, pktable, points, coeffs :
+        Multi-knot dispatch arrays from :func:`solve3d_orbit` /
+        :func:`~meepmeep.backends.numba.knots.create_knots`.
+
+    Returns
+    -------
+    f : float or ndarray
+        True anomaly at each input time [radians], in :math:`[0, 2\\pi)`. Arrays of shape (N,) for an array ``t``.
+
+    Notes
+    -----
+    The circular-orbit fast path skips the geometric chain to avoid
+    division by a near-zero :math:`|\\mathbf{e}|`. ``utils.eccentricity_vector``
+    emits the ``(-1, 0, 0)`` sentinel when ``e < 1e-5``, and the test
+    here matches that sentinel.
+    """
     if isinstance(t, ndarray):
         return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
     return _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)

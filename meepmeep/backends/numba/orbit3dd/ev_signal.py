@@ -26,31 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Ellipsoidal variation signal and derivatives at scalar time.
-
-    Scalar counterpart of :func:`_ev_signal_ovd`. Derivative ordering:
-    ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` — length 10.
-
-    Parameters
-    ----------
-    alpha : float
-        Gravity-darkening coefficient.
-    mass_ratio : float
-        Planet-to-star mass ratio.
-    inc : float
-        Orbital inclination [radians], independent of the orbital ``i`` axis.
-    t : float
-        Time at which to evaluate the signal and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    out : float
-        Ellipsoidal variation signal.
-    dout : ndarray, shape (10,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)``.
-    """
+    """Scalar kernel for :func:`ev_signal_od`. See that function for documentation."""
     sin_inc = sin(inc)
     cos_inc = cos(inc)
     sin2_inc = sin_inc * sin_inc
@@ -80,40 +56,7 @@ def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeff
 
 @njit(fastmath=True)
 def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Ellipsoidal variation signal and parameter derivatives.
-
-    Implements
-    :math:`S = -\\alpha\\,q\\,\\sin^2 i\\,(2 c_z^2 - 1) / d^3`
-    where :math:`c_z = z/d` and :math:`d = \\sqrt{x^2 + y^2 + z^2}`. The
-    function-local ``inc`` parameter is independent of the orbital
-    inclination ``i`` — callers that share them should sum the two
-    derivative slots.
-
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` —
-    length 10.
-
-    Parameters
-    ----------
-    alpha : float
-        Gravity-darkening coefficient (Lillo-Box et al. 2014, Eq. 7).
-    mass_ratio : float
-        Planet-to-star mass ratio :math:`M_p / M_\\star`.
-    inc : float
-        Orbital inclination [radians]. Treated as a function-local input
-        independent of the orbital ``i`` axis of the gradient.
-    times : ndarray, shape (N,)
-        Times at which to evaluate the signal and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    out : ndarray, shape (N,)
-        Ellipsoidal variation signal per time.
-    dout : ndarray, shape (N, 10)
-        Gradient w.r.t.
-        ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` per time.
-    """
+    """Vector kernel for :func:`ev_signal_od`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     dout = zeros((n, 10))
@@ -161,8 +104,44 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
 def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Ellipsoidal variation signal with gradients.
 
-    Time argument is the 4th positional. See :func:`_ev_signal_osd` /
-    :func:`_ev_signal_ovd`.
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    scalar (:func:`_ev_signal_osd`) or vector (:func:`_ev_signal_ovd`) kernel
+    at compile time (inside ``@njit``) or at call time (pure Python).
+
+    Implements
+    :math:`S = -\\alpha\\,q\\,\\sin^2 i\\,(2 c_z^2 - 1) / d^3`
+    where :math:`c_z = z/d` and :math:`d = \\sqrt{x^2 + y^2 + z^2}`. The
+    function-local ``inc`` parameter is independent of the orbital
+    inclination ``i`` - callers that share them should sum the two
+    derivative slots.
+
+    Time argument is the 4th positional.
+
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` -
+    length 10.
+
+    Parameters
+    ----------
+    alpha : float
+        Gravity-darkening coefficient (Lillo-Box et al. 2014, Eq. 7).
+    mass_ratio : float
+        Planet-to-star mass ratio :math:`M_p / M_\\star`.
+    inc : float
+        Orbital inclination [radians]. Treated as a function-local input
+        independent of the orbital ``i`` axis of the gradient.
+    t : float or ndarray
+        Time(s) at which to evaluate the signal and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`_pos_osd`.
+
+    Returns
+    -------
+    out : float or ndarray
+        Ellipsoidal variation signal. Arrays of shape (N,) for an array time
+        argument.
+    dout : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)``.
+        Shape (10,) for a scalar time, (N, 10) for an array time.
     """
     if isinstance(t, ndarray):
         return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

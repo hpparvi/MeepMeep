@@ -26,48 +26,14 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs):
-    """Cosine of the phase angle at scalar time ``t``.
-
-    The phase angle :math:`\\alpha` is the star-planet-observer angle.
-    With z positive toward the observer, :math:`\\cos\\alpha = -z/r` where
-    :math:`r = \\sqrt{x^2 + y^2 + z^2}`. At superior conjunction (full
-    phase, planet behind star) :math:`\\cos\\alpha = +1`; at inferior
-    conjunction (new phase, planet in front) :math:`\\cos\\alpha = -1`.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the phase angle.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    cos_alpha : float
-        Cosine of the phase angle, in :math:`[-1, 1]`.
-    """
+    """Scalar kernel for :func:`cos_alpha_o`. See that function for documentation."""
     x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
     return -z / sqrt(x * x + y * y + z * z)
 
 
 @njit(fastmath=True)
 def _cos_alpha_ov(times, tpa, p, dt, pktable, points, coeffs):
-    """Cosine of the phase angle at an array of times.
-
-    See :func:`_cos_alpha_os` for the sign and reference conventions.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the phase angle.
-    tpa, p, dt, pktable, points, coeffs :
-        See :func:`_pos_os`.
-
-    Returns
-    -------
-    cos_alpha : ndarray, shape (N,)
-        Cosine of the phase angle at each input time.
-    """
+    """Vector kernel for :func:`cos_alpha_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     for i in range(n):
@@ -77,7 +43,31 @@ def _cos_alpha_ov(times, tpa, p, dt, pktable, points, coeffs):
 
 
 def cos_alpha_o(t, tpa, p, dt, pktable, points, coeffs):
-    """Cosine of the phase angle. See :func:`_cos_alpha_os` / :func:`_cos_alpha_ov`."""
+    """Cosine of the phase angle for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_cos_alpha_os`) or vector (:func:`_cos_alpha_ov`) kernel at
+    compile time (inside ``@njit``) or at call time (pure Python).
+
+    The phase angle :math:`\\alpha` is the star-planet-observer angle.
+    With z positive toward the observer, :math:`\\cos\\alpha = -z/r` where
+    :math:`r = \\sqrt{x^2 + y^2 + z^2}`. At superior conjunction (full
+    phase, planet behind star) :math:`\\cos\\alpha = +1`; at inferior
+    conjunction (new phase, planet in front) :math:`\\cos\\alpha = -1`.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the phase angle.
+    tpa, p, dt, pktable, points, coeffs :
+        See :func:`pos_o`.
+
+    Returns
+    -------
+    cos_alpha : float or ndarray
+        Cosine of the phase angle, in :math:`[-1, 1]`.
+        Arrays of shape (N,) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _cos_alpha_ov(t, tpa, p, dt, pktable, points, coeffs)
     return _cos_alpha_os(t, tpa, p, dt, pktable, points, coeffs)

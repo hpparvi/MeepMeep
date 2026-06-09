@@ -26,34 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Cosine of the phase angle and orbital-parameter derivatives at scalar time.
-
-    With :math:`\\cos\\alpha = -z/r` and :math:`r = \\sqrt{x^2+y^2+z^2}`, the
-    gradient is
-
-    .. math::
-
-        \\frac{\\partial(-z/r)}{\\partial \\theta_k}
-            = -\\frac{1}{r}\\frac{\\partial z}{\\partial \\theta_k}
-              + \\frac{z}{r^3}\\,
-                \\Bigl(x\\,\\tfrac{\\partial x}{\\partial \\theta_k}
-                       + y\\,\\tfrac{\\partial y}{\\partial \\theta_k}
-                       + z\\,\\tfrac{\\partial z}{\\partial \\theta_k}\\Bigr).
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the phase-angle cosine and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    ca : float
-        Cosine of the phase angle.
-    dca : ndarray, shape (7,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`cos_alpha_od`. See that function for documentation."""
     x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     r2 = x * x + y * y + z * z
     r = sqrt(r2)
@@ -69,24 +42,7 @@ def _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 @njit(fastmath=True)
 def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Cosine of the phase angle and orbital-parameter derivatives at array of times.
-
-    See :func:`_cos_alpha_osd` for the gradient formula.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the phase-angle cosine and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    cas : ndarray, shape (N,)
-        Cosine of the phase angle per time.
-    dcas : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
+    """Vector kernel for :func:`cos_alpha_od`. See that function for documentation."""
     n = times.size
     cas = zeros(n)
     dcas = zeros((n, 7))
@@ -99,7 +55,39 @@ def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 def cos_alpha_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Cosine of phase angle with gradients. See :func:`_cos_alpha_osd` / :func:`_cos_alpha_ovd`."""
+    """Cosine of the phase angle and orbital-parameter derivatives for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_cos_alpha_osd`) or vector (:func:`_cos_alpha_ovd`) kernel at
+    compile time (inside ``@njit``) or at call time (pure Python).
+
+    With :math:`\\cos\\alpha = -z/r` and :math:`r = \\sqrt{x^2+y^2+z^2}`, the
+    gradient is
+
+    .. math::
+
+        \\frac{\\partial(-z/r)}{\\partial \\theta_k}
+            = -\\frac{1}{r}\\frac{\\partial z}{\\partial \\theta_k}
+              + \\frac{z}{r^3}\\,
+                \\Bigl(x\\,\\tfrac{\\partial x}{\\partial \\theta_k}
+                       + y\\,\\tfrac{\\partial y}{\\partial \\theta_k}
+                       + z\\,\\tfrac{\\partial z}{\\partial \\theta_k}\\Bigr).
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time at which to evaluate the phase-angle cosine and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
+
+    Returns
+    -------
+    ca : float or ndarray
+        Cosine of the phase angle. Arrays of shape (N,) for an array ``t``.
+    dca : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
+        scalar ``t``, (N, 7) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _cos_alpha_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     return _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

@@ -26,41 +26,28 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True, inline="always")
 def _rv_os(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
-    """Radial velocity at scalar time (Perryman 2018, Eq. 2.23).
-
-    Scalar counterpart of :func:`_rv_ov`.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the radial velocity.
-    k : float
-        Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
-    tpa : float
-        Periastron time.
-    p : float
-        Orbital period [days].
-    a : float
-        Scaled semi-major axis :math:`a/R_\\star`.
-    i : float
-        Inclination [radians].
-    e : float
-        Eccentricity.
-    dt, pktable, points, coeffs :
-        Multi-knot dispatch arrays.
-
-    Returns
-    -------
-    rv : float
-        Radial velocity [m s\\ :sup:`-1`].
-    """
+    """Scalar kernel for :func:`rv_o`. See that function for documentation."""
     scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
     return _zvel_os(t, tpa, p, dt, pktable, points, coeffs) * scale
 
 
 @njit(fastmath=True)
 def _rv_ov(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+    """Vector kernel for :func:`rv_o`. See that function for documentation."""
+    n = times.size
+    rvs = zeros(n)
+    scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
+    for j in range(n):
+        rvs[j] = _zvel_os(times[j], tpa, p, dt, pktable, points, coeffs) * scale
+    return rvs
+
+
+def rv_o(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
     """Radial velocity at an array of times (Perryman 2018, Eq. 2.23).
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_rv_os`) or vector (:func:`_rv_ov`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
 
     Converts the internal line-of-sight velocity (in
     :math:`R_\\star/\\mathrm{day}`) to an observed radial velocity by
@@ -69,8 +56,8 @@ def _rv_ov(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
 
     Parameters
     ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the radial velocity.
+    t : float or ndarray
+        Time(s) at which to evaluate the radial velocity.
     k : float
         Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
     tpa : float
@@ -89,19 +76,9 @@ def _rv_ov(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
 
     Returns
     -------
-    rvs : ndarray, shape (N,)
-        Radial velocity at each input time [m s\\ :sup:`-1`].
+    rv : float or ndarray
+        Radial velocity [m s\\ :sup:`-1`]. Arrays of shape (N,) for an array ``t``.
     """
-    n = times.size
-    rvs = zeros(n)
-    scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
-    for j in range(n):
-        rvs[j] = _zvel_os(times[j], tpa, p, dt, pktable, points, coeffs) * scale
-    return rvs
-
-
-def rv_o(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
-    """Radial velocity. See :func:`_rv_os` / :func:`_rv_ov`."""
     if isinstance(t, ndarray):
         return _rv_ov(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
     return _rv_os(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)

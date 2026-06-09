@@ -26,25 +26,7 @@ from ._common import _is_1d_array
 
 @njit(fastmath=True)
 def _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet z-position and orbital-parameter derivatives at scalar time.
-
-    Cheaper than :func:`_pos_osd` when only the line-of-sight coordinate
-    and its gradient are needed.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the z-coordinate and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    pz : float
-        Line-of-sight planet coordinate [stellar radii].
-    dpz : ndarray, shape (7,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`zpos_od`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
@@ -53,22 +35,7 @@ def _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 @njit(fastmath=True)
 def _zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet z-position and orbital-parameter derivatives at array of times.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the z-coordinate and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    zs : ndarray, shape (N,)
-        Line-of-sight coordinates per time.
-    dzs : ndarray, shape (N, 7)
-        Gradients w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
+    """Vector kernel for :func:`zpos_od`. See that function for documentation."""
     n = times.size
     zs = zeros(n)
     dzs = zeros((n, 7))
@@ -81,7 +48,31 @@ def _zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 def zpos_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Planet z-position with gradients. See :func:`_zpos_osd` / :func:`_zpos_ovd`."""
+    """Planet z-position and orbital-parameter derivatives for any orbital phase.
+
+    Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
+    scalar (:func:`_zpos_osd`) or vector (:func:`_zpos_ovd`) kernel at compile time
+    (inside ``@njit``) or at call time (pure Python).
+
+    Cheaper than :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od` when
+    only the line-of-sight coordinate and its gradient are needed.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time at which to evaluate the z-coordinate and gradient.
+    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+        See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
+
+    Returns
+    -------
+    pz : float or ndarray
+        Line-of-sight planet coordinate [stellar radii]. Arrays of shape
+        (N,) for an array ``t``.
+    dpz : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
+        scalar ``t``, (N, 7) for an array ``t``.
+    """
     if isinstance(t, ndarray):
         return _zpos_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     return _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)

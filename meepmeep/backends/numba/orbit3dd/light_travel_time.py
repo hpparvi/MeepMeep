@@ -122,47 +122,7 @@ def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
 
 @njit(fastmath=True)
 def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
-    """Light travel time correction and orbital-parameter derivatives at scalar time.
-
-    The correction is referenced to primary transit:
-
-    .. math::
-
-        \\mathrm{ltt}(t) = -(z(t) - z(t_\\mathrm{transit}))\\,r_\\star\\,(R_\\odot / c)
-
-    where :math:`t_\\mathrm{transit} = t_\\mathrm{pa} + M_\\mathrm{tr}(e, w)\\,p/(2\\pi)`.
-
-    Per spec, the partial derivative w.r.t. ``rstar`` is *not* returned —
-    only the seven orbital derivatives in the canonical
-    ``(tc, p, a, i, e, w, lan)`` order. The reference ``z(t_transit)`` and
-    its parameter derivatives are computed by :func:`_ltt_transit_z_and_d`,
-    which includes the chain rule through ``t_transit(p, e, w)`` using
-    ``vz(t_transit)``.
-
-    Parameters
-    ----------
-    t : float
-        Time at which to evaluate the correction and gradient.
-    tpa : float
-        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
-    p : float
-        Orbital period [days].
-    e : float
-        Eccentricity.
-    w : float
-        Argument of periastron [radians].
-    rstar : float
-        Stellar radius [R_sun].
-    dt, pktable, points, coeffs, dcoeffs :
-        Multi-knot dispatch arrays.
-
-    Returns
-    -------
-    ltt : float
-        Light travel time correction [days].
-    dltt : ndarray, shape (7,)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``.
-    """
+    """Scalar kernel for :func:`light_travel_time_od`. See that function for documentation."""
     z_t, dz_t = _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
     z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
@@ -175,26 +135,7 @@ def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, 
 
 @njit(fastmath=True)
 def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
-    """Light travel time correction and orbital-parameter derivatives at array of times.
-
-    Vectorised version of :func:`_light_travel_time_osd`. Caches the
-    transit-time reference (``z_tr`` and its gradient) once outside the
-    loop and reuses it for every input time.
-
-    Parameters
-    ----------
-    times : ndarray, shape (N,)
-        Times at which to evaluate the correction and gradient.
-    tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_light_travel_time_osd`.
-
-    Returns
-    -------
-    ltt : ndarray, shape (N,)
-        Light travel time corrections [days].
-    dltt : ndarray, shape (N, 7)
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)`` per time.
-    """
+    """Vector kernel for :func:`light_travel_time_od`. See that function for documentation."""
     n = times.size
     ltt = zeros(n)
     dltt = zeros((n, 7))
@@ -212,7 +153,51 @@ def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coef
 def light_travel_time_od(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
     """Light travel time correction with gradients.
 
-    See :func:`_light_travel_time_osd` / :func:`_light_travel_time_ovd`.
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    scalar (:func:`_light_travel_time_osd`) or vector
+    (:func:`_light_travel_time_ovd`) kernel at compile time (inside ``@njit``)
+    or at call time (pure Python).
+
+    The correction is referenced to primary transit:
+
+    .. math::
+
+        \\mathrm{ltt}(t) = -(z(t) - z(t_\\mathrm{transit}))\\,r_\\star\\,(R_\\odot / c)
+
+    where :math:`t_\\mathrm{transit} = t_\\mathrm{pa} + M_\\mathrm{tr}(e, w)\\,p/(2\\pi)`.
+
+    Per spec, the partial derivative w.r.t. ``rstar`` is *not* returned -
+    only the seven orbital derivatives in the canonical
+    ``(tc, p, a, i, e, w, lan)`` order. The reference ``z(t_transit)`` and
+    its parameter derivatives are computed by :func:`_ltt_transit_z_and_d`,
+    which includes the chain rule through ``t_transit(p, e, w)`` using
+    ``vz(t_transit)``.
+
+    Parameters
+    ----------
+    t : float or ndarray
+        Time(s) at which to evaluate the correction and gradient.
+    tpa : float
+        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
+    p : float
+        Orbital period [days].
+    e : float
+        Eccentricity.
+    w : float
+        Argument of periastron [radians].
+    rstar : float
+        Stellar radius [R_sun].
+    dt, pktable, points, coeffs, dcoeffs :
+        Multi-knot dispatch arrays.
+
+    Returns
+    -------
+    ltt : float or ndarray
+        Light travel time correction [days]. Arrays of shape (N,) for an array
+        time argument.
+    dltt : ndarray
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
+        time, (N, 7) for an array time.
     """
     if isinstance(t, ndarray):
         return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
