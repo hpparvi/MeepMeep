@@ -16,16 +16,51 @@
 
 """Single-knot stellar radial-velocity evaluators with parameter derivatives."""
 
-from numba import njit
-from numpy import floor, sqrt, sin, cos, pi, zeros
+from numba import njit, types
+from numba.extending import overload
+from numpy import floor, sqrt, sin, cos, pi, zeros, ndarray
 from numpy.typing import NDArray
 
-from .zvelocity import zvel_cd
+from ._common import _is_1d_array
+from .zvelocity import _zvel_cd_s
 
 
 @njit(fastmath=True)
+def _rv_cd_s(time, k, p, a, i, e, c, dc):
+    """Scalar kernel for :func:`rv_cd`. See that function for documentation."""
+    n = 2.0 * pi / p * (a * sin(i)) / sqrt(1.0 - e ** 2)
+    s = k / n
+
+    vz, dvz = _zvel_cd_s(time, c, dc)
+    rv_val = s * vz
+
+    # ds/dtheta for each parameter: tc, p, a, i, e, w, lan
+    drv = zeros(7)
+    ds = zeros(7)
+    ds[1] = s / p       # ds/dp
+    ds[2] = -s / a      # ds/da
+    ds[3] = -s * cos(i) / sin(i)  # ds/di
+    ds[4] = -s * e / (1.0 - e ** 2)  # ds/de
+
+    for j in range(7):
+        drv[j] = s * dvz[j] + vz * ds[j]
+
+    return rv_val, drv
+
+
+@njit(fastmath=True)
+def _rv_cd_v(time, k, p, a, i, e, c, dc):
+    """Vector kernel for :func:`rv_cd`. See that function for documentation."""
+    nt = time.size
+    rv_val = zeros(nt)
+    drv = zeros((nt, 7))
+    for j in range(nt):
+        rv_val[j], drv[j] = _rv_cd_s(time[j], k, p, a, i, e, c, dc)
+    return rv_val, drv
+
+
 def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: float,
-          c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+          c: NDArray, dc: NDArray):
     """
     Evaluate the stellar radial velocity and its parameter derivatives at a knot-centered time.
 
@@ -35,10 +70,14 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
     chain rule is propagated to give the seven partial derivatives of
     the radial velocity with respect to the orbital parameters.
 
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python), mirroring the value-only `radial_velocity.rv_c`.
+
     Parameters
     ----------
-    time : float or NDArray
-        Time relative to the Taylor series expansion point.
+    time : float or ndarray
+        Time(s) relative to the Taylor series expansion point.
     k : float
         Radial-velocity semi-amplitude of the star, in physical
         velocity units (e.g. m/s). The function output inherits these
@@ -61,12 +100,13 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
 
     Returns
     -------
-    rv : float or NDArray
+    rv : float or ndarray
         Stellar radial velocity in the same units as `k`. Positive
-        when the planet is moving toward the observer.
+        when the planet is moving toward the observer. Shape (N,) for an
+        array `time`.
     drv : NDArray
-        Shape (7,) partial derivatives of `rv` with respect to
-        `(tc, p, a, i, e, w, lan)`.
+        Partial derivatives of `rv` with respect to `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
 
     Notes
     -----
@@ -78,38 +118,57 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
     `ds/dp = s/p`, `ds/da = -s/a`, `ds/di = -s*cot(i)`, and
     `ds/de = -s*e/(1 - e^2)`.
     """
-    n = 2.0 * pi / p * (a * sin(i)) / sqrt(1.0 - e ** 2)
-    s = k / n
+    if isinstance(time, ndarray):
+        return _rv_cd_v(time, k, p, a, i, e, c, dc)
+    return _rv_cd_s(time, k, p, a, i, e, c, dc)
 
-    vz, dvz = zvel_cd(time, c, dc)
-    rv_val = s * vz
 
-    # ds/dtheta for each parameter: tc, p, a, i, e, w, lan
-    drv = zeros(7)
-    ds = zeros(7)
-    ds[1] = s / p       # ds/dp
-    ds[2] = -s / a      # ds/da
-    ds[3] = -s * cos(i) / sin(i)  # ds/di
-    ds[4] = -s * e / (1.0 - e ** 2)  # ds/de
-
-    for j in range(7):
-        drv[j] = s * dvz[j] + vz * ds[j]
-
-    return rv_val, drv
+@overload(rv_cd, jit_options={'fastmath': True})
+def _rv_cd_overload(time, k, p, a, i, e, c, dc):
+    if _is_1d_array(time):
+        def impl(time, k, p, a, i, e, c, dc):
+            return _rv_cd_v(time, k, p, a, i, e, c, dc)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, k, p, a, i, e, c, dc):
+            return _rv_cd_s(time, k, p, a, i, e, c, dc)
+        return impl
+    return None
 
 
 @njit(fastmath=True)
+def _rv_d_s(time, k, tk, p, a, i, e, c, dc):
+    """Scalar kernel for :func:`rv_d`. See that function for documentation."""
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return _rv_cd_s(time - (tk + epoch * p), k, p, a, i, e, c, dc)
+
+
+@njit(fastmath=True)
+def _rv_d_v(time, k, tk, p, a, i, e, c, dc):
+    """Vector kernel for :func:`rv_d`. See that function for documentation."""
+    nt = time.size
+    rv_val = zeros(nt)
+    drv = zeros((nt, 7))
+    for j in range(nt):
+        rv_val[j], drv[j] = _rv_d_s(time[j], k, tk, p, a, i, e, c, dc)
+    return rv_val, drv
+
+
 def rv_d(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float, e: float,
-         c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+         c: NDArray, dc: NDArray):
     """
     Evaluate the stellar radial velocity and its parameter derivatives at an absolute time.
 
     Direct counterpart of `rv_cd`: epoch-folds the absolute time
     `time` around the expansion point `tk` and delegates to `rv_cd`.
 
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python), mirroring the value-only `radial_velocity.rv`.
+
     Parameters
     ----------
-    time : float or NDArray
+    time : float or ndarray
         Absolute observation time(s) in the same units as `tk` and `p`.
     k : float
         Radial-velocity semi-amplitude of the star, in physical
@@ -133,11 +192,26 @@ def rv_d(time: float | NDArray, k: float, tk: float, p: float, a: float, i: floa
 
     Returns
     -------
-    rv : float or NDArray
-        Stellar radial velocity in the same units as `k`.
+    rv : float or ndarray
+        Stellar radial velocity in the same units as `k`. Shape (N,) for
+        an array `time`.
     drv : NDArray
-        Shape (7,) partial derivatives of `rv` with respect to
-        `(tc, p, a, i, e, w, lan)`.
+        Partial derivatives of `rv` with respect to `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return rv_cd(time - (tk + epoch * p), k, p, a, i, e, c, dc)
+    if isinstance(time, ndarray):
+        return _rv_d_v(time, k, tk, p, a, i, e, c, dc)
+    return _rv_d_s(time, k, tk, p, a, i, e, c, dc)
+
+
+@overload(rv_d, jit_options={'fastmath': True})
+def _rv_d_overload(time, k, tk, p, a, i, e, c, dc):
+    if _is_1d_array(time):
+        def impl(time, k, tk, p, a, i, e, c, dc):
+            return _rv_d_v(time, k, tk, p, a, i, e, c, dc)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, k, tk, p, a, i, e, c, dc):
+            return _rv_d_s(time, k, tk, p, a, i, e, c, dc)
+        return impl
+    return None

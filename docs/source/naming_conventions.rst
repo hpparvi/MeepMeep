@@ -134,10 +134,10 @@ length ``N`` yields results with a leading ``N`` axis (e.g. ``sep_d`` returns
 one used by the high-level ``Knot2D`` properties.
 
 Internally each dispatcher routes to a private kernel with the explicit
-``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``_pos_cd_v``
-in the ``point2dd/`` package. Reach for those private kernels only when you need
-to avoid the dispatcher's type check (rarely useful) or when contributing to
-MeepMeep itself.
+``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``_pos_cd_v``,
+present in both the ``point2dd/`` and ``point3dd/`` packages. Reach for those
+private kernels only when you need to avoid the dispatcher's type check (rarely
+useful) or when contributing to MeepMeep itself.
 
 
 Multi-knot dispatcher suffix

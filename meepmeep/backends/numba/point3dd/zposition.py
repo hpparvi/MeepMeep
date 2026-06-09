@@ -16,13 +16,36 @@
 
 """Single-knot 3D line-of-sight (z) position evaluators with parameter derivatives."""
 
-from numba import njit
-from numpy import floor, zeros
+from numba import njit, types
+from numba.extending import overload
+from numpy import floor, zeros, ndarray
 from numpy.typing import NDArray
+
+from ._common import _is_1d_array
 
 
 @njit(fastmath=True)
-def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+def _zpos_cd_s(time, c, dc):
+    """Scalar kernel for :func:`zpos_cd`. See that function for documentation."""
+    pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
+    dpz = zeros(7)
+    for k in range(7):
+        dpz[k] = dc[k, 2, 0] + time * (dc[k, 2, 1] + time * (dc[k, 2, 2] + time * (dc[k, 2, 3] + time * dc[k, 2, 4])))
+    return pz, dpz
+
+
+@njit(fastmath=True)
+def _zpos_cd_v(time, c, dc):
+    """Vector kernel for :func:`zpos_cd`. See that function for documentation."""
+    n = time.size
+    pz = zeros(n)
+    dpz = zeros((n, 7))
+    for j in range(n):
+        pz[j], dpz[j] = _zpos_cd_s(time[j], c, dc)
+    return pz, dpz
+
+
+def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
     Evaluate the line-of-sight z position and its parameter derivatives at a knot-centered time.
 
@@ -32,10 +55,14 @@ def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
     polynomials are evaluated; the x and y rows of `c` and `dc` are not
     read.
 
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python), mirroring the value-only `position.zpos_c`.
+
     Parameters
     ----------
-    time : float or NDArray
-        Time relative to the Taylor series expansion point.
+    time : float or ndarray
+        Time(s) relative to the Taylor series expansion point.
     c : NDArray
         A (3, 5) Taylor coefficient matrix produced by `solve3d`. Only
         row 2 (the z-direction coefficients) is read.
@@ -46,32 +73,64 @@ def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
 
     Returns
     -------
-    pz : float or NDArray
+    pz : float or ndarray
         Line-of-sight z position in units of stellar radii. Positive
-        values point toward the observer.
+        values point toward the observer. Shape (N,) for an array `time`.
     dpz : NDArray
-        Shape (7,) partial derivatives of `pz` with respect to
-        `(tc, p, a, i, e, w, lan)`.
+        Partial derivatives of `pz` with respect to `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
-    pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
-    dpz = zeros(7)
-    for k in range(7):
-        dpz[k] = dc[k, 2, 0] + time * (dc[k, 2, 1] + time * (dc[k, 2, 2] + time * (dc[k, 2, 3] + time * dc[k, 2, 4])))
-    return pz, dpz
+    if isinstance(time, ndarray):
+        return _zpos_cd_v(time, c, dc)
+    return _zpos_cd_s(time, c, dc)
+
+
+@overload(zpos_cd, jit_options={'fastmath': True})
+def _zpos_cd_overload(time, c, dc):
+    if _is_1d_array(time):
+        def impl(time, c, dc):
+            return _zpos_cd_v(time, c, dc)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, c, dc):
+            return _zpos_cd_s(time, c, dc)
+        return impl
+    return None
 
 
 @njit(fastmath=True)
-def zpos_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+def _zpos_d_s(time, tk, p, c, dc):
+    """Scalar kernel for :func:`zpos_d`. See that function for documentation."""
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return _zpos_cd_s(time - (tk + epoch * p), c, dc)
+
+
+@njit(fastmath=True)
+def _zpos_d_v(time, tk, p, c, dc):
+    """Vector kernel for :func:`zpos_d`. See that function for documentation."""
+    n = time.size
+    pz = zeros(n)
+    dpz = zeros((n, 7))
+    for j in range(n):
+        pz[j], dpz[j] = _zpos_d_s(time[j], tk, p, c, dc)
+    return pz, dpz
+
+
+def zpos_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
     """
     Evaluate the line-of-sight z position and its parameter derivatives at an absolute time.
 
     Direct counterpart of `zpos_cd`: epoch-folds the absolute time `time`
     around the expansion point `tk` and delegates to `zpos_cd`.
 
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python), mirroring the value-only `position.zpos`.
+
     Parameters
     ----------
-    time : float or NDArray
-        Absolute observation time in the same units as `tk` and `p`.
+    time : float or ndarray
+        Absolute observation time(s) in the same units as `tk` and `p`.
     tk : float
         Taylor series expansion time (knot time).
     p : float
@@ -84,14 +143,28 @@ def zpos_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray) 
 
     Returns
     -------
-    pz : float or NDArray
+    pz : float or ndarray
         Line-of-sight z position in units of stellar radii. Positive
         values point toward the observer; negative values point away.
         The sign distinguishes the transit (positive z) and eclipse
-        (negative z) branches of the orbit.
+        (negative z) branches of the orbit. Shape (N,) for an array `time`.
     dpz : NDArray
-        Shape (7,) partial derivatives of `pz` with respect to
-        `(tc, p, a, i, e, w, lan)`.
+        Partial derivatives of `pz` with respect to `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return zpos_cd(time - (tk + epoch * p), c, dc)
+    if isinstance(time, ndarray):
+        return _zpos_d_v(time, tk, p, c, dc)
+    return _zpos_d_s(time, tk, p, c, dc)
+
+
+@overload(zpos_d, jit_options={'fastmath': True})
+def _zpos_d_overload(time, tk, p, c, dc):
+    if _is_1d_array(time):
+        def impl(time, tk, p, c, dc):
+            return _zpos_d_v(time, tk, p, c, dc)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, tk, p, c, dc):
+            return _zpos_d_s(time, tk, p, c, dc)
+        return impl
+    return None

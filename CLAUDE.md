@@ -148,7 +148,9 @@ meepmeep/
     │   │                    # (sep_cd, sep_d), velocity.py (vel_cd),
     │   │                    # zvelocity.py (zvel_cd, zvel_d),
     │   │                    # radial_velocity.py (rv_cd, rv_d),
-    │   │                    # solve.py (solve3d_d).
+    │   │                    # solve.py (solve3d_d). The evaluators are
+    │   │                    # scalar-or-array @overload dispatchers (like
+    │   │                    # point2dd) over private _s/_v kernels.
     │   ├── orbit3d/         # Multi-knot orbit-spanning evaluators, one
     │   │                    # module per quantity (position, separation,
     │   │                    # velocity, radial_velocity, true_anomaly,
@@ -268,16 +270,19 @@ broadcasting to accept scalar or array times. A new quantity adds `X_c`/`X` to
 a `point{2,3}d/<quantity>.py` module and, if needed, `X_cd`/`X_d` to the
 matching `point{2,3}dd/<quantity>.py`.
 
-The **2D derivative** evaluators (`point2dd`) cannot broadcast (the gradient
-allocation is `(7,)` for a scalar but `(N, 7)` for an array), so `pos_cd`,
-`pos_d`, `sep_cd`, `sep_d` are scalar-or-array `numba.extending.overload`
-dispatchers — same pattern as `orbit3d`'s `*_o` — each a plain-Python fallback
+The **derivative** evaluators (`point2dd` and `point3dd`) cannot broadcast (the
+gradient allocation is `(7,)` for a scalar but `(N, 7)` for an array), so each
+public name (`pos_cd`, `pos_d`, `sep_cd`, `sep_d`, and in 3D also `zpos_*`,
+`vel_cd`, `zvel_*`, `rv_*`) is a scalar-or-array `numba.extending.overload`
+dispatcher — same pattern as `orbit3d`'s `*_o` — each a plain-Python fallback
 plus an `@overload` routing to private `_X_..._s` (scalar) and `_X_..._v`
-(vector) kernels. `_is_1d_array` lives in `point2dd/_common.py`. This is the
-array path `Knot2D` uses, so there is no separate `_dv` variant. The **3D
-derivative** evaluators (`point3dd`) stay scalar-only: their array path is
-supplied one layer up by the `orbit3dd` vector kernels (`_X_ovd`), which loop
-the scalar `point3dd` evaluator.
+(vector) kernels. `_is_1d_array` lives in each package's `_common.py`
+(`point2dd/_common.py`, `point3dd/_common.py`). This is the array path `Knot2D`
+uses in 2D, so there is no separate `_dv` variant. The single-knot `_v` kernels
+(many times, one coefficient matrix) are distinct from the `orbit3dd` `_X_ovd`
+vector kernels, which still exist because *multi-knot* dispatch (per-time knot
+lookup via `pktable`) is a separate concern; those loop the scalar `point3dd`
+evaluator and select its scalar branch.
 
 For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in the `point3d` package (or their gradient variants in `point3dd`).
 
@@ -297,7 +302,7 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `_c` suffix: centered (time argument is relative to the knot)
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
-  - In `point2dd`, `pos_cd`/`pos_d`/`sep_cd`/`sep_d` are scalar-or-array `@overload` dispatchers (a scalar time gives a `(7,)` gradient; a 1-D time array of length `N` gives a leading-`N` axis, e.g. `sep_d` returns `d` shape `(N,)` and `dd` shape `(N, 7)`). Internally each routes to private `_s` (scalar) and `_v` (vector) kernels, e.g. `_pos_cd_s`/`_pos_cd_v` in `point2dd/position.py`. This is the array path used by `Knot2D`; there is no `_dv` variant.
+  - In `point2dd` and `point3dd`, every derivative evaluator (`pos_cd`/`pos_d`/`sep_cd`/`sep_d`, plus in 3D `zpos_*`/`vel_cd`/`zvel_*`/`rv_*`) is a scalar-or-array `@overload` dispatcher (a scalar time gives a `(7,)` gradient; a 1-D time array of length `N` gives a leading-`N` axis, e.g. `sep_d` returns `d` shape `(N,)` and `dd` shape `(N, 7)`). Internally each routes to private `_s` (scalar) and `_v` (vector) kernels, e.g. `_pos_cd_s`/`_pos_cd_v`. This is the array path used by `Knot2D`; there is no `_dv` variant.
   - Dimensionality (2D vs 3D) is encoded by the module or package name (the `point2d`/`point2dd` packages vs `position3d`), not by the function name.
 - In the `orbit3d/` / `orbit3dd/` packages (multi-knot dispatchers):
   - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)

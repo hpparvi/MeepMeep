@@ -16,13 +16,36 @@
 
 """Single-knot 3D line-of-sight (z) velocity evaluators with parameter derivatives."""
 
-from numba import njit
-from numpy import floor, zeros
+from numba import njit, types
+from numba.extending import overload
+from numpy import floor, zeros, ndarray
 from numpy.typing import NDArray
+
+from ._common import _is_1d_array
 
 
 @njit(fastmath=True)
-def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+def _zvel_cd_s(time, c, dc):
+    """Scalar kernel for :func:`zvel_cd`. See that function for documentation."""
+    vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
+    dvz = zeros(7)
+    for k in range(7):
+        dvz[k] = dc[k, 2, 1] + time * (2.0 * dc[k, 2, 2] + time * (3.0 * dc[k, 2, 3] + time * 4.0 * dc[k, 2, 4]))
+    return vz, dvz
+
+
+@njit(fastmath=True)
+def _zvel_cd_v(time, c, dc):
+    """Vector kernel for :func:`zvel_cd`. See that function for documentation."""
+    n = time.size
+    vz = zeros(n)
+    dvz = zeros((n, 7))
+    for j in range(n):
+        vz[j], dvz[j] = _zvel_cd_s(time[j], c, dc)
+    return vz, dvz
+
+
+def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
     Evaluate the line-of-sight velocity and its parameter derivatives at a knot-centered time.
 
@@ -32,10 +55,14 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
     z-direction polynomials are evaluated; the x and y rows of `c`
     and `dc` are not read.
 
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python), mirroring the value-only `velocity.zvel_c`.
+
     Parameters
     ----------
-    time : float or NDArray
-        Time relative to the Taylor series expansion point.
+    time : float or ndarray
+        Time(s) relative to the Taylor series expansion point.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
         (the z-direction coefficients) is read.
@@ -46,22 +73,51 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray) -> tuple[float | NDA
 
     Returns
     -------
-    vz : float or NDArray
+    vz : float or ndarray
         Line-of-sight z velocity in stellar radii per unit time.
-        Positive values indicate motion toward the observer.
+        Positive values indicate motion toward the observer. Shape (N,)
+        for an array `time`.
     dvz : NDArray
-        Shape (7,) partial derivatives of `vz` with respect to
-        `(tc, p, a, i, e, w, lan)`.
+        Partial derivatives of `vz` with respect to `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
-    vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
-    dvz = zeros(7)
-    for k in range(7):
-        dvz[k] = dc[k, 2, 1] + time * (2.0 * dc[k, 2, 2] + time * (3.0 * dc[k, 2, 3] + time * 4.0 * dc[k, 2, 4]))
-    return vz, dvz
+    if isinstance(time, ndarray):
+        return _zvel_cd_v(time, c, dc)
+    return _zvel_cd_s(time, c, dc)
+
+
+@overload(zvel_cd, jit_options={'fastmath': True})
+def _zvel_cd_overload(time, c, dc):
+    if _is_1d_array(time):
+        def impl(time, c, dc):
+            return _zvel_cd_v(time, c, dc)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, c, dc):
+            return _zvel_cd_s(time, c, dc)
+        return impl
+    return None
 
 
 @njit(fastmath=True)
-def zvel_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray) -> tuple[float | NDArray, NDArray]:
+def _zvel_d_s(time, tk, p, c, dc):
+    """Scalar kernel for :func:`zvel_d`. See that function for documentation."""
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return _zvel_cd_s(time - (tk + epoch * p), c, dc)
+
+
+@njit(fastmath=True)
+def _zvel_d_v(time, tk, p, c, dc):
+    """Vector kernel for :func:`zvel_d`. See that function for documentation."""
+    n = time.size
+    vz = zeros(n)
+    dvz = zeros((n, 7))
+    for j in range(n):
+        vz[j], dvz[j] = _zvel_d_s(time[j], tk, p, c, dc)
+    return vz, dvz
+
+
+def zvel_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
     """
     Evaluate the line-of-sight velocity and its parameter derivatives at an absolute time.
 
@@ -69,9 +125,13 @@ def zvel_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray) 
     `time` around the expansion point `tk` and delegates to
     `zvel_cd`.
 
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python), mirroring the value-only `velocity.zvel`.
+
     Parameters
     ----------
-    time : float or NDArray
+    time : float or ndarray
         Absolute observation time(s) in the same units as `tk` and `p`.
     tk : float
         Taylor series expansion time (knot time).
@@ -86,12 +146,27 @@ def zvel_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray) 
 
     Returns
     -------
-    vz : float or NDArray
+    vz : float or ndarray
         Line-of-sight z velocity in stellar radii per unit time.
-        Positive values indicate motion toward the observer.
+        Positive values indicate motion toward the observer. Shape (N,)
+        for an array `time`.
     dvz : NDArray
-        Shape (7,) partial derivatives of `vz` with respect to
-        `(tc, p, a, i, e, w, lan)`.
+        Partial derivatives of `vz` with respect to `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return zvel_cd(time - (tk + epoch * p), c, dc)
+    if isinstance(time, ndarray):
+        return _zvel_d_v(time, tk, p, c, dc)
+    return _zvel_d_s(time, tk, p, c, dc)
+
+
+@overload(zvel_d, jit_options={'fastmath': True})
+def _zvel_d_overload(time, tk, p, c, dc):
+    if _is_1d_array(time):
+        def impl(time, tk, p, c, dc):
+            return _zvel_d_v(time, tk, p, c, dc)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, tk, p, c, dc):
+            return _zvel_d_s(time, tk, p, c, dc)
+        return impl
+    return None

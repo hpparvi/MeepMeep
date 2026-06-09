@@ -32,10 +32,11 @@ gradient dispatchers in ``orbit3dd`` delegate to the single-knot evaluators
 defined here.
 """
 
-from .position import pos_cd, pos_d
-from .zposition import zpos_cd, zpos_d
-from .separation import sep_cd, sep_d
-from .velocity import vel_cd
-from .zvelocity import zvel_cd, zvel_d
-from .radial_velocity import rv_cd, rv_d
+from ._common import _is_1d_array
+from .position import pos_cd, pos_d, _pos_cd_s, _pos_cd_v, _pos_d_s, _pos_d_v
+from .zposition import zpos_cd, zpos_d, _zpos_cd_s, _zpos_cd_v, _zpos_d_s, _zpos_d_v
+from .separation import sep_cd, sep_d, _sep_cd_s, _sep_cd_v, _sep_d_s, _sep_d_v
+from .velocity import vel_cd, _vel_cd_s, _vel_cd_v
+from .zvelocity import zvel_cd, zvel_d, _zvel_cd_s, _zvel_cd_v, _zvel_d_s, _zvel_d_v
+from .radial_velocity import rv_cd, rv_d, _rv_cd_s, _rv_cd_v, _rv_d_s, _rv_d_v
 from .solve import solve3d_d
