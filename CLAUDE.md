@@ -72,9 +72,9 @@ Sphinx sources live in `docs/source/`; build with:
 cd docs && make html      # output in docs/build/html/
 ```
 
-Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`). The authoritative reference for low-level function naming is `docs/source/naming_conventions.rst` — keep it and the "Adding New Taylor Series Functions" section of this file in sync.
+Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`). The authoritative reference for low-level function naming is `docs/source/naming_conventions.rst` — keep it and the "Adding New Taylor Series Functions" section of this file in sync. When renaming or removing public functions, also sweep the narrative docs (`taylor_overview.rst`, `derivatives.rst`, `orbit_overview.rst`): they embed function names *and* runnable quickstart examples that drift silently and are not caught by the build.
 
-The build carries a residual backlog of ~110 Sphinx cross-reference warnings (the low-level `backends/numba/` modules are not autodoc'd, so `:func:`/`:mod:` links into them stay unresolved). These are known, not regressions — only chase *new* warnings beyond the baseline.
+The build carries a residual backlog of ~110 Sphinx cross-reference warnings (the low-level `backends/numba/` modules are not autodoc'd, so `:func:`/`:mod:` links into them stay unresolved). These are known, not regressions — only chase *new* warnings beyond the baseline. `docs/source/api/generated/` is gitignored autosummary output, not tracked source — stale stubs there (e.g. for a removed function) are build artifacts, not doc bugs to fix.
 
 **Citation.** The Taylor-series-around-knot-points method is published in Parviainen & Korth (2020), MNRAS 499, 3356; ADS bibcode `2020MNRAS.499.3356P`. Cite as "Parviainen and Korth (2020)" in docs.
 

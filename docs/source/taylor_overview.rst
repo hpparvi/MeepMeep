@@ -309,31 +309,39 @@ helper is
 
 **Dispatcher suffix convention.** Whole-orbit functions in
 :mod:`~meepmeep.backends.numba.orbit3d` use a different
-suffix family from the single-knot evaluators:
+suffix family from the single-knot evaluators. Each quantity exposes a
+single overloaded dispatcher that accepts either a scalar time or a 1-D
+float64 array of times:
 
-* ``*_os`` — orbit-spanning, **s**\ calar input time.
-* ``*_ov`` — orbit-spanning, **v**\ ector of input times.
+* ``*_o`` — orbit-spanning dispatcher; scalar time gives a scalar
+  result, a 1-D array gives an array result.
+* ``*_od`` — the same, returning parameter derivatives as well (these
+  live in the :mod:`~meepmeep.backends.numba.orbit3dd` package; see
+  :ref:`taylor_derivatives`).
 
-Each dispatcher looks up the relevant knot via ``pktable`` and
-delegates to the corresponding centered evaluator in the
+Internally each dispatcher routes — at compile time inside ``@njit`` or
+at call time in pure Python — to a private scalar kernel (``_X_os``) or
+vector kernel (``_X_ov``); these underscored kernels are implementation
+detail, not part of the public surface. Each dispatcher looks up the
+relevant knot via ``pktable`` and delegates to the corresponding
+centered evaluator in the
 :mod:`~meepmeep.backends.numba.point3d` package. Beyond raw
-positions and velocities, the module
+positions and velocities, the package
 provides higher-level whole-orbit outputs:
 
-* :func:`~meepmeep.backends.numba.orbit3d.true_anomaly_ov`,
-  :func:`~meepmeep.backends.numba.orbit3d.cos_alpha_ov` —
+* :func:`~meepmeep.backends.numba.orbit3d.true_anomaly_o`,
+  :func:`~meepmeep.backends.numba.orbit3d.cos_alpha_o` —
   phase-angle quantities.
-* :func:`~meepmeep.backends.numba.orbit3d.star_planet_distance_ov`
+* :func:`~meepmeep.backends.numba.orbit3d.star_planet_distance_o`
   — 3D separation.
-* :func:`~meepmeep.backends.numba.orbit3d.lambert_phase_curve_ov`,
-  :func:`~meepmeep.backends.numba.orbit3d.lambert_and_emission_ov`
+* :func:`~meepmeep.backends.numba.orbit3d.lambert_phase_curve_o`,
+  :func:`~meepmeep.backends.numba.orbit3d.lambert_and_emission_o`
   — reflected-light and combined reflection + thermal phase curves.
-* :func:`~meepmeep.backends.numba.orbit3d.rv_ov` — radial
+* :func:`~meepmeep.backends.numba.orbit3d.rv_o` — radial
   velocity.
-* :func:`~meepmeep.backends.numba.orbit3d.ev_signal_ov` —
+* :func:`~meepmeep.backends.numba.orbit3d.ev_signal_o` —
   ellipsoidal-variation signal.
-* :func:`~meepmeep.backends.numba.orbit3d.light_travel_time_os`
-  / :func:`~meepmeep.backends.numba.orbit3d.light_travel_time_ov`
+* :func:`~meepmeep.backends.numba.orbit3d.light_travel_time_o`
   — light travel time corrections.
 
 **Multi-knot quickstart.** Build the per-orbit structures once and
@@ -343,7 +351,7 @@ evaluate at an array of times:
 
    import numpy as np
    from meepmeep.backends.numba.knots import create_knots
-   from meepmeep.backends.numba.orbit3d import solve3d_orbit, pos_ov
+   from meepmeep.backends.numba.orbit3d import solve3d_orbit, pos_o
    from meepmeep.backends.numba.utils import mean_anomaly_at_transit
 
    # Orbital parameters (tc is the transit-center time, the high-level convention)
@@ -353,16 +361,19 @@ evaluate at an array of times:
    # convert the user-facing transit-center time to the periastron-anchor time.
    tpa = tc - mean_anomaly_at_transit(e, w) / (2.0 * np.pi) * p
 
-   # Knot grid (eccentric-anomaly placement) and the time-to-knot table
+   # Knot grid (eccentric-anomaly placement). create_knots returns the knot
+   # phases, the segment-boundary change_times, the pktable bucket width dt,
+   # and the time-to-knot table itself.
    npt = 15
-   knot_times, points, pktable, dt = create_knots(npt, e, quantity='ea')
+   points, change_times, dt, pktable = create_knots(npt, e, quantity='ea')
 
    # Pre-compute Taylor coefficients at every knot
-   coeffs = solve3d_orbit(knot_times, p, a, i, e, w, npt=npt)
+   coeffs = solve3d_orbit(points, p, a, i, e, w, npt=npt)
 
-   # Evaluate the orbit at a grid of times
+   # Evaluate the orbit at a grid of times. pos_o accepts a scalar or a 1-D
+   # array of times and returns the (x, y, z) sky-frame coordinates.
    times = np.linspace(0.0, p, 2001)
-   xs, ys, zs = pos_ov(times, tpa, p, dt, pktable, points, coeffs)
+   xs, ys, zs = pos_o(times, tpa, p, dt, pktable, points, coeffs)
 
 
 .. _taylor_derivatives:
@@ -402,8 +413,11 @@ For **multi-knot gradients**, the assembly side becomes
 returns ``(N, 3, 5)`` coefficients and an
 ``(N, 7, 3, 5)`` derivative tensor. The dispatcher counterparts in
 :mod:`~meepmeep.backends.numba.orbit3dd` share the names of the
-non-derivative dispatchers with an added ``_d`` suffix
-(``pos_ovd``, ``zvel_osd``, ``rv_ovd``, and so on).
+non-derivative ``_o`` dispatchers with the ``_o`` replaced by ``_od``
+(:func:`~meepmeep.backends.numba.orbit3dd.pos_od`,
+:func:`~meepmeep.backends.numba.orbit3dd.zvel_od`,
+:func:`~meepmeep.backends.numba.orbit3dd.rv_od`, and so on); like their
+forward counterparts they accept a scalar or a 1-D array of times.
 
 Distance derivatives are reduced from the position gradients via the
 chain rule
