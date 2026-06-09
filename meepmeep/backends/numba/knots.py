@@ -86,9 +86,8 @@ def create_knots(n_knots: int, e: float, quantity: str = 'ea', tres: int = 200):
         raise ValueError("Number of knots should be odd.")
 
     if quantity == 'mm':
-        knot_times = linspace(0, 1, n_knots++1, endpoint=False)
-        dt = 1 / n_knots
-        change_times = linspace(0.5 * dt, 1 - 0.5 * dt, n_knots)
+        knot_times = linspace(0.0, 1.0, n_knots)
+        change_times = 0.5 * (knot_times[:-1] + knot_times[1:])
     else:
         if quantity == 'ea':
             def cfun(t, e, v):
