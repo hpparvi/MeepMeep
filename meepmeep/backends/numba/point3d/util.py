@@ -15,6 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from numba import njit
+from numpy import sqrt
 from numpy.typing import NDArray
 
 from .separation import sep_c
@@ -51,10 +52,14 @@ def find_contact_point(k: float, point: int, c: NDArray):
     else:
         zt = 1.0
 
-    vx = c[0, 1]
+    # Bracket the contact point using the sky-plane speed at the expansion
+    # point. The speed (rather than the x-velocity alone) keeps the bracket
+    # finite and on the correct side of the transit in time when a nonzero
+    # lan has rotated the transit chord away from the x-axis.
+    speed = sqrt(c[0, 1] ** 2 + c[1, 1] ** 2)
 
     t0 = 0.0
-    t2 = s * 2.0 / vx
+    t2 = s * 2.0 / speed
     t1 = 0.5 * t2
 
     z0 = sep_c(t0, c) - zt
@@ -64,7 +69,7 @@ def find_contact_point(k: float, point: int, c: NDArray):
     while abs(t2 - t0) > 1e-6 and j < 100:
         if z0 * z1 < 0.0:
             t1, t2 = 0.5 * (t0 + t1), t1
-            z1, z2 = sep_c(t1, c) - zt, z1
+            z1 = sep_c(t1, c) - zt
         else:
             t0, t1 = t1, 0.5 * (t1 + t2)
             z0, z1 = z1, sep_c(t1, c) - zt
