@@ -132,6 +132,37 @@ class TestPhaseAngles:
         assert_allclose(np.cos(f_ts), np.cos(f_nr), atol=1e-3)
         assert_allclose(np.sin(f_ts), np.sin(f_nr), atol=1e-3)
 
+    def test_true_anomaly_circular_matches_newton(self, test_orbital_params):
+        """The circular-orbit fast path (eccentricity-vector sentinel) must
+        return the e -> 0 limit of the geometric definition, which with the
+        periastron anchor is simply f = 2*pi*(t - tpa)/p. The Newton solver
+        anchored at the transit centre provides the reference."""
+        orbit_case = test_orbital_params["circular"]
+        times, tpa, dt, pkt, pts, c = _setup(orbit_case)
+        ev = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
+        f_ts = true_anomaly_o(times, tpa, orbit_case["p"], ev[0], ev[1], ev[2],
+                              orbit_case["w"], dt, pkt, pts, c)
+        f_nr = ta_newton_v(times, 0.0, orbit_case["p"], orbit_case["e"], orbit_case["w"])
+        # Both sides are closed-form here, so the tolerance is tight.
+        assert_allclose(np.cos(f_ts), np.cos(f_nr), atol=1e-9)
+        assert_allclose(np.sin(f_ts), np.sin(f_nr), atol=1e-9)
+
+    def test_true_anomaly_near_circular_branch(self, test_orbital_params):
+        """Just above the eccentricity-vector sentinel (e = 2e-5) the r.v
+        signal is O(e) and smaller than the Taylor truncation noise, so the
+        arccos branch selection must come from an exact quantity (the mean
+        anomaly), not from the sign of r.v. The sin comparison is the
+        branch-sensitive one; cos is branch-insensitive."""
+        pars = dict(test_orbital_params["circular"])
+        pars["e"] = 2e-5
+        times, tpa, dt, pkt, pts, c = _setup(pars)
+        ev = eccentricity_vector(pars["i"], pars["e"], pars["w"])
+        f_ts = true_anomaly_o(times, tpa, pars["p"], ev[0], ev[1], ev[2],
+                              pars["w"], dt, pkt, pts, c)
+        f_nr = ta_newton_v(times, 0.0, pars["p"], pars["e"], pars["w"])
+        assert_allclose(np.cos(f_ts), np.cos(f_nr), atol=1e-3)
+        assert_allclose(np.sin(f_ts), np.sin(f_nr), atol=1e-3)
+
 
 class TestRadialVelocity:
     def test_rv_matches_newton(self, orbit_case):

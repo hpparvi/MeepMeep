@@ -18,7 +18,7 @@
 
 The geometric definition uses the angle between the planet position vector
 and the eccentricity vector. Differentiating that (with the prograde sign
-correction from r·v) gives a well-defined gradient everywhere except at
+correction from the mean anomaly) gives a well-defined gradient everywhere except at
 the two singular configurations ``edp = ±1`` (planet on the apsidal line).
 At those points the analytic derivative diverges; we set it to zero so
 downstream gradient-based fits don't get a NaN. The circular fast path
@@ -32,7 +32,6 @@ from numba.extending import overload
 from numpy import zeros, pi, floor, sqrt, arccos, ndarray
 
 from ..point3dd.position import pos_cd
-from ..point3dd.velocity import vel_cd
 from ._common import _is_1d_array
 
 
@@ -60,19 +59,22 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dco
     dc = dcoeffs[ix]
 
     x, y, z, dx, dy, dz = pos_cd(tcc, c, dc)
-    vx, vy, vz, dvx, dvy, dvz = vel_cd(tcc, c, dc)
 
     r2 = x * x + y * y + z * z
     sqrt_r2_nes = sqrt(r2 * nes)
     edp = (x * ex + y * ey + z * ez) / sqrt_r2_nes
-    rdotv = x * vx + y * vy + z * vz
 
     if edp <= -1.0:
         return pi, df
     if edp >= 1.0:
         return 0.0, df
 
-    sign = 1.0 if rdotv > 0.0 else -1.0
+    # Branch selection from the mean anomaly: the folded time since
+    # periastron gives M = 2*pi*tc/p exactly, and f and M always share the
+    # half-plane, so M selects the arccos branch. The sign of r.v would do
+    # the same in exact arithmetic, but it is O(e) and drowns in the Taylor
+    # truncation noise for near-circular orbits.
+    sign = 1.0 if tc < 0.5 * p else -1.0
     base = arccos(edp)
     f = base if sign > 0.0 else 2.0 * pi - base
     denom = sqrt(1.0 - edp * edp)
@@ -121,13 +123,11 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
         dc = dcoeffs[ix]
 
         x, y, z, dx, dy, dz = pos_cd(tcc, c, dc)
-        vx, vy, vz, dvx, dvy, dvz = vel_cd(tcc, c, dc)
 
         r2 = x * x + y * y + z * z
         r = sqrt(r2)
         sqrt_r2_nes = sqrt(r2 * nes)
         edp = (x * ex + y * ey + z * ez) / sqrt_r2_nes
-        rdotv = x * vx + y * vy + z * vz
 
         if edp <= -1.0:
             f[j] = pi
@@ -136,7 +136,8 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
             f[j] = 0.0
             # Singular: leave df[j] = 0.
         else:
-            sign = 1.0 if rdotv > 0.0 else -1.0
+            # Branch selection from the mean anomaly; see _true_anomaly_osd.
+            sign = 1.0 if tc < 0.5 * p else -1.0
             base = arccos(edp)
             f[j] = base if sign > 0.0 else 2.0 * pi - base
             # d(arccos(edp))/dθ = -dedp/sqrt(1 - edp^2)
@@ -164,8 +165,9 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoef
     kernel at compile time (inside ``@njit``) or at call time (pure Python).
 
     Computed from the geometric angle between the planet position vector
-    and the eccentricity vector :math:`(e_x, e_y, e_z)`, with
-    :math:`r \\cdot v` resolving the two branches of :math:`\\arccos`.
+    and the eccentricity vector :math:`(e_x, e_y, e_z)`, with the mean
+    anomaly (computed exactly from the periastron anchor) resolving the
+    two branches of :math:`\\arccos`.
 
     Parameters
     ----------

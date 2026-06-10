@@ -21,8 +21,6 @@ from numba.extending import overload
 from numpy import zeros, pi, floor, sqrt, arccos, ndarray
 
 from ..point3d.position import pos_c
-from ..point3d.velocity import vel_c
-from ..utils import mean_anomaly
 from ._common import _is_1d_array
 
 
@@ -32,11 +30,13 @@ def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     nes = ex * ex + ey * ey + ez * ez
 
     if ex <= -0.9999 and nes > 0.99:
-        # Circular-orbit fast path; match the array variant by going through
-        # ``mean_anomaly`` (which folds in the transit-offset correction from
-        # ``mean_anomaly_at_transit``). The simpler ``2π(t - tpa)/p`` used in
-        # the gradient module's fast path is intentionally NOT used here.
-        return mean_anomaly(t, tpa, p, 0.0, w)
+        # Circular-orbit fast path: with the periastron anchor tpa, the true
+        # anomaly equals the mean anomaly, f = 2*pi*(t - tpa)/p, folded into
+        # [0, 2*pi). This is the e -> 0 limit of the geometric branch below
+        # and matches the fast path in orbit3dd.true_anomaly exactly.
+        tau = t - tpa
+        epoch = floor(tau / p)
+        return 2.0 * pi * (tau - epoch * p) / p
 
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
@@ -44,14 +44,19 @@ def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     tcc = tc - points[ix] * p
     c = coeffs[ix]
     x, y, z = pos_c(tcc, c)
-    vx, vy, vz = vel_c(tcc, c)
     edp = (x * ex + y * ey + z * ez) / sqrt((x * x + y * y + z * z) * nes)
 
     if edp <= -1.0:
         return pi
     elif edp >= 1.0:
         return 0.0
-    elif (x * vx + y * vy + z * vz) > 0.0:
+    elif tc < 0.5 * p:
+        # Branch selection from the mean anomaly: the folded time since
+        # periastron gives M = 2*pi*tc/p exactly, and f and M always share
+        # the half-plane (both run from 0 at periastron to pi at apoastron),
+        # so M selects the arccos branch. The sign of r.v would do the same
+        # in exact arithmetic, but it is O(e) and drowns in the Taylor
+        # truncation noise for near-circular orbits.
         return arccos(edp)
     else:
         return 2.0 * pi - arccos(edp)
@@ -65,7 +70,12 @@ def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     nes = ex * ex + ey * ey + ez * ez
 
     if ex <= -0.9999 and nes > 0.99:
-        f[:] = mean_anomaly(times, tpa, p, 0.0, w)
+        # Circular-orbit fast path; see _true_anomaly_os.
+        twopi = 2.0 * pi
+        for i in range(npt):
+            tau = times[i] - tpa
+            epoch = floor(tau / p)
+            f[i] = twopi * (tau - epoch * p) / p
     else:
         for i in range(npt):
             t = times[i]
@@ -75,14 +85,14 @@ def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
             tcc = tc - points[ix] * p
             c = coeffs[ix]
             x, y, z = pos_c(tcc, c)
-            vx, vy, vz = vel_c(tcc, c)
             edp = (x * ex + y * ey + z * ez) / sqrt((x * x + y * y + z * z) * nes)
 
             if edp <= -1.0:
                 f[i] = pi
             elif edp >= 1.0:
                 f[i] = 0.0
-            elif (x * vx + y * vy + z * vz) > 0.0:
+            elif tc < 0.5 * p:
+                # Branch selection from the mean anomaly; see _true_anomaly_os.
                 f[i] = arccos(edp)
             else:
                 f[i] = 2.0 * pi - arccos(edp)
@@ -97,9 +107,12 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     (inside ``@njit``) or at call time (pure Python).
 
     Computed from the angle between the planet position vector and the
-    eccentricity vector :math:`(e_x, e_y, e_z)`. The sign of
-    :math:`\\mathbf{r}\\cdot\\mathbf{v}` disambiguates the two branches of
-    :math:`\\arccos`.
+    eccentricity vector :math:`(e_x, e_y, e_z)`. The mean anomaly,
+    computed exactly from the periastron anchor, disambiguates the two
+    branches of :math:`\\arccos` (the sign of
+    :math:`\\mathbf{r}\\cdot\\mathbf{v}` would do the same in exact
+    arithmetic, but it is of order ``e`` and is unreliable against the
+    Taylor truncation noise for near-circular orbits).
 
     Parameters
     ----------
@@ -115,9 +128,10 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
         :func:`~meepmeep.backends.numba.utils.eccentricity_vector`
         returns for near-circular orbits and triggers the fast path.
     w : float
-        Argument of periastron [radians]. Used only on the
-        circular-orbit fast path, where the true anomaly is
-        approximated by the mean anomaly.
+        Argument of periastron [radians]. Kept for signature parity with
+        the gradient variant (``true_anomaly_od``); currently unused
+        because the eccentricity vector is passed explicitly and the
+        circular-orbit fast path needs only ``tpa`` and ``p``.
     dt, pktable, points, coeffs :
         Multi-knot dispatch arrays from :func:`solve3d_orbit` /
         :func:`~meepmeep.backends.numba.knots.create_knots`.
@@ -132,7 +146,10 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     The circular-orbit fast path skips the geometric chain to avoid
     division by a near-zero :math:`|\\mathbf{e}|`. ``utils.eccentricity_vector``
     emits the ``(-1, 0, 0)`` sentinel when ``e < 1e-5``, and the test
-    here matches that sentinel.
+    here matches that sentinel. On the fast path the true anomaly equals
+    the mean anomaly, :math:`f = 2\\pi(t - t_\\mathrm{pa})/p` - the same
+    closed form used by the gradient variant ``true_anomaly_od``, so the
+    two stay in exact agreement for circular orbits.
     """
     if isinstance(t, ndarray):
         return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)

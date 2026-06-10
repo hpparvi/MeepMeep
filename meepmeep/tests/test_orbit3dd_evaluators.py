@@ -220,7 +220,8 @@ class TestValueParity:
         assert np.all(np.isfinite(drv))
 
     def test_true_anomaly_ovd_eccentric(self, test_orbital_params):
-        # Skip circular orbit value-parity (eccentricity_vector sentinel handling).
+        # Circular-orbit value-parity is covered separately in
+        # test_true_anomaly_ovd_circular_parity.
         orbit_case = test_orbital_params["eccentric"]
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ev = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
@@ -232,6 +233,37 @@ class TestValueParity:
         assert_allclose(np.cos(f), np.cos(f_b), atol=1e-10)
         assert_allclose(np.sin(f), np.sin(f_b), atol=1e-10)
         assert df.shape == (NTIMES, 7)
+        assert np.all(np.isfinite(df))
+
+    def test_true_anomaly_ovd_circular_parity(self, test_orbital_params):
+        """Value/gradient parity on the circular-orbit fast path: both modules
+        must use the same closed form f = 2*pi*(t - tpa)/p."""
+        orbit_case = test_orbital_params["circular"]
+        times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
+        ev = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
+        f_b = true_anomaly_o(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
+                             orbit_case["w"], dt, pkt, pts, c)
+        f, df = true_anomaly_od(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
+                                orbit_case["w"], dt, pkt, pts, c, dc)
+        assert_allclose(f, f_b, rtol=0, atol=1e-12)
+        assert df.shape == (NTIMES, 7)
+        assert np.all(np.isfinite(df))
+
+    def test_true_anomaly_ovd_near_circular_branch(self, test_orbital_params):
+        """Just above the eccentricity-vector sentinel (e = 2e-5) the arccos
+        branch must come from the mean anomaly, not from the sign of r.v,
+        which is O(e) and drowns in Taylor truncation noise there. The sin
+        comparison is the branch-sensitive one."""
+        from meepmeep.backends.numba.newton.newton import ta_newton_v
+        pars = dict(test_orbital_params["circular"])
+        pars["e"] = 2e-5
+        times, tc, dt, pkt, pts, c, dc = _setup(pars)
+        ev = eccentricity_vector(pars["i"], pars["e"], pars["w"])
+        f, df = true_anomaly_od(times, tc, pars["p"], ev[0], ev[1], ev[2],
+                                pars["w"], dt, pkt, pts, c, dc)
+        f_nr = ta_newton_v(times, 0.0, pars["p"], pars["e"], pars["w"])
+        assert_allclose(np.cos(f), np.cos(f_nr), atol=1e-3)
+        assert_allclose(np.sin(f), np.sin(f_nr), atol=1e-3)
         assert np.all(np.isfinite(df))
 
 
