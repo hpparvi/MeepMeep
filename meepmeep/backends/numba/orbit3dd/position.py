@@ -20,17 +20,34 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..point3dd.position import pos_cd
+from ..point3dd.position import _pos_cd_w
 from ._common import _is_1d_array
+
+
+@njit(fastmath=True, inline='always')
+def _pos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz):
+    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+
+    Writes the seven-parameter gradients into the caller-provided ``(7,)``
+    buffers ``dx``, ``dy``, and ``dz`` and returns the position values.
+    The vector kernels here and in the derived-quantity modules pass
+    preallocated output rows or reusable scratch buffers instead of
+    allocating per sample.
+    """
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    return _pos_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dx, dy, dz)
 
 
 @njit(fastmath=True)
 def _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Scalar kernel for :func:`pos_od`. See that function for documentation."""
-    epoch = floor((t - tpa) / p)
-    tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return pos_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
+    x, y, z = _pos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+    return x, y, z, dx, dy, dz
 
 
 @njit(fastmath=True)
@@ -44,14 +61,8 @@ def _pos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dys = zeros((n, 7))
     dzs = zeros((n, 7))
     for j in range(n):
-        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        xs[j] = x
-        ys[j] = y
-        zs[j] = z
-        for k in range(7):
-            dxs[j, k] = dx[k]
-            dys[j, k] = dy[k]
-            dzs[j, k] = dz[k]
+        xs[j], ys[j], zs[j] = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+                                      dxs[j], dys[j], dzs[j])
     return xs, ys, zs, dxs, dys, dzs
 
 

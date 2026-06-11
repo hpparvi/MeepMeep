@@ -31,7 +31,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, pi, floor, sqrt, arccos, ndarray
 
-from ..point3dd.position import pos_cd
+from ..point3dd.position import pos_cd, _pos_cd_w
 from ._common import _is_1d_array
 
 
@@ -113,6 +113,9 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
             df[j, 1] = -twopi * tau_red / (p * p)
         return f, df
 
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
     for j in range(n):
         t = times[j]
         epoch = floor((t - tpa) / p)
@@ -122,7 +125,7 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
         c = coeffs[ix]
         dc = dcoeffs[ix]
 
-        x, y, z, dx, dy, dz = pos_cd(tcc, c, dc)
+        x, y, z = _pos_cd_w(tcc, c, dc, dx, dy, dz)
 
         r2 = x * x + y * y + z * z
         r = sqrt(r2)

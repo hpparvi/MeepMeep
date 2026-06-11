@@ -24,13 +24,25 @@ from numpy.typing import NDArray
 from ._common import _is_1d_array
 
 
+@njit(fastmath=True, inline='always')
+def _zpos_cd_w(time, c, dc, dpz):
+    """Write-into kernel shared by the scalar and vector evaluators.
+
+    Writes the seven-parameter gradient into the caller-provided ``(7,)``
+    buffer ``dpz`` and returns the z position, so the hot vector loops
+    reuse preallocated rows instead of allocating per sample.
+    """
+    pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
+    for k in range(7):
+        dpz[k] = dc[k, 2, 0] + time * (dc[k, 2, 1] + time * (dc[k, 2, 2] + time * (dc[k, 2, 3] + time * dc[k, 2, 4])))
+    return pz
+
+
 @njit(fastmath=True)
 def _zpos_cd_s(time, c, dc):
     """Scalar kernel for :func:`zpos_cd`. See that function for documentation."""
-    pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
     dpz = zeros(7)
-    for k in range(7):
-        dpz[k] = dc[k, 2, 0] + time * (dc[k, 2, 1] + time * (dc[k, 2, 2] + time * (dc[k, 2, 3] + time * dc[k, 2, 4])))
+    pz = _zpos_cd_w(time, c, dc, dpz)
     return pz, dpz
 
 
@@ -41,7 +53,7 @@ def _zpos_cd_v(time, c, dc):
     pz = zeros(n)
     dpz = zeros((n, 7))
     for j in range(n):
-        pz[j], dpz[j] = _zpos_cd_s(time[j], c, dc)
+        pz[j] = _zpos_cd_w(time[j], c, dc, dpz[j])
     return pz, dpz
 
 
@@ -112,7 +124,8 @@ def _zpos_d_v(time, tk, p, c, dc):
     pz = zeros(n)
     dpz = zeros((n, 7))
     for j in range(n):
-        pz[j], dpz[j] = _zpos_d_s(time[j], tk, p, c, dc)
+        epoch = floor((time[j] - tk + 0.5 * p) / p)
+        pz[j] = _zpos_cd_w(time[j] - (tk + epoch * p), c, dc, dpz[j])
     return pz, dpz
 
 

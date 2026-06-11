@@ -20,17 +20,30 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..point3dd.zposition import zpos_cd
+from ..point3dd.zposition import _zpos_cd_w
 from ._common import _is_1d_array
+
+
+@njit(fastmath=True, inline='always')
+def _zpos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dz):
+    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+
+    Writes the seven-parameter gradient into the caller-provided ``(7,)``
+    buffer ``dz`` and returns the z position; see
+    :func:`~meepmeep.backends.numba.orbit3dd.position._pos_ow`.
+    """
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    return _zpos_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dz)
 
 
 @njit(fastmath=True)
 def _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Scalar kernel for :func:`zpos_od`. See that function for documentation."""
-    epoch = floor((t - tpa) / p)
-    tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return zpos_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+    dz = zeros(7)
+    z = _zpos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dz)
+    return z, dz
 
 
 @njit(fastmath=True)
@@ -40,10 +53,7 @@ def _zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     zs = zeros(n)
     dzs = zeros((n, 7))
     for j in range(n):
-        z, dz = _zpos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        zs[j] = z
-        for k in range(7):
-            dzs[j, k] = dz[k]
+        zs[j] = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dzs[j])
     return zs, dzs
 
 

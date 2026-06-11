@@ -24,21 +24,33 @@ from numpy.typing import NDArray
 from ._common import _is_1d_array
 
 
-@njit(fastmath=True)
-def _pos_cd_s(time, c, dc):
-    """Scalar kernel for :func:`pos_cd`. See that function for documentation."""
+@njit(fastmath=True, inline='always')
+def _pos_cd_w(time, c, dc, dpx, dpy, dpz):
+    """Write-into kernel shared by the scalar and vector evaluators.
+
+    Writes the seven-parameter gradients into the caller-provided ``(7,)``
+    buffers ``dpx``, ``dpy``, and ``dpz`` and returns the position values.
+    The hot vector loops (here and in ``orbit3dd``) pass preallocated
+    output rows or reusable scratch buffers here instead of allocating per
+    sample.
+    """
     px = c[0, 0] + time * (c[0, 1] + time * (c[0, 2] + time * (c[0, 3] + time * c[0, 4])))
     py = c[1, 0] + time * (c[1, 1] + time * (c[1, 2] + time * (c[1, 3] + time * c[1, 4])))
     pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
-
-    dpx = zeros(7)
-    dpy = zeros(7)
-    dpz = zeros(7)
     for k in range(7):
         dpx[k] = dc[k, 0, 0] + time * (dc[k, 0, 1] + time * (dc[k, 0, 2] + time * (dc[k, 0, 3] + time * dc[k, 0, 4])))
         dpy[k] = dc[k, 1, 0] + time * (dc[k, 1, 1] + time * (dc[k, 1, 2] + time * (dc[k, 1, 3] + time * dc[k, 1, 4])))
         dpz[k] = dc[k, 2, 0] + time * (dc[k, 2, 1] + time * (dc[k, 2, 2] + time * (dc[k, 2, 3] + time * dc[k, 2, 4])))
+    return px, py, pz
 
+
+@njit(fastmath=True)
+def _pos_cd_s(time, c, dc):
+    """Scalar kernel for :func:`pos_cd`. See that function for documentation."""
+    dpx = zeros(7)
+    dpy = zeros(7)
+    dpz = zeros(7)
+    px, py, pz = _pos_cd_w(time, c, dc, dpx, dpy, dpz)
     return px, py, pz, dpx, dpy, dpz
 
 
@@ -53,7 +65,7 @@ def _pos_cd_v(time, c, dc):
     dpy = zeros((n, 7))
     dpz = zeros((n, 7))
     for j in range(n):
-        px[j], py[j], pz[j], dpx[j], dpy[j], dpz[j] = _pos_cd_s(time[j], c, dc)
+        px[j], py[j], pz[j] = _pos_cd_w(time[j], c, dc, dpx[j], dpy[j], dpz[j])
     return px, py, pz, dpx, dpy, dpz
 
 
@@ -144,7 +156,8 @@ def _pos_d_v(time, tk, p, c, dc):
     dpy = zeros((n, 7))
     dpz = zeros((n, 7))
     for j in range(n):
-        px[j], py[j], pz[j], dpx[j], dpy[j], dpz[j] = _pos_d_s(time[j], tk, p, c, dc)
+        epoch = floor((time[j] - tk + 0.5 * p) / p)
+        px[j], py[j], pz[j] = _pos_cd_w(time[j] - (tk + epoch * p), c, dc, dpx[j], dpy[j], dpz[j])
     return px, py, pz, dpx, dpy, dpz
 
 

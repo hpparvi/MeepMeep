@@ -281,8 +281,23 @@ plus an `@overload` routing to private `_X_..._s` (scalar) and `_X_..._v`
 uses in 2D, so there is no separate `_dv` variant. The single-knot `_v` kernels
 (many times, one coefficient matrix) are distinct from the `orbit3dd` `_X_ovd`
 vector kernels, which still exist because *multi-knot* dispatch (per-time knot
-lookup via `pktable`) is a separate concern; those loop the scalar `point3dd`
-evaluator and select its scalar branch.
+lookup via `pktable`) is a separate concern.
+
+**Write-into kernels (`_w` / `_ow`).** The gradient arithmetic itself lives in
+`inline='always'` *write-into* kernels that evaluate the Horner polynomials
+directly into caller-provided `(7,)` buffers and return the value(s):
+`_X_cd_w` in `point2dd`/`point3dd` (e.g. `_pos_cd_w`, `_sep_cd_w`,
+`_rv_cd_w` with its hoistable `_rv_scale` helper), and `_X_ow` in `orbit3dd`
+(e.g. `_pos_ow`, `_zpos_ow`, `_cos_alpha_ow`; these also fold the epoch and
+look up the knot). The `_s`/`_osd` kernels allocate fresh gradient arrays and
+delegate; the `_v`/`_ovd` kernels pass preallocated output rows (or hoisted
+scratch buffers for intermediate gradients). **Keep the hot vector loops
+allocation-free**: never call a scalar gradient kernel (which allocates its
+outputs) inside a per-sample loop — call the `_w`/`_ow` kernel with reused
+buffers instead. Note that because the `_w` kernels are inlined into both the
+scalar and vector callers, `fastmath` contraction can differ between the two
+contexts by an ulp; scalar-vs-vector parity tests need a tiny `atol` (~1e-14
+relative to signal scale), not `atol=0`.
 
 For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in the `point3d` package (or their gradient variants in `point3dd`).
 

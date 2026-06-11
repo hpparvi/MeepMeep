@@ -139,6 +139,14 @@ present in both the ``point2dd/`` and ``point3dd/`` packages. Reach for those
 private kernels only when you need to avoid the dispatcher's type check (rarely
 useful) or when contributing to MeepMeep itself.
 
+The gradient arithmetic itself lives one level deeper, in a private
+*write-into* kernel with the ``_w`` suffix (e.g. ``_pos_cd_w``) that
+evaluates the Horner polynomials directly into caller-provided ``(7,)``
+buffers and returns the value(s). The ``_s`` kernels allocate fresh
+gradient arrays and delegate to ``_w``; the ``_v`` kernels pass
+preallocated output rows so the hot vector loops run without per-sample
+allocations.
+
 
 Multi-knot dispatcher suffix
 ----------------------------
@@ -171,6 +179,14 @@ Internally each dispatcher routes to a private kernel with the explicit
 the ``orbit3dd/`` package. Reach for those private kernels only when you need to
 avoid the dispatcher's type check (rarely useful) or when contributing
 to MeepMeep itself.
+
+In ``orbit3dd/`` the gradient arithmetic lives in private *write-into*
+kernels with the ``_ow`` suffix (e.g. ``_pos_ow``, ``_zpos_ow``,
+``_cos_alpha_ow``) that fold the epoch, look up the knot, and write the
+gradients into caller-provided ``(7,)`` buffers. The ``_osd`` kernels
+allocate and delegate to ``_ow``; the ``_ovd`` kernels pass preallocated
+output rows (or hoisted scratch buffers for intermediate gradients) so
+the hot vector loops run without per-sample allocations.
 
 .. note::
    When upgrading from an earlier MeepMeep release where the public

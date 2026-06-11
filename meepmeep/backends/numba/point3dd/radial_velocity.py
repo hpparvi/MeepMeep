@@ -22,29 +22,50 @@ from numpy import floor, sqrt, sin, cos, pi, zeros, ndarray
 from numpy.typing import NDArray
 
 from ._common import _is_1d_array
-from .zvelocity import _zvel_cd_s
+from .zvelocity import _zvel_cd_w
+
+
+@njit(fastmath=True, inline='always')
+def _rv_scale(k, p, a, i, e):
+    """RV scale factor ``s = k / n`` and its non-zero parameter derivatives.
+
+    Returns ``(s, ds/dp, ds/da, ds/di, ds/de)``; the derivatives w.r.t.
+    ``tc``, ``w``, and ``lan`` are identically zero. Hoist this out of
+    vector loops: the factor depends only on the orbital parameters.
+    """
+    n = 2.0 * pi / p * (a * sin(i)) / sqrt(1.0 - e ** 2)
+    s = k / n
+    return s, s / p, -s / a, -s * cos(i) / sin(i), -s * e / (1.0 - e ** 2)
+
+
+@njit(fastmath=True, inline='always')
+def _rv_cd_w(time, s, dsp, dsa, dsi, dse, c, dc, drv, dvz):
+    """Write-into kernel shared by the scalar and vector evaluators.
+
+    Writes the seven-parameter gradient into the caller-provided ``(7,)``
+    buffer ``drv`` and returns the radial velocity. ``dvz`` is a ``(7,)``
+    scratch buffer for the z-velocity gradient; vector loops allocate it
+    once and reuse it. The scale factor ``s`` and its derivatives come
+    from :func:`_rv_scale`.
+    """
+    vz = _zvel_cd_w(time, c, dc, dvz)
+    rv_val = s * vz
+    for j in range(7):
+        drv[j] = s * dvz[j]
+    drv[1] += vz * dsp
+    drv[2] += vz * dsa
+    drv[3] += vz * dsi
+    drv[4] += vz * dse
+    return rv_val
 
 
 @njit(fastmath=True)
 def _rv_cd_s(time, k, p, a, i, e, c, dc):
     """Scalar kernel for :func:`rv_cd`. See that function for documentation."""
-    n = 2.0 * pi / p * (a * sin(i)) / sqrt(1.0 - e ** 2)
-    s = k / n
-
-    vz, dvz = _zvel_cd_s(time, c, dc)
-    rv_val = s * vz
-
-    # ds/dtheta for each parameter: tc, p, a, i, e, w, lan
+    s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
     drv = zeros(7)
-    ds = zeros(7)
-    ds[1] = s / p       # ds/dp
-    ds[2] = -s / a      # ds/da
-    ds[3] = -s * cos(i) / sin(i)  # ds/di
-    ds[4] = -s * e / (1.0 - e ** 2)  # ds/de
-
-    for j in range(7):
-        drv[j] = s * dvz[j] + vz * ds[j]
-
+    dvz = zeros(7)
+    rv_val = _rv_cd_w(time, s, dsp, dsa, dsi, dse, c, dc, drv, dvz)
     return rv_val, drv
 
 
@@ -54,8 +75,10 @@ def _rv_cd_v(time, k, p, a, i, e, c, dc):
     nt = time.size
     rv_val = zeros(nt)
     drv = zeros((nt, 7))
+    s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
+    dvz = zeros(7)
     for j in range(nt):
-        rv_val[j], drv[j] = _rv_cd_s(time[j], k, p, a, i, e, c, dc)
+        rv_val[j] = _rv_cd_w(time[j], s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
     return rv_val, drv
 
 
@@ -149,8 +172,11 @@ def _rv_d_v(time, k, tk, p, a, i, e, c, dc):
     nt = time.size
     rv_val = zeros(nt)
     drv = zeros((nt, 7))
+    s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
+    dvz = zeros(7)
     for j in range(nt):
-        rv_val[j], drv[j] = _rv_d_s(time[j], k, tk, p, a, i, e, c, dc)
+        epoch = floor((time[j] - tk + 0.5 * p) / p)
+        rv_val[j] = _rv_cd_w(time[j] - (tk + epoch * p), s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
     return rv_val, drv
 
 

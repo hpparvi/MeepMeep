@@ -20,17 +20,30 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..point3dd.separation import sep_cd
+from ..point3dd.separation import _sep_cd_w
 from ._common import _is_1d_array
+
+
+@njit(fastmath=True, inline='always')
+def _sep_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dd):
+    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+
+    Writes the seven-parameter gradient into the caller-provided ``(7,)``
+    buffer ``dd`` and returns the separation; see
+    :func:`~meepmeep.backends.numba.orbit3dd.position._pos_ow`.
+    """
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    return _sep_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dd)
 
 
 @njit(fastmath=True)
 def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Scalar kernel for :func:`sep_od`. See that function for documentation."""
-    epoch = floor((t - tpa) / p)
-    tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return sep_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+    dd = zeros(7)
+    d = _sep_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dd)
+    return d, dd
 
 
 @njit(fastmath=True)
@@ -40,10 +53,7 @@ def _sep_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ds = zeros(n)
     dds = zeros((n, 7))
     for j in range(n):
-        d, dd = _sep_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        ds[j] = d
-        for k in range(7):
-            dds[j, k] = dd[k]
+        ds[j] = _sep_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dds[j])
     return ds, dds
 
 

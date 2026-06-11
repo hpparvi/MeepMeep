@@ -20,21 +20,21 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..point3dd.radial_velocity import rv_cd
+from ..point3dd.radial_velocity import _rv_scale, _rv_cd_w
 from ._common import _is_1d_array
 
 
 @njit(fastmath=True)
 def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     """Scalar kernel for :func:`rv_od`. See that function for documentation."""
+    s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
+    drv = zeros(8)
+    dvz = zeros(7)
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = pktable[int(floor(tc / (dt * p)))]
-    tcc = tc - points[ix] * p
-    rv_val, drv_orb = rv_cd(tcc, k, p, a, i, e, coeffs[ix], dcoeffs[ix])
-    drv = zeros(8)
-    for kk in range(7):
-        drv[kk] = drv_orb[kk]
+    rv_val = _rv_cd_w(tc - points[ix] * p, s, dsp, dsa, dsi, dse,
+                      coeffs[ix], dcoeffs[ix], drv[:7], dvz)
     drv[7] = rv_val / k if k != 0.0 else 0.0
     return rv_val, drv
 
@@ -45,16 +45,16 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     n = times.size
     rvs = zeros(n)
     drvs = zeros((n, 8))
+    s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
+    dvz = zeros(7)
     for j in range(n):
         t = times[j]
         epoch = floor((t - tpa) / p)
         tc = t - tpa - epoch * p
         ix = pktable[int(floor(tc / (dt * p)))]
-        tcc = tc - points[ix] * p
-        rv_val, drv_orb = rv_cd(tcc, k, p, a, i, e, coeffs[ix], dcoeffs[ix])
+        rv_val = _rv_cd_w(tc - points[ix] * p, s, dsp, dsa, dsi, dse,
+                          coeffs[ix], dcoeffs[ix], drvs[j, :7], dvz)
         rvs[j] = rv_val
-        for kk in range(7):
-            drvs[j, kk] = drv_orb[kk]
         # drv/dk = rv / k  (rv is linear in k via the scale factor s = k/n).
         drvs[j, 7] = rv_val / k if k != 0.0 else 0.0
     return rvs, drvs

@@ -20,17 +20,32 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..point3dd.velocity import vel_cd
+from ..point3dd.velocity import _vel_cd_w
 from ._common import _is_1d_array
+
+
+@njit(fastmath=True, inline='always')
+def _vel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvx, dvy, dvz):
+    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+
+    Writes the seven-parameter gradients into the caller-provided ``(7,)``
+    buffers ``dvx``, ``dvy``, and ``dvz`` and returns the velocity values;
+    see :func:`~meepmeep.backends.numba.orbit3dd.position._pos_ow`.
+    """
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    return _vel_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dvx, dvy, dvz)
 
 
 @njit(fastmath=True)
 def _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Scalar kernel for :func:`vel_od`. See that function for documentation."""
-    epoch = floor((t - tpa) / p)
-    tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return vel_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+    dvx = zeros(7)
+    dvy = zeros(7)
+    dvz = zeros(7)
+    vx, vy, vz = _vel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvx, dvy, dvz)
+    return vx, vy, vz, dvx, dvy, dvz
 
 
 @njit(fastmath=True)
@@ -44,14 +59,8 @@ def _vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dvys = zeros((n, 7))
     dvzs = zeros((n, 7))
     for j in range(n):
-        vx, vy, vz, dvx, dvy, dvz = _vel_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        vxs[j] = vx
-        vys[j] = vy
-        vzs[j] = vz
-        for k in range(7):
-            dvxs[j, k] = dvx[k]
-            dvys[j, k] = dvy[k]
-            dvzs[j, k] = dvz[k]
+        vxs[j], vys[j], vzs[j] = _vel_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+                                         dvxs[j], dvys[j], dvzs[j])
     return vxs, vys, vzs, dvxs, dvys, dvzs
 
 

@@ -516,7 +516,10 @@ class TestLightTravelTime:
         for j in range(0, NTIMES, 7):
             ltt, dltt = light_travel_time_od(times[j], tc, p, e, w, rstar,
                                                 dt, pkt, pts, c, dc)
-            assert_allclose(ltt, ltt_v[j], rtol=1e-12, atol=1e-20)
+            # atol covers ulp-level fastmath contraction differences between
+            # the scalar and vector inlining contexts at the sample where
+            # ltt crosses zero; the ltt signal scale is ~1e-4 days.
+            assert_allclose(ltt, ltt_v[j], rtol=1e-12, atol=1e-18)
             assert_allclose(dltt, dltt_v[j], rtol=1e-12, atol=1e-20)
             # And the base scalar function:
             ltt_b = light_travel_time_o(times[j], tc, p, e, w, rstar,

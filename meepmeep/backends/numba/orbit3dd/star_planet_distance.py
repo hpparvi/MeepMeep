@@ -20,14 +20,17 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, sqrt, ndarray
 
-from .position import _pos_osd
+from .position import _pos_ow
 from ._common import _is_1d_array
 
 
 @njit(fastmath=True)
 def _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Scalar kernel for :func:`star_planet_distance_od`. See that function for documentation."""
-    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
+    x, y, z = _pos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
     r = sqrt(x * x + y * y + z * z)
     inv_r = 1.0 / r
     dr = zeros(7)
@@ -42,8 +45,11 @@ def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeff
     n = times.size
     rs = zeros(n)
     drs = zeros((n, 7))
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
     for j in range(n):
-        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
         r = sqrt(x * x + y * y + z * z)
         rs[j] = r
         inv_r = 1.0 / r

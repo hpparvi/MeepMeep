@@ -31,18 +31,30 @@ from numpy.typing import NDArray
 from ._common import _is_1d_array
 
 
-@njit(fastmath=True)
-def _sep_cd_s(time, c, dc):
-    """Scalar kernel for :func:`sep_cd`. See that function for documentation."""
+@njit(fastmath=True, inline='always')
+def _sep_cd_w(time, c, dc, dd):
+    """Write-into kernel shared by the scalar and vector evaluators.
+
+    Writes the seven-parameter separation gradient into the caller-provided
+    ``(7,)`` buffer ``dd`` and returns the separation. The position
+    gradients are reduced through the chain rule with scalar temporaries,
+    so no intermediate arrays are allocated.
+    """
     px = c[0, 0] + time * (c[0, 1] + time * (c[0, 2] + time * (c[0, 3] + time * c[0, 4])))
     py = c[1, 0] + time * (c[1, 1] + time * (c[1, 2] + time * (c[1, 3] + time * c[1, 4])))
     d = sqrt(px ** 2 + py ** 2)
-
-    dd = zeros(7)
     for k in range(7):
         dpx = dc[k, 0, 0] + time * (dc[k, 0, 1] + time * (dc[k, 0, 2] + time * (dc[k, 0, 3] + time * dc[k, 0, 4])))
         dpy = dc[k, 1, 0] + time * (dc[k, 1, 1] + time * (dc[k, 1, 2] + time * (dc[k, 1, 3] + time * dc[k, 1, 4])))
         dd[k] = (px * dpx + py * dpy) / d
+    return d
+
+
+@njit(fastmath=True)
+def _sep_cd_s(time, c, dc):
+    """Scalar kernel for :func:`sep_cd`. See that function for documentation."""
+    dd = zeros(7)
+    d = _sep_cd_w(time, c, dc, dd)
     return d, dd
 
 
@@ -53,7 +65,7 @@ def _sep_cd_v(time, c, dc):
     d = zeros(n)
     dd = zeros((n, 7))
     for j in range(n):
-        d[j], dd[j] = _sep_cd_s(time[j], c, dc)
+        d[j] = _sep_cd_w(time[j], c, dc, dd[j])
     return d, dd
 
 
@@ -136,7 +148,8 @@ def _sep_d_v(time, tk, p, c, dc):
     d = zeros(n)
     dd = zeros((n, 7))
     for j in range(n):
-        d[j], dd[j] = _sep_d_s(time[j], tk, p, c, dc)
+        epoch = floor((time[j] - tk + 0.5 * p) / p)
+        d[j] = _sep_cd_w(time[j] - (tk + epoch * p), c, dc, dd[j])
     return d, dd
 
 

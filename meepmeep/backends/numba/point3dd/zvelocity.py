@@ -24,13 +24,25 @@ from numpy.typing import NDArray
 from ._common import _is_1d_array
 
 
+@njit(fastmath=True, inline='always')
+def _zvel_cd_w(time, c, dc, dvz):
+    """Write-into kernel shared by the scalar and vector evaluators.
+
+    Writes the seven-parameter gradient into the caller-provided ``(7,)``
+    buffer ``dvz`` and returns the z velocity, so the hot vector loops
+    reuse preallocated rows instead of allocating per sample.
+    """
+    vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
+    for k in range(7):
+        dvz[k] = dc[k, 2, 1] + time * (2.0 * dc[k, 2, 2] + time * (3.0 * dc[k, 2, 3] + time * 4.0 * dc[k, 2, 4]))
+    return vz
+
+
 @njit(fastmath=True)
 def _zvel_cd_s(time, c, dc):
     """Scalar kernel for :func:`zvel_cd`. See that function for documentation."""
-    vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
     dvz = zeros(7)
-    for k in range(7):
-        dvz[k] = dc[k, 2, 1] + time * (2.0 * dc[k, 2, 2] + time * (3.0 * dc[k, 2, 3] + time * 4.0 * dc[k, 2, 4]))
+    vz = _zvel_cd_w(time, c, dc, dvz)
     return vz, dvz
 
 
@@ -41,7 +53,7 @@ def _zvel_cd_v(time, c, dc):
     vz = zeros(n)
     dvz = zeros((n, 7))
     for j in range(n):
-        vz[j], dvz[j] = _zvel_cd_s(time[j], c, dc)
+        vz[j] = _zvel_cd_w(time[j], c, dc, dvz[j])
     return vz, dvz
 
 
@@ -113,7 +125,8 @@ def _zvel_d_v(time, tk, p, c, dc):
     vz = zeros(n)
     dvz = zeros((n, 7))
     for j in range(n):
-        vz[j], dvz[j] = _zvel_d_s(time[j], tk, p, c, dc)
+        epoch = floor((time[j] - tk + 0.5 * p) / p)
+        vz[j] = _zvel_cd_w(time[j] - (tk + epoch * p), c, dc, dvz[j])
     return vz, dvz
 
 

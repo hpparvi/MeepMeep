@@ -184,7 +184,10 @@ class TestRv:
         for n, t in enumerate(times):
             rv_n, drv_n = rv_cd(t, self.K, p, a, i, e, c, dc)
             assert_allclose(rv[n], rv_n, rtol=1e-12)
-            assert_allclose(drv[n], drv_n, rtol=1e-12)
+            # atol covers ulp-level fastmath contraction differences between
+            # the scalar and vector inlining contexts on gradient slots that
+            # nearly cancel to zero; real gradients here are O(1)-O(100).
+            assert_allclose(drv[n], drv_n, rtol=1e-12, atol=1e-14)
 
     def test_rv_d_array_matches_scalar_loop(self, setup, eccentric_orbit):
         c, dc, times, p = setup
@@ -195,7 +198,8 @@ class TestRv:
         for n, t in enumerate(times):
             rv_n, drv_n = rv_d(t, self.K, 0.0, p, a, i, e, c, dc)
             assert_allclose(rv[n], rv_n, rtol=1e-12)
-            assert_allclose(drv[n], drv_n, rtol=1e-12)
+            # See test_rv_cd_array_matches_scalar_loop for the atol rationale.
+            assert_allclose(drv[n], drv_n, rtol=1e-12, atol=1e-14)
 
     def test_rv_cd_scalar_gradient_shape(self, setup, eccentric_orbit):
         c, dc, _, p = setup

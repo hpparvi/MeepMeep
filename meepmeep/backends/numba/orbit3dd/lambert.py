@@ -25,7 +25,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, pi, sqrt, sin, cos, arccos, ndarray
 
-from .phase_angle import _cos_alpha_osd
+from .phase_angle import _cos_alpha_osd, _cos_alpha_ow
 from ._common import _is_1d_array
 
 
@@ -96,8 +96,12 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
     da_amp = -2.0 * k * k * ag / (a * a * a)
     dag_amp = k * k * inv_a2
     dk_amp = 2.0 * k * ag * inv_a2
+    dca = zeros(7)
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
     for j in range(n):
-        ca, dca = _cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz)
         phase, _, dphase_dc = _lambert_kernel_d(ca)
         flux[j] = amplitude * phase
         for kk in range(7):
@@ -174,8 +178,12 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
     daref_dag = k2 * inv_a2
     daref_dk = 2.0 * k * ag * inv_a2
 
+    dca = zeros(7)
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
     for j in range(n):
-        ca, dca = _cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz)
         phase, alpha, dphase_dc = _lambert_kernel_d(ca)
 
         # --- reflected component ---

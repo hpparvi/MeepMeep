@@ -21,7 +21,7 @@ from numba.extending import overload
 from numpy import zeros, pi, floor, ndarray
 
 from ..point3d.zvelocity import zvel_c
-from .zposition import _zpos_osd
+from .zposition import _zpos_osd, _zpos_ow
 from ..utils import mean_anomaly_at_transit_with_derivatives
 from ._common import _is_1d_array
 
@@ -142,8 +142,9 @@ def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coef
     factor = -rstar * LTT_DAYS_PER_RSUN
     # Reference (z and its full derivative chain) computed once.
     z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
+    dz = zeros(7)
     for j in range(n):
-        z, dz = _zpos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        z = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dz)
         ltt[j] = factor * (z - z_tr)
         for k in range(7):
             dltt[j, k] = factor * (dz[k] - dz_tr[k])

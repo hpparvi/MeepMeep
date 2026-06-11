@@ -39,12 +39,12 @@ scalar kernel (``_X_osd``), vector kernel (``_X_ovd``), public dispatcher
 """
 
 from ._common import _is_1d_array, solve3d_orbit_d
-from .position import pos_od, _pos_osd, _pos_ovd
-from .zposition import zpos_od, _zpos_osd, _zpos_ovd
-from .separation import sep_od, _sep_osd, _sep_ovd
-from .velocity import vel_od, _vel_osd, _vel_ovd
-from .zvelocity import zvel_od, _zvel_osd, _zvel_ovd
-from .phase_angle import cos_alpha_od, _cos_alpha_osd, _cos_alpha_ovd
+from .position import pos_od, _pos_ow, _pos_osd, _pos_ovd
+from .zposition import zpos_od, _zpos_ow, _zpos_osd, _zpos_ovd
+from .separation import sep_od, _sep_ow, _sep_osd, _sep_ovd
+from .velocity import vel_od, _vel_ow, _vel_osd, _vel_ovd
+from .zvelocity import zvel_od, _zvel_ow, _zvel_osd, _zvel_ovd
+from .phase_angle import cos_alpha_od, _cos_alpha_ow, _cos_alpha_osd, _cos_alpha_ovd
 from .star_planet_distance import (
     star_planet_distance_od, _star_planet_distance_osd, _star_planet_distance_ovd,
 )

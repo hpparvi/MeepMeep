@@ -24,21 +24,32 @@ from numpy.typing import NDArray
 from ._common import _is_1d_array
 
 
-@njit(fastmath=True)
-def _vel_cd_s(time, c, dc):
-    """Scalar kernel for :func:`vel_cd`. See that function for documentation."""
+@njit(fastmath=True, inline='always')
+def _vel_cd_w(time, c, dc, dvx, dvy, dvz):
+    """Write-into kernel shared by the scalar and vector evaluators.
+
+    Writes the seven-parameter gradients into the caller-provided ``(7,)``
+    buffers ``dvx``, ``dvy``, and ``dvz`` and returns the velocity values,
+    so the hot vector loops reuse preallocated rows instead of allocating
+    per sample.
+    """
     vx = c[0, 1] + time * (2.0 * c[0, 2] + time * (3.0 * c[0, 3] + time * 4.0 * c[0, 4]))
     vy = c[1, 1] + time * (2.0 * c[1, 2] + time * (3.0 * c[1, 3] + time * 4.0 * c[1, 4]))
     vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
-
-    dvx = zeros(7)
-    dvy = zeros(7)
-    dvz = zeros(7)
     for k in range(7):
         dvx[k] = dc[k, 0, 1] + time * (2.0 * dc[k, 0, 2] + time * (3.0 * dc[k, 0, 3] + time * 4.0 * dc[k, 0, 4]))
         dvy[k] = dc[k, 1, 1] + time * (2.0 * dc[k, 1, 2] + time * (3.0 * dc[k, 1, 3] + time * 4.0 * dc[k, 1, 4]))
         dvz[k] = dc[k, 2, 1] + time * (2.0 * dc[k, 2, 2] + time * (3.0 * dc[k, 2, 3] + time * 4.0 * dc[k, 2, 4]))
+    return vx, vy, vz
 
+
+@njit(fastmath=True)
+def _vel_cd_s(time, c, dc):
+    """Scalar kernel for :func:`vel_cd`. See that function for documentation."""
+    dvx = zeros(7)
+    dvy = zeros(7)
+    dvz = zeros(7)
+    vx, vy, vz = _vel_cd_w(time, c, dc, dvx, dvy, dvz)
     return vx, vy, vz, dvx, dvy, dvz
 
 
@@ -53,7 +64,7 @@ def _vel_cd_v(time, c, dc):
     dvy = zeros((n, 7))
     dvz = zeros((n, 7))
     for j in range(n):
-        vx[j], vy[j], vz[j], dvx[j], dvy[j], dvz[j] = _vel_cd_s(time[j], c, dc)
+        vx[j], vy[j], vz[j] = _vel_cd_w(time[j], c, dc, dvx[j], dvy[j], dvz[j])
     return vx, vy, vz, dvx, dvy, dvz
 
 

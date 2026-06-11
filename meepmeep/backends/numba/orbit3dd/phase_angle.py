@@ -20,23 +20,39 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, sqrt, ndarray
 
-from .position import _pos_osd
+from .position import _pos_ow
 from ._common import _is_1d_array
 
 
-@njit(fastmath=True)
-def _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Scalar kernel for :func:`cos_alpha_od`. See that function for documentation."""
-    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+@njit(fastmath=True, inline='always')
+def _cos_alpha_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz):
+    """Write-into orbit kernel for the phase-angle cosine and its gradient.
+
+    Writes the seven-parameter gradient into the caller-provided ``(7,)``
+    buffer ``dca`` and returns the cosine. ``dx``, ``dy``, and ``dz`` are
+    ``(7,)`` scratch buffers for the position gradients; vector loops
+    (here and in ``lambert``) allocate them once and reuse them.
+    """
+    x, y, z = _pos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
     r2 = x * x + y * y + z * z
     r = sqrt(r2)
     ca = -z / r
-    dca = zeros(7)
     inv_r = 1.0 / r
     inv_r3 = inv_r / r2
     for k in range(7):
         # d(-z/r)/dθ = -dz/r + z·(x·dx + y·dy + z·dz)/r^3
         dca[k] = -dz[k] * inv_r + z * (x * dx[k] + y * dy[k] + z * dz[k]) * inv_r3
+    return ca
+
+
+@njit(fastmath=True)
+def _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Scalar kernel for :func:`cos_alpha_od`. See that function for documentation."""
+    dca = zeros(7)
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
+    ca = _cos_alpha_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz)
     return ca, dca
 
 
@@ -46,11 +62,12 @@ def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     n = times.size
     cas = zeros(n)
     dcas = zeros((n, 7))
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
     for j in range(n):
-        ca, dca = _cos_alpha_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        cas[j] = ca
-        for k in range(7):
-            dcas[j, k] = dca[k]
+        cas[j] = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+                               dcas[j], dx, dy, dz)
     return cas, dcas
 
 

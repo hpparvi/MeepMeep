@@ -20,7 +20,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, sqrt, ndarray
 
-from .position import _pos_osd
+from .position import _pos_ow
 from ._common import _is_1d_array
 
 
@@ -28,7 +28,10 @@ from ._common import _is_1d_array
 def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Scalar kernel for :func:`cos_v_p_angle_od`. See that function for documentation."""
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
-    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
+    x, y, z = _pos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
     r2 = x * x + y * y + z * z
     r = sqrt(r2)
     inv_r = 1.0 / r
@@ -50,8 +53,11 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     cs = zeros(n)
     dcs = zeros((n, 7))
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
     for j in range(n):
-        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
         r2 = x * x + y * y + z * z
         r = sqrt(r2)
         inv_r = 1.0 / r

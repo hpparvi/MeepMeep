@@ -20,7 +20,7 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, sin, cos, sqrt, ndarray
 
-from .position import _pos_osd
+from .position import _pos_osd, _pos_ow
 from ._common import _is_1d_array
 
 
@@ -65,8 +65,11 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
     sin2_inc = sin_inc * sin_inc
     pre = -alpha * mass_ratio * sin2_inc
 
+    dx = zeros(7)
+    dy = zeros(7)
+    dz = zeros(7)
     for j in range(n):
-        x, y, z, dx, dy, dz = _pos_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)
         cz = z / d

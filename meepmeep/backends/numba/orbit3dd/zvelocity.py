@@ -20,17 +20,30 @@ from numba import njit, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
-from ..point3dd.zvelocity import zvel_cd
+from ..point3dd.zvelocity import _zvel_cd_w
 from ._common import _is_1d_array
+
+
+@njit(fastmath=True, inline='always')
+def _zvel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvz):
+    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+
+    Writes the seven-parameter gradient into the caller-provided ``(7,)``
+    buffer ``dvz`` and returns the z velocity; see
+    :func:`~meepmeep.backends.numba.orbit3dd.position._pos_ow`.
+    """
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = pktable[int(floor(tc / (dt * p)))]
+    return _zvel_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dvz)
 
 
 @njit(fastmath=True)
 def _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Scalar kernel for :func:`zvel_od`. See that function for documentation."""
-    epoch = floor((t - tpa) / p)
-    tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return zvel_cd(tc - points[ix] * p, coeffs[ix], dcoeffs[ix])
+    dvz = zeros(7)
+    vz = _zvel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvz)
+    return vz, dvz
 
 
 @njit(fastmath=True)
@@ -40,10 +53,7 @@ def _zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     vzs = zeros(n)
     dvzs = zeros((n, 7))
     for j in range(n):
-        vz, dvz = _zvel_osd(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        vzs[j] = vz
-        for k in range(7):
-            dvzs[j, k] = dvz[k]
+        vzs[j] = _zvel_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dvzs[j])
     return vzs, dvzs
 
 
