@@ -143,7 +143,15 @@ class Orbit:
         unless the instance was constructed with ``derivatives=True``.
     _points : ndarray, shape (npt,)
         Normalised knot phases in ``[0, 1]`` from
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
+        :func:`~meepmeep.backends.numba.knots.create_knots`. Built at
+        construction for ``e = _KNOT_GRID_E_FLOOR`` and rebuilt by
+        :meth:`set_pars` when the bound eccentricity drifts more than
+        ``_KNOT_GRID_E_TOL`` from the grid's construction eccentricity
+        (``'ea'``/``'ta'`` placements only; the ``'mm'`` grid is
+        eccentricity-independent).
+    _grid_e : float
+        Eccentricity the current knot grid was built for,
+        ``max(e, _KNOT_GRID_E_FLOOR)`` at the last rebuild.
     _dt : float
         Width of one ``_tptable`` bucket in fraction of the period.
     _tptable : ndarray of int
@@ -163,6 +171,16 @@ class Orbit:
     :meth:`true_anomaly(exact=True)`) and by :meth:`plot(show_exact=True)`.
     """
 
+    # The knot grid is built for max(e, _KNOT_GRID_E_FLOOR): near-circular
+    # grids are essentially uniform, so anything below the floor shares one
+    # grid. It is rebuilt in set_pars when the bound eccentricity drifts more
+    # than _KNOT_GRID_E_TOL from the grid's construction eccentricity. The
+    # tolerance keeps rebuilds rare: create_knots runs scipy root solves in
+    # Python (~0.3 ms), and set_pars is the per-likelihood-call hot path in
+    # fitting applications.
+    _KNOT_GRID_E_FLOOR = 0.2
+    _KNOT_GRID_E_TOL = 0.05
+
     def __init__(self, npt: int = 15, knot_placement: str = "ea", derivatives: bool = False):
         """Construct a new ``Orbit``. See the class docstring for argument semantics."""
         self.npt: int = npt
@@ -181,8 +199,11 @@ class Orbit:
         self._lan: Optional[float] = None
         self._timing: str = "tc"
         self._derivatives: bool = derivatives
+        self._knot_placement: str = knot_placement
+        self._grid_e: float = self._KNOT_GRID_E_FLOOR
 
-        self._points, self._change_times, self._dt, self._tptable = create_knots(npt, 0.2, knot_placement)
+        self._points, self._change_times, self._dt, self._tptable = \
+            create_knots(npt, self._grid_e, knot_placement)
 
     def set_data(self, times):
         """Bind a time grid to the instance.
@@ -247,6 +268,13 @@ class Orbit:
         After this call, ``self._tc`` holds the transit-center time and
         ``self._tp`` holds the periastron-anchor time, regardless of which
         input was used.
+
+        For the ``'ea'`` and ``'ta'`` knot placements the knot grid is
+        rebuilt when ``max(e, 0.2)`` differs from the eccentricity the
+        current grid was built for by more than ``_KNOT_GRID_E_TOL``, so
+        the knots stay clustered near periastron as the bound orbit
+        changes. Small eccentricity jitter (e.g. between MCMC steps) does
+        not trigger a rebuild.
         """
         if tc is not None and tp is not None:
             raise TypeError("set_pars accepts exactly one of `tc` (transit center) "
@@ -269,6 +297,17 @@ class Orbit:
         self._e = e
         self._w = w
         self._lan = lan
+
+        # Rebuild the knot grid if the bound eccentricity has drifted too far
+        # from the eccentricity the current grid was built for. The 'mm' grid
+        # is eccentricity-independent and never rebuilt.
+        if self._knot_placement != "mm":
+            e_grid = max(e, self._KNOT_GRID_E_FLOOR)
+            if abs(e_grid - self._grid_e) > self._KNOT_GRID_E_TOL:
+                self._points, self._change_times, self._dt, self._tptable = \
+                    create_knots(self.npt, e_grid, self._knot_placement)
+                self._grid_e = e_grid
+
         if self._derivatives:
             self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w,
                                                           lan=lan, npt=self.npt)
