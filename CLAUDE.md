@@ -265,10 +265,13 @@ parameter-derivative ones. Each has one module per physical quantity
 module and, in the non-derivative package, a `util.py` for transit
 geometry. Each package's `__init__.py` re-exports its surface, mirroring
 the `orbit3d`/`orbit3dd` layout. The non-derivative single-knot evaluators
-(`point2d`/`point3d`) keep the plain `_c`/direct structure and rely on NumPy
-broadcasting to accept scalar or array times. A new quantity adds `X_c`/`X` to
-a `point{2,3}d/<quantity>.py` module and, if needed, `X_cd`/`X_d` to the
-matching `point{2,3}dd/<quantity>.py`.
+(`point2d`/`point3d`) are scalar-or-array `@overload` dispatchers over
+private `_X_c_s`/`_X_c_v` (centered) and `_X_s`/`_X_v` (direct) kernels —
+the array path is an explicit loop over the scalar kernel, NOT NumPy
+broadcasting (broadcasting inside `@njit` materialises a full-array
+temporary per Horner step and measured 4-40x slower). A new quantity adds
+`X_c`/`X` to a `point{2,3}d/<quantity>.py` module and, if needed,
+`X_cd`/`X_d` to the matching `point{2,3}dd/<quantity>.py`.
 
 The **derivative** evaluators (`point2dd` and `point3dd`) cannot broadcast (the
 gradient allocation is `(7,)` for a scalar but `(N, 7)` for an array), so each
@@ -298,6 +301,20 @@ buffers instead. Note that because the `_w` kernels are inlined into both the
 scalar and vector callers, `fastmath` contraction can differ between the two
 contexts by an ulp; scalar-vs-vector parity tests need a tiny `atol` (~1e-14
 relative to signal scale), not `atol=0`.
+
+**Parallel twins (`_ovp` / `_ovdp`).** Every multi-knot vector kernel has a
+`prange` twin in `orbit3d/_parallel.py` / `orbit3dd/_parallel.py`, compiled
+with `parallel=True` but otherwise mirroring the serial body (same write-into
+kernels, same hoisted invariants). Gradient twins that need intermediate
+scratch hoist one buffer per thread (`zeros((get_num_threads(), 7))`, indexed
+with `get_thread_id()`) — a single shared buffer would be a data race under
+`prange`. The public dispatchers always route to the serial kernels; the
+twins are opt-in via `Orbit(parallel=True)`, which uses them only above
+`Orbit._PARALLEL_NMIN_GRAD` (1e4) / `_PARALLEL_NMIN_VALUE` (5e4) samples —
+below those sizes the parallel-region launch overhead makes them slower.
+Mirror the serial body exactly (including fastmath flags): kernels compiled
+without fastmath (e.g. `true_anomaly`) must not route positions through a
+fastmath path, or near-singular gradients drift beyond parity tolerances.
 
 For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in the `point3d` package (or their gradient variants in `point3dd`).
 

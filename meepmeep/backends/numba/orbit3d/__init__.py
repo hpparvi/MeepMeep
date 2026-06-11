@@ -55,3 +55,9 @@ from .light_travel_time import (
     LTT_DAYS_PER_RSUN,
     light_travel_time_o, _light_travel_time_os, _light_travel_time_ov,
 )
+from ._parallel import (
+    _pos_ovp, _zpos_ovp, _sep_ovp, _vel_ovp, _zvel_ovp, _rv_ovp,
+    _cos_alpha_ovp, _cos_v_p_angle_ovp, _star_planet_distance_ovp,
+    _true_anomaly_ovp, _lambert_phase_curve_ovp, _lambert_and_emission_ovp,
+    _ev_signal_ovp, _light_travel_time_ovp,
+)

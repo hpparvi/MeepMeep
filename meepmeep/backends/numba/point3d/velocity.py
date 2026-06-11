@@ -16,11 +16,35 @@
 
 """Single-knot 3D planet (vx, vy, vz) velocity evaluators."""
 
-from numba import njit
+from numba import njit, types
+from numba.extending import overload
+from numpy import zeros, ndarray
 from numpy.typing import NDArray
+
+from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
+def _vel_c_s(time, c):
+    """Scalar kernel for :func:`vel_c`. See that function for documentation."""
+    vx = c[0, 1] + time * (2.0 * c[0, 2] + time * (3.0 * c[0, 3] + time * 4.0 * c[0, 4]))
+    vy = c[1, 1] + time * (2.0 * c[1, 2] + time * (3.0 * c[1, 3] + time * 4.0 * c[1, 4]))
+    vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
+    return vx, vy, vz
+
+
+@njit(fastmath=True)
+def _vel_c_v(time, c):
+    """Vector kernel for :func:`vel_c`. See that function for documentation."""
+    n = time.size
+    vx = zeros(n)
+    vy = zeros(n)
+    vz = zeros(n)
+    for j in range(n):
+        vx[j], vy[j], vz[j] = _vel_c_s(time[j], c)
+    return vx, vy, vz
+
+
 def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray, float | NDArray]:
     """
     Evaluate the planet's (vx, vy, vz) velocity at a knot-centered time.
@@ -30,6 +54,10 @@ def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     corresponding 5th-order position polynomial; the resulting
     polynomial is 4th-order in `time` and is evaluated using Horner's
     scheme.
+
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python).
 
     Parameters
     ----------
@@ -62,7 +90,19 @@ def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     differentiation, the velocity is a 4th-order Taylor approximation
     even though the underlying position expansion is 5th order.
     """
-    vx = c[0, 1] + time * (2.0 * c[0, 2] + time * (3.0 * c[0, 3] + time * 4.0 * c[0, 4]))
-    vy = c[1, 1] + time * (2.0 * c[1, 2] + time * (3.0 * c[1, 3] + time * 4.0 * c[1, 4]))
-    vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
-    return vx, vy, vz
+    if isinstance(time, ndarray):
+        return _vel_c_v(time, c)
+    return _vel_c_s(time, c)
+
+
+@overload(vel_c, jit_options={'fastmath': True}, inline='always')
+def _vel_c_overload(time, c):
+    if _is_1d_array(time):
+        def impl(time, c):
+            return _vel_c_v(time, c)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, c):
+            return _vel_c_s(time, c)
+        return impl
+    return None

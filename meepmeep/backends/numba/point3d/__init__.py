@@ -31,11 +31,12 @@ This ``__init__`` re-exports the full surface. The multi-knot dispatchers in
 ``orbit3d`` delegate to the single-knot evaluators defined here.
 """
 
-from .position import pos_c, pos
-from .zposition import zpos_c, zpos
-from .separation import sep_c, sep
-from .velocity import vel_c
-from .zvelocity import zvel_c, zvel
+from ._common import _is_1d_array
+from .position import pos_c, pos, _pos_c_s, _pos_c_v, _pos_s, _pos_v
+from .zposition import zpos_c, zpos, _zpos_c_s, _zpos_c_v, _zpos_s, _zpos_v
+from .separation import sep_c, sep, _sep_c_s, _sep_c_v, _sep_s, _sep_v
+from .velocity import vel_c, _vel_c_s, _vel_c_v
+from .zvelocity import zvel_c, zvel, _zvel_c_s, _zvel_c_v, _zvel_s, _zvel_v
 from .radial_velocity import rv_c, rv
 from .solve import solve3d
 from .util import (

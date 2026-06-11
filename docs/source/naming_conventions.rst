@@ -188,6 +188,15 @@ allocate and delegate to ``_ow``; the ``_ovd`` kernels pass preallocated
 output rows (or hoisted scratch buffers for intermediate gradients) so
 the hot vector loops run without per-sample allocations.
 
+Every vector kernel also has a *parallel twin* with a trailing ``p``
+(``_X_ovp`` in ``orbit3d/_parallel``, ``_X_ovdp`` in
+``orbit3dd/_parallel``), compiled with ``parallel=True`` and a ``prange``
+sample loop but otherwise identical. The public dispatchers always route
+to the serial kernels; the twins are reached through the
+``Orbit(parallel=True)`` opt-in, which switches to them only above a
+per-family minimum array size (parallel-region launch overhead makes
+them slower than the serial kernels for small arrays).
+
 .. note::
    When upgrading from an earlier MeepMeep release where the public
    names were ``pos_os`` / ``pos_ov`` / ``pos_osd`` / ``pos_ovd``,

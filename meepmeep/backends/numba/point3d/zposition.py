@@ -16,12 +16,30 @@
 
 """Single-knot 3D line-of-sight (z) position evaluators."""
 
-from numba import njit
-from numpy import floor
+from numba import njit, types
+from numba.extending import overload
+from numpy import floor, zeros, ndarray
 from numpy.typing import NDArray
+
+from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
+def _zpos_c_s(time, c):
+    """Scalar kernel for :func:`zpos_c`. See that function for documentation."""
+    return c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
+
+
+@njit(fastmath=True)
+def _zpos_c_v(time, c):
+    """Vector kernel for :func:`zpos_c`. See that function for documentation."""
+    n = time.size
+    pz = zeros(n)
+    for j in range(n):
+        pz[j] = _zpos_c_s(time[j], c)
+    return pz
+
+
 def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     """
     Evaluate the planet's line-of-sight z position at a knot-centered time.
@@ -31,6 +49,10 @@ def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     cheapest 3D evaluator in the module and is the right choice when
     only the transit/eclipse branch is needed (e.g. to discriminate
     primary from secondary eclipse via the sign of z).
+
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python).
 
     Parameters
     ----------
@@ -46,16 +68,52 @@ def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
         Line-of-sight z position in units of stellar radii. Positive
         values point toward the observer; negative values point away.
     """
-    return c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
+    if isinstance(time, ndarray):
+        return _zpos_c_v(time, c)
+    return _zpos_c_s(time, c)
+
+
+@overload(zpos_c, jit_options={'fastmath': True}, inline='always')
+def _zpos_c_overload(time, c):
+    if _is_1d_array(time):
+        def impl(time, c):
+            return _zpos_c_v(time, c)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, c):
+            return _zpos_c_s(time, c)
+        return impl
+    return None
 
 
 @njit(fastmath=True, inline='always')
+def _zpos_s(time, tk, p, c):
+    """Scalar kernel for :func:`zpos`. See that function for documentation."""
+    epoch = floor((time - tk + 0.5 * p) / p)
+    return _zpos_c_s(time - (tk + epoch * p), c)
+
+
+@njit(fastmath=True)
+def _zpos_v(time, tk, p, c):
+    """Vector kernel for :func:`zpos`. See that function for documentation."""
+    n = time.size
+    pz = zeros(n)
+    for j in range(n):
+        epoch = floor((time[j] - tk + 0.5 * p) / p)
+        pz[j] = _zpos_c_s(time[j] - (tk + epoch * p), c)
+    return pz
+
+
 def zpos(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArray:
     """
     Evaluate the planet's line-of-sight z position at an absolute time.
 
     Folds the absolute observation time back to a knot-centered offset
-    and delegates to `zpos_c`.
+    and delegates to the centered kernel.
+
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python).
 
     Parameters
     ----------
@@ -76,5 +134,19 @@ def zpos(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDAr
         The sign distinguishes the transit (positive z) and eclipse
         (negative z) branches of the orbit.
     """
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return zpos_c(time - (tk + epoch * p), c)
+    if isinstance(time, ndarray):
+        return _zpos_v(time, tk, p, c)
+    return _zpos_s(time, tk, p, c)
+
+
+@overload(zpos, jit_options={'fastmath': True}, inline='always')
+def _zpos_overload(time, tk, p, c):
+    if _is_1d_array(time):
+        def impl(time, tk, p, c):
+            return _zpos_v(time, tk, p, c)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, tk, p, c):
+            return _zpos_s(time, tk, p, c)
+        return impl
+    return None

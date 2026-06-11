@@ -55,6 +55,12 @@ from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
 from .backends.numba.orbit3dd import (solve3d_orbit_d, pos_od, cos_alpha_od, vel_od, true_anomaly_od, rv_od,
                                              star_planet_distance_od, ev_signal_od, lambert_phase_curve_od,
                                              lambert_and_emission_od, light_travel_time_od, )
+from .backends.numba.orbit3d import (_pos_ovp, _vel_ovp, _cos_alpha_ovp, _true_anomaly_ovp, _rv_ovp,
+                                            _star_planet_distance_ovp, _ev_signal_ovp, _lambert_phase_curve_ovp,
+                                            _lambert_and_emission_ovp, _light_travel_time_ovp, )
+from .backends.numba.orbit3dd import (_pos_ovdp, _vel_ovdp, _cos_alpha_ovdp, _true_anomaly_ovdp, _rv_ovdp,
+                                             _star_planet_distance_ovdp, _ev_signal_ovdp, _lambert_phase_curve_ovdp,
+                                             _lambert_and_emission_ovdp, _light_travel_time_ovdp, )
 
 
 class Orbit:
@@ -114,6 +120,16 @@ class Orbit:
 
         ``rstar`` derivatives for :meth:`light_travel_time` are *not*
         returned (per package spec); only the seven orbital derivatives.
+    parallel : bool
+        If ``True``, evaluations over time arrays with at least
+        ``_PARALLEL_NMIN_GRAD`` (gradient mode) or ``_PARALLEL_NMIN_VALUE``
+        (value mode) samples route to multi-threaded ``prange`` kernel
+        twins; smaller arrays always take the serial kernels, which are
+        faster below those sizes. The results are identical either way.
+        Defaults to ``False``: leave it off when the surrounding
+        application already parallelises at a higher level (e.g. one
+        process per MCMC chain), where nested thread pools oversubscribe
+        the machine.
 
     Attributes
     ----------
@@ -181,10 +197,19 @@ class Orbit:
     _KNOT_GRID_E_FLOOR = 0.2
     _KNOT_GRID_E_TOL = 0.05
 
-    def __init__(self, npt: int = 15, knot_placement: str = "ea", derivatives: bool = False):
+    # Minimum time-array sizes for which the prange kernel twins beat the
+    # serial kernels (measured on a 16-core machine; the parallel-region
+    # launch costs tens of microseconds). Value-only kernels do ~5x less
+    # work per sample than gradient kernels, so their break-even is higher.
+    _PARALLEL_NMIN_VALUE = 50_000
+    _PARALLEL_NMIN_GRAD = 10_000
+
+    def __init__(self, npt: int = 15, knot_placement: str = "ea", derivatives: bool = False,
+                 parallel: bool = False):
         """Construct a new ``Orbit``. See the class docstring for argument semantics."""
         self.npt: int = npt
         self.times: Optional[ndarray] = None
+        self._parallel: bool = parallel
 
         self._dt: Optional[float] = None
         self._points: Optional[float] = None
@@ -204,6 +229,17 @@ class Orbit:
 
         self._points, self._change_times, self._dt, self._tptable = \
             create_knots(npt, self._grid_e, knot_placement)
+
+    def _select(self, serial, par, times, nmin):
+        """Pick the serial kernel or its prange twin for this evaluation.
+
+        The twin is used only when the instance was constructed with
+        ``parallel=True`` and ``times`` is an array with at least ``nmin``
+        samples; below that the serial kernel is faster.
+        """
+        if self._parallel and isinstance(times, ndarray) and times.size >= nmin:
+            return par
+        return serial
 
     def set_data(self, times):
         """Bind a time grid to the instance.
@@ -369,10 +405,12 @@ class Orbit:
             return ta_newton_v(self.times, self._tc, self._p, self._e, self._w)
         ev = eccentricity_vector(self._i, self._e, self._w)
         if self._derivatives:
-            return true_anomaly_od(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
-                                    self._tptable, self._points, self._coeffs, self._dcoeffs, )
-        return true_anomaly_o(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._tptable,
-                               self._points, self._coeffs, )
+            fn = self._select(true_anomaly_od, _true_anomaly_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
+                      self._tptable, self._points, self._coeffs, self._dcoeffs, )
+        fn = self._select(true_anomaly_o, _true_anomaly_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._tptable,
+                  self._points, self._coeffs, )
 
     def xyz(self, times: Optional[ndarray] = None):
         """Planet (x, y, z) position in the sky frame.
@@ -395,9 +433,11 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return pos_od(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
-                           self._dcoeffs, )
-        return pos_o(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+            fn = self._select(pos_od, _pos_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            return fn(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+                      self._dcoeffs, )
+        fn = self._select(pos_o, _pos_ovp, times, self._PARALLEL_NMIN_VALUE)
+        return fn(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def _xyz_error(self):
         """Per-time position residuals against the Newton-Raphson reference.
@@ -426,9 +466,11 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            return vel_od(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
-                           self._dcoeffs, )
-        return vel_o(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+            fn = self._select(vel_od, _vel_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            return fn(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+                      self._dcoeffs, )
+        fn = self._select(vel_o, _vel_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        return fn(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def cos_phase(self):
         """Cosine of the phase angle, :math:`\\cos\\alpha = -z/r`.
@@ -446,9 +488,11 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            return cos_alpha_od(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
-                                 self._dcoeffs, )
-        return cos_alpha_o(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+            fn = self._select(cos_alpha_od, _cos_alpha_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            return fn(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+                      self._dcoeffs, )
+        fn = self._select(cos_alpha_o, _cos_alpha_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        return fn(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def _cos_phase_error(self):
         """Per-time phase-angle-cosine residuals against the Newton-Raphson reference.
@@ -489,14 +533,13 @@ class Orbit:
         but loses physical meaning at the clamped points.
         """
         if self._derivatives:
-            ca, dca = cos_alpha_od(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
-                                    self._dcoeffs, )
+            ca, dca = self.cos_phase()
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             ph = arccos(ca_c)
             inv_s = -1.0 / sqrt(1.0 - ca_c * ca_c)
             dph = inv_s[:, None] * dca
             return ph, dph
-        return arccos(cos_alpha_o(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs))
+        return arccos(self.cos_phase())
 
     def theta(self):
         """Supplement angle :math:`\\theta = \\arccos(-\\cos\\alpha) = \\pi - \\alpha`.
@@ -519,15 +562,14 @@ class Orbit:
         :math:`|\\cos\\alpha| = 1`.
         """
         if self._derivatives:
-            ca, dca = cos_alpha_od(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
-                                    self._dcoeffs, )
+            ca, dca = self.cos_phase()
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             th = arccos(-ca_c)
             # d(arccos(-c))/dθ = +dc/dθ / sqrt(1 - c²)
             inv_s = 1.0 / sqrt(1.0 - ca_c * ca_c)
             dth = inv_s[:, None] * dca
             return th, dth
-        return arccos(-cos_alpha_o(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs))
+        return arccos(-self.cos_phase())
 
     def star_planet_distance(self, times: Optional[ndarray] = None):
         """3D star-planet separation :math:`r = \\sqrt{x^2 + y^2 + z^2}`.
@@ -552,9 +594,11 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return star_planet_distance_od(times, self._tp, self._p, self._dt, self._tptable, self._points,
-                                            self._coeffs, self._dcoeffs, )
-        return star_planet_distance_o(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+            fn = self._select(star_planet_distance_od, _star_planet_distance_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            return fn(times, self._tp, self._p, self._dt, self._tptable, self._points,
+                      self._coeffs, self._dcoeffs, )
+        fn = self._select(star_planet_distance_o, _star_planet_distance_ovp, times, self._PARALLEL_NMIN_VALUE)
+        return fn(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
 
     def light_travel_time(self, rstar: float):
         """Light-travel-time correction, referenced to primary transit.
@@ -579,9 +623,11 @@ class Orbit:
             ``rstar`` is intentionally *not* returned (per package spec).
         """
         if self._derivatives:
-            return light_travel_time_od(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt,
-                                         self._tptable, self._points, self._coeffs, self._dcoeffs, )
-        return light_travel_time_o(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt, self._tptable,
+            fn = self._select(light_travel_time_od, _light_travel_time_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt,
+                      self._tptable, self._points, self._coeffs, self._dcoeffs, )
+        fn = self._select(light_travel_time_o, _light_travel_time_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt, self._tptable,
                                     self._points, self._coeffs, )
 
     def radial_velocity(self, k: float):
@@ -605,9 +651,11 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            return rv_od(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable,
+            fn = self._select(rv_od, _rv_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            return fn(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable,
                           self._points, self._coeffs, self._dcoeffs, )
-        return rv_o(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable, self._points,
+        fn = self._select(rv_o, _rv_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        return fn(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable, self._points,
                      self._coeffs, )
 
     def lambert_phase_curve(self, k: float, ag: float, times: ndarray | None = None):
@@ -637,9 +685,11 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return lambert_phase_curve_od(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable,
+            fn = self._select(lambert_phase_curve_od, _lambert_phase_curve_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable,
                                            self._points, self._coeffs, self._dcoeffs, )
-        return lambert_phase_curve_o(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable, self._points,
+        fn = self._select(lambert_phase_curve_o, _lambert_phase_curve_ovp, times, self._PARALLEL_NMIN_VALUE)
+        return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable, self._points,
                                       self._coeffs, )
 
     def lambert_and_emission(self, k: float, ag: float, fr_night, fr_day, times: ndarray | None = None):
@@ -683,9 +733,11 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return lambert_and_emission_od(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
+            fn = self._select(lambert_and_emission_od, _lambert_and_emission_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            return fn(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
                                             self._tptable, self._points, self._coeffs, self._dcoeffs, )
-        return lambert_and_emission_o(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
+        fn = self._select(lambert_and_emission_o, _lambert_and_emission_ovp, times, self._PARALLEL_NMIN_VALUE)
+        return fn(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
                                        self._tptable, self._points, self._coeffs, )
 
     def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):
@@ -717,9 +769,11 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            return ev_signal_od(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable,
+            fn = self._select(ev_signal_od, _ev_signal_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            return fn(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable,
                                  self._points, self._coeffs, self._dcoeffs, )
-        return ev_signal_o(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable, self._points,
+        fn = self._select(ev_signal_o, _ev_signal_ovp, times, self._PARALLEL_NMIN_VALUE)
+        return fn(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable, self._points,
                             self._coeffs, )
 
     def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc="k",
