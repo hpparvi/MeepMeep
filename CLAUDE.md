@@ -326,10 +326,12 @@ whether the loop needs intermediate scratch:
   single-knot rv gradient kernels and the derived multi-knot gradient
   kernels.
 
-The public dispatchers always route to the serial kernels; the multi-knot
-twins are opt-in via `Orbit(parallel=True)`, which uses them only above
-`Orbit._PARALLEL_NMIN_GRAD` (1e4) / `_PARALLEL_NMIN_VALUE` (5e4) samples —
-below those sizes the parallel-region launch overhead makes them slower.
+The public dispatchers always route to the serial kernels; the twins are
+opt-in via `Orbit(parallel=True)` (multi-knot) and `Knot2D(parallel=True)`
+(single-knot 2D), which use them only above the classes'
+`_PARALLEL_NMIN_GRAD` / `_PARALLEL_NMIN_VALUE` thresholds (1e4 / 5e4 for
+`Orbit`, 1e4 / 1e5 for `Knot2D`) — below those sizes the parallel-region
+launch overhead makes them slower.
 Explicit twins must mirror the serial body exactly (including fastmath
 flags): kernels compiled without fastmath (e.g. `true_anomaly`) must not
 route positions through a fastmath path, or near-singular gradients drift

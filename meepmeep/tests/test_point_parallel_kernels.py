@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
+from meepmeep.knot2d import Knot2D
 from meepmeep.backends.numba.point2d import (
     solve2d,
     _pos_c_v, _pos_c_vp, _pos_v, _pos_vp,
@@ -178,6 +179,46 @@ class TestPoint3dGradient:
     def test_zvel_d(self, cdc3):
         c, dc = cdc3
         _compare(_zvel_d_v, _zvel_d_vp, (T_ABS, TC, P, c, dc, TK))
+
+
+class TestKnot2dParallelOptIn:
+    """Knot2D(parallel=True) must change performance, never results."""
+
+    @pytest.fixture(params=[False, True], ids=["values", "derivatives"])
+    def pair(self, request):
+        times = TC + TK + np.linspace(-0.05, 0.05, 500)
+        serial = Knot2D(tc=TC, tk=TK, derivatives=request.param, **PARS)
+        par = Knot2D(tc=TC, tk=TK, derivatives=request.param, parallel=True, **PARS)
+        # Force the parallel path regardless of array size.
+        par._PARALLEL_NMIN_VALUE = 0
+        par._PARALLEL_NMIN_GRAD = 0
+        for k2 in (serial, par):
+            k2.set_data(times)
+        return serial, par
+
+    def test_default_is_serial(self):
+        assert Knot2D(tc=TC, **PARS)._parallel is False
+
+    def test_position(self, pair):
+        s, p = pair
+        for u, v in zip(s.position, p.position):
+            assert_allclose(v, u, **TOL)
+
+    def test_projected_separation(self, pair):
+        s, p = pair
+        res_s, res_p = s.projected_separation, p.projected_separation
+        if not isinstance(res_s, tuple):
+            res_s, res_p = (res_s,), (res_p,)
+        for u, v in zip(res_s, res_p):
+            assert_allclose(v, u, **TOL)
+
+    def test_below_threshold_stays_serial(self):
+        """With default thresholds, a small grid must use the serial path
+        (kernel selection is observable through _select)."""
+        from meepmeep.backends.numba.point2d import sep as sep_dispatcher
+        k2 = Knot2D(tc=TC, tk=TK, parallel=True, **PARS)
+        k2.set_data(TC + np.linspace(-0.05, 0.05, 100))
+        assert k2._select(sep_dispatcher, _sep_vp, k2._PARALLEL_NMIN_VALUE) is sep_dispatcher
 
 
 class TestRvExplicitTwins:

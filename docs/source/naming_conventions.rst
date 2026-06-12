@@ -156,7 +156,8 @@ Each vector kernel also has a *parallel twin* with a trailing ``p``
 single shared body (``prange`` compiles as a plain ``range`` in the serial
 compilation, so the serial kernel is unchanged); the rv gradient kernels,
 whose loops reuse a hoisted scratch buffer, have explicit hand-written
-twins with one scratch buffer per thread.
+twins with one scratch buffer per thread. The high-level
+``Knot2D(parallel=True)`` opt-in routes large time grids to these twins.
 
 
 Multi-knot dispatcher suffix

@@ -15,16 +15,26 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-from .backends.numba.point2d import (solve2d, pos, sep,
+from numpy import ndarray
+
+from .backends.numba.point2d import (solve2d, pos, sep, _pos_vp, _sep_vp,
                                             t12, t14, t23, t34,
                                             bounding_box, find_contact_point, find_z_min)
-from .backends.numba.point2dd import solve2d_d, pos_d, sep_d
+from .backends.numba.point2dd import solve2d_d, pos_d, sep_d, _pos_d_vp, _sep_d_vp
 
 
 class Knot2D:
 
+    # Minimum time-array sizes for which the prange kernel twins beat the
+    # serial kernels (measured on a 16-core machine). The single-knot value
+    # kernels run at a few ns per sample, so their break-even is higher
+    # than for the gradient kernels.
+    _PARALLEL_NMIN_VALUE = 100_000
+    _PARALLEL_NMIN_GRAD = 10_000
+
     def __init__(self, tc: float, p: float, a: float, i: float, e: float, w: float,
-                 lan: float = 0.0, tk: float = 0.0, derivatives: bool = False):
+                 lan: float = 0.0, tk: float = 0.0, derivatives: bool = False,
+                 parallel: bool = False):
         """High-level wrapper over the single-knot 2D Taylor evaluators.
 
         A *knot* is a point along the orbit that serves as the center of a
@@ -77,8 +87,20 @@ class Knot2D:
         derivatives : bool, optional
             If ``True``, :attr:`position` and :attr:`projected_separation`
             also return parameter derivatives. Defaults to ``False``.
+        parallel : bool, optional
+            If ``True``, :attr:`position` and :attr:`projected_separation`
+            route time grids with at least ``_PARALLEL_NMIN_GRAD``
+            (derivative mode) or ``_PARALLEL_NMIN_VALUE`` (value mode)
+            samples to multi-threaded ``prange`` kernel twins; smaller
+            grids always take the serial kernels, which are faster below
+            those sizes. The results are identical either way. Defaults to
+            ``False``: leave it off when the surrounding application
+            already parallelises at process level (e.g. one process per
+            MCMC chain), where nested thread pools oversubscribe the
+            machine.
         """
         self._derivatives = derivatives
+        self._parallel = parallel
         self.tk = tk
         self.times = None
         self.set_pars(tc=tc, p=p, a=a, i=i, e=e, w=w, lan=lan)
@@ -136,6 +158,17 @@ class Knot2D:
             self._coeffs = solve2d(self.tk, p, a, i, e, w, lan)
             self._dcoeffs = None
 
+    def _select(self, serial, par, nmin):
+        """Pick the serial kernel or its prange twin for this evaluation.
+
+        The twin is used only when the instance was constructed with
+        ``parallel=True`` and the bound grid is an array with at least
+        ``nmin`` samples; below that the serial kernel is faster.
+        """
+        if self._parallel and isinstance(self.times, ndarray) and self.times.size >= nmin:
+            return par
+        return serial
+
     def set_data(self, times):
         """Bind a time grid evaluated by the position / separation properties.
 
@@ -161,8 +194,10 @@ class Knot2D:
             positions are in units of the stellar radius.
         """
         if self._derivatives:
-            return pos_d(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, tk=self.tk)
-        return pos(self.times, self._tc, self._p, self._coeffs, tk=self.tk)
+            fn = self._select(pos_d, _pos_d_vp, self._PARALLEL_NMIN_GRAD)
+            return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.tk)
+        fn = self._select(pos, _pos_vp, self._PARALLEL_NMIN_VALUE)
+        return fn(self.times, self._tc, self._p, self._coeffs, self.tk)
 
     @property
     def projected_separation(self):
@@ -181,8 +216,10 @@ class Knot2D:
             with respect to ``(tc, p, a, i, e, w, lan)``.
         """
         if self._derivatives:
-            return sep_d(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, tk=self.tk)
-        return sep(self.times, self._tc, self._p, self._coeffs, tk=self.tk)
+            fn = self._select(sep_d, _sep_d_vp, self._PARALLEL_NMIN_GRAD)
+            return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.tk)
+        fn = self._select(sep, _sep_vp, self._PARALLEL_NMIN_VALUE)
+        return fn(self.times, self._tc, self._p, self._coeffs, self.tk)
 
     def duration(self, k: float, kind: int = 14) -> float:
         """Transit duration of the requested type [days].

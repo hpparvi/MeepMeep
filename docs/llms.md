@@ -126,6 +126,10 @@ k2.min_separation(guess=0.0)    # (t_min, z_min), offsets from tc
 
 `set_pars(...)` (keyword-only) rebinds parameters. Accuracy degrades away
 from the transit; do not use Knot2D for full-orbit quantities.
+`Knot2D(..., parallel=True)` multi-threads the position/separation
+properties for large grids (>= ~1e4 points in derivative mode, ~1e5 in
+value mode; identical results) - same caveat as Orbit's `parallel` flag
+about process-level parallelism.
 
 ## Low-level API
 
