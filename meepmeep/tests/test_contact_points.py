@@ -81,6 +81,86 @@ class TestContactPointGeometry:
         ts = [util.find_contact_point(K, point, c) for point in (1, 2, 3, 4)]
         assert ts[0] < ts[1] < 0.0 < ts[2] < ts[3]
 
+    def test_limb_crossing_point(self, backend, orbit_case):
+        """Contact "point" 12 is the ingress limb crossing (separation = 1).
+
+        It falls between the first and second contacts, where the planet
+        center crosses the stellar limb.
+        """
+        solve, util = backend
+        c = solve(0.0, **orbit_case)
+        t_limb = util.find_contact_point(K, 12, c)
+        t1 = util.find_contact_point(K, 1, c)
+        t2 = util.find_contact_point(K, 2, c)
+        assert t1 < t_limb < t2
+        assert_allclose(util.sep_c(t_limb, c), 1.0, atol=1e-4)
+
+
+class TestDurationHelpers:
+    """The duration helpers are thin compositions of ``find_contact_point``.
+
+    ``find_contact_point`` itself is validated geometrically above, so these
+    tests pin the composition: which contact each helper uses and the sign of
+    each difference. Identical inputs make the underlying bisection runs
+    deterministic, hence the near-exact tolerances.
+    """
+
+    def test_single_contact_helpers(self, backend, orbit_case):
+        solve, util = backend
+        c = solve(0.0, **orbit_case)
+        assert_allclose(util.t1(K, c), util.find_contact_point(K, 1, c), atol=1e-12)
+        assert_allclose(util.t4(K, c), util.find_contact_point(K, 4, c), atol=1e-12)
+
+    def test_bounding_box(self, backend, orbit_case):
+        solve, util = backend
+        c = solve(0.0, **orbit_case)
+        tb1, tb4 = util.bounding_box(K, c)
+        assert_allclose(tb1, util.find_contact_point(K, 1, c), atol=1e-12)
+        assert_allclose(tb4, util.find_contact_point(K, 4, c), atol=1e-12)
+        assert tb1 < 0.0 < tb4
+
+    def test_partial_durations(self, backend, orbit_case):
+        solve, util = backend
+        c = solve(0.0, **orbit_case)
+        ts = {point: util.find_contact_point(K, point, c) for point in (1, 2, 3, 4)}
+        assert_allclose(util.t12(K, c), ts[2] - ts[1], atol=1e-12)
+        assert_allclose(util.t34(K, c), ts[4] - ts[3], atol=1e-12)
+        assert util.t12(K, c) > 0.0
+        assert util.t34(K, c) > 0.0
+
+    def test_duration_composition(self, backend, orbit_case):
+        """T14 = T12 + T23 + T34: the partial durations tile the transit."""
+        solve, util = backend
+        c = solve(0.0, **orbit_case)
+        total = util.t12(K, c) + util.t23(K, c) + util.t34(K, c)
+        assert_allclose(util.t14(K, c), total, atol=1e-12)
+
+
+class TestFindZMin:
+    @pytest.mark.parametrize("lan", [0.0, 0.3])
+    def test_minimum_beats_grid_scan(self, backend, orbit_case, lan):
+        """The golden-section minimum is at least as deep as a dense grid scan.
+
+        The search window is the fixed ``tc +/- 0.01`` interval used by
+        ``find_z_min``; the returned value must be consistent with ``sep_c``
+        at the returned time.
+        """
+        solve, util = backend
+        c = solve(0.0, **orbit_case, lan=lan)
+        t_min, z_min = util.find_z_min(0.0, c)
+        assert abs(t_min) < 0.01
+        assert_allclose(util.sep_c(t_min, c), z_min, atol=1e-12)
+        tg = np.linspace(-0.01, 0.01, 2001)
+        assert z_min <= util.sep_c(tg, c).min() + 1e-10
+
+    def test_circular_impact_parameter(self, backend, test_orbital_params):
+        """For a circular orbit the minimum separation is exactly a*cos(i)."""
+        solve, util = backend
+        pars = test_orbital_params["circular"]
+        c = solve(0.0, **pars)
+        _, z_min = util.find_z_min(0.0, c)
+        assert_allclose(z_min, pars["a"] * np.cos(pars["i"]), rtol=1e-6)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

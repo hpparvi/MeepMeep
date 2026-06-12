@@ -1,0 +1,23 @@
+# Coverage configuration for MeepMeep.
+#
+# Run the suite with the Numba JIT disabled so coverage can trace the
+# kernel bodies (compiled code is invisible to the tracer):
+#
+#   NUMBA_DISABLE_JIT=1 pytest -m "not slow" --cov
+#
+# The exclusions below remove code that *cannot* execute under coverage:
+# numba.extending.overload registration bodies (and the _is_1d_array typing
+# helpers they call) run only during Numba's type-resolution phase, which
+# never happens with the JIT disabled and is untraceable with it enabled.
+
+[run]
+source = meepmeep
+omit =
+    meepmeep/tests/*
+
+[report]
+exclude_also =
+    @overload\(
+    def _is_1d_array\(
+    raise NotImplementedError
+    if __name__ == .__main__.:
