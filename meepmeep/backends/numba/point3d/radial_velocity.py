@@ -74,7 +74,8 @@ def rv_c(time: float | NDArray, k: float, p: float, a: float, i: float, e: float
 
 
 @njit(inline='always')
-def rv(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float, e: float, c: NDArray) -> float | NDArray:
+def rv(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float, e: float, c: NDArray,
+       tk: float = 0.0) -> float | NDArray:
     """
     Evaluate the stellar radial velocity induced by the planet at an absolute time.
 
@@ -85,13 +86,14 @@ def rv(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float,
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `tk` and `p`.
+        Absolute observation time(s) in the same units as `tc` and `p`.
     k : float
         Radial-velocity semi-amplitude of the star, in physical
         velocity units (e.g. m/s). The function output inherits these
         units.
-    tk : float
-        Taylor series expansion time (knot time).
+    tc : float
+        Transit-centre time (time of inferior conjunction), on the same
+        time axis as `time`.
     p : float
         Orbital period.
     a : float
@@ -103,6 +105,10 @@ def rv(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float,
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
         is read.
+    tk : float, optional
+        Knot offset from the transit centre [days] - the same value that
+        was passed to `solve3d`. Defaults to 0.0, the knot at the
+        transit centre.
 
     Returns
     -------
@@ -112,4 +118,4 @@ def rv(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float,
         reflex motion has the same sign convention).
     """
     n = 2 * pi / p * (a * sin(i)) / sqrt(1 - e ** 2)
-    return zvel(time, tk, p, c) / n * k
+    return zvel(time, tc, p, c, tk) / n * k

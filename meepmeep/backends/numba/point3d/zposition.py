@@ -87,24 +87,24 @@ def _zpos_c_overload(time, c):
 
 
 @njit(fastmath=True, inline='always')
-def _zpos_s(time, tk, p, c):
+def _zpos_s(time, tc, p, c, tk):
     """Scalar kernel for :func:`zpos`. See that function for documentation."""
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return _zpos_c_s(time - (tk + epoch * p), c)
+    epoch = floor((time - tc - tk + 0.5 * p) / p)
+    return _zpos_c_s(time - (tc + tk + epoch * p), c)
 
 
 @njit(fastmath=True)
-def _zpos_v(time, tk, p, c):
+def _zpos_v(time, tc, p, c, tk):
     """Vector kernel for :func:`zpos`. See that function for documentation."""
     n = time.size
     pz = zeros(n)
     for j in range(n):
-        epoch = floor((time[j] - tk + 0.5 * p) / p)
-        pz[j] = _zpos_c_s(time[j] - (tk + epoch * p), c)
+        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
+        pz[j] = _zpos_c_s(time[j] - (tc + tk + epoch * p), c)
     return pz
 
 
-def zpos(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArray:
+def zpos(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0) -> float | NDArray:
     """
     Evaluate the planet's line-of-sight z position at an absolute time.
 
@@ -119,12 +119,17 @@ def zpos(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDAr
     ----------
     time : float or NDArray
         Absolute observation time(s).
-    tk : float
-        Taylor series expansion time (knot time).
+    tc : float
+        Transit-centre time (time of inferior conjunction), on the same
+        time axis as `time`.
     p : float
         Orbital period.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`.
+    tk : float, optional
+        Knot offset from the transit centre [days] - the same value that
+        was passed to `solve3d`. Defaults to 0.0, the knot at the
+        transit centre.
 
     Returns
     -------
@@ -135,18 +140,18 @@ def zpos(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDAr
         (negative z) branches of the orbit.
     """
     if isinstance(time, ndarray):
-        return _zpos_v(time, tk, p, c)
-    return _zpos_s(time, tk, p, c)
+        return _zpos_v(time, tc, p, c, tk)
+    return _zpos_s(time, tc, p, c, tk)
 
 
 @overload(zpos, jit_options={'fastmath': True}, inline='always')
-def _zpos_overload(time, tk, p, c):
+def _zpos_overload(time, tc, p, c, tk=0.0):
     if _is_1d_array(time):
-        def impl(time, tk, p, c):
-            return _zpos_v(time, tk, p, c)
+        def impl(time, tc, p, c, tk=0.0):
+            return _zpos_v(time, tc, p, c, tk)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tk, p, c):
-            return _zpos_s(time, tk, p, c)
+        def impl(time, tc, p, c, tk=0.0):
+            return _zpos_s(time, tc, p, c, tk)
         return impl
     return None

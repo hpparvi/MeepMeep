@@ -42,9 +42,9 @@ class Knot2D:
         the observation times with :meth:`set_data` as needed. The
         constructor itself simply forwards its orbital arguments to
         :meth:`set_pars`. The :attr:`position` and :attr:`projected_separation`
-        **properties** evaluate the bound time grid; each access converts the
-        grid to ``times - tc`` internally so the underlying direct evaluators
-        epoch-fold around the knot.
+        **properties** evaluate the bound time grid directly: the underlying
+        direct evaluators take the transit centre ``tc`` and the knot offset
+        ``tk`` and epoch-fold around the knot.
 
         The ``derivatives`` flag is a once-per-instance switch: when ``True``,
         :attr:`position` and :attr:`projected_separation` return the value
@@ -160,10 +160,9 @@ class Knot2D:
             derivatives with respect to ``(tc, p, a, i, e, w, lan)``. All
             positions are in units of the stellar radius.
         """
-        t = self.times - self._tc
         if self._derivatives:
-            return pos_d(t, self.tk, self._p, self._coeffs, self._dcoeffs)
-        return pos(t, self.tk, self._p, self._coeffs)
+            return pos_d(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, tk=self.tk)
+        return pos(self.times, self._tc, self._p, self._coeffs, tk=self.tk)
 
     @property
     def projected_separation(self):
@@ -181,10 +180,9 @@ class Knot2D:
             Only returned if ``derivatives=True``: partial derivatives of ``d``
             with respect to ``(tc, p, a, i, e, w, lan)``.
         """
-        t = self.times - self._tc
         if self._derivatives:
-            return sep_d(t, self.tk, self._p, self._coeffs, self._dcoeffs)
-        return sep(t, self.tk, self._p, self._coeffs)
+            return sep_d(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, tk=self.tk)
+        return sep(self.times, self._tc, self._p, self._coeffs, tk=self.tk)
 
     def duration(self, k: float, kind: int = 14) -> float:
         """Transit duration of the requested type [days].

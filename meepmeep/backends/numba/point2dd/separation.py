@@ -126,25 +126,25 @@ def _sep_cd_overload(time, c, dc):
 
 
 @njit(fastmath=True)
-def _sep_d_s(time, tk, p, c, dc):
+def _sep_d_s(time, tc, p, c, dc, tk):
     """Scalar kernel for :func:`sep_d`. See that function for documentation."""
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return _sep_cd_s(time - (tk + epoch * p), c, dc)
+    epoch = floor((time - tc - tk + 0.5 * p) / p)
+    return _sep_cd_s(time - (tc + tk + epoch * p), c, dc)
 
 
 @njit(fastmath=True)
-def _sep_d_v(time, tk, p, c, dc):
+def _sep_d_v(time, tc, p, c, dc, tk):
     """Vector kernel for :func:`sep_d`. See that function for documentation."""
     n = time.size
     d = zeros(n)
     dd = zeros((n, 7))
     for j in range(n):
-        epoch = floor((time[j] - tk + 0.5 * p) / p)
-        d[j] = _sep_cd_w(time[j] - (tk + epoch * p), c, dc, dd[j])
+        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
+        d[j] = _sep_cd_w(time[j] - (tc + tk + epoch * p), c, dc, dd[j])
     return d, dd
 
 
-def sep_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
+def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, tk: float = 0.0):
     """
     Evaluate the projected planet-star distance and its parameter derivatives at an absolute time.
 
@@ -158,9 +158,10 @@ def sep_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
     Parameters
     ----------
     time : float or ndarray
-        Absolute observation time(s) in the same units as `tk` and `p`.
-    tk : float
-        Taylor series expansion time (knot time).
+        Absolute observation time(s) in the same units as `tc` and `p`.
+    tc : float
+        Transit-centre time (time of inferior conjunction), on the same
+        time axis as `time`.
     p : float
         Orbital period, used for epoch folding.
     c : NDArray
@@ -168,6 +169,10 @@ def sep_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
     dc : NDArray
         A (7, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
         with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
+    tk : float, optional
+        Knot offset from the transit centre [days] - the same value that
+        was passed to `solve2d_d`. Defaults to 0.0, the knot at the
+        transit centre.
 
     Returns
     -------
@@ -179,18 +184,18 @@ def sep_d(time: float | NDArray, tk: float, p: float, c: NDArray, dc: NDArray):
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _sep_d_v(time, tk, p, c, dc)
-    return _sep_d_s(time, tk, p, c, dc)
+        return _sep_d_v(time, tc, p, c, dc, tk)
+    return _sep_d_s(time, tc, p, c, dc, tk)
 
 
 @overload(sep_d, jit_options={'fastmath': True})
-def _sep_d_overload(time, tk, p, c, dc):
+def _sep_d_overload(time, tc, p, c, dc, tk=0.0):
     if _is_1d_array(time):
-        def impl(time, tk, p, c, dc):
-            return _sep_d_v(time, tk, p, c, dc)
+        def impl(time, tc, p, c, dc, tk=0.0):
+            return _sep_d_v(time, tc, p, c, dc, tk)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tk, p, c, dc):
-            return _sep_d_s(time, tk, p, c, dc)
+        def impl(time, tc, p, c, dc, tk=0.0):
+            return _sep_d_s(time, tc, p, c, dc, tk)
         return impl
     return None

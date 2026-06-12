@@ -246,9 +246,11 @@ into single-knot pipelines such as transit duration calculators.
    d = sep_c(dt, c)
 
 If you would rather hand in absolute times, swap ``sep_c(dt, c)`` for
-``sep(t, tc, p, c)`` and pass ``t = tc + dt`` (the knot is at the transit
-centre, so its ``tk`` equals ``tc`` here). The result is identical;
-only the epoch-folding is now done by the evaluator.
+``sep(t, tc, p, c)`` and pass ``t = tc + dt``: the second argument is the
+transit-centre time. (For a knot placed away from the transit centre,
+pass the ``solve2d`` knot offset as the trailing optional ``tk``
+argument.) The result is identical; only the epoch-folding is now done
+by the evaluator.
 
 **Single-knot gradients.** For analytic derivatives with respect to the
 seven orbital parameters, replace

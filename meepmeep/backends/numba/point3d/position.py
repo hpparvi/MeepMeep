@@ -107,26 +107,26 @@ def _pos_c_overload(time, c):
 
 
 @njit(fastmath=True, inline='always')
-def _pos_s(time, tk, p, c):
+def _pos_s(time, tc, p, c, tk):
     """Scalar kernel for :func:`pos`. See that function for documentation."""
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return _pos_c_s(time - (tk + epoch * p), c)
+    epoch = floor((time - tc - tk + 0.5 * p) / p)
+    return _pos_c_s(time - (tc + tk + epoch * p), c)
 
 
 @njit(fastmath=True)
-def _pos_v(time, tk, p, c):
+def _pos_v(time, tc, p, c, tk):
     """Vector kernel for :func:`pos`. See that function for documentation."""
     n = time.size
     px = zeros(n)
     py = zeros(n)
     pz = zeros(n)
     for j in range(n):
-        epoch = floor((time[j] - tk + 0.5 * p) / p)
-        px[j], py[j], pz[j] = _pos_c_s(time[j] - (tk + epoch * p), c)
+        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
+        px[j], py[j], pz[j] = _pos_c_s(time[j] - (tc + tk + epoch * p), c)
     return px, py, pz
 
 
-def pos(time: float | NDArray, tk: float, p: float, c: NDArray) -> tuple[
+def pos(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0) -> tuple[
     float | NDArray, float | NDArray, float | NDArray]:
     """
     Evaluate the planet's (x, y, z) position at an absolute time using a 3D Taylor expansion.
@@ -144,20 +144,25 @@ def pos(time: float | NDArray, tk: float, p: float, c: NDArray) -> tuple[
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `tk` and `p`
+        Absolute observation time(s) in the same units as `tc` and `p`
         (typically days). Scalar or array inputs are both accepted; the
         return type matches.
-    tk : float
-        Time at which the Taylor series was expanded (the knot time).
+    tc : float
+        Transit-centre time (time of inferior conjunction), on the same
+        time axis as `time`.
     p : float
-        Orbital period, used to fold `time` into the interval
-        `[tk - p/2, tk + p/2)`.
+        Orbital period, used to fold `time` into a single epoch around
+        the expansion point.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Row 0 holds
         the x-direction coefficients, row 1 the y-direction, and row 2
         the z-direction, ordered as
         [position, velocity, acceleration/2, jerk/6, snap/24]
         (i.e. already pre-scaled by the factorial of the Taylor order).
+    tk : float, optional
+        Knot offset from the transit centre [days] - the same value that
+        was passed to `solve3d`. Defaults to 0.0, the knot at the
+        transit centre.
 
     Returns
     -------
@@ -171,18 +176,18 @@ def pos(time: float | NDArray, tk: float, p: float, c: NDArray) -> tuple[
 
     """
     if isinstance(time, ndarray):
-        return _pos_v(time, tk, p, c)
-    return _pos_s(time, tk, p, c)
+        return _pos_v(time, tc, p, c, tk)
+    return _pos_s(time, tc, p, c, tk)
 
 
 @overload(pos, jit_options={'fastmath': True}, inline='always')
-def _pos_overload(time, tk, p, c):
+def _pos_overload(time, tc, p, c, tk=0.0):
     if _is_1d_array(time):
-        def impl(time, tk, p, c):
-            return _pos_v(time, tk, p, c)
+        def impl(time, tc, p, c, tk=0.0):
+            return _pos_v(time, tc, p, c, tk)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tk, p, c):
-            return _pos_s(time, tk, p, c)
+        def impl(time, tc, p, c, tk=0.0):
+            return _pos_s(time, tc, p, c, tk)
         return impl
     return None

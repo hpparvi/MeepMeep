@@ -85,24 +85,24 @@ def _sep_c_overload(time, c):
 
 
 @njit(fastmath=True, inline='always')
-def _sep_s(time, tk, p, c):
+def _sep_s(time, tc, p, c, tk):
     """Scalar kernel for :func:`sep`. See that function for documentation."""
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return _sep_c_s(time - (tk + epoch * p), c)
+    epoch = floor((time - tc - tk + 0.5 * p) / p)
+    return _sep_c_s(time - (tc + tk + epoch * p), c)
 
 
 @njit(fastmath=True)
-def _sep_v(time, tk, p, c):
+def _sep_v(time, tc, p, c, tk):
     """Vector kernel for :func:`sep`. See that function for documentation."""
     n = time.size
     d = zeros(n)
     for j in range(n):
-        epoch = floor((time[j] - tk + 0.5 * p) / p)
-        d[j] = _sep_c_s(time[j] - (tk + epoch * p), c)
+        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
+        d[j] = _sep_c_s(time[j] - (tc + tk + epoch * p), c)
     return d
 
 
-def sep(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArray:
+def sep(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0) -> float | NDArray:
     """
     Evaluate the projected planet-star separation at an absolute time.
 
@@ -120,12 +120,17 @@ def sep(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArr
     ----------
     time : float or NDArray
         Absolute observation time(s).
-    tk : float
-        Taylor series expansion time (knot time).
+    tc : float
+        Transit-centre time (time of inferior conjunction), on the same
+        time axis as `time`.
     p : float
         Orbital period.
     c : NDArray
         A (2, 5) coefficient matrix produced by `solve2d`.
+    tk : float, optional
+        Knot offset from the transit centre [days] - the same value that
+        was passed to `solve2d`. Defaults to 0.0, the knot at the
+        transit centre.
 
     Returns
     -------
@@ -135,18 +140,18 @@ def sep(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArr
         vs. eclipse) is not encoded here.
     """
     if isinstance(time, ndarray):
-        return _sep_v(time, tk, p, c)
-    return _sep_s(time, tk, p, c)
+        return _sep_v(time, tc, p, c, tk)
+    return _sep_s(time, tc, p, c, tk)
 
 
 @overload(sep, jit_options={'fastmath': True}, inline='always')
-def _sep_overload(time, tk, p, c):
+def _sep_overload(time, tc, p, c, tk=0.0):
     if _is_1d_array(time):
-        def impl(time, tk, p, c):
-            return _sep_v(time, tk, p, c)
+        def impl(time, tc, p, c, tk=0.0):
+            return _sep_v(time, tc, p, c, tk)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tk, p, c):
-            return _sep_s(time, tk, p, c)
+        def impl(time, tc, p, c, tk=0.0):
+            return _sep_s(time, tc, p, c, tk)
         return impl
     return None

@@ -58,18 +58,21 @@ Centered vs. direct suffix
 A trailing ``_c`` marks a function as the **centered** variant: it takes a
 time argument already shifted to lie close to a knot and skips the
 epoch-folding step. Functions without the ``_c`` are **direct** variants
-that accept an absolute time together with the knot time ``tk`` and ``p``.
+that accept an absolute time together with the transit-centre time ``tc``,
+the period ``p``, and a trailing optional knot offset ``tk`` (default 0.0).
 
 .. note::
 
    Two time names are used consistently throughout the backend. ``tc`` is
    the **transit-centre** time (time of inferior conjunction; the orbital
-   element the gradient slot 0 is taken with respect to). ``tk`` is the
-   **knot time** — the time at the *center* of a local Taylor expansion
-   (a *knot*; see :ref:`taylor_overview`), and hence the ``solve*`` first
-   argument and the fold reference of the direct evaluators. ``tk`` need
-   not equal ``tc``: it equals ``tc`` only when the knot is placed at the
-   transit centre.
+   element the gradient slot 0 is taken with respect to), given on the
+   same time axis as the observation times. ``tk`` is the **knot offset**
+   from the transit centre — the time at the *center* of a local Taylor
+   expansion (a *knot*; see :ref:`taylor_overview`), measured relative to
+   ``tc``. The same ``tk`` value is the ``solve*`` first argument and the
+   optional trailing argument of the direct evaluators, which epoch-fold
+   around the knot at ``tc + tk`` on the observation time axis. The
+   default ``tk = 0`` places the knot at the transit centre.
 
 ==========================  ==============================================
 Suffix                      Meaning

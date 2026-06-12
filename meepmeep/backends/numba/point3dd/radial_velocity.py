@@ -160,14 +160,14 @@ def _rv_cd_overload(time, k, p, a, i, e, c, dc):
 
 
 @njit(fastmath=True)
-def _rv_d_s(time, k, tk, p, a, i, e, c, dc):
+def _rv_d_s(time, k, tc, p, a, i, e, c, dc, tk):
     """Scalar kernel for :func:`rv_d`. See that function for documentation."""
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return _rv_cd_s(time - (tk + epoch * p), k, p, a, i, e, c, dc)
+    epoch = floor((time - tc - tk + 0.5 * p) / p)
+    return _rv_cd_s(time - (tc + tk + epoch * p), k, p, a, i, e, c, dc)
 
 
 @njit(fastmath=True)
-def _rv_d_v(time, k, tk, p, a, i, e, c, dc):
+def _rv_d_v(time, k, tc, p, a, i, e, c, dc, tk):
     """Vector kernel for :func:`rv_d`. See that function for documentation."""
     nt = time.size
     rv_val = zeros(nt)
@@ -175,18 +175,18 @@ def _rv_d_v(time, k, tk, p, a, i, e, c, dc):
     s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
     dvz = zeros(7)
     for j in range(nt):
-        epoch = floor((time[j] - tk + 0.5 * p) / p)
-        rv_val[j] = _rv_cd_w(time[j] - (tk + epoch * p), s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
+        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
+        rv_val[j] = _rv_cd_w(time[j] - (tc + tk + epoch * p), s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
     return rv_val, drv
 
 
-def rv_d(time: float | NDArray, k: float, tk: float, p: float, a: float, i: float, e: float,
-         c: NDArray, dc: NDArray):
+def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float, e: float,
+         c: NDArray, dc: NDArray, tk: float = 0.0):
     """
     Evaluate the stellar radial velocity and its parameter derivatives at an absolute time.
 
     Direct counterpart of `rv_cd`: epoch-folds the absolute time
-    `time` around the expansion point `tk` and delegates to `rv_cd`.
+    `time` around the expansion point and delegates to `rv_cd`.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
     appropriate kernel at compile time (inside ``@njit``) or at call time
@@ -195,13 +195,18 @@ def rv_d(time: float | NDArray, k: float, tk: float, p: float, a: float, i: floa
     Parameters
     ----------
     time : float or ndarray
-        Absolute observation time(s) in the same units as `tk` and `p`.
+        Absolute observation time(s) in the same units as `tc` and `p`.
     k : float
         Radial-velocity semi-amplitude of the star, in physical
         velocity units (e.g. m/s). The function output inherits these
         units.
-    tk : float
-        Taylor series expansion time (knot time).
+    tc : float
+        Transit-centre time (time of inferior conjunction), on the same
+        time axis as `time`.
+    tk : float, optional
+        Knot offset from the transit centre [days] - the same value that
+        was passed to `solve3d_d`. Defaults to 0.0, the knot at the
+        transit centre.
     p : float
         Orbital period.
     a : float
@@ -226,18 +231,18 @@ def rv_d(time: float | NDArray, k: float, tk: float, p: float, a: float, i: floa
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _rv_d_v(time, k, tk, p, a, i, e, c, dc)
-    return _rv_d_s(time, k, tk, p, a, i, e, c, dc)
+        return _rv_d_v(time, k, tc, p, a, i, e, c, dc, tk)
+    return _rv_d_s(time, k, tc, p, a, i, e, c, dc, tk)
 
 
 @overload(rv_d, jit_options={'fastmath': True})
-def _rv_d_overload(time, k, tk, p, a, i, e, c, dc):
+def _rv_d_overload(time, k, tc, p, a, i, e, c, dc, tk=0.0):
     if _is_1d_array(time):
-        def impl(time, k, tk, p, a, i, e, c, dc):
-            return _rv_d_v(time, k, tk, p, a, i, e, c, dc)
+        def impl(time, k, tc, p, a, i, e, c, dc, tk=0.0):
+            return _rv_d_v(time, k, tc, p, a, i, e, c, dc, tk)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, k, tk, p, a, i, e, c, dc):
-            return _rv_d_s(time, k, tk, p, a, i, e, c, dc)
+        def impl(time, k, tc, p, a, i, e, c, dc, tk=0.0):
+            return _rv_d_s(time, k, tc, p, a, i, e, c, dc, tk)
         return impl
     return None

@@ -245,7 +245,9 @@ Standard Keplerian elements used throughout:
 The Taylor backend modules follow a consistent pattern. For each quantity there are two function variants:
 
 1. **Centered (`X_c`)**: Takes time `t` already relative to the expansion point, plus coefficient matrix `c`
-2. **Direct (`X`)**: Takes absolute time `t`, reference time `t0`, period `p`, and `c`. Handles epoch-folding internally.
+2. **Direct (`X`)**: Takes absolute time `t`, the transit-centre time `tc`, period `p`, `c`, and a trailing
+   optional knot offset `tk=0.0` (the same value passed to the solver). Handles epoch-folding around the
+   knot (at `tc + tk` on the observation time axis) internally.
 
 For parameter derivatives, the centered variant gets a `_cd` suffix and the direct variant a `_d` suffix (e.g., `pos_cd`, `pos_d`). These take an additional `dc` array of shape `(7, D, 5)`.
 

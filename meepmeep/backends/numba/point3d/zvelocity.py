@@ -91,24 +91,24 @@ def _zvel_c_overload(time, c):
 
 
 @njit(fastmath=True, inline='always')
-def _zvel_s(time, tk, p, c):
+def _zvel_s(time, tc, p, c, tk):
     """Scalar kernel for :func:`zvel`. See that function for documentation."""
-    epoch = floor((time - tk + 0.5 * p) / p)
-    return _zvel_c_s(time - (tk + epoch * p), c)
+    epoch = floor((time - tc - tk + 0.5 * p) / p)
+    return _zvel_c_s(time - (tc + tk + epoch * p), c)
 
 
 @njit(fastmath=True)
-def _zvel_v(time, tk, p, c):
+def _zvel_v(time, tc, p, c, tk):
     """Vector kernel for :func:`zvel`. See that function for documentation."""
     n = time.size
     vz = zeros(n)
     for j in range(n):
-        epoch = floor((time[j] - tk + 0.5 * p) / p)
-        vz[j] = _zvel_c_s(time[j] - (tk + epoch * p), c)
+        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
+        vz[j] = _zvel_c_s(time[j] - (tc + tk + epoch * p), c)
     return vz
 
 
-def zvel(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDArray:
+def zvel(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0) -> float | NDArray:
     """
     Evaluate the planet's line-of-sight velocity component at an absolute time.
 
@@ -123,14 +123,19 @@ def zvel(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDAr
     Parameters
     ----------
     time : float or NDArray
-        Absolute observation time(s) in the same units as `tk` and `p`.
-    tk : float
-        Taylor series expansion time (knot time).
+        Absolute observation time(s) in the same units as `tc` and `p`.
+    tc : float
+        Transit-centre time (time of inferior conjunction), on the same
+        time axis as `time`.
     p : float
         Orbital period, used for epoch folding.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
         (the z-direction coefficients) is read.
+    tk : float, optional
+        Knot offset from the transit centre [days] - the same value that
+        was passed to `solve3d`. Defaults to 0.0, the knot at the
+        transit centre.
 
     Returns
     -------
@@ -139,18 +144,18 @@ def zvel(time: float | NDArray, tk: float, p: float, c: NDArray) -> float | NDAr
         Positive values indicate motion toward the observer.
     """
     if isinstance(time, ndarray):
-        return _zvel_v(time, tk, p, c)
-    return _zvel_s(time, tk, p, c)
+        return _zvel_v(time, tc, p, c, tk)
+    return _zvel_s(time, tc, p, c, tk)
 
 
 @overload(zvel, jit_options={'fastmath': True}, inline='always')
-def _zvel_overload(time, tk, p, c):
+def _zvel_overload(time, tc, p, c, tk=0.0):
     if _is_1d_array(time):
-        def impl(time, tk, p, c):
-            return _zvel_v(time, tk, p, c)
+        def impl(time, tc, p, c, tk=0.0):
+            return _zvel_v(time, tc, p, c, tk)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tk, p, c):
-            return _zvel_s(time, tk, p, c)
+        def impl(time, tc, p, c, tk=0.0):
+            return _zvel_s(time, tc, p, c, tk)
         return impl
     return None

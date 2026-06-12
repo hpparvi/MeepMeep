@@ -132,8 +132,10 @@ from the transit; do not use Knot2D for full-orbit quantities.
 2D (`meepmeep.numba2d`): `solve2d(tk, p, a, i, e, w, lan=0.0)` returns a
 (2, 5) Taylor coefficient matrix for a knot at time `tk` RELATIVE TO THE
 TRANSIT CENTRE (tk=0 expands at transit). Evaluate with
-`pos(time, tk, p, c)` / `sep(time, tk, p, c)` (absolute times,
-epoch-folded) or the `_c` variants (knot-centred times, fastest).
+`pos(time, tc, p, c, tk=0.0)` / `sep(time, tc, p, c, tk=0.0)`: absolute
+times, epoch-folded; `tc` is the transit-centre time on the same axis as
+`time`, and the optional trailing `tk` is the same knot offset given to
+`solve2d`. The `_c` variants take knot-centred times and are fastest.
 `solve2d_d` additionally returns a (7, 2, 5) derivative tensor consumed
 by `pos_d` / `sep_d` / `pos_cd` / `sep_cd`. Transit geometry helpers
 (`t14`, `t23`, `find_contact_point`, `find_z_min`, ...) take the radius
@@ -167,11 +169,11 @@ Available `_o`/`_od` quantities: `pos`, `zpos`, `sep`, `vel`, `zvel`,
 1. `k` MEANS TWO THINGS: planet-to-star radius ratio in transit-geometry
    and Lambert functions, RV semi-amplitude in `rv*` /
    `radial_velocity`. Check the docstring of the specific function.
-2. tc vs tp/tpa anchoring: high-level `Orbit` accepts either; the
-   low-level multi-knot `*_o`/`*_od` evaluators ALWAYS take the
-   periastron time `tpa`. The single-knot `solve2d`/`solve3d` knot time
-   `tk` is relative to the TRANSIT centre. Mixing these up gives
-   phase-shifted orbits, not errors.
+2. tc vs tpa anchoring: high-level `Orbit` accepts either `tc` or `tp`;
+   the low-level multi-knot `*_o`/`*_od` evaluators ALWAYS take the
+   periastron time `tpa`, while the single-knot direct evaluators take
+   the transit centre `tc` (plus an optional knot offset `tk`). Mixing
+   these up gives phase-shifted orbits, not errors.
 3. The gradient basis silently follows the bound timing parameter
    (tc vs tp). Finite-difference checks must perturb the same basis.
 4. Angles are radians everywhere. Inclination near pi/2, not near 90.
