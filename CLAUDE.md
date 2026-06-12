@@ -37,6 +37,14 @@ pytest meepmeep/tests/
 
 Tests compare Taylor series approximations against exact Newton-Raphson solutions.
 
+**Measure coverage** (config in `.coveragerc`):
+```bash
+NUMBA_DISABLE_JIT=1 pytest -m "not slow" --cov
+```
+Coverage must run with the JIT disabled — compiled kernels are invisible to the tracer, so a
+naive `pytest --cov` reports near-zero kernel coverage. `.coveragerc` excludes the `@overload`
+registration bodies (they execute only during Numba type resolution and can never be traced).
+
 When finite-difference-testing parameter derivatives, sample a narrow near-transit window rather than the full
 orbit: perturbing timing/period shifts the periastron anchor and can remap a sampled time across a knot boundary,
 giving O(1) FD error at isolated points. For exactness, prefer parity against the `*_od` routines.
@@ -105,17 +113,15 @@ meepmeep/
 │                          # routines, and dimension-agnostic primitives
 │                          # (knots, Newton solvers, orbital-mechanics utils).
 ├── version.py             # Reads version dynamically via importlib.metadata
-├── tests/
-│   ├── conftest.py                  # Shared fixtures (orbital params, tolerances)
-│   ├── test_numba_newton.py         # Newton-Raphson Kepler solver tests
-│   ├── test_numba_orbit3d.py        # 3D orbit / multi-knot evaluator tests
-│   ├── test_numba_position2d.py     # 2D position accuracy tests
-│   ├── test_numba_solve2d.py        # 2D Taylor coefficient solver tests
-│   ├── test_numba_solve3d.py        # 3D Taylor coefficient solver tests
-│   ├── test_numba_utils.py          # Orbital-mechanics utility tests
-│   ├── test_orbit3d_evaluators.py   # End-to-end orbit3d evaluator tests
-│   ├── test_orbit3dd_evaluators.py  # End-to-end orbit3dd (gradient) evaluator tests
-│   └── test_orbit_derivatives.py    # Orbit class derivative-mode tests
+├── tests/                 # ~25 test modules; conftest.py holds the shared
+│                          # fixtures (orbital params, tolerances). Most are
+│                          # named after the module under test
+│                          # (test_numba_solve3d.py, test_knot2d.py, ...);
+│                          # cross-cutting suites cover the dispatchers,
+│                          # parallel kernels, scalar/vector parity,
+│                          # contact points / durations / find_z_min
+│                          # (test_contact_points.py), and tc/tp anchoring
+│                          # and gradients.
 └── backends/
     ├── numba/             # Primary backend (Numba JIT-compiled)
     │   ├── utils.py       # Orbital mechanics utilities (anomaly conversions, etc.)
@@ -220,7 +226,8 @@ constant rotation of the sky-plane (x, y) about the line of sight (in 3D, the li
 ### Orbital Parameters
 
 Standard Keplerian elements used throughout:
-- `t0`: Time of inferior conjunction (transit center)
+- `tc`: Time of inferior conjunction (transit center) [days]. `Orbit.set_pars` binds exactly one
+  of `tc` or `tp` (time of periastron passage); `Knot2D` takes `tc` directly.
 - `p`: Orbital period [days]
 - `a`: Scaled semi-major axis [R_star]
 - `i`: Inclination [radians]
@@ -254,7 +261,7 @@ For parameter derivatives, the centered variant gets a `_cd` suffix and the dire
 To add a new quantity:
 1. Implement the centered version using Horner-scheme evaluation of the coefficient polynomial
 2. Implement the direct version that epoch-folds and delegates to the centered version
-3. If derivatives are needed, add `_d`/`_cd` variants in the corresponding derivative module (`point2dd/<quantity>.py` for single-knot 2D, a `*dd.py` module such as `position3dd.py` for 3D)
+3. If derivatives are needed, add `_d`/`_cd` variants in the corresponding derivative module (`point2dd/<quantity>.py` for single-knot 2D, `point3dd/<quantity>.py` for 3D)
 4. Decorate with `@njit(fastmath=True)`
 5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-knot routines).
 
@@ -356,7 +363,7 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
   - In `point2dd` and `point3dd`, every derivative evaluator (`pos_cd`/`pos_d`/`sep_cd`/`sep_d`, plus in 3D `zpos_*`/`vel_cd`/`zvel_*`/`rv_*`) is a scalar-or-array `@overload` dispatcher (a scalar time gives a `(7,)` gradient; a 1-D time array of length `N` gives a leading-`N` axis, e.g. `sep_d` returns `d` shape `(N,)` and `dd` shape `(N, 7)`). Internally each routes to private `_s` (scalar) and `_v` (vector) kernels, e.g. `_pos_cd_s`/`_pos_cd_v`. This is the array path used by `Knot2D`; there is no `_dv` variant.
-  - Dimensionality (2D vs 3D) is encoded by the module or package name (the `point2d`/`point2dd` packages vs `position3d`), not by the function name.
+  - Dimensionality (2D vs 3D) is encoded by the package name (`point2d`/`point2dd` vs `point3d`/`point3dd`), not by the function name.
 - In the `orbit3d/` / `orbit3dd/` packages (multi-knot dispatchers):
   - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)
   - `_od`: same, gradient-returning (in the `orbit3dd/` package; e.g. `pos_od`, `rv_od`)

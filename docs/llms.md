@@ -115,16 +115,22 @@ Cheapest path for pure transit modelling where only the sky plane near
 the transit matters:
 
 ```python
-k2 = Knot2D(tc=0.0, p=3.4, a=8.0, i=1.55, e=0.1, w=0.4, derivatives=False)
+k2 = Knot2D(tc=0.0, p=3.4, a=8.0, i=1.55, e=0.1, w=0.4,
+            lan=0.0, tk=0.0, derivatives=False, parallel=False)
 k2.set_data(times)
 z = k2.projected_separation     # property; (z, dz) when derivatives=True
 x, y = k2.position              # property
-k2.duration(k, kind=14)         # transit duration T14 (kind=23 for T23)
-k2.contact_point(k, point)      # point in 1..4
-k2.min_separation(guess=0.0)    # (t_min, z_min), offsets from tc
+k2.duration(k, kind=14)         # kind in {14, 23, 12, 34} (total, full,
+                                # ingress, egress) [days]
+k2.contact_point(k, point)      # point in 1..4; ABSOLUTE time
+k2.bounding_box(k)              # (T1, T4) absolute contact times
+k2.min_separation(guess=0.0)    # (t_min, z_min); guess is an offset in
+                                # days from the knot, t_min is ABSOLUTE
 ```
 
-`set_pars(...)` (keyword-only) rebinds parameters. Accuracy degrades away
+`set_pars(...)` (keyword-only) rebinds the orbital elements; the knot
+offset `tk` (expansion point at `tc + tk`) is a construction-time
+constant that `set_pars` keeps. Accuracy degrades away
 from the transit; do not use Knot2D for full-orbit quantities.
 `Knot2D(..., parallel=True)` multi-threads the position/separation
 properties for large grids (>= ~1e4 points in derivative mode, ~1e5 in
@@ -142,8 +148,11 @@ times, epoch-folded; `tc` is the transit-centre time on the same axis as
 `solve2d`. The `_c` variants take knot-centred times and are fastest.
 `solve2d_d` additionally returns a (7, 2, 5) derivative tensor consumed
 by `pos_d` / `sep_d` / `pos_cd` / `sep_cd`. Transit geometry helpers
-(`t14`, `t23`, `find_contact_point`, `find_z_min`, ...) take the radius
-ratio `k` and the coefficient matrix.
+(`t14`, `t23`, `t12`, `t34`, `t1`, `t4`, `bounding_box`,
+`find_contact_point`, `find_z_min`) take the radius ratio `k` and the
+coefficient matrix and work in knot-centred time (offsets from the
+expansion point, unlike the `Knot2D` methods, which return absolute
+times).
 
 3D (`meepmeep.numba3d`): the same single-knot families with a (3, 5)
 matrix from `solve3d` (adds `zpos*`, `vel_c`, `zvel*`, `rv*`), plus the
@@ -187,6 +196,9 @@ Available `_o`/`_od` quantities: `pos`, `zpos`, `sep`, `vel`, `zvel`,
    arrays will not match the overload and fail to compile.
 7. `set_pars` validates nothing; e >= 1 or nonphysical inputs produce
    garbage, not exceptions.
+8. Time anchor of the geometry helpers: the low-level `t14`/`t1`/
+   `find_contact_point`/`find_z_min` family returns knot-centred offsets;
+   the `Knot2D` methods wrapping them return ABSOLUTE times.
 
 ## Validation and testing
 
