@@ -16,7 +16,7 @@
 
 """Multi-knot sky-projected separation evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
@@ -53,6 +53,17 @@ def _sep_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ds = zeros(n)
     dds = zeros((n, 7))
     for j in range(n):
+        ds[j] = _sep_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dds[j])
+    return ds, dds
+
+
+@njit(fastmath=True, parallel=True)
+def _sep_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_sep_ovd`."""
+    n = times.size
+    ds = zeros(n)
+    dds = zeros((n, 7))
+    for j in prange(n):
         ds[j] = _sep_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dds[j])
     return ds, dds
 

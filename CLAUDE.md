@@ -303,9 +303,9 @@ contexts by an ulp; scalar-vs-vector parity tests need a tiny `atol` (~1e-14
 relative to signal scale), not `atol=0`.
 
 **Parallel twins (`_ovp` / `_ovdp`).** Every multi-knot vector kernel has a
-`prange` twin in `orbit3d/_parallel.py` / `orbit3dd/_parallel.py`, compiled
-with `parallel=True` but otherwise mirroring the serial body (same write-into
-kernels, same hoisted invariants). Gradient twins that need intermediate
+`prange` twin living in the same quantity module, directly after the serial
+vector kernel, compiled with `parallel=True` but otherwise mirroring the
+serial body (same write-into kernels, same hoisted invariants). Gradient twins that need intermediate
 scratch hoist one buffer per thread (`zeros((get_num_threads(), 7))`, indexed
 with `get_thread_id()`) — a single shared buffer would be a data race under
 `prange`. The public dispatchers always route to the serial kernels; the

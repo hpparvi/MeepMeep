@@ -16,7 +16,7 @@
 
 """Multi-knot light-travel-time correction evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, pi, ndarray
 
@@ -48,6 +48,19 @@ def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeff
     z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
     for j in range(n):
+        ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, pktable, points, coeffs) - z_tr)
+    return ltt
+
+
+@njit(fastmath=True, parallel=True)
+def _light_travel_time_ovp(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_light_travel_time_ov`."""
+    n = times.size
+    ltt = zeros(n)
+    to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
+    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
+    factor = -rstar * LTT_DAYS_PER_RSUN
+    for j in prange(n):
         ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, pktable, points, coeffs) - z_tr)
     return ltt
 

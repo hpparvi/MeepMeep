@@ -21,7 +21,7 @@ kernel: the pure phase curve (:func:`lambert_phase_curve_od`) and the
 combined reflection-plus-emission model (:func:`lambert_and_emission_od`).
 """
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import zeros, pi, sqrt, sin, cos, arccos, ndarray
 
@@ -102,6 +102,38 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
     dz = zeros(7)
     for j in range(n):
         ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz)
+        phase, _, dphase_dc = _lambert_kernel_d(ca)
+        flux[j] = amplitude * phase
+        for kk in range(7):
+            dflux[j, kk] = amplitude * dphase_dc * dca[kk]
+        dflux[j, 2] += da_amp * phase
+        dflux[j, 7] = dag_amp * phase
+        dflux[j, 8] = dk_amp * phase
+    return flux, dflux
+
+
+@njit(fastmath=True, parallel=True)
+def _lambert_phase_curve_ovdp(times, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_lambert_phase_curve_ovd`.
+
+    The phase-angle and position-gradient scratch is hoisted per thread; a
+    single shared buffer would be a data race under ``prange``.
+    """
+    n = times.size
+    flux = zeros(n)
+    dflux = zeros((n, 9))
+    inv_a2 = 1.0 / (a * a)
+    amplitude = k * k * ag * inv_a2
+    da_amp = -2.0 * k * k * ag / (a * a * a)
+    dag_amp = k * k * inv_a2
+    dk_amp = 2.0 * k * ag * inv_a2
+    nt = get_num_threads()
+    dcas, dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
+    for j in prange(n):
+        tid = get_thread_id()
+        dca = dcas[tid]
+        ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+                           dca, dxs[tid], dys[tid], dzs[tid])
         phase, _, dphase_dc = _lambert_kernel_d(ca)
         flux[j] = amplitude * phase
         for kk in range(7):
@@ -229,6 +261,66 @@ def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
         # k (11): 2k · bracket
         demi[j, 11] = 2.0 * k * bracket
 
+    return ref, emi, dref, demi
+
+
+@njit(fastmath=True, parallel=True)
+def _lambert_and_emission_ovdp(times, ag, fr_night, fr_day, emi_offset, a, k,
+                               tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_lambert_and_emission_ovd`.
+
+    The phase-angle and position-gradient scratch is hoisted per thread; a
+    single shared buffer would be a data race under ``prange``.
+    """
+    n = times.size
+    ref = zeros(n)
+    emi = zeros(n)
+    dref = zeros((n, 12))
+    demi = zeros((n, 12))
+    k2 = k * k
+    inv_a2 = 1.0 / (a * a)
+    aref = k2 * ag * inv_a2
+    daref_da = -2.0 * k2 * ag / (a * a * a)
+    daref_dag = k2 * inv_a2
+    daref_dk = 2.0 * k * ag * inv_a2
+    nt = get_num_threads()
+    dcas, dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
+    for j in prange(n):
+        tid = get_thread_id()
+        dca = dcas[tid]
+        ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+                           dca, dxs[tid], dys[tid], dzs[tid])
+        phase, alpha, dphase_dc = _lambert_kernel_d(ca)
+
+        ref[j] = aref * phase
+        for kk in range(7):
+            dref[j, kk] = aref * dphase_dc * dca[kk]
+        dref[j, 2] += daref_da * phase
+        dref[j, 7] = daref_dag * phase
+        dref[j, 11] = daref_dk * phase
+
+        cs = cos(alpha + emi_offset)
+        sn = sin(alpha + emi_offset)
+        bracket = fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cs)
+        emi[j] = k2 * bracket
+
+        ca_clamped = ca
+        if ca_clamped > 1.0:
+            ca_clamped = 1.0
+        elif ca_clamped < -1.0:
+            ca_clamped = -1.0
+        s = sqrt(1.0 - ca_clamped * ca_clamped)
+        if s < 1e-12:
+            dalpha_dc = 0.0
+        else:
+            dalpha_dc = -1.0 / s
+        demi_dalpha = k2 * (fr_day - fr_night) * 0.5 * sn
+        for kk in range(7):
+            demi[j, kk] = demi_dalpha * dalpha_dc * dca[kk]
+        demi[j, 8] = k2 * (1.0 - 0.5 * (1.0 - cs))
+        demi[j, 9] = k2 * 0.5 * (1.0 - cs)
+        demi[j, 10] = k2 * (fr_day - fr_night) * 0.5 * sn
+        demi[j, 11] = 2.0 * k * bracket
     return ref, emi, dref, demi
 
 

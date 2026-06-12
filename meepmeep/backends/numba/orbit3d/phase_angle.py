@@ -16,7 +16,7 @@
 
 """Multi-knot phase-angle (star-planet-observer) cosine evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, sqrt, ndarray
 
@@ -39,6 +39,16 @@ def _cos_alpha_ov(times, tpa, p, dt, pktable, points, coeffs):
     for i in range(n):
         x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
         out[i] = -z / sqrt(x * x + y * y + z * z)
+    return out
+
+
+@njit(fastmath=True, parallel=True)
+def _cos_alpha_ovp(times, tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_cos_alpha_ov`."""
+    n = times.size
+    out = zeros(n)
+    for i in prange(n):
+        out[i] = _cos_alpha_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return out
 
 

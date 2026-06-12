@@ -16,7 +16,7 @@
 
 """Multi-knot planet z-velocity (line-of-sight) evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
@@ -41,6 +41,16 @@ def _zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
     for i in range(npt):
         vzs[i] = _zvel_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return vzs
+
+
+@njit(fastmath=True, parallel=True)
+def _zvel_ovp(times, tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_zvel_ov`."""
+    n = times.size
+    out = zeros(n)
+    for i in prange(n):
+        out[i] = _zvel_os(times[i], tpa, p, dt, pktable, points, coeffs)
+    return out
 
 
 def zvel_o(t, tpa, p, dt, pktable, points, coeffs):

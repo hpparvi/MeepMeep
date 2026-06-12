@@ -21,7 +21,7 @@ kernel: the pure phase curve (:func:`lambert_phase_curve_o`) and the
 combined reflection-plus-emission model (:func:`lambert_and_emission_o`).
 """
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, pi, sqrt, cos, arccos, ndarray
 
@@ -84,6 +84,19 @@ def _lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, pktable, points, coeffs
     return res
 
 
+@njit(fastmath=True, parallel=True)
+def _lambert_phase_curve_ovp(times, ag, a, k, tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_lambert_phase_curve_ov`."""
+    n = times.size
+    res = zeros(n)
+    amplitude = k * k * ag / (a * a)
+    for i in prange(n):
+        cos_alpha = _cos_alpha_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        phase, _ = _lambert_kernel(cos_alpha)
+        res[i] = amplitude * phase
+    return res
+
+
 @njit(fastmath=True, inline="always")
 def _lambert_and_emission_os(t, ag, fr_night, fr_day, emi_offset, a, k,
                              tpa, p, dt, pktable, points, coeffs):
@@ -106,6 +119,22 @@ def _lambert_and_emission_ov(times, ag, fr_night, fr_day, emi_offset, a, k,
     k2 = k * k
     aref = k2 * ag / (a * a)
     for i in range(n):
+        cos_alpha = _cos_alpha_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        phase, alpha = _lambert_kernel(cos_alpha)
+        ref[i] = aref * phase
+        emi[i] = k2 * (fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cos(alpha + emi_offset)))
+    return ref, emi
+
+
+@njit(fastmath=True, parallel=True)
+def _lambert_and_emission_ovp(times, ag, fr_night, fr_day, emi_offset, a, k,
+                              tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_lambert_and_emission_ov`."""
+    n = times.size
+    ref, emi = zeros(n), zeros(n)
+    k2 = k * k
+    aref = k2 * ag / (a * a)
+    for i in prange(n):
         cos_alpha = _cos_alpha_os(times[i], tpa, p, dt, pktable, points, coeffs)
         phase, alpha = _lambert_kernel(cos_alpha)
         ref[i] = aref * phase

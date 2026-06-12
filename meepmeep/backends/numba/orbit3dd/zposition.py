@@ -16,7 +16,7 @@
 
 """Multi-knot planet z-position (line-of-sight) evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
@@ -53,6 +53,17 @@ def _zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     zs = zeros(n)
     dzs = zeros((n, 7))
     for j in range(n):
+        zs[j] = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dzs[j])
+    return zs, dzs
+
+
+@njit(fastmath=True, parallel=True)
+def _zpos_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_zpos_ovd`."""
+    n = times.size
+    zs = zeros(n)
+    dzs = zeros((n, 7))
+    for j in prange(n):
         zs[j] = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dzs[j])
     return zs, dzs
 

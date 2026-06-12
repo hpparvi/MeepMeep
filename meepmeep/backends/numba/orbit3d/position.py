@@ -16,7 +16,7 @@
 
 """Multi-knot planet (x, y, z) position evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
@@ -39,6 +39,16 @@ def _pos_ov(times, tpa, p, dt, pktable, points, coeffs):
     npt = times.size
     xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
+        xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+    return xs, ys, zs
+
+
+@njit(fastmath=True, parallel=True)
+def _pos_ovp(times, tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_pos_ov`."""
+    n = times.size
+    xs, ys, zs = zeros(n), zeros(n), zeros(n)
+    for i in prange(n):
         xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return xs, ys, zs
 

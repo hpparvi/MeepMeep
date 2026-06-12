@@ -16,7 +16,7 @@
 
 """Multi-knot ellipsoidal-variation signal evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, sin, sqrt, ndarray
 
@@ -44,6 +44,22 @@ def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, co
     sin2_inc = sin(inc) ** 2
     pre = -alpha * mass_ratio * sin2_inc
     for i in range(n):
+        x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        d2 = x * x + y * y + z * z
+        d = sqrt(d2)
+        cz = z / d
+        out[i] = pre * (2.0 * cz * cz - 1.0) / (d2 * d)
+    return out
+
+
+@njit(fastmath=True, parallel=True)
+def _ev_signal_ovp(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_ev_signal_ov`."""
+    n = times.size
+    out = zeros(n)
+    sin2_inc = sin(inc) ** 2
+    pre = -alpha * mass_ratio * sin2_inc
+    for i in prange(n):
         x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)

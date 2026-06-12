@@ -27,7 +27,7 @@ anomaly to mean anomaly: ``f = 2π(t - tpa)/p`` ⇒ analytic derivatives are
 trivial in (tc, p) and zero in the rest.
 """
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import zeros, pi, floor, sqrt, arccos, ndarray
 
@@ -157,6 +157,71 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
                 # Equivalent: dedp = (dxdote * r2 - xdote * xdotdx * inv_r2 * r2) ... keep clarity.
                 df_k = -dedp / denom
                 df[j, k] = df_k if sign > 0.0 else -df_k
+    return f, df
+
+
+@njit(parallel=True)
+def _true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_true_anomaly_ovd`.
+
+    Mirrors the serial vector body (rather than looping the scalar kernel)
+    so the positions are evaluated under the same non-fastmath flags: near
+    the apsides ``df`` is sensitive to ulp-level differences in ``edp``,
+    so the twin must match the serial kernel's rounding exactly. The
+    position-gradient scratch is hoisted per thread.
+    """
+    n = times.size
+    f = zeros(n)
+    df = zeros((n, 7))
+    nes = ex * ex + ey * ey + ez * ez
+
+    if ex <= -0.9999 and nes > 0.99:
+        twopi = 2.0 * pi
+        for j in prange(n):
+            tau = times[j] - tpa
+            epoch = floor(tau / p)
+            tau_red = tau - epoch * p
+            f[j] = twopi * tau_red / p
+            df[j, 0] = -twopi / p
+            df[j, 1] = -twopi * tau_red / (p * p)
+        return f, df
+
+    nt = get_num_threads()
+    dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
+    for j in prange(n):
+        tid = get_thread_id()
+        dx, dy, dz = dxs[tid], dys[tid], dzs[tid]
+        t = times[j]
+        epoch = floor((t - tpa) / p)
+        tc = t - tpa - epoch * p
+        ix = pktable[int(floor(tc / (dt * p)))]
+        tcc = tc - points[ix] * p
+
+        x, y, z = _pos_cd_w(tcc, coeffs[ix], dcoeffs[ix], dx, dy, dz)
+
+        r2 = x * x + y * y + z * z
+        sqrt_r2_nes = sqrt(r2 * nes)
+        edp = (x * ex + y * ey + z * ez) / sqrt_r2_nes
+
+        if edp <= -1.0:
+            f[j] = pi
+            # Singular: leave df[j] = 0.
+        elif edp >= 1.0:
+            f[j] = 0.0
+            # Singular: leave df[j] = 0.
+        else:
+            # Branch selection from the mean anomaly; see _true_anomaly_osd.
+            sign = 1.0 if tc < 0.5 * p else -1.0
+            base = arccos(edp)
+            f[j] = base if sign > 0.0 else 2.0 * pi - base
+            denom = sqrt(1.0 - edp * edp)
+            for kk in range(7):
+                xdote = x * ex + y * ey + z * ez
+                dxdote = dx[kk] * ex + dy[kk] * ey + dz[kk] * ez
+                xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
+                dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
+                df_k = -dedp / denom
+                df[j, kk] = df_k if sign > 0.0 else -df_k
     return f, df
 
 

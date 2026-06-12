@@ -16,7 +16,7 @@
 
 """Multi-knot phase-angle cosine evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import zeros, sqrt, ndarray
 
@@ -68,6 +68,25 @@ def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     for j in range(n):
         cas[j] = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
                                dcas[j], dx, dy, dz)
+    return cas, dcas
+
+
+@njit(fastmath=True, parallel=True)
+def _cos_alpha_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_cos_alpha_ovd`.
+
+    The position-gradient scratch is hoisted per thread; a single shared
+    buffer would be a data race under ``prange``.
+    """
+    n = times.size
+    cas = zeros(n)
+    dcas = zeros((n, 7))
+    nt = get_num_threads()
+    dx, dy, dz = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
+    for j in prange(n):
+        tid = get_thread_id()
+        cas[j] = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+                               dcas[j], dx[tid], dy[tid], dz[tid])
     return cas, dcas
 
 

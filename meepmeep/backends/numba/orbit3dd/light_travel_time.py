@@ -16,7 +16,7 @@
 
 """Multi-knot light-travel-time correction evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import zeros, pi, floor, ndarray
 
@@ -148,6 +148,29 @@ def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coef
         ltt[j] = factor * (z - z_tr)
         for k in range(7):
             dltt[j, k] = factor * (dz[k] - dz_tr[k])
+    return ltt, dltt
+
+
+@njit(fastmath=True, parallel=True)
+def _light_travel_time_ovdp(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_light_travel_time_ovd`.
+
+    The z-gradient scratch is hoisted per thread; a single shared buffer
+    would be a data race under ``prange``. The transit reference and its
+    derivative chain are computed once, as in the serial kernel.
+    """
+    n = times.size
+    ltt = zeros(n)
+    dltt = zeros((n, 7))
+    factor = -rstar * LTT_DAYS_PER_RSUN
+    z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
+    dz = zeros((get_num_threads(), 7))
+    for j in prange(n):
+        dzj = dz[get_thread_id()]
+        z = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dzj)
+        ltt[j] = factor * (z - z_tr)
+        for kk in range(7):
+            dltt[j, kk] = factor * (dzj[kk] - dz_tr[kk])
     return ltt, dltt
 
 

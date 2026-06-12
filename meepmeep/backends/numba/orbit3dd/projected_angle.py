@@ -16,7 +16,7 @@
 
 """Multi-knot evaluators for the angle to a fixed vector, with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import zeros, sqrt, ndarray
 
@@ -69,6 +69,36 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
             ddot = dx[k] * v[0] + dy[k] * v[1] + dz[k] * v[2]
             xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
             dcs[j, k] = inv_nv * (ddot * inv_r - dot * xdotdx * inv_r3)
+    return cs, dcs
+
+
+@njit(fastmath=True, parallel=True)
+def _cos_v_p_angle_ovdp(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_cos_v_p_angle_ovd`.
+
+    The position-gradient scratch is hoisted per thread; a single shared
+    buffer would be a data race under ``prange``.
+    """
+    n = times.size
+    cs = zeros(n)
+    dcs = zeros((n, 7))
+    inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+    nt = get_num_threads()
+    dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
+    for j in prange(n):
+        tid = get_thread_id()
+        dx, dy, dz = dxs[tid], dys[tid], dzs[tid]
+        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        r2 = x * x + y * y + z * z
+        r = sqrt(r2)
+        inv_r = 1.0 / r
+        inv_r3 = inv_r / r2
+        dot = x * v[0] + y * v[1] + z * v[2]
+        cs[j] = dot * inv_nv * inv_r
+        for kk in range(7):
+            ddot = dx[kk] * v[0] + dy[kk] * v[1] + dz[kk] * v[2]
+            xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
+            dcs[j, kk] = inv_nv * (ddot * inv_r - dot * xdotdx * inv_r3)
     return cs, dcs
 
 

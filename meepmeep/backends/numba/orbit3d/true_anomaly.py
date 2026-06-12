@@ -16,7 +16,7 @@
 
 """Multi-knot true-anomaly evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, pi, floor, sqrt, arccos, ndarray
 
@@ -96,6 +96,16 @@ def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
                 f[i] = arccos(edp)
             else:
                 f[i] = 2.0 * pi - arccos(edp)
+    return f
+
+
+@njit(parallel=True)
+def _true_anomaly_ovp(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_true_anomaly_ov`."""
+    n = times.size
+    f = zeros(n)
+    for i in prange(n):
+        f[i] = _true_anomaly_os(times[i], tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
     return f
 
 

@@ -16,7 +16,7 @@
 
 """Multi-knot evaluators for the angle between the planet and a fixed vector."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, sqrt, ndarray
 
@@ -41,6 +41,16 @@ def _cos_v_p_angle_ov(v, times, tpa, p, dt, pktable, points, coeffs):
     for i in range(n):
         x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
         out[i] = (x * v[0] + y * v[1] + z * v[2]) * inv_nv / sqrt(x * x + y * y + z * z)
+    return out
+
+
+@njit(fastmath=True, parallel=True)
+def _cos_v_p_angle_ovp(v, times, tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_cos_v_p_angle_ov`."""
+    n = times.size
+    out = zeros(n)
+    for i in prange(n):
+        out[i] = _cos_v_p_angle_os(v, times[i], tpa, p, dt, pktable, points, coeffs)
     return out
 
 

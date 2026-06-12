@@ -16,7 +16,7 @@
 
 """Multi-knot planet (vx, vy, vz) velocity evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
@@ -39,6 +39,16 @@ def _vel_ov(times, tpa, p, dt, pktable, points, coeffs):
     npt = times.size
     vxs, vys, vzs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
+        vxs[i], vys[i], vzs[i] = _vel_os(times[i], tpa, p, dt, pktable, points, coeffs)
+    return vxs, vys, vzs
+
+
+@njit(fastmath=True, parallel=True)
+def _vel_ovp(times, tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_vel_ov`."""
+    n = times.size
+    vxs, vys, vzs = zeros(n), zeros(n), zeros(n)
+    for i in prange(n):
         vxs[i], vys[i], vzs[i] = _vel_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return vxs, vys, vzs
 

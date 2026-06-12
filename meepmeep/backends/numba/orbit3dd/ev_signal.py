@@ -16,7 +16,7 @@
 
 """Multi-knot ellipsoidal-variation signal evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import zeros, sin, cos, sqrt, ndarray
 
@@ -101,6 +101,45 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
         # inc (9): d(sin^2 inc)/dinc = 2 sin_inc · cos_inc
         dout[j, 9] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
 
+    return out, dout
+
+
+@njit(fastmath=True, parallel=True)
+def _ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_ev_signal_ovd`.
+
+    The position-gradient scratch is hoisted per thread; a single shared
+    buffer would be a data race under ``prange``.
+    """
+    n = times.size
+    out = zeros(n)
+    dout = zeros((n, 10))
+    sin_inc = sin(inc)
+    cos_inc = cos(inc)
+    sin2_inc = sin_inc * sin_inc
+    pre = -alpha * mass_ratio * sin2_inc
+    nt = get_num_threads()
+    dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
+    for j in prange(n):
+        tid = get_thread_id()
+        dx, dy, dz = dxs[tid], dys[tid], dzs[tid]
+        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        d2 = x * x + y * y + z * z
+        d = sqrt(d2)
+        cz = z / d
+        g = (2.0 * cz * cz - 1.0) / (d2 * d)
+        out[j] = pre * g
+        d5 = d2 * d2 * d
+        A = 2.0 * z * z - d2
+        for kk in range(7):
+            xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
+            dd = xdotdx / d
+            dA = -2.0 * (x * dx[kk] + y * dy[kk]) + 2.0 * z * dz[kk]
+            dg = (dA - 5.0 * A * dd / d2) / d5
+            dout[j, kk] = pre * dg
+        dout[j, 7] = -mass_ratio * sin2_inc * g
+        dout[j, 8] = -alpha * sin2_inc * g
+        dout[j, 9] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
     return out, dout
 
 

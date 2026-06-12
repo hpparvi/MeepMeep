@@ -16,7 +16,7 @@
 
 """Multi-knot radial-velocity evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, pi, sin, sqrt, ndarray
 
@@ -38,6 +38,17 @@ def _rv_ov(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
     rvs = zeros(n)
     scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
     for j in range(n):
+        rvs[j] = _zvel_os(times[j], tpa, p, dt, pktable, points, coeffs) * scale
+    return rvs
+
+
+@njit(fastmath=True, parallel=True)
+def _rv_ovp(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_rv_ov`."""
+    n = times.size
+    rvs = zeros(n)
+    scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
+    for j in prange(n):
         rvs[j] = _zvel_os(times[j], tpa, p, dt, pktable, points, coeffs) * scale
     return rvs
 

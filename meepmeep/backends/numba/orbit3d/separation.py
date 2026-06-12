@@ -16,7 +16,7 @@
 
 """Multi-knot sky-projected planet-star separation evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
@@ -40,6 +40,16 @@ def _sep_ov(times, tpa, p, dt, pktable, points, coeffs):
     out = zeros(n)
     for j in range(n):
         out[j] = _sep_os(times[j], tpa, p, dt, pktable, points, coeffs)
+    return out
+
+
+@njit(fastmath=True, parallel=True)
+def _sep_ovp(times, tpa, p, dt, pktable, points, coeffs):
+    """Parallel (prange) twin of :func:`_sep_ov`."""
+    n = times.size
+    out = zeros(n)
+    for i in prange(n):
+        out[i] = _sep_os(times[i], tpa, p, dt, pktable, points, coeffs)
     return out
 
 

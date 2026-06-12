@@ -16,7 +16,7 @@
 
 """Multi-knot 3D star-planet distance evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import zeros, sqrt, ndarray
 
@@ -55,6 +55,30 @@ def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeff
         inv_r = 1.0 / r
         for k in range(7):
             drs[j, k] = (x * dx[k] + y * dy[k] + z * dz[k]) * inv_r
+    return rs, drs
+
+
+@njit(fastmath=True, parallel=True)
+def _star_planet_distance_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_star_planet_distance_ovd`.
+
+    The position-gradient scratch is hoisted per thread; a single shared
+    buffer would be a data race under ``prange``.
+    """
+    n = times.size
+    rs = zeros(n)
+    drs = zeros((n, 7))
+    nt = get_num_threads()
+    dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
+    for j in prange(n):
+        tid = get_thread_id()
+        dx, dy, dz = dxs[tid], dys[tid], dzs[tid]
+        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        r = sqrt(x * x + y * y + z * z)
+        rs[j] = r
+        inv_r = 1.0 / r
+        for kk in range(7):
+            drs[j, kk] = (x * dx[kk] + y * dy[kk] + z * dz[kk]) * inv_r
     return rs, drs
 
 

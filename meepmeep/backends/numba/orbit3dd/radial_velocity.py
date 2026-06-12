@@ -16,7 +16,7 @@
 
 """Multi-knot radial-velocity evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import zeros, floor, ndarray
 
@@ -56,6 +56,30 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
                           coeffs[ix], dcoeffs[ix], drvs[j, :7], dvz)
         rvs[j] = rv_val
         # drv/dk = rv / k  (rv is linear in k via the scale factor s = k/n).
+        drvs[j, 7] = rv_val / k if k != 0.0 else 0.0
+    return rvs, drvs
+
+
+@njit(fastmath=True, parallel=True)
+def _rv_ovdp(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`_rv_ovd`.
+
+    The z-velocity gradient scratch is hoisted per thread; a single shared
+    buffer would be a data race under ``prange``.
+    """
+    n = times.size
+    rvs = zeros(n)
+    drvs = zeros((n, 8))
+    s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
+    dvz = zeros((get_num_threads(), 7))
+    for j in prange(n):
+        t = times[j]
+        epoch = floor((t - tpa) / p)
+        tc = t - tpa - epoch * p
+        ix = pktable[int(floor(tc / (dt * p)))]
+        rv_val = _rv_cd_w(tc - points[ix] * p, s, dsp, dsa, dsi, dse,
+                          coeffs[ix], dcoeffs[ix], drvs[j, :7], dvz[get_thread_id()])
+        rvs[j] = rv_val
         drvs[j, 7] = rv_val / k if k != 0.0 else 0.0
     return rvs, drvs
 
