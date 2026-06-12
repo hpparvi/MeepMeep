@@ -62,7 +62,7 @@ from .backends.numba.orbit3d import (
     vel_o, zvel_o,
     true_anomaly_o, cos_v_p_angle_o, cos_alpha_o,
     star_planet_distance_o,
-    lambert_phase_curve_o, lambert_and_emission_o,
+    lambert_phase_curve_o,
     ev_signal_o, rv_o, light_travel_time_o,
 )
 from .backends.numba.orbit3dd import (
@@ -71,7 +71,7 @@ from .backends.numba.orbit3dd import (
     vel_od, zvel_od,
     cos_alpha_od, star_planet_distance_od,
     cos_v_p_angle_od, true_anomaly_od,
-    lambert_phase_curve_od, lambert_and_emission_od,
+    lambert_phase_curve_od,
     ev_signal_od, rv_od, light_travel_time_od,
 )
 
@@ -91,8 +91,6 @@ __all__ = [
     "find_contact_point",
     "find_z_min",
     "knot_ix",
-    "lambert_and_emission_o",
-    "lambert_and_emission_od",
     "lambert_phase_curve_o",
     "lambert_phase_curve_od",
     "light_travel_time_o",

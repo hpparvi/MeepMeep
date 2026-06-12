@@ -66,8 +66,6 @@ from .lambert import (
     _lambert_kernel_d,
     lambert_phase_curve_od, _lambert_phase_curve_osd, _lambert_phase_curve_ovd,
     _lambert_phase_curve_ovdp,
-    lambert_and_emission_od, _lambert_and_emission_osd, _lambert_and_emission_ovd,
-    _lambert_and_emission_ovdp,
 )
 from .ev_signal import ev_signal_od, _ev_signal_osd, _ev_signal_ovd, _ev_signal_ovdp
 from .radial_velocity import rv_od, _rv_osd, _rv_ovd, _rv_ovdp

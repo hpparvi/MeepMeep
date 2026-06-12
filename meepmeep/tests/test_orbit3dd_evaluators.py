@@ -14,8 +14,8 @@ ground truth. Here we focus on what's *new* in ``orbit3dd``:
    from ``pos_od`` outputs by hand and must match the analytic versions.
 
 4. **Extra-parameter FD**: derivatives w.r.t. the routine-specific extras
-   (``k`` for RV; ``ag, k`` for Lambert; ``ag, fr_night, fr_day, emi_offset, k``
-   for Lambert+emission; ``alpha, mass_ratio, inc`` for ellipsoidal) are
+   (``k`` for RV; ``ag, k`` for Lambert; ``alpha, mass_ratio, inc`` for
+   ellipsoidal) are
    validated via central finite differences against the base routines, since
    those parameters are independent of the Taylor coefficients.
 
@@ -44,7 +44,6 @@ from meepmeep.backends.numba.orbit3d import (
     rv_o,
     true_anomaly_o,
     lambert_phase_curve_o,
-    lambert_and_emission_o,
     ev_signal_o,
     cos_v_p_angle_o,
     sep_o,
@@ -70,7 +69,6 @@ from meepmeep.backends.numba.orbit3dd import (
     true_anomaly_od,
     lambert_phase_curve_od,
     lambert_phase_curve_od,
-    lambert_and_emission_od,
     ev_signal_od,
     rv_od,
     light_travel_time_od,
@@ -177,23 +175,6 @@ class TestValueParity:
         assert_allclose(flux, flux_b, rtol=1e-10, atol=1e-20)
         assert dflux.shape == (NTIMES, 9)
         assert np.all(np.isfinite(dflux))
-
-    def test_lambert_and_emission_od(self, orbit_case):
-        times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        ref_b, emi_b = lambert_and_emission_o(times, ag=0.3, fr_night=0.1, fr_day=0.4,
-                                               emi_offset=0.0, a=orbit_case["a"], k=0.1,
-                                               tpa=tc, p=orbit_case["p"], dt=dt,
-                                               pktable=pkt, points=pts, coeffs=c)
-        ref, emi, dref, demi = lambert_and_emission_od(
-            times, ag=0.3, fr_night=0.1, fr_day=0.4, emi_offset=0.0,
-            a=orbit_case["a"], k=0.1, tpa=tc, p=orbit_case["p"], dt=dt,
-            pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
-        assert_allclose(ref, ref_b, rtol=1e-10, atol=1e-20)
-        assert_allclose(emi, emi_b, rtol=1e-10, atol=1e-20)
-        assert dref.shape == (NTIMES, 12)
-        assert demi.shape == (NTIMES, 12)
-        assert np.all(np.isfinite(dref))
-        assert np.all(np.isfinite(demi))
 
     def test_ev_signal_od(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
@@ -352,31 +333,6 @@ class TestExtraParameterFD:
         _, dflux = lambert_phase_curve_od(times, ag, a, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
         assert_allclose(dflux[:, 8], fd, rtol=1e-5, atol=1e-10)
-
-    def test_lambert_and_emission_extras(self, orbit_case):
-        """FD all 5 extras (ag, fr_night, fr_day, emi_offset, k)."""
-        times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        ag, fn, fd_, eo, a, k = 0.3, 0.1, 0.4, 0.2, orbit_case["a"], 0.1
-        ref, emi, dref, demi = lambert_and_emission_od(
-            times, ag, fn, fd_, eo, a, k, tc, orbit_case["p"], dt,
-            pkt, pts, c, dc)
-        h = 1e-7
-        # Indices 7=ag, 8=fr_night, 9=fr_day, 10=emi_offset, 11=k.
-        for slot, perturb in [(7, "ag"), (8, "fn"), (9, "fd"), (10, "eo"), (11, "k")]:
-            args_p = dict(ag=ag, fr_night=fn, fr_day=fd_, emi_offset=eo, a=a, k=k)
-            args_m = dict(args_p)
-            key = {"ag": "ag", "fn": "fr_night", "fd": "fr_day",
-                   "eo": "emi_offset", "k": "k"}[perturb]
-            args_p[key] = args_p[key] + h
-            args_m[key] = args_m[key] - h
-            r_p, e_p = lambert_and_emission_o(times, tpa=tc, p=orbit_case["p"], dt=dt,
-                                               pktable=pkt, points=pts, coeffs=c, **args_p)
-            r_m, e_m = lambert_and_emission_o(times, tpa=tc, p=orbit_case["p"], dt=dt,
-                                               pktable=pkt, points=pts, coeffs=c, **args_m)
-            assert_allclose(dref[:, slot], (r_p - r_m) / (2 * h),
-                            rtol=1e-4, atol=1e-9, err_msg=f"dref slot {slot} ({perturb})")
-            assert_allclose(demi[:, slot], (e_p - e_m) / (2 * h),
-                            rtol=1e-4, atol=1e-9, err_msg=f"demi slot {slot} ({perturb})")
 
     def test_ev_signal_extras(self, orbit_case):
         """FD on alpha (7), mass_ratio (8), inc (9)."""

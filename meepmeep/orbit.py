@@ -51,16 +51,16 @@ from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
 from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector, tc_to_tp_gradient
 from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
                                             true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
-                                            lambert_phase_curve_o, lambert_and_emission_o, light_travel_time_o, )
+                                            lambert_phase_curve_o, light_travel_time_o, )
 from .backends.numba.orbit3dd import (solve3d_orbit_d, pos_od, cos_alpha_od, vel_od, true_anomaly_od, rv_od,
                                              star_planet_distance_od, ev_signal_od, lambert_phase_curve_od,
-                                             lambert_and_emission_od, light_travel_time_od, )
+                                             light_travel_time_od, )
 from .backends.numba.orbit3d import (_pos_ovp, _vel_ovp, _cos_alpha_ovp, _true_anomaly_ovp, _rv_ovp,
                                             _star_planet_distance_ovp, _ev_signal_ovp, _lambert_phase_curve_ovp,
-                                            _lambert_and_emission_ovp, _light_travel_time_ovp, )
+                                            _light_travel_time_ovp, )
 from .backends.numba.orbit3dd import (_pos_ovdp, _vel_ovdp, _cos_alpha_ovdp, _true_anomaly_ovdp, _rv_ovdp,
                                              _star_planet_distance_ovdp, _ev_signal_ovdp, _lambert_phase_curve_ovdp,
-                                             _lambert_and_emission_ovdp, _light_travel_time_ovdp, )
+                                             _light_travel_time_ovdp, )
 
 
 class Orbit:
@@ -691,54 +691,6 @@ class Orbit:
         fn = self._select(lambert_phase_curve_o, _lambert_phase_curve_ovp, times, self._PARALLEL_NMIN_VALUE)
         return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable, self._points,
                                       self._coeffs, )
-
-    def lambert_and_emission(self, k: float, ag: float, fr_night, fr_day, times: ndarray | None = None):
-        """Lambertian reflection plus a simple cosine-emission day/night model.
-
-        Returns the reflected and thermal-emission flux ratios separately
-        so callers can combine them with their own bolometric weighting.
-        The emission model is a smooth interpolation between night-side and
-        day-side levels driven by :math:`\\cos\\alpha`. The emission peak
-        offset (advection) parameter is fixed at zero here; use the
-        low-level :func:`~meepmeep.backends.numba.orbit3d.lambert_and_emission_o`
-        directly if you need it.
-
-        Parameters
-        ----------
-        k : float
-            Planet-to-star radius ratio :math:`R_p/R_\\star`.
-        ag : float
-            Geometric albedo (reflected component).
-        fr_night : float
-            Night-side flux ratio (planet/star).
-        fr_day : float
-            Day-side flux ratio (planet/star).
-        times : ndarray or None
-            Times at which to evaluate the flux. If ``None``, uses the
-            grid bound via :meth:`set_data`.
-
-        Returns
-        -------
-        ref : ndarray, shape (N,)
-            Reflected (Lambertian) flux ratio per time.
-        emi : ndarray, shape (N,)
-            Thermal-emission flux ratio per time.
-        dref : ndarray, shape (N, 12)
-            Gradient of ``ref`` w.r.t.
-            ``(tc, p, a, i, e, w, ag, fr_night, fr_day, emi_offset, k)``.
-            Only returned when ``self._derivatives`` is ``True``.
-        demi : ndarray, shape (N, 12)
-            Gradient of ``emi`` w.r.t. the same parameter block. Only
-            returned when ``self._derivatives`` is ``True``.
-        """
-        times = times if times is not None else self.times
-        if self._derivatives:
-            fn = self._select(lambert_and_emission_od, _lambert_and_emission_ovdp, times, self._PARALLEL_NMIN_GRAD)
-            return fn(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
-                                            self._tptable, self._points, self._coeffs, self._dcoeffs, )
-        fn = self._select(lambert_and_emission_o, _lambert_and_emission_ovp, times, self._PARALLEL_NMIN_VALUE)
-        return fn(times, ag, fr_night, fr_day, 0.0, self._a, k, self._tp, self._p, self._dt,
-                                       self._tptable, self._points, self._coeffs, )
 
     def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):
         """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6-10).

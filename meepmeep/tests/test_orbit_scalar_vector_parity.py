@@ -29,7 +29,6 @@ from meepmeep.backends.numba.orbit3d import (
     _cos_alpha_os, _cos_alpha_ov,
     _star_planet_distance_os, _star_planet_distance_ov,
     _lambert_phase_curve_os, _lambert_phase_curve_ov,
-    _lambert_and_emission_os, _lambert_and_emission_ov,
     _ev_signal_os, _ev_signal_ov,
     _rv_os, _rv_ov,
     _light_travel_time_os, _light_travel_time_ov,
@@ -46,7 +45,6 @@ from meepmeep.backends.numba.orbit3dd import (
     _cos_v_p_angle_osd, _cos_v_p_angle_ovd,
     _true_anomaly_osd, _true_anomaly_ovd,
     _lambert_phase_curve_osd, _lambert_phase_curve_ovd,
-    _lambert_and_emission_osd, _lambert_and_emission_ovd,
     _ev_signal_osd, _ev_signal_ovd,
     _rv_osd, _rv_ovd,
     _light_travel_time_osd, _light_travel_time_ovd,
@@ -173,18 +171,6 @@ class TestForwardParity:
         for j, t in enumerate(ts):
             f = _lambert_phase_curve_os(float(t), ag, a, k, tpa, p, dt, pkt, pts, c)
             assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
-
-    def test_lambert_and_emission(self, orbit_case):
-        ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
-        p = orbit_case["p"]
-        ag, fr_n, fr_d, eoff, a, k = 0.3, 1e-4, 5e-4, 0.2, orbit_case["a"], 0.1
-        ref_v, emi_v = _lambert_and_emission_ov(
-            ts, ag, fr_n, fr_d, eoff, a, k, tpa, p, dt, pkt, pts, c)
-        for j, t in enumerate(ts):
-            ref, emi = _lambert_and_emission_os(
-                float(t), ag, fr_n, fr_d, eoff, a, k, tpa, p, dt, pkt, pts, c)
-            assert_allclose(ref, ref_v[j], rtol=1e-14, atol=1e-14)
-            assert_allclose(emi, emi_v[j], rtol=1e-14, atol=1e-14)
 
     def test_ev_signal(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
@@ -320,20 +306,6 @@ class TestGradientParity:
             f, df = _lambert_phase_curve_osd(float(t), ag, a, k, tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
             assert_allclose(df, dfl[j], rtol=1e-14, atol=1e-14)
-
-    def test_lambert_and_emission(self, orbit_case):
-        ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
-        p = orbit_case["p"]
-        ag, fr_n, fr_d, eoff, a, k = 0.3, 1e-4, 5e-4, 0.2, orbit_case["a"], 0.1
-        ref_v, emi_v, dref_v, demi_v = _lambert_and_emission_ovd(
-            ts, ag, fr_n, fr_d, eoff, a, k, tpa, p, dt, pkt, pts, c, dc)
-        for j, t in enumerate(ts):
-            ref, emi, dref, demi = _lambert_and_emission_osd(
-                float(t), ag, fr_n, fr_d, eoff, a, k, tpa, p, dt, pkt, pts, c, dc)
-            assert_allclose(ref, ref_v[j], rtol=1e-14, atol=1e-14)
-            assert_allclose(emi, emi_v[j], rtol=1e-14, atol=1e-14)
-            assert_allclose(dref, dref_v[j], rtol=1e-14, atol=1e-14)
-            assert_allclose(demi, demi_v[j], rtol=1e-14, atol=1e-14)
 
     def test_ev_signal(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)

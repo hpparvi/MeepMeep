@@ -84,6 +84,10 @@ Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`
 
 The build carries a residual backlog of ~110 Sphinx cross-reference warnings (the low-level `backends/numba/` modules are not autodoc'd, so `:func:`/`:mod:` links into them stay unresolved). These are known, not regressions — only chase *new* warnings beyond the baseline. `docs/source/api/generated/` is gitignored autosummary output, not tracked source — stale stubs there (e.g. for a removed function) are build artifacts, not doc bugs to fix.
 
+**LLM-facing docs.** `docs/llms.md` is the consumer-facing API cheatsheet for LLM agents.
+The Claude Code skill at `.claude/skills/meepmeep/` bundles a snapshot of it as
+`reference.md` — when revising `docs/llms.md`, re-copy it there (keep the sync header).
+
 **Citation.** The Taylor-series-around-knot-points method is published in Parviainen & Korth (2020), MNRAS 499, 3356; ADS bibcode `2020MNRAS.499.3356P`. Cite as "Parviainen and Korth (2020)" in docs.
 
 **Voice and audience.** Documentation prose is targeted at PhD-level astrophysicists who are comfortable with programming. Keep it informal, informative, and to the point. Favour short sentences in introductory text. The headline performance claim is "an order of magnitude faster than per-point Newton-Raphson" (the underlying benchmark is up to ~20×; do not quote the specific multiplier in user-facing docs).

@@ -64,8 +64,6 @@ low-level variants) returns analytic gradients alongside values:
   orbital block, in argument order:
   - `radial_velocity(k)` -> gradient length 8: `(..., k)`
   - `lambert_phase_curve(k, ag)` -> length 9: `(..., ag, k)`
-  - `lambert_and_emission(k, ag, fr_night, fr_day)` -> length 12:
-    `(..., ag, fr_night, fr_day, emi_offset, k)`
   - `ellipsoidal_variation(alpha, mass_ratio)` -> length 10:
     `(..., alpha, mass_ratio, inc)`
   - `light_travel_time(rstar)` -> length 7 only (no rstar derivative).
@@ -94,8 +92,6 @@ x, y, z = o.xyz()              # add , dx, dy, dz when derivatives=True
   `mean_anomaly()`, `true_anomaly(exact=False)`,
   `radial_velocity(k)` (k = RV semi-amplitude, output in k's units),
   `lambert_phase_curve(k, ag, times=None)` (k = radius ratio),
-  `lambert_and_emission(k, ag, fr_night, fr_day, times=None)` (returns
-  reflected and emitted flux ratios separately),
   `ellipsoidal_variation(alpha, mass_ratio, times=None)`,
   `light_travel_time(rstar)` (rstar in solar radii, result in days,
   zero-referenced at primary transit), `plot()`.
@@ -175,7 +171,7 @@ Gradient counterparts: `solve3d_orbit_d` -> `(coeffs, dcoeffs)`, then
 Available `_o`/`_od` quantities: `pos`, `zpos`, `sep`, `vel`, `zvel`,
 `rv`, `true_anomaly`, `cos_alpha` (phase-angle cosine), `cos_v_p_angle`
 (angle to a fixed vector), `star_planet_distance`, `lambert_phase_curve`,
-`lambert_and_emission`, `ev_signal`, `light_travel_time`.
+`ev_signal`, `light_travel_time`.
 
 ## Pitfalls (the things agents get wrong)
 

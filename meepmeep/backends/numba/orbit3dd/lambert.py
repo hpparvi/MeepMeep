@@ -14,16 +14,16 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot Lambertian phase-curve and emission evaluators with parameter derivatives.
+"""Multi-knot Lambertian phase-curve evaluators with parameter derivatives.
 
-Holds the two reflected-light quantities that share the Lambertian phase
-kernel: the pure phase curve (:func:`lambert_phase_curve_od`) and the
-combined reflection-plus-emission model (:func:`lambert_and_emission_od`).
+Holds the Lambertian reflected-light phase curve with gradients
+(:func:`lambert_phase_curve_od`) and its shared phase kernel
+(:func:`_lambert_kernel_d`).
 """
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
-from numpy import zeros, pi, sqrt, sin, cos, arccos, ndarray
+from numpy import zeros, pi, sqrt, arccos, ndarray
 
 from .phase_angle import _cos_alpha_osd, _cos_alpha_ow
 from ._common import _is_1d_array
@@ -144,186 +144,6 @@ def _lambert_phase_curve_ovdp(times, ag, a, k, tpa, p, dt, pktable, points, coef
     return flux, dflux
 
 
-@njit(fastmath=True)
-def _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
-                              tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Scalar kernel for :func:`lambert_and_emission_od`. See that function for documentation."""
-    k2 = k * k
-    inv_a2 = 1.0 / (a * a)
-    aref = k2 * ag * inv_a2
-    daref_da = -2.0 * k2 * ag / (a * a * a)
-    daref_dag = k2 * inv_a2
-    daref_dk = 2.0 * k * ag * inv_a2
-
-    ca, dca = _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    phase, alpha, dphase_dc = _lambert_kernel_d(ca)
-
-    dref = zeros(12)
-    demi = zeros(12)
-
-    ref = aref * phase
-    for kk in range(7):
-        dref[kk] = aref * dphase_dc * dca[kk]
-    dref[2] += daref_da * phase
-    dref[7] = daref_dag * phase
-    dref[11] = daref_dk * phase
-
-    cs = cos(alpha + emi_offset)
-    sn = sin(alpha + emi_offset)
-    bracket = fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cs)
-    emi = k2 * bracket
-
-    ca_clamped = ca
-    if ca_clamped > 1.0:
-        ca_clamped = 1.0
-    elif ca_clamped < -1.0:
-        ca_clamped = -1.0
-    s = sqrt(1.0 - ca_clamped * ca_clamped)
-    if s < 1e-12:
-        dalpha_dc = 0.0
-    else:
-        dalpha_dc = -1.0 / s
-    demi_dalpha = k2 * (fr_day - fr_night) * 0.5 * sn
-    for kk in range(7):
-        demi[kk] = demi_dalpha * dalpha_dc * dca[kk]
-    demi[8] = k2 * (1.0 - 0.5 * (1.0 - cs))
-    demi[9] = k2 * 0.5 * (1.0 - cs)
-    demi[10] = k2 * (fr_day - fr_night) * 0.5 * sn
-    demi[11] = 2.0 * k * bracket
-
-    return ref, emi, dref, demi
-
-
-@njit(fastmath=True)
-def _lambert_and_emission_ovd(times, ag, fr_night, fr_day, emi_offset, a, k,
-                             tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Vector kernel for :func:`lambert_and_emission_od`. See that function for documentation."""
-    n = times.size
-    ref = zeros(n)
-    emi = zeros(n)
-    dref = zeros((n, 12))
-    demi = zeros((n, 12))
-    k2 = k * k
-    inv_a2 = 1.0 / (a * a)
-    aref = k2 * ag * inv_a2
-    daref_da = -2.0 * k2 * ag / (a * a * a)
-    daref_dag = k2 * inv_a2
-    daref_dk = 2.0 * k * ag * inv_a2
-
-    dca = zeros(7)
-    dx = zeros(7)
-    dy = zeros(7)
-    dz = zeros(7)
-    for j in range(n):
-        ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz)
-        phase, alpha, dphase_dc = _lambert_kernel_d(ca)
-
-        # --- reflected component ---
-        ref[j] = aref * phase
-        for kk in range(7):
-            dref[j, kk] = aref * dphase_dc * dca[kk]
-        dref[j, 2] += daref_da * phase
-        dref[j, 7] = daref_dag * phase
-        # fr_night, fr_day, emi_offset (indices 8..10) are zero for ref.
-        dref[j, 11] = daref_dk * phase
-
-        # --- emission component ---
-        # emi = k^2 · (fr_night + (fr_day - fr_night) · 0.5 · (1 - cos(alpha + emi_offset)))
-        cs = cos(alpha + emi_offset)
-        sn = sin(alpha + emi_offset)
-        bracket = fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cs)
-        emi[j] = k2 * bracket
-
-        # d(alpha)/d(cos_alpha) = -1/sqrt(1 - ca^2). Avoid blow-up at |ca|=1
-        # by clamping like _lambert_kernel_d does (interior tests safe).
-        ca_clamped = ca
-        if ca_clamped > 1.0:
-            ca_clamped = 1.0
-        elif ca_clamped < -1.0:
-            ca_clamped = -1.0
-        s = sqrt(1.0 - ca_clamped * ca_clamped)
-        if s < 1e-12:
-            dalpha_dc = 0.0
-        else:
-            dalpha_dc = -1.0 / s
-        # demi/dorbital via cos_alpha → alpha → bracket
-        # demi/dα = k^2 · (fr_day - fr_night) · 0.5 · sin(alpha + emi_offset)
-        demi_dalpha = k2 * (fr_day - fr_night) * 0.5 * sn
-        for kk in range(7):
-            demi[j, kk] = demi_dalpha * dalpha_dc * dca[kk]
-        # ag (7) does not enter emi; leave 0.
-        # fr_night (8): k^2 · (1 - 0.5·(1-cs)) = k^2 · (0.5 + 0.5·cs)
-        demi[j, 8] = k2 * (1.0 - 0.5 * (1.0 - cs))
-        # fr_day (9):   k^2 · 0.5 · (1 - cs)
-        demi[j, 9] = k2 * 0.5 * (1.0 - cs)
-        # emi_offset (10): k^2 · (fr_day - fr_night) · 0.5 · sin(alpha + emi_offset)
-        demi[j, 10] = k2 * (fr_day - fr_night) * 0.5 * sn
-        # k (11): 2k · bracket
-        demi[j, 11] = 2.0 * k * bracket
-
-    return ref, emi, dref, demi
-
-
-@njit(fastmath=True, parallel=True)
-def _lambert_and_emission_ovdp(times, ag, fr_night, fr_day, emi_offset, a, k,
-                               tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_lambert_and_emission_ovd`.
-
-    The phase-angle and position-gradient scratch is hoisted per thread; a
-    single shared buffer would be a data race under ``prange``.
-    """
-    n = times.size
-    ref = zeros(n)
-    emi = zeros(n)
-    dref = zeros((n, 12))
-    demi = zeros((n, 12))
-    k2 = k * k
-    inv_a2 = 1.0 / (a * a)
-    aref = k2 * ag * inv_a2
-    daref_da = -2.0 * k2 * ag / (a * a * a)
-    daref_dag = k2 * inv_a2
-    daref_dk = 2.0 * k * ag * inv_a2
-    nt = get_num_threads()
-    dcas, dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
-    for j in prange(n):
-        tid = get_thread_id()
-        dca = dcas[tid]
-        ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
-                           dca, dxs[tid], dys[tid], dzs[tid])
-        phase, alpha, dphase_dc = _lambert_kernel_d(ca)
-
-        ref[j] = aref * phase
-        for kk in range(7):
-            dref[j, kk] = aref * dphase_dc * dca[kk]
-        dref[j, 2] += daref_da * phase
-        dref[j, 7] = daref_dag * phase
-        dref[j, 11] = daref_dk * phase
-
-        cs = cos(alpha + emi_offset)
-        sn = sin(alpha + emi_offset)
-        bracket = fr_night + (fr_day - fr_night) * 0.5 * (1.0 - cs)
-        emi[j] = k2 * bracket
-
-        ca_clamped = ca
-        if ca_clamped > 1.0:
-            ca_clamped = 1.0
-        elif ca_clamped < -1.0:
-            ca_clamped = -1.0
-        s = sqrt(1.0 - ca_clamped * ca_clamped)
-        if s < 1e-12:
-            dalpha_dc = 0.0
-        else:
-            dalpha_dc = -1.0 / s
-        demi_dalpha = k2 * (fr_day - fr_night) * 0.5 * sn
-        for kk in range(7):
-            demi[j, kk] = demi_dalpha * dalpha_dc * dca[kk]
-        demi[j, 8] = k2 * (1.0 - 0.5 * (1.0 - cs))
-        demi[j, 9] = k2 * 0.5 * (1.0 - cs)
-        demi[j, 10] = k2 * (fr_day - fr_night) * 0.5 * sn
-        demi[j, 11] = 2.0 * k * bracket
-    return ref, emi, dref, demi
-
-
 def lambert_phase_curve_od(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     """Lambertian phase-curve flux with gradients.
 
@@ -370,77 +190,5 @@ def _lambert_phase_curve_od_overload(t, ag, a, k, tpa, p, dt, pktable, points, c
     if isinstance(t, types.Float):
         def impl(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
             return _lambert_phase_curve_osd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        return impl
-    return None
-
-
-def lambert_and_emission_od(t, ag, fr_night, fr_day, emi_offset, a, k,
-                            tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    """Lambertian reflection plus emission with gradients.
-
-    Accepts a scalar time or a 1-D array of times and dispatches to the
-    scalar (:func:`_lambert_and_emission_osd`) or vector
-    (:func:`_lambert_and_emission_ovd`) kernel at compile time (inside
-    ``@njit``) or at call time (pure Python).
-
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``
-    - length 12.
-
-    Parameters
-    ----------
-    t : float or ndarray
-        Time(s) at which to evaluate the flux contributions and gradients.
-    ag : float
-        Geometric albedo (reflected component).
-    fr_night : float
-        Night-side flux ratio (planet/star).
-    fr_day : float
-        Day-side flux ratio (planet/star).
-    emi_offset : float
-        Phase-angle offset of the emission peak [radians].
-    a : float
-        Scaled semi-major axis :math:`a/R_\\star`.
-    k : float
-        Planet-to-star radius ratio :math:`R_p/R_\\star`.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
-        See :func:`_pos_osd`.
-
-    Returns
-    -------
-    ref : float or ndarray
-        Reflected (Lambertian) flux contribution. Arrays of shape (N,) for an
-        array time argument.
-    emi : float or ndarray
-        Thermal emission contribution. Arrays of shape (N,) for an array time
-        argument.
-    dref : ndarray
-        Gradient of ``ref`` w.r.t.
-        ``(tc, p, a, i, e, w, lan, ag, fr_night, fr_day, emi_offset, k)``.
-        Shape (12,) for a scalar time, (N, 12) for an array time.
-    demi : ndarray
-        Gradient of ``emi`` w.r.t. the same parameter block. Shape (12,) for a
-        scalar time, (N, 12) for an array time.
-    """
-    if isinstance(t, ndarray):
-        return _lambert_and_emission_ovd(t, ag, fr_night, fr_day, emi_offset, a, k,
-                                         tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
-                                     tpa, p, dt, pktable, points, coeffs, dcoeffs)
-
-
-@overload(lambert_and_emission_od, jit_options={'fastmath': True})
-def _lambert_and_emission_od_overload(t, ag, fr_night, fr_day, emi_offset, a, k,
-                                      tpa, p, dt, pktable, points, coeffs, dcoeffs):
-    if _is_1d_array(t):
-        def impl(t, ag, fr_night, fr_day, emi_offset, a, k,
-                 tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _lambert_and_emission_ovd(t, ag, fr_night, fr_day, emi_offset, a, k,
-                                             tpa, p, dt, pktable, points, coeffs, dcoeffs)
-        return impl
-    if isinstance(t, types.Float):
-        def impl(t, ag, fr_night, fr_day, emi_offset, a, k,
-                 tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _lambert_and_emission_osd(t, ag, fr_night, fr_day, emi_offset, a, k,
-                                             tpa, p, dt, pktable, points, coeffs, dcoeffs)
         return impl
     return None

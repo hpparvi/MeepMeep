@@ -28,7 +28,6 @@ from meepmeep.backends.numba.orbit3dd import (
     star_planet_distance_od,
     rv_od,
     lambert_phase_curve_od,
-    lambert_and_emission_od,
     ev_signal_od,
     true_anomaly_od,
     light_travel_time_od,
@@ -125,13 +124,6 @@ class TestValueParity:
         flux, _ = d.lambert_phase_curve(k=0.1, ag=0.3)
         assert_allclose(flux, flux_b, rtol=RTOL_VAL, atol=1e-18)
 
-    def test_lambert_and_emission(self, orbit_pair):
-        nd, d = orbit_pair
-        ref_b, emi_b = nd.lambert_and_emission(k=0.1, ag=0.3, fr_night=0.1, fr_day=0.4)
-        ref, emi, _, _ = d.lambert_and_emission(k=0.1, ag=0.3, fr_night=0.1, fr_day=0.4)
-        assert_allclose(ref, ref_b, rtol=RTOL_VAL, atol=1e-18)
-        assert_allclose(emi, emi_b, rtol=RTOL_VAL, atol=1e-18)
-
     def test_ellipsoidal_variation(self, orbit_pair):
         nd, d = orbit_pair
         ev_b = nd.ellipsoidal_variation(alpha=1.0, mass_ratio=1e-3)
@@ -207,17 +199,6 @@ class TestUnderlyingParity:
         )
         assert_allclose(dflux, dflux_r, rtol=RTOL_DERIV)
 
-    def test_lambert_and_emission(self, orbit_deriv):
-        o = orbit_deriv
-        _, _, dref, demi = o.lambert_and_emission(k=0.1, ag=0.3,
-                                                  fr_night=0.1, fr_day=0.4)
-        _, _, dref_r, demi_r = lambert_and_emission_od(
-            o.times, 0.3, 0.1, 0.4, 0.0, o._a, 0.1, o._tp, o._p,
-            o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
-        )
-        assert_allclose(dref, dref_r, rtol=RTOL_DERIV)
-        assert_allclose(demi, demi_r, rtol=RTOL_DERIV)
-
     def test_ellipsoidal_variation(self, orbit_deriv):
         o = orbit_deriv
         _, dev = o.ellipsoidal_variation(alpha=1.0, mass_ratio=1e-3)
@@ -270,14 +251,6 @@ class TestShapesAndChainRule:
         flux, dflux = orbit_deriv.lambert_phase_curve(k=0.1, ag=0.3)
         assert flux.shape == (NTIMES,)
         assert dflux.shape == (NTIMES, 9)  # 6 orbital + lan + ag + k
-
-    def test_lambert_and_emission_shape(self, orbit_deriv):
-        ref, emi, dref, demi = orbit_deriv.lambert_and_emission(
-            k=0.1, ag=0.3, fr_night=0.1, fr_day=0.4)
-        assert ref.shape == (NTIMES,)
-        assert emi.shape == (NTIMES,)
-        assert dref.shape == (NTIMES, 12)  # 6 orbital + lan + ag,fr_night,fr_day,emi_offset,k
-        assert demi.shape == (NTIMES, 12)
 
     def test_ellipsoidal_variation_shape(self, orbit_deriv):
         ev, dev = orbit_deriv.ellipsoidal_variation(alpha=1.0, mass_ratio=1e-3)
@@ -336,8 +309,6 @@ class TestEdgeCases:
         assert o.star_planet_distance().shape == (NTIMES,)
         assert o.radial_velocity(k=0.05).shape == (NTIMES,)
         assert o.lambert_phase_curve(k=0.1, ag=0.3).shape == (NTIMES,)
-        ref, emi = o.lambert_and_emission(k=0.1, ag=0.3, fr_night=0.1, fr_day=0.4)
-        assert ref.shape == (NTIMES,) and emi.shape == (NTIMES,)
         assert o.ellipsoidal_variation(alpha=1.0, mass_ratio=1e-3).shape == (NTIMES,)
         assert o.true_anomaly().shape == (NTIMES,)
         assert o.light_travel_time(rstar=1.0).shape == (NTIMES,)

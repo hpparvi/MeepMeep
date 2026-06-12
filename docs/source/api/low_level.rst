@@ -220,7 +220,6 @@ Phase angles, Lambert curves, and ellipsoidal variation:
    cos_alpha_o
    cos_v_p_angle_o
    lambert_phase_curve_o
-   lambert_and_emission_o
    ev_signal_o
 
 Light travel time:
@@ -255,7 +254,6 @@ function accepts an additional ``dcoeffs`` tensor of shape
    true_anomaly_od
    star_planet_distance_od
    lambert_phase_curve_od
-   lambert_and_emission_od
    ev_signal_od
    rv_od
    light_travel_time_od

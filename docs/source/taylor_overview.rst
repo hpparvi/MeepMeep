@@ -336,9 +336,8 @@ provides higher-level whole-orbit outputs:
   phase-angle quantities.
 * :func:`~meepmeep.backends.numba.orbit3d.star_planet_distance_o`
   — 3D separation.
-* :func:`~meepmeep.backends.numba.orbit3d.lambert_phase_curve_o`,
-  :func:`~meepmeep.backends.numba.orbit3d.lambert_and_emission_o`
-  — reflected-light and combined reflection + thermal phase curves.
+* :func:`~meepmeep.backends.numba.orbit3d.lambert_phase_curve_o`
+  — reflected-light phase curve.
 * :func:`~meepmeep.backends.numba.orbit3d.rv_o` — radial
   velocity.
 * :func:`~meepmeep.backends.numba.orbit3d.ev_signal_o` —

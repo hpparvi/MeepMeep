@@ -23,7 +23,6 @@ from meepmeep.backends.numba.orbit3d import (
     _star_planet_distance_ov, _star_planet_distance_ovp,
     _true_anomaly_ov, _true_anomaly_ovp,
     _lambert_phase_curve_ov, _lambert_phase_curve_ovp,
-    _lambert_and_emission_ov, _lambert_and_emission_ovp,
     _ev_signal_ov, _ev_signal_ovp,
     _light_travel_time_ov, _light_travel_time_ovp,
 )
@@ -35,7 +34,6 @@ from meepmeep.backends.numba.orbit3dd import (
     _star_planet_distance_ovd, _star_planet_distance_ovdp,
     _true_anomaly_ovd, _true_anomaly_ovdp,
     _lambert_phase_curve_ovd, _lambert_phase_curve_ovdp,
-    _lambert_and_emission_ovd, _lambert_and_emission_ovdp,
     _ev_signal_ovd, _ev_signal_ovdp,
     _light_travel_time_ovd, _light_travel_time_ovdp,
 )
@@ -117,11 +115,6 @@ class TestValueKernelParity:
         _compare(_lambert_phase_curve_ov, _lambert_phase_curve_ovp,
                  (t, 0.3, PARS["a"], 0.1, tpa, p, dt, pkt, pts, c))
 
-    def test_lambert_and_emission(self, setup):
-        t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_lambert_and_emission_ov, _lambert_and_emission_ovp,
-                 (t, 0.3, 1e-5, 1e-4, 0.1, PARS["a"], 0.1, tpa, p, dt, pkt, pts, c))
-
     def test_ev_signal(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
         _compare(_ev_signal_ov, _ev_signal_ovp, (8e-6, 1e-3, PARS["i"], t, tpa, p, dt, pkt, pts, c))
@@ -181,11 +174,6 @@ class TestGradientKernelParity:
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
         _compare(_lambert_phase_curve_ovd, _lambert_phase_curve_ovdp,
                  (t, 0.3, PARS["a"], 0.1, tpa, p, dt, pkt, pts, c, dc))
-
-    def test_lambert_and_emission(self, setup):
-        t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_lambert_and_emission_ovd, _lambert_and_emission_ovdp,
-                 (t, 0.3, 1e-5, 1e-4, 0.1, PARS["a"], 0.1, tpa, p, dt, pkt, pts, c, dc))
 
     def test_ev_signal(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
@@ -250,11 +238,6 @@ class TestOrbitParallelOptIn:
     def test_lambert_phase_curve(self, orbit_pair):
         s, p = orbit_pair
         self._pair_check(s.lambert_phase_curve(0.1, 0.3), p.lambert_phase_curve(0.1, 0.3))
-
-    def test_lambert_and_emission(self, orbit_pair):
-        s, p = orbit_pair
-        self._pair_check(s.lambert_and_emission(0.1, 0.3, 1e-5, 1e-4),
-                         p.lambert_and_emission(0.1, 0.3, 1e-5, 1e-4))
 
     def test_ellipsoidal_variation(self, orbit_pair):
         s, p = orbit_pair
