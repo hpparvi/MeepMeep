@@ -16,7 +16,7 @@
 
 """Single-knot 3D line-of-sight (z) velocity evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import floor, zeros, ndarray
 from numpy.typing import NDArray
@@ -30,14 +30,23 @@ def _zvel_c_s(time, c):
     return c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
 
 
-@njit(fastmath=True)
-def _zvel_c_v(time, c):
-    """Vector kernel for :func:`zvel_c`. See that function for documentation."""
+def _zvel_c_v_body(time, c):
+    """Vector-kernel body for :func:`zvel_c`; see that function for documentation.
+
+    Compiled twice: ``_zvel_c_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_zvel_c_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     vz = zeros(n)
-    for j in range(n):
+    for j in prange(n):
         vz[j] = _zvel_c_s(time[j], c)
     return vz
+
+
+_zvel_c_v = njit(fastmath=True)(_zvel_c_v_body)
+_zvel_c_vp = njit(fastmath=True, parallel=True)(_zvel_c_v_body)
 
 
 def zvel_c(time: float | NDArray, c: NDArray) -> float | NDArray:
@@ -97,15 +106,24 @@ def _zvel_s(time, tc, p, c, tk):
     return _zvel_c_s(time - (tc + tk + epoch * p), c)
 
 
-@njit(fastmath=True)
-def _zvel_v(time, tc, p, c, tk):
-    """Vector kernel for :func:`zvel`. See that function for documentation."""
+def _zvel_v_body(time, tc, p, c, tk):
+    """Vector-kernel body for :func:`zvel`; see that function for documentation.
+
+    Compiled twice: ``_zvel_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_zvel_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     vz = zeros(n)
-    for j in range(n):
+    for j in prange(n):
         epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
         vz[j] = _zvel_c_s(time[j] - (tc + tk + epoch * p), c)
     return vz
+
+
+_zvel_v = njit(fastmath=True)(_zvel_v_body)
+_zvel_vp = njit(fastmath=True, parallel=True)(_zvel_v_body)
 
 
 def zvel(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0) -> float | NDArray:

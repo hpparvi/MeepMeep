@@ -16,7 +16,7 @@
 
 """Single-knot 3D planet (vx, vy, vz) velocity evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, ndarray
 from numpy.typing import NDArray
@@ -33,16 +33,25 @@ def _vel_c_s(time, c):
     return vx, vy, vz
 
 
-@njit(fastmath=True)
-def _vel_c_v(time, c):
-    """Vector kernel for :func:`vel_c`. See that function for documentation."""
+def _vel_c_v_body(time, c):
+    """Vector-kernel body for :func:`vel_c`; see that function for documentation.
+
+    Compiled twice: ``_vel_c_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_vel_c_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     vx = zeros(n)
     vy = zeros(n)
     vz = zeros(n)
-    for j in range(n):
+    for j in prange(n):
         vx[j], vy[j], vz[j] = _vel_c_s(time[j], c)
     return vx, vy, vz
+
+
+_vel_c_v = njit(fastmath=True)(_vel_c_v_body)
+_vel_c_vp = njit(fastmath=True, parallel=True)(_vel_c_v_body)
 
 
 def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray, float | NDArray]:

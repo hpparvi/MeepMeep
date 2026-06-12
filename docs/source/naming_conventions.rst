@@ -150,6 +150,14 @@ gradient arrays and delegate to ``_w``; the ``_v`` kernels pass
 preallocated output rows so the hot vector loops run without per-sample
 allocations.
 
+Each vector kernel also has a *parallel twin* with a trailing ``p``
+(``_pos_c_vp``, ``_sep_d_vp``, ...), compiled with ``parallel=True`` and a
+``prange`` sample loop. Scratch-free kernels are dual-decorated from a
+single shared body (``prange`` compiles as a plain ``range`` in the serial
+compilation, so the serial kernel is unchanged); the rv gradient kernels,
+whose loops reuse a hoisted scratch buffer, have explicit hand-written
+twins with one scratch buffer per thread.
+
 
 Multi-knot dispatcher suffix
 ----------------------------

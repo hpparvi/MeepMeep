@@ -16,7 +16,7 @@
 
 """Single-knot 3D line-of-sight (z) position evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import floor, zeros, ndarray
 from numpy.typing import NDArray
@@ -46,15 +46,24 @@ def _zpos_cd_s(time, c, dc):
     return pz, dpz
 
 
-@njit(fastmath=True)
-def _zpos_cd_v(time, c, dc):
-    """Vector kernel for :func:`zpos_cd`. See that function for documentation."""
+def _zpos_cd_v_body(time, c, dc):
+    """Vector-kernel body for :func:`zpos_cd`; see that function for documentation.
+
+    Compiled twice: ``_zpos_cd_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_zpos_cd_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     pz = zeros(n)
     dpz = zeros((n, 7))
-    for j in range(n):
+    for j in prange(n):
         pz[j] = _zpos_cd_w(time[j], c, dc, dpz[j])
     return pz, dpz
+
+
+_zpos_cd_v = njit(fastmath=True)(_zpos_cd_v_body)
+_zpos_cd_vp = njit(fastmath=True, parallel=True)(_zpos_cd_v_body)
 
 
 def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
@@ -117,16 +126,25 @@ def _zpos_d_s(time, tc, p, c, dc, tk):
     return _zpos_cd_s(time - (tc + tk + epoch * p), c, dc)
 
 
-@njit(fastmath=True)
-def _zpos_d_v(time, tc, p, c, dc, tk):
-    """Vector kernel for :func:`zpos_d`. See that function for documentation."""
+def _zpos_d_v_body(time, tc, p, c, dc, tk):
+    """Vector-kernel body for :func:`zpos_d`; see that function for documentation.
+
+    Compiled twice: ``_zpos_d_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_zpos_d_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     pz = zeros(n)
     dpz = zeros((n, 7))
-    for j in range(n):
+    for j in prange(n):
         epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
         pz[j] = _zpos_cd_w(time[j] - (tc + tk + epoch * p), c, dc, dpz[j])
     return pz, dpz
+
+
+_zpos_d_v = njit(fastmath=True)(_zpos_d_v_body)
+_zpos_d_vp = njit(fastmath=True, parallel=True)(_zpos_d_v_body)
 
 
 def zpos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, tk: float = 0.0):

@@ -23,7 +23,7 @@ line-of-sight (z) coefficient and its seven derivatives. The module
 therefore has no internal dependency on ``position``.
 """
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import floor, sqrt, zeros, ndarray
 from numpy.typing import NDArray
@@ -58,15 +58,24 @@ def _sep_cd_s(time, c, dc):
     return d, dd
 
 
-@njit(fastmath=True)
-def _sep_cd_v(time, c, dc):
-    """Vector kernel for :func:`sep_cd`. See that function for documentation."""
+def _sep_cd_v_body(time, c, dc):
+    """Vector-kernel body for :func:`sep_cd`; see that function for documentation.
+
+    Compiled twice: ``_sep_cd_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_sep_cd_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     d = zeros(n)
     dd = zeros((n, 7))
-    for j in range(n):
+    for j in prange(n):
         d[j] = _sep_cd_w(time[j], c, dc, dd[j])
     return d, dd
+
+
+_sep_cd_v = njit(fastmath=True)(_sep_cd_v_body)
+_sep_cd_vp = njit(fastmath=True, parallel=True)(_sep_cd_v_body)
 
 
 def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
@@ -141,16 +150,25 @@ def _sep_d_s(time, tc, p, c, dc, tk):
     return _sep_cd_s(time - (tc + tk + epoch * p), c, dc)
 
 
-@njit(fastmath=True)
-def _sep_d_v(time, tc, p, c, dc, tk):
-    """Vector kernel for :func:`sep_d`. See that function for documentation."""
+def _sep_d_v_body(time, tc, p, c, dc, tk):
+    """Vector-kernel body for :func:`sep_d`; see that function for documentation.
+
+    Compiled twice: ``_sep_d_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_sep_d_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     d = zeros(n)
     dd = zeros((n, 7))
-    for j in range(n):
+    for j in prange(n):
         epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
         d[j] = _sep_cd_w(time[j] - (tc + tk + epoch * p), c, dc, dd[j])
     return d, dd
+
+
+_sep_d_v = njit(fastmath=True)(_sep_d_v_body)
+_sep_d_vp = njit(fastmath=True, parallel=True)(_sep_d_v_body)
 
 
 def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, tk: float = 0.0):

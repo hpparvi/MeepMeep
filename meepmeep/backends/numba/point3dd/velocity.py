@@ -16,7 +16,7 @@
 
 """Single-knot 3D velocity evaluators with orbital-parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, ndarray
 from numpy.typing import NDArray
@@ -53,9 +53,14 @@ def _vel_cd_s(time, c, dc):
     return vx, vy, vz, dvx, dvy, dvz
 
 
-@njit(fastmath=True)
-def _vel_cd_v(time, c, dc):
-    """Vector kernel for :func:`vel_cd`. See that function for documentation."""
+def _vel_cd_v_body(time, c, dc):
+    """Vector-kernel body for :func:`vel_cd`; see that function for documentation.
+
+    Compiled twice: ``_vel_cd_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_vel_cd_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     vx = zeros(n)
     vy = zeros(n)
@@ -63,9 +68,13 @@ def _vel_cd_v(time, c, dc):
     dvx = zeros((n, 7))
     dvy = zeros((n, 7))
     dvz = zeros((n, 7))
-    for j in range(n):
+    for j in prange(n):
         vx[j], vy[j], vz[j] = _vel_cd_w(time[j], c, dc, dvx[j], dvy[j], dvz[j])
     return vx, vy, vz, dvx, dvy, dvz
+
+
+_vel_cd_v = njit(fastmath=True)(_vel_cd_v_body)
+_vel_cd_vp = njit(fastmath=True, parallel=True)(_vel_cd_v_body)
 
 
 def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):

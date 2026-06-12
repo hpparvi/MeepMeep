@@ -16,7 +16,7 @@
 
 """Single-knot 3D position evaluators with orbital-parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import floor, zeros, ndarray
 from numpy.typing import NDArray
@@ -54,9 +54,14 @@ def _pos_cd_s(time, c, dc):
     return px, py, pz, dpx, dpy, dpz
 
 
-@njit(fastmath=True)
-def _pos_cd_v(time, c, dc):
-    """Vector kernel for :func:`pos_cd`. See that function for documentation."""
+def _pos_cd_v_body(time, c, dc):
+    """Vector-kernel body for :func:`pos_cd`; see that function for documentation.
+
+    Compiled twice: ``_pos_cd_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_pos_cd_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     px = zeros(n)
     py = zeros(n)
@@ -64,9 +69,13 @@ def _pos_cd_v(time, c, dc):
     dpx = zeros((n, 7))
     dpy = zeros((n, 7))
     dpz = zeros((n, 7))
-    for j in range(n):
+    for j in prange(n):
         px[j], py[j], pz[j] = _pos_cd_w(time[j], c, dc, dpx[j], dpy[j], dpz[j])
     return px, py, pz, dpx, dpy, dpz
+
+
+_pos_cd_v = njit(fastmath=True)(_pos_cd_v_body)
+_pos_cd_vp = njit(fastmath=True, parallel=True)(_pos_cd_v_body)
 
 
 def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
@@ -145,9 +154,14 @@ def _pos_d_s(time, tc, p, c, dc, tk):
     return _pos_cd_s(time - (tc + tk + epoch * p), c, dc)
 
 
-@njit(fastmath=True)
-def _pos_d_v(time, tc, p, c, dc, tk):
-    """Vector kernel for :func:`pos_d`. See that function for documentation."""
+def _pos_d_v_body(time, tc, p, c, dc, tk):
+    """Vector-kernel body for :func:`pos_d`; see that function for documentation.
+
+    Compiled twice: ``_pos_d_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_pos_d_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     px = zeros(n)
     py = zeros(n)
@@ -155,10 +169,14 @@ def _pos_d_v(time, tc, p, c, dc, tk):
     dpx = zeros((n, 7))
     dpy = zeros((n, 7))
     dpz = zeros((n, 7))
-    for j in range(n):
+    for j in prange(n):
         epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
         px[j], py[j], pz[j] = _pos_cd_w(time[j] - (tc + tk + epoch * p), c, dc, dpx[j], dpy[j], dpz[j])
     return px, py, pz, dpx, dpy, dpz
+
+
+_pos_d_v = njit(fastmath=True)(_pos_d_v_body)
+_pos_d_vp = njit(fastmath=True, parallel=True)(_pos_d_v_body)
 
 
 def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, tk: float = 0.0):

@@ -304,19 +304,36 @@ scalar and vector callers, `fastmath` contraction can differ between the two
 contexts by an ulp; scalar-vs-vector parity tests need a tiny `atol` (~1e-14
 relative to signal scale), not `atol=0`.
 
-**Parallel twins (`_ovp` / `_ovdp`).** Every multi-knot vector kernel has a
-`prange` twin living in the same quantity module, directly after the serial
-vector kernel, compiled with `parallel=True` but otherwise mirroring the
-serial body (same write-into kernels, same hoisted invariants). Gradient twins that need intermediate
-scratch hoist one buffer per thread (`zeros((get_num_threads(), 7))`, indexed
-with `get_thread_id()`) — a single shared buffer would be a data race under
-`prange`. The public dispatchers always route to the serial kernels; the
+**Parallel twins (`_vp` / `_ovp` / `_ovdp`).** Every vector kernel —
+single-knot (`_v` -> `_vp`) and multi-knot (`_ov` -> `_ovp`,
+`_ovd` -> `_ovdp`) — has a `prange` twin living in the same quantity module,
+directly after its serial counterpart. Two construction patterns, chosen by
+whether the loop needs intermediate scratch:
+
+- **Scratch-free loops** (write only into per-sample output elements/rows):
+  *dual decoration* — one shared body written with `prange`, compiled twice
+  (`_X_v = njit(fastmath=True)(_X_v_body)`;
+  `_X_vp = njit(fastmath=True, parallel=True)(_X_v_body)`). `prange`
+  compiles as a plain `range` without `parallel=True`, so the serial kernel
+  is unchanged and the math exists once. All single-knot kernels except the
+  rv gradients qualify.
+- **Scratch-using loops** (reuse an intermediate-gradient buffer across
+  samples): *explicit twins* — the serial kernel keeps its single hoisted
+  buffer (cheapest), and the hand-written twin hoists one buffer per thread
+  (`zeros((get_num_threads(), 7))`, indexed with `get_thread_id()`); a
+  shared buffer would be a data race under `prange`, and putting per-thread
+  indexing in a shared body costs the serial path ~5%. This covers the
+  single-knot rv gradient kernels and the derived multi-knot gradient
+  kernels.
+
+The public dispatchers always route to the serial kernels; the multi-knot
 twins are opt-in via `Orbit(parallel=True)`, which uses them only above
 `Orbit._PARALLEL_NMIN_GRAD` (1e4) / `_PARALLEL_NMIN_VALUE` (5e4) samples —
 below those sizes the parallel-region launch overhead makes them slower.
-Mirror the serial body exactly (including fastmath flags): kernels compiled
-without fastmath (e.g. `true_anomaly`) must not route positions through a
-fastmath path, or near-singular gradients drift beyond parity tolerances.
+Explicit twins must mirror the serial body exactly (including fastmath
+flags): kernels compiled without fastmath (e.g. `true_anomaly`) must not
+route positions through a fastmath path, or near-singular gradients drift
+beyond parity tolerances.
 
 For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in the `point3d` package (or their gradient variants in `point3dd`).
 

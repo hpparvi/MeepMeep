@@ -33,10 +33,15 @@ defined here.
 """
 
 from ._common import _is_1d_array
-from .position import pos_cd, pos_d, _pos_cd_w, _pos_cd_s, _pos_cd_v, _pos_d_s, _pos_d_v
-from .zposition import zpos_cd, zpos_d, _zpos_cd_w, _zpos_cd_s, _zpos_cd_v, _zpos_d_s, _zpos_d_v
-from .separation import sep_cd, sep_d, _sep_cd_w, _sep_cd_s, _sep_cd_v, _sep_d_s, _sep_d_v
-from .velocity import vel_cd, _vel_cd_w, _vel_cd_s, _vel_cd_v
-from .zvelocity import zvel_cd, zvel_d, _zvel_cd_w, _zvel_cd_s, _zvel_cd_v, _zvel_d_s, _zvel_d_v
-from .radial_velocity import rv_cd, rv_d, _rv_scale, _rv_cd_w, _rv_cd_s, _rv_cd_v, _rv_d_s, _rv_d_v
+from .position import (pos_cd, pos_d, _pos_cd_w, _pos_cd_s, _pos_cd_v, _pos_cd_vp,
+                       _pos_d_s, _pos_d_v, _pos_d_vp)
+from .zposition import (zpos_cd, zpos_d, _zpos_cd_w, _zpos_cd_s, _zpos_cd_v, _zpos_cd_vp,
+                        _zpos_d_s, _zpos_d_v, _zpos_d_vp)
+from .separation import (sep_cd, sep_d, _sep_cd_w, _sep_cd_s, _sep_cd_v, _sep_cd_vp,
+                         _sep_d_s, _sep_d_v, _sep_d_vp)
+from .velocity import vel_cd, _vel_cd_w, _vel_cd_s, _vel_cd_v, _vel_cd_vp
+from .zvelocity import (zvel_cd, zvel_d, _zvel_cd_w, _zvel_cd_s, _zvel_cd_v, _zvel_cd_vp,
+                        _zvel_d_s, _zvel_d_v, _zvel_d_vp)
+from .radial_velocity import (rv_cd, rv_d, _rv_scale, _rv_cd_w, _rv_cd_s, _rv_cd_v, _rv_cd_vp,
+                              _rv_d_s, _rv_d_v, _rv_d_vp)
 from .solve import solve3d_d

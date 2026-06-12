@@ -16,7 +16,7 @@
 
 """Single-knot 3D planet (x, y, z) position evaluators."""
 
-from numba import njit, types
+from numba import njit, prange, types
 from numba.extending import overload
 from numpy import floor, zeros, ndarray
 from numpy.typing import NDArray
@@ -33,16 +33,25 @@ def _pos_c_s(time, c):
     return px, py, pz
 
 
-@njit(fastmath=True)
-def _pos_c_v(time, c):
-    """Vector kernel for :func:`pos_c`. See that function for documentation."""
+def _pos_c_v_body(time, c):
+    """Vector-kernel body for :func:`pos_c`; see that function for documentation.
+
+    Compiled twice: ``_pos_c_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_pos_c_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     px = zeros(n)
     py = zeros(n)
     pz = zeros(n)
-    for j in range(n):
+    for j in prange(n):
         px[j], py[j], pz[j] = _pos_c_s(time[j], c)
     return px, py, pz
+
+
+_pos_c_v = njit(fastmath=True)(_pos_c_v_body)
+_pos_c_vp = njit(fastmath=True, parallel=True)(_pos_c_v_body)
 
 
 def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray, float | NDArray]:
@@ -113,17 +122,26 @@ def _pos_s(time, tc, p, c, tk):
     return _pos_c_s(time - (tc + tk + epoch * p), c)
 
 
-@njit(fastmath=True)
-def _pos_v(time, tc, p, c, tk):
-    """Vector kernel for :func:`pos`. See that function for documentation."""
+def _pos_v_body(time, tc, p, c, tk):
+    """Vector-kernel body for :func:`pos`; see that function for documentation.
+
+    Compiled twice: ``_pos_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``_pos_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
     n = time.size
     px = zeros(n)
     py = zeros(n)
     pz = zeros(n)
-    for j in range(n):
+    for j in prange(n):
         epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
         px[j], py[j], pz[j] = _pos_c_s(time[j] - (tc + tk + epoch * p), c)
     return px, py, pz
+
+
+_pos_v = njit(fastmath=True)(_pos_v_body)
+_pos_vp = njit(fastmath=True, parallel=True)(_pos_v_body)
 
 
 def pos(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0) -> tuple[

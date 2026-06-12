@@ -16,7 +16,7 @@
 
 """Single-knot stellar radial-velocity evaluators with parameter derivatives."""
 
-from numba import njit, types
+from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
 from numpy import floor, sqrt, sin, cos, pi, zeros, ndarray
 from numpy.typing import NDArray
@@ -79,6 +79,26 @@ def _rv_cd_v(time, k, p, a, i, e, c, dc):
     dvz = zeros(7)
     for j in range(nt):
         rv_val[j] = _rv_cd_w(time[j], s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
+    return rv_val, drv
+
+
+@njit(fastmath=True, parallel=True)
+def _rv_cd_vp(time, k, p, a, i, e, c, dc):
+    """Parallel (prange) twin of :func:`_rv_cd_v`.
+
+    Explicit twin rather than a dual-decorated shared body: the
+    z-velocity gradient scratch is hoisted per thread here
+    (``zeros((get_num_threads(), 7))``, indexed with ``get_thread_id()``),
+    while the serial kernel keeps its cheaper single hoisted buffer -
+    one shared buffer would be a data race under ``prange``.
+    """
+    nt = time.size
+    rv_val = zeros(nt)
+    drv = zeros((nt, 7))
+    s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
+    dvz = zeros((get_num_threads(), 7))
+    for j in prange(nt):
+        rv_val[j] = _rv_cd_w(time[j], s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz[get_thread_id()])
     return rv_val, drv
 
 
@@ -177,6 +197,25 @@ def _rv_d_v(time, k, tc, p, a, i, e, c, dc, tk):
     for j in range(nt):
         epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
         rv_val[j] = _rv_cd_w(time[j] - (tc + tk + epoch * p), s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
+    return rv_val, drv
+
+
+@njit(fastmath=True, parallel=True)
+def _rv_d_vp(time, k, tc, p, a, i, e, c, dc, tk):
+    """Parallel (prange) twin of :func:`_rv_d_v`.
+
+    Explicit twin with per-thread z-velocity gradient scratch; see
+    :func:`_rv_cd_vp`.
+    """
+    nt = time.size
+    rv_val = zeros(nt)
+    drv = zeros((nt, 7))
+    s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
+    dvz = zeros((get_num_threads(), 7))
+    for j in prange(nt):
+        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
+        rv_val[j] = _rv_cd_w(time[j] - (tc + tk + epoch * p), s, dsp, dsa, dsi, dse,
+                             c, dc, drv[j], dvz[get_thread_id()])
     return rv_val, drv
 
 

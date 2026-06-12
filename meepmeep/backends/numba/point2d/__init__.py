@@ -34,8 +34,8 @@ helpers. This ``__init__`` re-exports the full surface.
 """
 
 from ._common import _is_1d_array
-from .position import pos_c, pos, _pos_c_s, _pos_c_v, _pos_s, _pos_v
-from .separation import sep_c, sep, _sep_c_s, _sep_c_v, _sep_s, _sep_v
+from .position import pos_c, pos, _pos_c_s, _pos_c_v, _pos_c_vp, _pos_s, _pos_v, _pos_vp
+from .separation import sep_c, sep, _sep_c_s, _sep_c_v, _sep_c_vp, _sep_s, _sep_v, _sep_vp
 from .solve import solve2d
 from .util import (
     find_contact_point, bounding_box,
