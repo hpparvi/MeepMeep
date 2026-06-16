@@ -4,15 +4,19 @@ MeepMeep documentation
 MeepMeep is an extremely fast Keplerian orbit evaluator for exoplanet
 light-curve and radial-velocity modelling. It calculates sky-projected
 planet-star separations, phase curves, RV signals, and other quantities
-useful in exoplanet research — an order of magnitude faster than
+useful in exoplanet research, up to three orders of magnitude faster than
 standard Newton-Raphson approaches.
+
+In addition, MeepMeep can return the partial derivatives w.r.t. the orbital
+parameters for all the supported quantities. These are useful when developing
+code used with gradient-aware optimisers or MCMC samplers.
 
 MeepMeep's speed comes from a Taylor-series approach presented in
 `Parviainen and Korth (2020) <https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P/abstract>`_.
-Kepler's equation is solved exactly only at a small
-set of knot points along the orbit, and every orbit evaluation
-in between is just a short polynomial in time.
-
+Kepler's equation is solved exactly only at a single point in time (for transit or eclipse modelling),
+or a small set of points along the orbit (for modelling phase curves, RVs, etc.). The planet's position
+is expanded into a Taylor series in these expansion points, after which every orbital position evaluation
+is just a short polynomial in time.
 
 Installation
 ------------
