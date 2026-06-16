@@ -1,4 +1,4 @@
-"""Regression tests for the multi-knot Taylor evaluators in orbit3d.
+"""Regression tests for the multi-expansion-point Taylor evaluators in orbit3d.
 
 Each test compares the Taylor-series result against the Newton-Raphson
 ground truth from ``backends.numba.newton.newton``. These tests guard the
@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.knots import create_knots
+from meepmeep.backends.numba.expansion_points import create_expansion_points
 from meepmeep.backends.numba.newton.newton import (
     ta_newton_v,
     xyz_newton_v,
@@ -39,23 +39,23 @@ from meepmeep.orbit import Orbit
 
 NPT = 15
 NTIMES = 200
-# Tolerance for full-period comparisons. With npt=15 knots and a 5th-order
-# Taylor expansion, the worst-case error away from knot points is ~1e-4 in
-# (R_star) units. Tightening would require more knots; this matches the
+# Tolerance for full-period comparisons. With npt=15 expansion points and a 5th-order
+# Taylor expansion, the worst-case error away from expansion points is ~1e-4 in
+# (R_star) units. Tightening would require more expansion points; this matches the
 # package's documented accuracy regime.
 TOL = {"rtol": 1e-3, "atol": 1e-3}
 
 
 def _setup(orbit_pars):
-    """Build the (knot table, coeffs, t0_periastron) triple expected by the evaluators."""
+    """Build the (expansion point table, coeffs, t0_periastron) triple expected by the evaluators."""
     p = orbit_pars["p"]
     e = orbit_pars["e"]
     w = orbit_pars["w"]
-    knot_times, _, dt, pktable = create_knots(NPT, max(e, 0.2), "ea")
-    coeffs = solve3d_orbit(knot_times, **orbit_pars, npt=NPT)
+    ep_times, _, dt, ep_table = create_expansion_points(NPT, max(e, 0.2), "ea")
+    coeffs = solve3d_orbit(ep_times, **orbit_pars, npt=NPT)
     t0_periastron = -mean_anomaly_at_transit(e, w) / TWO_PI * p
     times = np.linspace(0.0, p, NTIMES)
-    return times, t0_periastron, dt, pktable, knot_times, coeffs
+    return times, t0_periastron, dt, ep_table, ep_times, coeffs
 
 
 @pytest.fixture(params=["circular", "eccentric"])
@@ -179,7 +179,7 @@ class TestPhotometricSignals:
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
         flux = lambert_phase_curve_o(times, ag=0.3, a=orbit_case["a"], k=0.1,
                                       tpa=tc, p=orbit_case["p"], dt=dt,
-                                      pktable=pkt, points=pts, coeffs=c)
+                                      ep_table=pkt, ep_times=pts, coeffs=c)
         assert np.all(np.isfinite(flux))
         assert np.all(flux >= 0.0)
         amplitude = 0.1 ** 2 * 0.3 / orbit_case["a"] ** 2
@@ -189,7 +189,7 @@ class TestPhotometricSignals:
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
         ev = ev_signal_o(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
                           t=times, tpa=tc, p=orbit_case["p"], dt=dt,
-                          pktable=pkt, points=pts, coeffs=c)
+                          ep_table=pkt, ep_times=pts, coeffs=c)
         assert np.all(np.isfinite(ev))
 
 
@@ -239,16 +239,16 @@ class TestContracts:
     """Lock down implicit contracts that other code relies on."""
 
     def test_solve3d_orbit_periodic_boundary(self, test_orbital_params):
-        """``solve3d_orbit`` copies the first knot's coefficients to the last
-        slot — but that's only correct if ``knot_times[-1]`` is the periodic
-        image of ``knot_times[0]``. Pin the contract so a future change to
-        ``create_knots`` can't silently break the wrap-around."""
+        """``solve3d_orbit`` copies the first expansion point's coefficients to the last
+        slot — but that's only correct if ``ep_times[-1]`` is the periodic
+        image of ``ep_times[0]``. Pin the contract so a future change to
+        ``create_expansion_points`` can't silently break the wrap-around."""
         pars = test_orbital_params["eccentric"]
-        knot_times, _, _, _ = create_knots(NPT, pars["e"], "ea")
-        # Phase-domain check: knot_times spans exactly one period.
-        assert knot_times[0] == 0.0
-        assert knot_times[-1] == 1.0
-        coeffs = solve3d_orbit(knot_times, **pars, npt=NPT)
+        ep_times, _, _, _ = create_expansion_points(NPT, pars["e"], "ea")
+        # Phase-domain check: ep_times spans exactly one period.
+        assert ep_times[0] == 0.0
+        assert ep_times[-1] == 1.0
+        coeffs = solve3d_orbit(ep_times, **pars, npt=NPT)
         assert_allclose(coeffs[-1], coeffs[0], rtol=1e-12)
 
     def test_true_anomaly_circular_no_nan(self, test_orbital_params):

@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot sky-projected planet-star separation evaluators."""
+"""Multi-expansion-point sky-projected planet-star separation evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,35 +25,35 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
-def _sep_os(t, tpa, p, dt, pktable, points, coeffs):
+def _sep_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`sep_o`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return sep_c(tc - points[ix] * p, coeffs[ix])
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return sep_c(tc - ep_times[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
-def _sep_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _sep_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`sep_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     for j in range(n):
-        out[j] = _sep_os(times[j], tpa, p, dt, pktable, points, coeffs)
+        out[j] = _sep_os(times[j], tpa, p, dt, ep_table, ep_times, coeffs)
     return out
 
 
 @njit(fastmath=True, parallel=True)
-def _sep_ovp(times, tpa, p, dt, pktable, points, coeffs):
+def _sep_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_sep_ov`."""
     n = times.size
     out = zeros(n)
     for i in prange(n):
-        out[i] = _sep_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        out[i] = _sep_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return out
 
 
-def sep_o(t, tpa, p, dt, pktable, points, coeffs):
+def sep_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Sky-projected planet-star separation for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -67,7 +67,7 @@ def sep_o(t, tpa, p, dt, pktable, points, coeffs):
     ----------
     t : float or ndarray
         Time(s) at which to evaluate the separation.
-    tpa, p, dt, pktable, points, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs :
         See :func:`pos_o`.
 
     Returns
@@ -77,18 +77,18 @@ def sep_o(t, tpa, p, dt, pktable, points, coeffs):
         Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _sep_os(t, tpa, p, dt, pktable, points, coeffs)
+        return _sep_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+    return _sep_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
 @overload(sep_o, jit_options={'fastmath': True})
-def _sep_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+def _sep_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _sep_ov(t, tpa, p, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _sep_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _sep_os(t, tpa, p, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _sep_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     return None

@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot stellar radial-velocity evaluators (from the planet's line-of-sight velocity)."""
+"""Single-expansion-point stellar radial-velocity evaluators (from the planet's line-of-sight velocity)."""
 
 from numba import njit
 from numpy import pi, sqrt, sin
@@ -26,7 +26,7 @@ from .zvelocity import zvel_c, zvel
 @njit(inline='always')
 def rv_c(time: float | NDArray, k: float, p: float, a: float, i: float, e: float, c: NDArray) -> float | NDArray:
     """
-    Evaluate the stellar radial velocity induced by the planet at a knot-centered time.
+    Evaluate the stellar radial velocity induced by the planet at an expansion-point-centered time.
 
     Converts the planet's centered line-of-sight velocity into the
     physical radial velocity of the host star, scaled by the
@@ -75,7 +75,7 @@ def rv_c(time: float | NDArray, k: float, p: float, a: float, i: float, e: float
 
 @njit(inline='always')
 def rv(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float, e: float, c: NDArray,
-       tk: float = 0.0) -> float | NDArray:
+       te: float = 0.0) -> float | NDArray:
     """
     Evaluate the stellar radial velocity induced by the planet at an absolute time.
 
@@ -105,9 +105,9 @@ def rv(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float,
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
         is read.
-    tk : float, optional
-        Knot offset from the transit centre [days] - the same value that
-        was passed to `solve3d`. Defaults to 0.0, the knot at the
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve3d`. Defaults to 0.0, the expansion point at the
         transit centre.
 
     Returns
@@ -118,4 +118,4 @@ def rv(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float,
         reflex motion has the same sign convention).
     """
     n = 2 * pi / p * (a * sin(i)) / sqrt(1 - e ** 2)
-    return zvel(time, tc, p, c, tk) / n * k
+    return zvel(time, tc, p, c, te) / n * k

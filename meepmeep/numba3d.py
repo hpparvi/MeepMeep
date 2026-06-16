@@ -18,29 +18,30 @@
 This module is the canonical public entry point to MeepMeep's 3D
 Numba-jitted primitives. It bundles three layers in one flat namespace:
 
-* Single-knot 3D Taylor evaluators from the
+* Single-expansion-point 3D Taylor evaluators from the
   ``meepmeep.backends.numba.point3d`` package (per-quantity
   ``position`` / ``zposition`` / ``separation`` / ``velocity`` /
   ``zvelocity`` / ``radial_velocity`` modules plus ``solve`` and
   ``util``) and their parameter-derivative counterparts in the
   ``point3dd`` package.
-* Multi-knot orbit-spanning evaluators from
+* Multi-expansion-point orbit-spanning evaluators from
   ``meepmeep.backends.numba.orbit3d`` and ``orbit3dd`` — exposed
   as unified ``*_o`` (forward) and ``*_od`` (with gradients)
   dispatchers that accept either a scalar time or a 1-D float64 array
   of times and route at compile time to the appropriate
   scalar/vector kernel.
 * Dimension-agnostic primitives from
-  ``meepmeep.backends.numba.knots`` / ``newton.newton`` / ``utils``.
-  Anomaly utilities in ``knots`` (``eccentric_anomaly``,
-  ``true_anomaly``) are intentionally not re-exported here to avoid
-  visual confusion with the ``true_anomaly_o`` evaluator family; use
-  ``meepmeep.backends.numba.knots`` if you need them.
+  ``meepmeep.backends.numba.expansion_points`` / ``newton.newton`` /
+  ``utils``. Anomaly utilities in ``expansion_points``
+  (``eccentric_anomaly``, ``true_anomaly``) are intentionally not
+  re-exported here to avoid visual confusion with the
+  ``true_anomaly_o`` evaluator family; use
+  ``meepmeep.backends.numba.expansion_points`` if you need them.
 
 For the 2D surface see :mod:`meepmeep.numba2d`.
 """
 
-# --- 3D single-knot Taylor primitives ---------------------------------
+# --- 3D single-expansion-point Taylor primitives ---------------------------------
 from .backends.numba.point3d import (
     pos_c, pos, sep_c, sep, zpos_c, zpos,
     vel_c, zvel_c, zvel, rv_c, rv,
@@ -55,9 +56,9 @@ from .backends.numba.point3dd import (
     solve3d_d,
 )
 
-# --- Multi-knot orbit-spanning evaluators -----------------------------
+# --- Multi-expansion-point orbit-spanning evaluators ------------------
 from .backends.numba.orbit3d import (
-    solve3d_orbit, knot_ix,
+    solve3d_orbit, ep_ix,
     pos_o, zpos_o, sep_o,
     vel_o, zvel_o,
     true_anomaly_o, cos_v_p_angle_o, cos_alpha_o,
@@ -76,7 +77,7 @@ from .backends.numba.orbit3dd import (
 )
 
 # --- Dimension-agnostic primitives ------------------------------------
-from .backends.numba.knots import create_knots
+from .backends.numba.expansion_points import create_expansion_points
 from .backends.numba.utils import tc_to_tp_gradient
 
 __all__ = [
@@ -85,12 +86,12 @@ __all__ = [
     "cos_alpha_od",
     "cos_v_p_angle_o",
     "cos_v_p_angle_od",
-    "create_knots",
+    "create_expansion_points",
+    "ep_ix",
     "ev_signal_o",
     "ev_signal_od",
     "find_contact_point",
     "find_z_min",
-    "knot_ix",
     "lambert_phase_curve_o",
     "lambert_phase_curve_od",
     "light_travel_time_o",

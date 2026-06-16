@@ -5,34 +5,32 @@ Taylor-series backend overview
 
 This page is for users who want to drop below the
 :class:`~meepmeep.orbit.Orbit` class — to compose custom evaluators,
-work with the per-knot Taylor coefficients directly, or differentiate
+work with the per-expansion-point Taylor coefficients directly, or differentiate
 orbit-derived quantities through their own chain rule. It documents
 the low-level backend that :class:`~meepmeep.orbit.Orbit` uses under
 the hood.
 
 Mechanically, the backend approximates each Keplerian orbit as a set
 of 5th-order Taylor expansions of the planet's trajectory, anchored at
-one or more *knot* points along the orbit. The Taylor coefficients are
+one or more *expansion points* along the orbit. The Taylor coefficients are
 computed analytically; from them, positions, sky-projected
 separations, the line-of-sight coordinate, velocities, contact points
 and durations all reduce to fast Horner-scheme polynomial evaluations.
 
-.. admonition:: What is a knot?
+.. admonition:: What is an expansion point?
 
-   A **knot** is a point along the orbit that serves as the *center* of
+   An **expansion point** is a point along the orbit that serves as the *center* of
    a local 5th-order Taylor expansion of the planet's trajectory in
-   time. Each knot carries its own ``(D, 5)`` coefficient matrix, and
-   the expansion is most accurate close to the knot, degrading as you
+   time. Each expansion point carries its own ``(D, 5)`` coefficient matrix, and
+   the expansion is most accurate close to the expansion point, degrading as you
    move away from it.
 
-   The term is borrowed from spline interpolation, but with one
-   important difference: a spline knot marks where two neighbouring
-   polynomial pieces *join* (a segment boundary), whereas a MeepMeep
-   knot sits at the *center* of its segment. The boundaries between the
-   regions of validity of adjacent knots are a separate set of times
+   An expansion point is the *center* of its region of validity, not a
+   boundary between regions. The boundaries between the regions of
+   validity of adjacent expansion points are a separate set of times
    (the ``change_times`` returned by
-   :func:`~meepmeep.backends.numba.knots.create_knots`), encoded in the
-   time-to-knot table used for dispatch. So: knots are expansion
+   :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`), encoded in the
+   time-to-expansion-point table used for dispatch. So: expansion points are expansion
    centers, not segment edges.
 
 .. note::
@@ -53,24 +51,24 @@ Two ways to use the Taylor backend
 
 The backend is designed for two usage modes.
 Both modes share the same coefficient-matrix layout and the same family
-of evaluators; they differ only in *how many* knots you build and how
+of evaluators; they differ only in *how many* expansion points you build and how
 the evaluators are dispatched.
 
-**Single-knot evaluation.** Build one set of Taylor coefficients at a
+**Single-expansion-point evaluation.** Build one set of Taylor coefficients at a
 chosen phase (typically the transit center for a transit model, or the
 secondary-eclipse center for an eclipse model) and evaluate positions
 or projected distance in the time window where the series is
 accurate. This is the natural mode for transit and eclipse light-curve
 codes, for contact-point and duration calculations via
 :mod:`~meepmeep.backends.numba.point2d.util`, and for inspecting orbit
-geometry at a fixed phase. See :ref:`taylor_single_knot`.
+geometry at a fixed phase. See :ref:`taylor_single_ep`.
 
-**Multi-knot orbit-spanning evaluation.** Distribute :math:`N` knots
+**Multi-expansion-point orbit-spanning evaluation.** Distribute :math:`N` expansion points
 around the full orbit, precompute coefficients at each, and dispatch
-arbitrary input times to the appropriate knot via a precomputed
-time-to-knot table. This is the natural mode for whole-orbit
+arbitrary input times to the appropriate expansion point via a precomputed
+time-to-expansion-point table. This is the natural mode for whole-orbit
 quantities — radial velocity curves, phase curves, ellipsoidal
-variation, light travel time. See :ref:`taylor_multi_knot`.
+variation, light travel time. See :ref:`taylor_multi_ep`.
 
 Coordinate system
 -----------------
@@ -142,9 +140,9 @@ Both :func:`~meepmeep.backends.numba.point2d.solve.solve2d` and
 
 The columns are **pre-scaled by the factorial of the Taylor order**,
 i.e. ``c[d, k]`` already contains
-:math:`\partial^k x_d / \partial t^k\,/\,k!` evaluated at the knot. With
+:math:`\partial^k x_d / \partial t^k\,/\,k!` evaluated at the expansion point. With
 this normalisation the polynomial at time :math:`t` (measured relative
-to the knot) is simply
+to the expansion point) is simply
 
 .. math::
 
@@ -161,35 +159,35 @@ factorial divisions and only four fused multiply-adds per spatial
 dimension.
 
 
-.. _taylor_single_knot:
+.. _taylor_single_ep:
 
-Single-knot evaluation
-----------------------
+Single-expansion-point evaluation
+---------------------------------
 
-Pick a knot time :math:`t_k` of interest, measured in days relative to
+Pick a expansion-point time :math:`t_k` of interest, measured in days relative to
 the transit centre (for example, the transit centre itself, :math:`t_k = 0`).
 A single call to
 :func:`~meepmeep.backends.numba.point2d.solve.solve2d` (or
 :func:`~meepmeep.backends.numba.point3d.solve.solve3d` for 3D) builds
-the ``(D, 5)`` coefficient matrix at that knot:
+the ``(D, 5)`` coefficient matrix at that expansion point:
 
 .. code-block:: python
 
    from meepmeep.backends.numba.point2d import solve2d
 
-   c = solve2d(tk, p, a, i, e, w)   # shape (2, 5)
+   c = solve2d(te, p, a, i, e, w)   # shape (2, 5)
 
-The Taylor expansion is accurate inside a window around the knot whose
+The Taylor expansion is accurate inside a window around the expansion point whose
 size depends on the orbit (more eccentric orbits have shorter windows
-near periastron). For transit and eclipse modelling, one knot placed at
+near periastron). For transit and eclipse modelling, one expansion point placed at
 the event center is normally enough to cover ingress, totality, and
 egress with high accuracy.
 
 **Centered vs. direct evaluators.** Every evaluator ships in two
-variants and the choice belongs entirely in this single-knot mode:
+variants and the choice belongs entirely in this single-expansion-point mode:
 
 * **Centered** variants (``c`` suffix) accept a time that is already
-  relative to the knot, :math:`t = t_\mathrm{obs} - t_\mathrm{knot}`,
+  relative to the expansion point, :math:`t = t_\mathrm{obs} - t_\mathrm{expansion point}`,
   and skip any epoch arithmetic. They are the fastest path and the
   natural choice when the observation times have already been folded
   around the event.
@@ -200,8 +198,8 @@ variants and the choice belongs entirely in this single-knot mode:
   :func:`~meepmeep.backends.numba.point3d.zposition.zpos_c`.
 
 * **Direct** variants (no ``c`` suffix) accept an absolute time
-  together with the knot time ``tk`` and ``p`` and epoch-fold internally via
-  ``epoch = floor((t - tk + p/2) / p)`` so the residual lies in
+  together with the expansion-point time ``te`` and ``p`` and epoch-fold internally via
+  ``epoch = floor((t - te + p/2) / p)`` so the residual lies in
   :math:`[-p/2,\, p/2)`. Use them when callers prefer to hand in raw
   observation times.
   Examples: :func:`~meepmeep.backends.numba.point2d.position.pos`,
@@ -222,12 +220,12 @@ helpers that operate directly on a single ``c``:
 * ``find_contact_point`` — generic contact-point solver.
 * ``find_z_min`` — time of minimum projected separation.
 * ``bounding_box`` — axis-aligned bounding box of the orbit segment
-  spanned by the knot.
+  spanned by the expansion point.
 
 Because they only need one coefficient matrix, they slot naturally
-into single-knot pipelines such as transit duration calculators.
+into single-expansion-point pipelines such as transit duration calculators.
 
-**Single-knot quickstart.** A minimal transit-window evaluation:
+**Single-expansion-point quickstart.** A minimal transit-window evaluation:
 
 .. code-block:: python
 
@@ -238,21 +236,21 @@ into single-knot pipelines such as transit duration calculators.
    # Orbital parameters (tc is the transit-centre time)
    tc, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
 
-   # One knot at the transit centre (tk = 0, so the knot sits at tc)
+   # One expansion point at the transit centre (te = 0, so the expansion point sits at tc)
    c = solve2d(0.0, p, a, i, e, w)
 
-   # Centered evaluation: t is measured from the knot
+   # Centered evaluation: t is measured from the expansion point
    dt = np.linspace(-0.05, 0.05, 1001)
    d = sep_c(dt, c)
 
 If you would rather hand in absolute times, swap ``sep_c(dt, c)`` for
 ``sep(t, tc, p, c)`` and pass ``t = tc + dt``: the second argument is the
-transit-centre time. (For a knot placed away from the transit centre,
-pass the ``solve2d`` knot offset as the trailing optional ``tk``
+transit-centre time. (For an expansion point placed away from the transit centre,
+pass the ``solve2d`` expansion-point offset as the trailing optional ``te``
 argument.) The result is identical; only the epoch-folding is now done
 by the evaluator.
 
-**Single-knot gradients.** For analytic derivatives with respect to the
+**Single-expansion-point gradients.** For analytic derivatives with respect to the
 seven orbital parameters, replace
 :func:`~meepmeep.backends.numba.point2d.solve.solve2d` with
 :func:`~meepmeep.backends.numba.point2dd.solve.solve2d_d` (or
@@ -267,51 +265,51 @@ them to the matching centered-with-derivatives evaluators
 See :ref:`taylor_derivatives` for the gradient conventions.
 
 
-.. _taylor_multi_knot:
+.. _taylor_multi_ep:
 
-Multi-knot orbit-spanning evaluation
-------------------------------------
+Multi-expansion-point orbit-spanning evaluation
+-----------------------------------------------
 
 A single 5th-order Taylor series is only accurate in a small
 neighbourhood of its expansion point. To evaluate the orbit at *any*
 phase — for whole-orbit observables such as RV curves and phase
-curves — MeepMeep distributes :math:`N` knots along one orbital period
+curves — MeepMeep distributes :math:`N` expansion points along one orbital period
 and stores a separate coefficient matrix at each. Lookups from an
-input time to the relevant knot are done by a precomputed time-to-knot
+input time to the relevant expansion point are done by a precomputed time-to-expansion-point
 table.
 
-**Knot placement strategies** are selectable via the ``quantity``
-keyword of :func:`~meepmeep.backends.numba.knots.create_knots`:
+**Expansion point placement strategies** are selectable via the ``quantity``
+keyword of :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`:
 
 * ``'mm'`` — uniform in mean motion (uniform in time).
 * ``'ea'`` — uniform in eccentric anomaly (default; preferred for
   moderate to high eccentricity).
 * ``'ta'`` — uniform in true anomaly.
 
-The eccentric-anomaly placement clusters knots near periastron, where
+The eccentric-anomaly placement clusters expansion points near periastron, where
 the orbital motion is fast and the validity window of each Taylor
 series is shortest.
 
 **Per-orbit coefficient assembly.**
 :func:`~meepmeep.backends.numba.orbit3d.solve3d_orbit` calls
-:func:`~meepmeep.backends.numba.point3d.solve.solve3d` once per knot
+:func:`~meepmeep.backends.numba.point3d.solve.solve3d` once per expansion point
 and returns an ``(N, 3, 5)`` array. The function expects the *last*
-knot time to be the periodic image of the first (i.e. one period
-later); when this is true it copies the first knot's coefficients into
+expansion-point time to be the periodic image of the first (i.e. one period
+later); when this is true it copies the first expansion point's coefficients into
 the last slot instead of recomputing them.
-:func:`~meepmeep.backends.numba.knots.create_knots` produces compliant
-input automatically; if you hand-roll the knot grid you must enforce
+:func:`~meepmeep.backends.numba.expansion_points.create_expansion_points` produces compliant
+input automatically; if you hand-roll the expansion-point grid you must enforce
 this contract yourself.
 
-**Time-to-knot dispatch.** Each multi-knot evaluator carries a
-``pktable`` argument — a precomputed table that maps the position
-within one folded period to a knot index in :math:`O(1)`. The dispatch
+**Time-to-expansion-point dispatch.** Each multi-expansion-point evaluator carries a
+``ep_table`` argument — a precomputed table that maps the position
+within one folded period to a expansion-point index in :math:`O(1)`. The dispatch
 helper is
-:func:`~meepmeep.backends.numba.orbit3d.knot_ix`.
+:func:`~meepmeep.backends.numba.orbit3d.ep_ix`.
 
 **Dispatcher suffix convention.** Whole-orbit functions in
 :mod:`~meepmeep.backends.numba.orbit3d` use a different
-suffix family from the single-knot evaluators. Each quantity exposes a
+suffix family from the single-expansion-point evaluators. Each quantity exposes a
 single overloaded dispatcher that accepts either a scalar time or a 1-D
 float64 array of times:
 
@@ -325,7 +323,7 @@ Internally each dispatcher routes — at compile time inside ``@njit`` or
 at call time in pure Python — to a private scalar kernel (``_X_os``) or
 vector kernel (``_X_ov``); these underscored kernels are implementation
 detail, not part of the public surface. Each dispatcher looks up the
-relevant knot via ``pktable`` and delegates to the corresponding
+relevant expansion point via ``ep_table`` and delegates to the corresponding
 centered evaluator in the
 :mod:`~meepmeep.backends.numba.point3d` package. Beyond raw
 positions and velocities, the package
@@ -345,36 +343,36 @@ provides higher-level whole-orbit outputs:
 * :func:`~meepmeep.backends.numba.orbit3d.light_travel_time_o`
   — light travel time corrections.
 
-**Multi-knot quickstart.** Build the per-orbit structures once and
+**Multi-expansion-point quickstart.** Build the per-orbit structures once and
 evaluate at an array of times:
 
 .. code-block:: python
 
    import numpy as np
-   from meepmeep.backends.numba.knots import create_knots
+   from meepmeep.backends.numba.expansion_points import create_expansion_points
    from meepmeep.backends.numba.orbit3d import solve3d_orbit, pos_o
    from meepmeep.backends.numba.utils import mean_anomaly_at_transit
 
    # Orbital parameters (tc is the transit-center time, the high-level convention)
    tc, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
 
-   # The orbit3d dispatchers anchor their knot grid at periastron, so
+   # The orbit3d dispatchers anchor their expansion-point grid at periastron, so
    # convert the user-facing transit-center time to the periastron-anchor time.
    tpa = tc - mean_anomaly_at_transit(e, w) / (2.0 * np.pi) * p
 
-   # Knot grid (eccentric-anomaly placement). create_knots returns the knot
-   # phases, the segment-boundary change_times, the pktable bucket width dt,
-   # and the time-to-knot table itself.
+   # Expansion-point grid (eccentric-anomaly placement). create_expansion_points
+   # returns the expansion-point phases, the segment-boundary change_times, the
+   # ep_table bucket width dt, and the time-to-expansion-point table itself.
    npt = 15
-   points, change_times, dt, pktable = create_knots(npt, e, quantity='ea')
+   ep_times, change_times, dt, ep_table = create_expansion_points(npt, e, quantity='ea')
 
-   # Pre-compute Taylor coefficients at every knot
-   coeffs = solve3d_orbit(points, p, a, i, e, w, npt=npt)
+   # Pre-compute Taylor coefficients at every expansion point
+   coeffs = solve3d_orbit(ep_times, p, a, i, e, w, npt=npt)
 
    # Evaluate the orbit at a grid of times. pos_o accepts a scalar or a 1-D
    # array of times and returns the (x, y, z) sky-frame coordinates.
    times = np.linspace(0.0, p, 2001)
-   xs, ys, zs = pos_o(times, tpa, p, dt, pktable, points, coeffs)
+   xs, ys, zs = pos_o(times, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
 .. _taylor_derivatives:
@@ -382,8 +380,8 @@ evaluate at an array of times:
 Parameter derivatives
 ---------------------
 
-The ``d``-suffixed packages (the ``point2dd`` and ``point3dd`` single-knot
-packages and the ``orbit3dd`` multi-knot package) extend
+The ``d``-suffixed packages (the ``point2dd`` and ``point3dd`` single-expansion-point
+packages and the ``orbit3dd`` multi-expansion-point package) extend
 the backend with analytic partial derivatives of every output with
 respect to the seven orbital parameters. The same machinery is available
 in both usage modes. See :ref:`derivatives` for the full derivation,
@@ -391,7 +389,7 @@ with equations for the Kepler implicit-differentiation step, the
 orbital-plane derivative chain, and the chain rules used by every
 evaluator and dispatcher.
 
-For **single-knot gradients**, swap
+For **single-expansion-point gradients**, swap
 :func:`~meepmeep.backends.numba.point2d.solve.solve2d` /
 :func:`~meepmeep.backends.numba.point3d.solve.solve3d` for their
 ``_d`` counterparts. They return a coefficient matrix ``c`` *and* a
@@ -409,7 +407,7 @@ both ``c`` and ``dc`` and returns the value alongside a length-7
 gradient vector. The naming convention is ``_d`` for direct (absolute-
 time) variants and ``_cd`` for centered ones.
 
-For **multi-knot gradients**, the assembly side becomes
+For **multi-expansion-point gradients**, the assembly side becomes
 :func:`~meepmeep.backends.numba.orbit3dd.solve3d_orbit_d`, which
 returns ``(N, 3, 5)`` coefficients and an
 ``(N, 7, 3, 5)`` derivative tensor. The dispatcher counterparts in

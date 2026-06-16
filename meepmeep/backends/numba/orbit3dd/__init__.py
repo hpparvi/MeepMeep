@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot Taylor-series evaluators with parameter derivatives.
+"""Multi-expansion-point Taylor-series evaluators with parameter derivatives.
 
 Derivative-returning counterparts of the routines in the ``orbit3d``
 package. Every function returns both the value and its partial derivatives

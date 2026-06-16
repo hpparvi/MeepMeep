@@ -1,6 +1,6 @@
 """Scalar-or-array dispatch tests for the meepmeep.backends.numba.point3dd evaluators.
 
-Each single-knot 3D derivative evaluator (pos_cd/pos_d, sep_cd/sep_d,
+Each single-expansion-point 3D derivative evaluator (pos_cd/pos_d, sep_cd/sep_d,
 zpos_cd/zpos_d, vel_cd, zvel_cd/zvel_d, rv_cd/rv_d) now accepts EITHER a scalar
 time OR a 1-D array of times via numba @overload, mirroring the 2D point2dd
 evaluators. This suite checks that the array path equals the per-element scalar

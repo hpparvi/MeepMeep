@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot light-travel-time correction evaluators."""
+"""Multi-expansion-point light-travel-time correction evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -31,41 +31,41 @@ LTT_DAYS_PER_RSUN = 2.685885891543453e-05
 
 
 @njit(fastmath=True)
-def _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+def _light_travel_time_os(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`light_travel_time_o`. See that function for documentation."""
     to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_t = _zpos_os(t, tpa, p, dt, pktable, points, coeffs)
-    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
+    z_t = _zpos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
+    z_tr = _zpos_os(tpa + to, tpa, p, dt, ep_table, ep_times, coeffs)
     return -(z_t - z_tr) * rstar * LTT_DAYS_PER_RSUN
 
 
 @njit(fastmath=True)
-def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`light_travel_time_o`. See that function for documentation."""
     n = times.size
     ltt = zeros(n)
     to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
+    z_tr = _zpos_os(tpa + to, tpa, p, dt, ep_table, ep_times, coeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
     for j in range(n):
-        ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, pktable, points, coeffs) - z_tr)
+        ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, ep_table, ep_times, coeffs) - z_tr)
     return ltt
 
 
 @njit(fastmath=True, parallel=True)
-def _light_travel_time_ovp(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+def _light_travel_time_ovp(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_light_travel_time_ov`."""
     n = times.size
     ltt = zeros(n)
     to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
-    z_tr = _zpos_os(tpa + to, tpa, p, dt, pktable, points, coeffs)
+    z_tr = _zpos_os(tpa + to, tpa, p, dt, ep_table, ep_times, coeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
     for j in prange(n):
-        ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, pktable, points, coeffs) - z_tr)
+        ltt[j] = factor * (_zpos_os(times[j], tpa, p, dt, ep_table, ep_times, coeffs) - z_tr)
     return ltt
 
 
-def light_travel_time_o(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+def light_travel_time_o(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
     """Light travel time correction, referenced to primary transit.
 
     The correction is
@@ -104,8 +104,8 @@ def light_travel_time_o(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
         Argument of periastron [radians].
     rstar : float
         Stellar radius [R_sun].
-    dt, pktable, points, coeffs :
-        Multi-knot dispatch arrays from ``solve3d_orbit`` / ``create_knots``.
+    dt, ep_table, ep_times, coeffs :
+        Multi-expansion-point dispatch arrays from ``solve3d_orbit`` / ``create_expansion_points``.
 
     Returns
     -------
@@ -114,18 +114,18 @@ def light_travel_time_o(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
         array time argument.
     """
     if isinstance(t, ndarray):
-        return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)
-    return _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)
+        return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
+    return _light_travel_time_os(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
 
 
 @overload(light_travel_time_o, jit_options={'fastmath': True})
-def _light_travel_time_o_overload(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
+def _light_travel_time_o_overload(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
-            return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
+            return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs):
-            return _light_travel_time_os(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
+            return _light_travel_time_os(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
         return impl
     return None

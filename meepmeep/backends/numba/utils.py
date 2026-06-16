@@ -350,7 +350,7 @@ def tc_to_tp_gradient(dc, p, e, w):
     dc : ndarray
         Gradient block with the parameter axis first, shape ``(7, ...)``. The
         trailing dimensions are arbitrary (e.g. ``(7, 3, 5)`` for a single 3D
-        knot or ``(7, 2, 5)`` for a 2D knot).
+        expansion point or ``(7, 2, 5)`` for a 2D expansion point).
     p : float
         Orbital period [days].
     e : float

@@ -71,8 +71,8 @@ class TestPos2dDLan:
         xm, ym = pos_c(time, cf_m)
         dpx_fd = (xp - xm) / (2 * h)
         dpy_fd = (yp - ym) / (2 * h)
-        # Slot 0 is d/dtc; the perturbation above is in the solver's knot-time
-        # argument tk (d/dtk), and d/dtc = -d/dtk, so the slot-0 reference is negated.
+        # Slot 0 is d/dtc; the perturbation above is in the solver's expansion point-time
+        # argument te (d/dtk), and d/dtc = -d/dtk, so the slot-0 reference is negated.
         if kidx == 0:
             dpx_fd, dpy_fd = -dpx_fd, -dpy_fd
 
@@ -109,8 +109,8 @@ class TestSep2dDLan:
         d_p = sep_c(time, cf_p)
         d_m = sep_c(time, cf_m)
         dd_fd = (d_p - d_m) / (2 * h)
-        # Slot 0 is d/dtc; the perturbation above is in the solver's knot-time
-        # argument tk (d/dtk), and d/dtc = -d/dtk, so the slot-0 reference is negated.
+        # Slot 0 is d/dtc; the perturbation above is in the solver's expansion point-time
+        # argument te (d/dtk), and d/dtc = -d/dtk, so the slot-0 reference is negated.
         if kidx == 0:
             dd_fd = -dd_fd
 

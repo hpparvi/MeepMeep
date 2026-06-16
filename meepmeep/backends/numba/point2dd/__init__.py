@@ -14,12 +14,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 2D Taylor-series evaluators with parameter derivatives.
+"""Single-expansion-point 2D Taylor-series evaluators with parameter derivatives.
 
 Derivative-returning counterpart of the ``point2d`` package: each evaluator
 returns the sky-plane quantity together with its partial derivatives with
 respect to the seven orbital parameters ``(tc, p, a, i, e, w, lan)``. This
-is the 2D counterpart of the single-knot 3D derivative modules
+is the 2D counterpart of the single-expansion-point 3D derivative modules
 (``position3dd``, ``solve3dd``), organised one module per physical quantity
 to mirror the ``orbit3dd`` package layout.
 

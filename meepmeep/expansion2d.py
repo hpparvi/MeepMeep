@@ -23,29 +23,28 @@ from .backends.numba.point2d import (solve2d, pos, sep, _pos_vp, _sep_vp,
 from .backends.numba.point2dd import solve2d_d, pos_d, sep_d, _pos_d_vp, _sep_d_vp
 
 
-class Knot2D:
+class Expansion2D:
 
     # Minimum time-array sizes for which the prange kernel twins beat the
-    # serial kernels (measured on a 16-core machine). The single-knot value
+    # serial kernels (measured on a 16-core machine). The single-expansion-point value
     # kernels run at a few ns per sample, so their break-even is higher
     # than for the gradient kernels.
     _PARALLEL_NMIN_VALUE = 100_000
     _PARALLEL_NMIN_GRAD = 10_000
 
     def __init__(self, tc: float, p: float, a: float, i: float, e: float, w: float,
-                 lan: float = 0.0, tk: float = 0.0, derivatives: bool = False,
+                 lan: float = 0.0, te: float = 0.0, derivatives: bool = False,
                  parallel: bool = False):
-        """High-level wrapper over the single-knot 2D Taylor evaluators.
+        """High-level wrapper over the single-expansion-point 2D Taylor evaluators.
 
-        A *knot* is a point along the orbit that serves as the center of a
-        local 5th-order Taylor expansion of the planet's trajectory in time.
-        This class builds one such expansion at a chosen knot time ``tk`` and
-        exposes the sky-plane (x, y) position, the sky-projected separation
-        between the centers of the star and planet (in units of the stellar
-        radius), and the transit contact-point / duration utilities, all
-        sharing the single ``(2, 5)`` coefficient matrix solved by
-        :meth:`set_pars`. (The name follows spline terminology, but the knot
-        here is the expansion *center*, not a segment boundary.)
+        An *expansion point* is a point along the orbit that serves as the
+        center of a local 5th-order Taylor expansion of the planet's
+        trajectory in time. This class builds one such expansion at a chosen
+        expansion-point time ``te`` and exposes the sky-plane (x, y)
+        position, the sky-projected separation between the centers of the
+        star and planet (in units of the stellar radius), and the transit
+        contact-point / duration utilities, all sharing the single
+        ``(2, 5)`` coefficient matrix solved by :meth:`set_pars`.
 
         Usage mirrors the high-level :class:`~meepmeep.orbit.Orbit` class:
         construct once, then rebind orbital elements with :meth:`set_pars` and
@@ -53,8 +52,8 @@ class Knot2D:
         constructor itself simply forwards its orbital arguments to
         :meth:`set_pars`. The :attr:`position` and :attr:`projected_separation`
         **properties** evaluate the bound time grid directly: the underlying
-        direct evaluators take the transit centre ``tc`` and the knot offset
-        ``tk`` and epoch-fold around the knot.
+        direct evaluators take the transit centre ``tc`` and the expansion-point offset
+        ``te`` and epoch-fold around the expansion point.
 
         The ``derivatives`` flag is a once-per-instance switch: when ``True``,
         :attr:`position` and :attr:`projected_separation` return the value
@@ -79,10 +78,10 @@ class Knot2D:
         lan : float, optional
             Longitude of the ascending node [rad], a constant rotation of the
             sky plane about the line of sight. Defaults to 0.0.
-        tk : float, optional
-            Knot time [days], measured relative to the transit centre (time of
-            inferior conjunction). ``tk = 0`` (the default) expands the series
-            at the transit centre. The knot time is fixed for the lifetime of
+        te : float, optional
+            Expansion-point time [days], measured relative to the transit centre (time of
+            inferior conjunction). ``te = 0`` (the default) expands the series
+            at the transit centre. The expansion-point time is fixed for the lifetime of
             the instance; rebinding via :meth:`set_pars` reuses it.
         derivatives : bool, optional
             If ``True``, :attr:`position` and :attr:`projected_separation`
@@ -101,16 +100,16 @@ class Knot2D:
         """
         self._derivatives = derivatives
         self._parallel = parallel
-        self.tk = tk
+        self.te = te
         self.times = None
         self.set_pars(tc=tc, p=p, a=a, i=i, e=e, w=w, lan=lan)
 
     def set_pars(self, *, tc: float, p: float, a: float, i: float, e: float, w: float,
                  lan: float = 0.0):
-        """Bind orbital elements and (re-)solve the single-knot Taylor coefficients.
+        """Bind orbital elements and (re-)solve the single-expansion-point Taylor coefficients.
 
         All parameters are keyword-only, so the call site always names the
-        elements explicitly. The knot time ``tk`` is a construction-time
+        elements explicitly. The expansion-point time ``te`` is a construction-time
         constant and is reused on every call.
 
         Parameters
@@ -137,8 +136,8 @@ class Knot2D:
         -----
         After this call, ``self._coeffs`` holds the ``(2, 5)`` coefficient
         matrix (and ``self._dcoeffs`` the ``(7, 2, 5)`` derivative tensor when
-        the instance is in derivative mode), and ``self._knot_time`` holds the
-        absolute time of the knot (``tc + tk``).
+        the instance is in derivative mode), and ``self._ep_time`` holds the
+        absolute time of the expansion point (``tc + te``).
         """
         self._tc = tc
         self._p = p
@@ -148,14 +147,14 @@ class Knot2D:
         self._w = w
         self._lan = lan
 
-        # Absolute time of the knot, used to convert centered contact-point
+        # Absolute time of the expansion point, used to convert centered contact-point
         # offsets back to absolute times.
-        self._knot_time = tc + self.tk
+        self._ep_time = tc + self.te
 
         if self._derivatives:
-            self._coeffs, self._dcoeffs = solve2d_d(self.tk, p, a, i, e, w, lan)
+            self._coeffs, self._dcoeffs = solve2d_d(self.te, p, a, i, e, w, lan)
         else:
-            self._coeffs = solve2d(self.tk, p, a, i, e, w, lan)
+            self._coeffs = solve2d(self.te, p, a, i, e, w, lan)
             self._dcoeffs = None
 
     def _select(self, serial, par, nmin):
@@ -195,9 +194,9 @@ class Knot2D:
         """
         if self._derivatives:
             fn = self._select(pos_d, _pos_d_vp, self._PARALLEL_NMIN_GRAD)
-            return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.tk)
+            return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.te)
         fn = self._select(pos, _pos_vp, self._PARALLEL_NMIN_VALUE)
-        return fn(self.times, self._tc, self._p, self._coeffs, self.tk)
+        return fn(self.times, self._tc, self._p, self._coeffs, self.te)
 
     @property
     def projected_separation(self):
@@ -217,9 +216,9 @@ class Knot2D:
         """
         if self._derivatives:
             fn = self._select(sep_d, _sep_d_vp, self._PARALLEL_NMIN_GRAD)
-            return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.tk)
+            return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.te)
         fn = self._select(sep, _sep_vp, self._PARALLEL_NMIN_VALUE)
-        return fn(self.times, self._tc, self._p, self._coeffs, self.tk)
+        return fn(self.times, self._tc, self._p, self._coeffs, self.te)
 
     def duration(self, k: float, kind: int = 14) -> float:
         """Transit duration of the requested type [days].
@@ -259,7 +258,7 @@ class Knot2D:
         float
             Absolute time of the requested contact point.
         """
-        return self._knot_time + find_contact_point(k, point, self._coeffs)
+        return self._ep_time + find_contact_point(k, point, self._coeffs)
 
     def bounding_box(self, k: float):
         """Absolute first- and fourth-contact times bracketing the transit.
@@ -275,16 +274,16 @@ class Knot2D:
             ``(T1, T4)`` absolute contact times [days].
         """
         bt1, bt4 = bounding_box(k, self._coeffs)
-        return self._knot_time + bt1, self._knot_time + bt4
+        return self._ep_time + bt1, self._ep_time + bt4
 
     def min_separation(self, guess: float = 0.0):
-        """Locate the minimum projected separation near the knot.
+        """Locate the minimum projected separation near the expansion point.
 
         Parameters
         ----------
         guess : float, optional
             Initial guess for the time of minimum separation, as an offset
-            in days from the knot. Defaults to 0.0 (the knot itself).
+            in days from the expansion point. Defaults to 0.0 (the expansion point itself).
 
         Returns
         -------
@@ -295,4 +294,4 @@ class Knot2D:
             radius.
         """
         t_min, z_min = find_z_min(guess, self._coeffs)
-        return self._knot_time + t_min, z_min
+        return self._ep_time + t_min, z_min

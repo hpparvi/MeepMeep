@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 3D planet (vx, vy, vz) velocity evaluators."""
+"""Single-expansion-point 3D planet (vx, vy, vz) velocity evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -56,7 +56,7 @@ _vel_c_vp = njit(fastmath=True, parallel=True)(_vel_c_v_body)
 
 def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray, float | NDArray]:
     """
-    Evaluate the planet's (vx, vy, vz) velocity at a knot-centered time.
+    Evaluate the planet's (vx, vy, vz) velocity at an expansion-point-centered time.
 
     Centered velocity companion to `position.pos_c`. Each velocity
     component is obtained by analytically differentiating the
@@ -72,7 +72,7 @@ def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     ----------
     time : float or NDArray
         Time relative to the Taylor series expansion point, i.e.
-        `time = tc - (tk + epoch*p)`. Must lie within the knot's
+        `time = tc - (te + epoch*p)`. Must lie within the expansion point's
         region of validity for the truncation error to remain small.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Row 0 holds

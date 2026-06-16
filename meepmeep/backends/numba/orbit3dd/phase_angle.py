@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot phase-angle cosine evaluators with parameter derivatives."""
+"""Multi-expansion-point phase-angle cosine evaluators with parameter derivatives."""
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
@@ -25,7 +25,7 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
-def _cos_alpha_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz):
+def _cos_alpha_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dca, dx, dy, dz):
     """Write-into orbit kernel for the phase-angle cosine and its gradient.
 
     Writes the seven-parameter gradient into the caller-provided ``(7,)``
@@ -33,7 +33,7 @@ def _cos_alpha_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, 
     ``(7,)`` scratch buffers for the position gradients; vector loops
     (here and in ``lambert``) allocate them once and reuse them.
     """
-    x, y, z = _pos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+    x, y, z = _pos_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
     r2 = x * x + y * y + z * z
     r = sqrt(r2)
     ca = -z / r
@@ -46,18 +46,18 @@ def _cos_alpha_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, 
 
 
 @njit(fastmath=True)
-def _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_alpha_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`cos_alpha_od`. See that function for documentation."""
     dca = zeros(7)
     dx = zeros(7)
     dy = zeros(7)
     dz = zeros(7)
-    ca = _cos_alpha_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz)
+    ca = _cos_alpha_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dca, dx, dy, dz)
     return ca, dca
 
 
 @njit(fastmath=True)
-def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_alpha_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`cos_alpha_od`. See that function for documentation."""
     n = times.size
     cas = zeros(n)
@@ -66,13 +66,13 @@ def _cos_alpha_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dy = zeros(7)
     dz = zeros(7)
     for j in range(n):
-        cas[j] = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+        cas[j] = _cos_alpha_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
                                dcas[j], dx, dy, dz)
     return cas, dcas
 
 
 @njit(fastmath=True, parallel=True)
-def _cos_alpha_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_alpha_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_cos_alpha_ovd`.
 
     The position-gradient scratch is hoisted per thread; a single shared
@@ -85,12 +85,12 @@ def _cos_alpha_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dx, dy, dz = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
     for j in prange(n):
         tid = get_thread_id()
-        cas[j] = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+        cas[j] = _cos_alpha_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
                                dcas[j], dx[tid], dy[tid], dz[tid])
     return cas, dcas
 
 
-def cos_alpha_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def cos_alpha_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Cosine of the phase angle and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -113,7 +113,7 @@ def cos_alpha_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ----------
     t : float or ndarray
         Time at which to evaluate the phase-angle cosine and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
@@ -125,18 +125,18 @@ def cos_alpha_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _cos_alpha_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _cos_alpha_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _cos_alpha_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(cos_alpha_od, jit_options={'fastmath': True})
-def _cos_alpha_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_alpha_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _cos_alpha_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _cos_alpha_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _cos_alpha_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _cos_alpha_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

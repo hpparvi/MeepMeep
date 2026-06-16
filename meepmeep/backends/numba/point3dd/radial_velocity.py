@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot stellar radial-velocity evaluators with parameter derivatives."""
+"""Single-expansion-point stellar radial-velocity evaluators with parameter derivatives."""
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
@@ -105,7 +105,7 @@ def _rv_cd_vp(time, k, p, a, i, e, c, dc):
 def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: float,
           c: NDArray, dc: NDArray):
     """
-    Evaluate the stellar radial velocity and its parameter derivatives at a knot-centered time.
+    Evaluate the stellar radial velocity and its parameter derivatives at an expansion-point-centered time.
 
     Converts the planet's centered line-of-sight velocity into the
     physical radial velocity of the host star, scaled by the
@@ -180,14 +180,14 @@ def _rv_cd_overload(time, k, p, a, i, e, c, dc):
 
 
 @njit(fastmath=True)
-def _rv_d_s(time, k, tc, p, a, i, e, c, dc, tk):
+def _rv_d_s(time, k, tc, p, a, i, e, c, dc, te):
     """Scalar kernel for :func:`rv_d`. See that function for documentation."""
-    epoch = floor((time - tc - tk + 0.5 * p) / p)
-    return _rv_cd_s(time - (tc + tk + epoch * p), k, p, a, i, e, c, dc)
+    epoch = floor((time - tc - te + 0.5 * p) / p)
+    return _rv_cd_s(time - (tc + te + epoch * p), k, p, a, i, e, c, dc)
 
 
 @njit(fastmath=True)
-def _rv_d_v(time, k, tc, p, a, i, e, c, dc, tk):
+def _rv_d_v(time, k, tc, p, a, i, e, c, dc, te):
     """Vector kernel for :func:`rv_d`. See that function for documentation."""
     nt = time.size
     rv_val = zeros(nt)
@@ -195,13 +195,13 @@ def _rv_d_v(time, k, tc, p, a, i, e, c, dc, tk):
     s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
     dvz = zeros(7)
     for j in range(nt):
-        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
-        rv_val[j] = _rv_cd_w(time[j] - (tc + tk + epoch * p), s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        rv_val[j] = _rv_cd_w(time[j] - (tc + te + epoch * p), s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
     return rv_val, drv
 
 
 @njit(fastmath=True, parallel=True)
-def _rv_d_vp(time, k, tc, p, a, i, e, c, dc, tk):
+def _rv_d_vp(time, k, tc, p, a, i, e, c, dc, te):
     """Parallel (prange) twin of :func:`_rv_d_v`.
 
     Explicit twin with per-thread z-velocity gradient scratch; see
@@ -213,14 +213,14 @@ def _rv_d_vp(time, k, tc, p, a, i, e, c, dc, tk):
     s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
     dvz = zeros((get_num_threads(), 7))
     for j in prange(nt):
-        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
-        rv_val[j] = _rv_cd_w(time[j] - (tc + tk + epoch * p), s, dsp, dsa, dsi, dse,
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        rv_val[j] = _rv_cd_w(time[j] - (tc + te + epoch * p), s, dsp, dsa, dsi, dse,
                              c, dc, drv[j], dvz[get_thread_id()])
     return rv_val, drv
 
 
 def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float, e: float,
-         c: NDArray, dc: NDArray, tk: float = 0.0):
+         c: NDArray, dc: NDArray, te: float = 0.0):
     """
     Evaluate the stellar radial velocity and its parameter derivatives at an absolute time.
 
@@ -242,9 +242,9 @@ def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: floa
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
         time axis as `time`.
-    tk : float, optional
-        Knot offset from the transit centre [days] - the same value that
-        was passed to `solve3d_d`. Defaults to 0.0, the knot at the
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
     p : float
         Orbital period.
@@ -270,18 +270,18 @@ def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: floa
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _rv_d_v(time, k, tc, p, a, i, e, c, dc, tk)
-    return _rv_d_s(time, k, tc, p, a, i, e, c, dc, tk)
+        return _rv_d_v(time, k, tc, p, a, i, e, c, dc, te)
+    return _rv_d_s(time, k, tc, p, a, i, e, c, dc, te)
 
 
 @overload(rv_d, jit_options={'fastmath': True})
-def _rv_d_overload(time, k, tc, p, a, i, e, c, dc, tk=0.0):
+def _rv_d_overload(time, k, tc, p, a, i, e, c, dc, te=0.0):
     if _is_1d_array(time):
-        def impl(time, k, tc, p, a, i, e, c, dc, tk=0.0):
-            return _rv_d_v(time, k, tc, p, a, i, e, c, dc, tk)
+        def impl(time, k, tc, p, a, i, e, c, dc, te=0.0):
+            return _rv_d_v(time, k, tc, p, a, i, e, c, dc, te)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, k, tc, p, a, i, e, c, dc, tk=0.0):
-            return _rv_d_s(time, k, tc, p, a, i, e, c, dc, tk)
+        def impl(time, k, tc, p, a, i, e, c, dc, te=0.0):
+            return _rv_d_s(time, k, tc, p, a, i, e, c, dc, te)
         return impl
     return None

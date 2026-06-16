@@ -1,6 +1,6 @@
 """Serial/parallel parity for the prange kernel twins.
 
-Every multi-knot vector kernel (``_X_ov`` / ``_X_ovd``) has a parallel twin
+Every multi-expansion-point vector kernel (``_X_ov`` / ``_X_ovd``) has a parallel twin
 (``_X_ovp`` / ``_X_ovdp``) compiled with ``parallel=True`` and a ``prange``
 sample loop. These tests pin that the twins return the same results as the
 serial kernels, and that the ``Orbit(parallel=True)`` opt-in routes through
@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.knots import create_knots
+from meepmeep.backends.numba.expansion_points import create_expansion_points
 from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
     _pos_ov, _pos_ovp, _zpos_ov, _zpos_ovp, _sep_ov, _sep_ovp,
@@ -49,13 +49,13 @@ TOL = {"rtol": 1e-12, "atol": 1e-13}
 @pytest.fixture(scope="module")
 def setup():
     p, e, w = PARS["p"], PARS["e"], PARS["w"]
-    knot_times, _, dt, pkt = create_knots(NPT, max(e, 0.2), "ea")
-    coeffs = solve3d_orbit(knot_times, **PARS, npt=NPT)
-    _, dcoeffs = solve3d_orbit_d(knot_times, **PARS, npt=NPT)
+    ep_times, _, dt, pkt = create_expansion_points(NPT, max(e, 0.2), "ea")
+    coeffs = solve3d_orbit(ep_times, **PARS, npt=NPT)
+    _, dcoeffs = solve3d_orbit_d(ep_times, **PARS, npt=NPT)
     tpa = -mean_anomaly_at_transit(e, w) / TWO_PI * p
     times = np.linspace(0.0, p, N)
     ev = eccentricity_vector(PARS["i"], e, w)
-    return times, tpa, p, dt, pkt, knot_times, coeffs, dcoeffs, ev
+    return times, tpa, p, dt, pkt, ep_times, coeffs, dcoeffs, ev
 
 
 def _compare(serial, par, args):

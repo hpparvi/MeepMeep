@@ -14,12 +14,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 2D Taylor-series evaluators (non-derivative).
+"""Single-expansion-point 2D Taylor-series evaluators (non-derivative).
 
 The functions in this package evaluate sky-plane quantities (position,
 projected separation) and transit geometry (contact points, durations,
 minimum separation) from a single 5th-order Taylor expansion around one
-knot. They form the 2D counterpart of the single-knot 3D modules
+expansion point. They form the 2D counterpart of the single-expansion-point 3D modules
 (``position3d``, ``solve3d``, ``util3d``), organised one module per
 physical quantity to mirror the ``orbit3d`` package layout.
 

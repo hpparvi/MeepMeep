@@ -153,7 +153,7 @@ class TestValueParity:
 class TestUnderlyingParity:
 
     def _dispatch_args(self, o):
-        return (o._tp, o._p, o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs)
+        return (o._tp, o._p, o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs)
 
     def test_xyz(self, orbit_deriv):
         o = orbit_deriv
@@ -187,7 +187,7 @@ class TestUnderlyingParity:
         o = orbit_deriv
         _, drv = o.radial_velocity(k=0.05)
         _, drv_r = rv_od(o.times, 0.05, o._tp, o._p, o._a, o._i, o._e,
-                          o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs)
+                          o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs)
         assert_allclose(drv, drv_r, rtol=RTOL_DERIV)
 
     def test_lambert_phase_curve(self, orbit_deriv):
@@ -195,7 +195,7 @@ class TestUnderlyingParity:
         _, dflux = o.lambert_phase_curve(k=0.1, ag=0.3)
         _, dflux_r = lambert_phase_curve_od(
             o.times, 0.3, o._a, 0.1, o._tp, o._p,
-            o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
+            o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
         )
         assert_allclose(dflux, dflux_r, rtol=RTOL_DERIV)
 
@@ -204,7 +204,7 @@ class TestUnderlyingParity:
         _, dev = o.ellipsoidal_variation(alpha=1.0, mass_ratio=1e-3)
         _, dev_r = ev_signal_od(
             1.0, 1e-3, o._i, o.times, o._tp, o._p,
-            o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
+            o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
         )
         assert_allclose(dev, dev_r, rtol=RTOL_DERIV)
 
@@ -214,7 +214,7 @@ class TestUnderlyingParity:
         _, df = o.true_anomaly()
         _, df_r = true_anomaly_od(
             o.times, o._tp, o._p, ev[0], ev[1], ev[2], o._w,
-            o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
+            o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
         )
         assert_allclose(df, df_r, rtol=RTOL_DERIV)
 
@@ -224,7 +224,7 @@ class TestUnderlyingParity:
         _, dltt = o.light_travel_time(rstar=rstar)
         _, dltt_r = light_travel_time_od(
             o.times, o._tp, o._p, o._e, o._w, rstar,
-            o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
+            o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
         )
         assert_allclose(dltt, dltt_r, rtol=RTOL_DERIV)
 
@@ -417,10 +417,10 @@ class TestTransitCenterTimeDerivative:
         _, _, _, dx, dy, dz = self._orbit(PARS, self.TIMES).xyz()
         xp, yp, zp = self._orbit({**PARS, "tc": PARS["tc"] + h}, self.TIMES, False).xyz()
         xm, ym, zm = self._orbit({**PARS, "tc": PARS["tc"] - h}, self.TIMES, False).xyz()
-        # Tolerance is set above the multi-knot Taylor truncation (the value
+        # Tolerance is set above the multi-expansion-point Taylor truncation (the value
         # model's own accuracy at npt=15) -- the exact d/dtc identity is proved
         # to machine precision in test_numba_solve{2,3}d; this only guards the
-        # sign through the full epoch-fold + knot-dispatch path.
+        # sign through the full epoch-fold + expansion point-dispatch path.
         assert_allclose(dx[:, 0], (xp - xm) / (2 * h), rtol=5e-3, atol=1e-2)
         assert_allclose(dy[:, 0], (yp - ym) / (2 * h), rtol=5e-3, atol=1e-2)
         assert_allclose(dz[:, 0], (zp - zm) / (2 * h), rtol=5e-3, atol=1e-2)

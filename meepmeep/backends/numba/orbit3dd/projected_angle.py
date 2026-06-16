@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot evaluators for the angle to a fixed vector, with parameter derivatives."""
+"""Multi-expansion-point evaluators for the angle to a fixed vector, with parameter derivatives."""
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
@@ -25,13 +25,13 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True)
-def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_v_p_angle_osd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`cos_v_p_angle_od`. See that function for documentation."""
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     dx = zeros(7)
     dy = zeros(7)
     dz = zeros(7)
-    x, y, z = _pos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+    x, y, z = _pos_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
     r2 = x * x + y * y + z * z
     r = sqrt(r2)
     inv_r = 1.0 / r
@@ -47,7 +47,7 @@ def _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_v_p_angle_ovd(v, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`cos_v_p_angle_od`. See that function for documentation."""
     n = times.size
     cs = zeros(n)
@@ -57,7 +57,7 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dy = zeros(7)
     dz = zeros(7)
     for j in range(n):
-        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
         r2 = x * x + y * y + z * z
         r = sqrt(r2)
         inv_r = 1.0 / r
@@ -73,7 +73,7 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _cos_v_p_angle_ovdp(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_v_p_angle_ovdp(v, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_cos_v_p_angle_ovd`.
 
     The position-gradient scratch is hoisted per thread; a single shared
@@ -88,7 +88,7 @@ def _cos_v_p_angle_ovdp(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     for j in prange(n):
         tid = get_thread_id()
         dx, dy, dz = dxs[tid], dys[tid], dzs[tid]
-        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
         r2 = x * x + y * y + z * z
         r = sqrt(r2)
         inv_r = 1.0 / r
@@ -102,7 +102,7 @@ def _cos_v_p_angle_ovdp(v, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     return cs, dcs
 
 
-def cos_v_p_angle_od(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def cos_v_p_angle_od(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Cosine of the angle between planet position and a fixed reference vector ``v``, with gradients.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -119,7 +119,7 @@ def cos_v_p_angle_od(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         normalised internally.
     t : float or ndarray
         Time(s) at which to evaluate the cosine and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`_pos_osd`.
 
     Returns
@@ -131,18 +131,18 @@ def cos_v_p_angle_od(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _cos_v_p_angle_ovd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _cos_v_p_angle_ovd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _cos_v_p_angle_osd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(cos_v_p_angle_od, jit_options={'fastmath': True})
-def _cos_v_p_angle_od_overload(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _cos_v_p_angle_od_overload(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _cos_v_p_angle_ovd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _cos_v_p_angle_ovd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _cos_v_p_angle_osd(v, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _cos_v_p_angle_osd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

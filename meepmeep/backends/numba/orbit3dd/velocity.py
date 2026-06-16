@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot planet (vx, vy, vz) velocity evaluators with parameter derivatives."""
+"""Multi-expansion-point planet (vx, vy, vz) velocity evaluators with parameter derivatives."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,8 +25,8 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
-def _vel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvx, dvy, dvz):
-    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+def _vel_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dvx, dvy, dvz):
+    """Write-into orbit kernel: epoch fold, expansion point lookup, and evaluation.
 
     Writes the seven-parameter gradients into the caller-provided ``(7,)``
     buffers ``dvx``, ``dvy``, and ``dvz`` and returns the velocity values;
@@ -34,22 +34,22 @@ def _vel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvx, dvy, dvz):
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return _vel_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dvx, dvy, dvz)
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _vel_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dvx, dvy, dvz)
 
 
 @njit(fastmath=True)
-def _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _vel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`vel_od`. See that function for documentation."""
     dvx = zeros(7)
     dvy = zeros(7)
     dvz = zeros(7)
-    vx, vy, vz = _vel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvx, dvy, dvz)
+    vx, vy, vz = _vel_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dvx, dvy, dvz)
     return vx, vy, vz, dvx, dvy, dvz
 
 
 @njit(fastmath=True)
-def _vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _vel_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`vel_od`. See that function for documentation."""
     n = times.size
     vxs = zeros(n)
@@ -59,24 +59,24 @@ def _vel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     dvys = zeros((n, 7))
     dvzs = zeros((n, 7))
     for j in range(n):
-        vxs[j], vys[j], vzs[j] = _vel_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+        vxs[j], vys[j], vzs[j] = _vel_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
                                          dvxs[j], dvys[j], dvzs[j])
     return vxs, vys, vzs, dvxs, dvys, dvzs
 
 
 @njit(fastmath=True, parallel=True)
-def _vel_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _vel_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_vel_ovd`."""
     n = times.size
     vxs, vys, vzs = zeros(n), zeros(n), zeros(n)
     dvxs, dvys, dvzs = zeros((n, 7)), zeros((n, 7)), zeros((n, 7))
     for j in prange(n):
-        vxs[j], vys[j], vzs[j] = _vel_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+        vxs[j], vys[j], vzs[j] = _vel_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
                                          dvxs[j], dvys[j], dvzs[j])
     return vxs, vys, vzs, dvxs, dvys, dvzs
 
 
-def vel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def vel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Planet (vx, vy, vz) velocity and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -87,7 +87,7 @@ def vel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ----------
     t : float or ndarray
         Time at which to evaluate the velocity and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
@@ -100,18 +100,18 @@ def vel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _vel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _vel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _vel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(vel_od, jit_options={'fastmath': True})
-def _vel_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _vel_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _vel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _vel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _vel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _vel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

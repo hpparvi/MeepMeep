@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot sky-projected separation evaluators with parameter derivatives."""
+"""Multi-expansion-point sky-projected separation evaluators with parameter derivatives."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,8 +25,8 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
-def _sep_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dd):
-    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+def _sep_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dd):
+    """Write-into orbit kernel: epoch fold, expansion point lookup, and evaluation.
 
     Writes the seven-parameter gradient into the caller-provided ``(7,)``
     buffer ``dd`` and returns the separation; see
@@ -34,41 +34,41 @@ def _sep_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dd):
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return _sep_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dd)
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _sep_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dd)
 
 
 @njit(fastmath=True)
-def _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _sep_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`sep_od`. See that function for documentation."""
     dd = zeros(7)
-    d = _sep_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dd)
+    d = _sep_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dd)
     return d, dd
 
 
 @njit(fastmath=True)
-def _sep_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _sep_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`sep_od`. See that function for documentation."""
     n = times.size
     ds = zeros(n)
     dds = zeros((n, 7))
     for j in range(n):
-        ds[j] = _sep_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dds[j])
+        ds[j] = _sep_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dds[j])
     return ds, dds
 
 
 @njit(fastmath=True, parallel=True)
-def _sep_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _sep_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_sep_ovd`."""
     n = times.size
     ds = zeros(n)
     dds = zeros((n, 7))
     for j in prange(n):
-        ds[j] = _sep_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dds[j])
+        ds[j] = _sep_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dds[j])
     return ds, dds
 
 
-def sep_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def sep_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Sky-projected planet-star separation and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -79,13 +79,13 @@ def sep_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     the seven orbital parameters. The chain rule
     :math:`\\partial d/\\partial \\theta = (p_x \\partial p_x / \\partial \\theta + p_y \\partial p_y / \\partial \\theta)/d`
     is applied inside :func:`~meepmeep.backends.numba.point3dd.separation.sep_cd`;
-    this dispatcher just locates the knot.
+    this dispatcher just locates the expansion point.
 
     Parameters
     ----------
     t : float or ndarray
         Time at which to evaluate the separation and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
@@ -98,18 +98,18 @@ def sep_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _sep_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _sep_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _sep_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(sep_od, jit_options={'fastmath': True})
-def _sep_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _sep_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _sep_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _sep_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _sep_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _sep_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

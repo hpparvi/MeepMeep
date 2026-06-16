@@ -23,14 +23,14 @@ from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 
 @njit(fastmath=True)
-def solve3d_d(tk, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
-    """Calculate Taylor expansion coefficients and their parameter derivatives for the 3D position around a given knot time relative to the transit centre.
+def solve3d_d(te, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
+    """Calculate Taylor expansion coefficients and their parameter derivatives for the 3D position around a given expansion-point time relative to the transit centre.
 
     Parameters
     ----------
-    tk : float
-        Knot time: the time of the Taylor-series expansion [days], measured
-        relative to the transit centre (time of inferior conjunction). tk=0
+    te : float
+        Expansion-point time: the time of the Taylor-series expansion [days], measured
+        relative to the transit centre (time of inferior conjunction). te=0
         expands at the transit centre.
     p : float
         Orbital period [days].
@@ -100,13 +100,13 @@ def solve3d_d(tk, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
     # ================================================================
     # Step 3: Mean anomaly and Kepler's equation
     # ================================================================
-    ma = (TWO_PI * tk / p + offset) % TWO_PI
+    ma = (TWO_PI * te / p + offset) % TWO_PI
 
     dma = zeros(6)
     # Slot 0 is d/dtc (transit-centre time). The position depends on
     # (t_obs - tc), so d/dtc = -d/dtk and dM/dtc = -n = -TWO_PI/p.
     dma[0] = -TWO_PI / p
-    dma[1] = -TWO_PI * tk / p**2
+    dma[1] = -TWO_PI * te / p**2
     dma[4] = doffset[4]
     dma[5] = doffset[5]
 

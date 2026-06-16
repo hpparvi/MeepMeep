@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot ellipsoidal-variation signal evaluators with parameter derivatives."""
+"""Multi-expansion-point ellipsoidal-variation signal evaluators with parameter derivatives."""
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
@@ -25,14 +25,14 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True)
-def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`ev_signal_od`. See that function for documentation."""
     sin_inc = sin(inc)
     cos_inc = cos(inc)
     sin2_inc = sin_inc * sin_inc
     pre = -alpha * mass_ratio * sin2_inc
 
-    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     d2 = x * x + y * y + z * z
     d = sqrt(d2)
     cz = z / d
@@ -55,7 +55,7 @@ def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeff
 
 
 @njit(fastmath=True)
-def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`ev_signal_od`. See that function for documentation."""
     n = times.size
     out = zeros(n)
@@ -69,7 +69,7 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
     dy = zeros(7)
     dz = zeros(7)
     for j in range(n):
-        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)
         cz = z / d
@@ -105,7 +105,7 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
 
 
 @njit(fastmath=True, parallel=True)
-def _ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_ev_signal_ovd`.
 
     The position-gradient scratch is hoisted per thread; a single shared
@@ -123,7 +123,7 @@ def _ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, 
     for j in prange(n):
         tid = get_thread_id()
         dx, dy, dz = dxs[tid], dys[tid], dzs[tid]
-        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)
         cz = z / d
@@ -143,7 +143,7 @@ def _ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, 
     return out, dout
 
 
-def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Ellipsoidal variation signal with gradients.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
@@ -173,7 +173,7 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs,
         independent of the orbital ``i`` axis of the gradient.
     t : float or ndarray
         Time(s) at which to evaluate the signal and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`_pos_osd`.
 
     Returns
@@ -186,18 +186,18 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs,
         Shape (10,) for a scalar time, (N, 10) for an array time.
     """
     if isinstance(t, ndarray):
-        return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(ev_signal_od, jit_options={'fastmath': True})
-def _ev_signal_od_overload(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _ev_signal_od_overload(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

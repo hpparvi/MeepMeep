@@ -1,4 +1,4 @@
-"""Validation tests for the multi-knot derivative evaluators in orbit3dd.
+"""Validation tests for the multi-expansion-point derivative evaluators in orbit3dd.
 
 The base ``orbit3d.py`` evaluators are already tested against Newton-Raphson
 ground truth. Here we focus on what's *new* in ``orbit3dd``:
@@ -26,7 +26,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.knots import create_knots
+from meepmeep.backends.numba.expansion_points import create_expansion_points
 from meepmeep.backends.numba.utils import (
     TWO_PI,
     mean_anomaly_at_transit,
@@ -85,11 +85,11 @@ def _setup(orbit_pars):
     """Mirror of test_orbit3d_evaluators._setup but using solve3d_orbit_d."""
     p = orbit_pars["p"]
     e = orbit_pars["e"]
-    knot_times, _, dt, pktable = create_knots(NPT, max(e, 0.2), "ea")
-    coeffs, dcoeffs = solve3d_orbit_d(knot_times, **orbit_pars, npt=NPT)
+    ep_times, _, dt, ep_table = create_expansion_points(NPT, max(e, 0.2), "ea")
+    coeffs, dcoeffs = solve3d_orbit_d(ep_times, **orbit_pars, npt=NPT)
     t0_periastron = -mean_anomaly_at_transit(e, orbit_pars["w"]) / TWO_PI * p
     times = np.linspace(0.0, p, NTIMES)
-    return times, t0_periastron, dt, pktable, knot_times, coeffs, dcoeffs
+    return times, t0_periastron, dt, ep_table, ep_times, coeffs, dcoeffs
 
 
 @pytest.fixture(params=["circular", "eccentric"])
@@ -168,10 +168,10 @@ class TestValueParity:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         flux_b = lambert_phase_curve_o(times, ag=0.3, a=orbit_case["a"], k=0.1,
                                         tpa=tc, p=orbit_case["p"], dt=dt,
-                                        pktable=pkt, points=pts, coeffs=c)
+                                        ep_table=pkt, ep_times=pts, coeffs=c)
         flux, dflux = lambert_phase_curve_od(times, ag=0.3, a=orbit_case["a"], k=0.1,
                                                 tpa=tc, p=orbit_case["p"], dt=dt,
-                                                pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
+                                                ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(flux, flux_b, rtol=1e-10, atol=1e-20)
         assert dflux.shape == (NTIMES, 9)
         assert np.all(np.isfinite(dflux))
@@ -180,10 +180,10 @@ class TestValueParity:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         ev_b = ev_signal_o(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
                             t=times, tpa=tc, p=orbit_case["p"], dt=dt,
-                            pktable=pkt, points=pts, coeffs=c)
+                            ep_table=pkt, ep_times=pts, coeffs=c)
         ev, dev = ev_signal_od(alpha=1.0, mass_ratio=1e-3, inc=orbit_case["i"],
                                   t=times, tpa=tc, p=orbit_case["p"], dt=dt,
-                                  pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
+                                  ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(ev, ev_b, rtol=1e-10, atol=1e-20)
         assert dev.shape == (NTIMES, 10)
         assert np.all(np.isfinite(dev))
@@ -191,11 +191,11 @@ class TestValueParity:
     def test_rv_od(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         rv_b = rv_o(times, k=0.05, tpa=tc, p=orbit_case["p"], a=orbit_case["a"],
-                     i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
-                     points=pts, coeffs=c)
+                     i=orbit_case["i"], e=orbit_case["e"], dt=dt, ep_table=pkt,
+                     ep_times=pts, coeffs=c)
         rv, drv = rv_od(times, k=0.05, tpa=tc, p=orbit_case["p"], a=orbit_case["a"],
-                           i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
-                           points=pts, coeffs=c, dcoeffs=dc)
+                           i=orbit_case["i"], e=orbit_case["e"], dt=dt, ep_table=pkt,
+                           ep_times=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(rv, rv_b, rtol=1e-12)
         assert drv.shape == (NTIMES, 8)
         assert np.all(np.isfinite(drv))
@@ -296,7 +296,7 @@ class TestChainRuleConsistency:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         flux, _ = lambert_phase_curve_od(times, ag=0.3, a=orbit_case["a"], k=0.1,
                                             tpa=tc, p=orbit_case["p"], dt=dt,
-                                            pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
+                                            ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         amplitude = 0.1 ** 2 * 0.3 / orbit_case["a"] ** 2
         assert np.all(flux <= amplitude + 1e-12)
         assert np.all(flux >= -1e-12)
@@ -340,7 +340,7 @@ class TestExtraParameterFD:
         alpha, mr, inc = 1.0, 1e-3, orbit_case["i"]
         _, dev = ev_signal_od(alpha=alpha, mass_ratio=mr, inc=inc,
                                  t=times, tpa=tc, p=orbit_case["p"], dt=dt,
-                                 pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
+                                 ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         h = 1e-7
         for slot, name in [(7, "alpha"), (8, "mr"), (9, "inc")]:
             kwargs_p = {"alpha": alpha, "mass_ratio": mr, "inc": inc}
@@ -349,9 +349,9 @@ class TestExtraParameterFD:
             kwargs_p[real_key] += h
             kwargs_m[real_key] -= h
             v_p = ev_signal_o(t=times, tpa=tc, p=orbit_case["p"], dt=dt,
-                               pktable=pkt, points=pts, coeffs=c, **kwargs_p)
+                               ep_table=pkt, ep_times=pts, coeffs=c, **kwargs_p)
             v_m = ev_signal_o(t=times, tpa=tc, p=orbit_case["p"], dt=dt,
-                               pktable=pkt, points=pts, coeffs=c, **kwargs_m)
+                               ep_table=pkt, ep_times=pts, coeffs=c, **kwargs_m)
             assert_allclose(dev[:, slot], (v_p - v_m) / (2 * h),
                             rtol=1e-4, atol=1e-10, err_msg=f"slot {slot} ({name})")
 
@@ -360,8 +360,8 @@ class TestExtraParameterFD:
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         k = 0.05
         rv, drv = rv_od(times, k=k, tpa=tc, p=orbit_case["p"], a=orbit_case["a"],
-                           i=orbit_case["i"], e=orbit_case["e"], dt=dt, pktable=pkt,
-                           points=pts, coeffs=c, dcoeffs=dc)
+                           i=orbit_case["i"], e=orbit_case["e"], dt=dt, ep_table=pkt,
+                           ep_times=pts, coeffs=c, dcoeffs=dc)
         # drv/dk should equal rv / k (linearity in k).
         assert_allclose(drv[:, 7], rv / k, rtol=1e-12)
         # Also FD-cross-check.
@@ -430,7 +430,7 @@ class TestScalarVectorConsistency:
         flux_v, dflux_v = lambert_phase_curve_od(
             times, ag=0.3, a=orbit_case["a"], k=0.1,
             tpa=tc, p=orbit_case["p"], dt=dt,
-            pktable=pkt, points=pts, coeffs=c, dcoeffs=dc)
+            ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         for j in range(0, NTIMES, 7):
             flux, dflux = lambert_phase_curve_od(
                 times[j], 0.3, orbit_case["a"], 0.1,
@@ -528,7 +528,7 @@ class TestLightTravelTime:
                                           pars["w"], rstar, dt, pkt, pts, c)
             ltt_ref = eclipse_light_travel_time(pars["p"], pars["a"], pars["i"],
                                                 pars["e"], pars["w"], rstar)
-            # Taylor truncation floor for the 15-knot, 5th-order expansion
+            # Taylor truncation floor for the 15-expansion point, 5th-order expansion
             # is ~1e-3 in R_star × s × rstar ≈ 3e-8 days. Allow a bit more.
             assert_allclose(ltt_ec, ltt_ref, atol=1e-7,
                             err_msg=f"{case_name}: LTT@eclipse vs reference")

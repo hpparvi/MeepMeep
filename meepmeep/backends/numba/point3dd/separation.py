@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 3D projected-separation evaluators with parameter derivatives.
+"""Single-expansion-point 3D projected-separation evaluators with parameter derivatives.
 
 As in the non-derivative ``point3d.separation`` module, the centered
 evaluator inlines the x/y polynomial passes rather than delegating to
@@ -80,7 +80,7 @@ _sep_cd_vp = njit(fastmath=True, parallel=True)(_sep_cd_v_body)
 
 def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
-    Evaluate the sky-projected planet-star separation and its parameter derivatives at a knot-centered time.
+    Evaluate the sky-projected planet-star separation and its parameter derivatives at an expansion-point-centered time.
 
     Computes the sky-plane position and its derivatives, then reduces
     them to the projected distance `d = sqrt(px^2 + py^2)` via the
@@ -144,13 +144,13 @@ def _sep_cd_overload(time, c, dc):
 
 
 @njit(fastmath=True)
-def _sep_d_s(time, tc, p, c, dc, tk):
+def _sep_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`sep_d`. See that function for documentation."""
-    epoch = floor((time - tc - tk + 0.5 * p) / p)
-    return _sep_cd_s(time - (tc + tk + epoch * p), c, dc)
+    epoch = floor((time - tc - te + 0.5 * p) / p)
+    return _sep_cd_s(time - (tc + te + epoch * p), c, dc)
 
 
-def _sep_d_v_body(time, tc, p, c, dc, tk):
+def _sep_d_v_body(time, tc, p, c, dc, te):
     """Vector-kernel body for :func:`sep_d`; see that function for documentation.
 
     Compiled twice: ``_sep_d_v`` is the serial kernel (``prange`` compiles
@@ -162,8 +162,8 @@ def _sep_d_v_body(time, tc, p, c, dc, tk):
     d = zeros(n)
     dd = zeros((n, 7))
     for j in prange(n):
-        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
-        d[j] = _sep_cd_w(time[j] - (tc + tk + epoch * p), c, dc, dd[j])
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        d[j] = _sep_cd_w(time[j] - (tc + te + epoch * p), c, dc, dd[j])
     return d, dd
 
 
@@ -171,7 +171,7 @@ _sep_d_v = njit(fastmath=True)(_sep_d_v_body)
 _sep_d_vp = njit(fastmath=True, parallel=True)(_sep_d_v_body)
 
 
-def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, tk: float = 0.0):
+def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
     """
     Evaluate the sky-projected planet-star separation and its parameter derivatives at an absolute time.
 
@@ -189,9 +189,9 @@ def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
         time axis as `time`.
-    tk : float, optional
-        Knot offset from the transit centre [days] - the same value that
-        was passed to `solve3d_d`. Defaults to 0.0, the knot at the
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
     p : float
         Orbital period, used for epoch folding.
@@ -211,18 +211,18 @@ def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _sep_d_v(time, tc, p, c, dc, tk)
-    return _sep_d_s(time, tc, p, c, dc, tk)
+        return _sep_d_v(time, tc, p, c, dc, te)
+    return _sep_d_s(time, tc, p, c, dc, te)
 
 
 @overload(sep_d, jit_options={'fastmath': True})
-def _sep_d_overload(time, tc, p, c, dc, tk=0.0):
+def _sep_d_overload(time, tc, p, c, dc, te=0.0):
     if _is_1d_array(time):
-        def impl(time, tc, p, c, dc, tk=0.0):
-            return _sep_d_v(time, tc, p, c, dc, tk)
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _sep_d_v(time, tc, p, c, dc, te)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tc, p, c, dc, tk=0.0):
-            return _sep_d_s(time, tc, p, c, dc, tk)
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _sep_d_s(time, tc, p, c, dc, te)
         return impl
     return None

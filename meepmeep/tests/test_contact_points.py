@@ -32,7 +32,7 @@ CASES = {
 
 @pytest.fixture(params=["2d", "3d"])
 def backend(request):
-    """(solve, util module) pair for the 2D and 3D single-knot packages."""
+    """(solve, util module) pair for the 2D and 3D single-expansion-point packages."""
     return CASES[request.param]
 
 

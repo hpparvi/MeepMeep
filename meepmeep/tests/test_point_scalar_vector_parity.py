@@ -1,4 +1,4 @@
-"""Scalar/array parity for the single-knot value-only evaluators.
+"""Scalar/array parity for the single-expansion-point value-only evaluators.
 
 The ``point2d``/``point3d`` value evaluators accept a scalar time or a 1-D
 array of times. These tests pin that the array path returns exactly what a
@@ -112,8 +112,8 @@ class TestNjitContext:
         from meepmeep.backends.numba.point3d import pos as pos3
 
         @njit
-        def runner(t, tk, p, c):
-            return pos3(t, tk, p, c)
+        def runner(t, te, p, c):
+            return pos3(t, te, p, c)
 
         xs, ys, zs = runner(TIMES, 0.0, P, c3)
         for j in (0, len(TIMES) - 1):
@@ -124,8 +124,8 @@ class TestNjitContext:
         from meepmeep.backends.numba.point2d import sep as sep2
 
         @njit
-        def runner(t, tk, p, c):
-            return sep2(t, tk, p, c)
+        def runner(t, te, p, c):
+            return sep2(t, te, p, c)
 
         d = runner(TIMES, 0.0, P, c2)
         for j in (0, len(TIMES) - 1):

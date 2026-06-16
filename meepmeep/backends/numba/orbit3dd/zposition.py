@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot planet z-position (line-of-sight) evaluators with parameter derivatives."""
+"""Multi-expansion-point planet z-position (line-of-sight) evaluators with parameter derivatives."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,8 +25,8 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
-def _zpos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dz):
-    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+def _zpos_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dz):
+    """Write-into orbit kernel: epoch fold, expansion point lookup, and evaluation.
 
     Writes the seven-parameter gradient into the caller-provided ``(7,)``
     buffer ``dz`` and returns the z position; see
@@ -34,41 +34,41 @@ def _zpos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dz):
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return _zpos_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dz)
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _zpos_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dz)
 
 
 @njit(fastmath=True)
-def _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zpos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`zpos_od`. See that function for documentation."""
     dz = zeros(7)
-    z = _zpos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dz)
+    z = _zpos_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dz)
     return z, dz
 
 
 @njit(fastmath=True)
-def _zpos_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zpos_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`zpos_od`. See that function for documentation."""
     n = times.size
     zs = zeros(n)
     dzs = zeros((n, 7))
     for j in range(n):
-        zs[j] = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dzs[j])
+        zs[j] = _zpos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dzs[j])
     return zs, dzs
 
 
 @njit(fastmath=True, parallel=True)
-def _zpos_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zpos_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_zpos_ovd`."""
     n = times.size
     zs = zeros(n)
     dzs = zeros((n, 7))
     for j in prange(n):
-        zs[j] = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dzs[j])
+        zs[j] = _zpos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dzs[j])
     return zs, dzs
 
 
-def zpos_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def zpos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Planet z-position and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -82,7 +82,7 @@ def zpos_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ----------
     t : float or ndarray
         Time at which to evaluate the z-coordinate and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
@@ -95,18 +95,18 @@ def zpos_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _zpos_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _zpos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _zpos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(zpos_od, jit_options={'fastmath': True})
-def _zpos_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zpos_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _zpos_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _zpos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _zpos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot planet z-velocity (line-of-sight) evaluators."""
+"""Multi-expansion-point planet z-velocity (line-of-sight) evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,35 +25,35 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
-def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
+def _zvel_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`zvel_o`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return zvel_c(tc - points[ix] * p, coeffs[ix])
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return zvel_c(tc - ep_times[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
-def _zvel_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _zvel_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`zvel_o`. See that function for documentation."""
     npt = times.size
     vzs = zeros(npt)
     for i in range(npt):
-        vzs[i] = _zvel_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        vzs[i] = _zvel_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return vzs
 
 
 @njit(fastmath=True, parallel=True)
-def _zvel_ovp(times, tpa, p, dt, pktable, points, coeffs):
+def _zvel_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_zvel_ov`."""
     n = times.size
     out = zeros(n)
     for i in prange(n):
-        out[i] = _zvel_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        out[i] = _zvel_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return out
 
 
-def zvel_o(t, tpa, p, dt, pktable, points, coeffs):
+def zvel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Planet z-velocity (line-of-sight component) for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -67,7 +67,7 @@ def zvel_o(t, tpa, p, dt, pktable, points, coeffs):
     ----------
     t : float or ndarray
         Time(s) at which to evaluate the z-velocity.
-    tpa, p, dt, pktable, points, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs :
         See :func:`pos_o`.
 
     Returns
@@ -77,18 +77,18 @@ def zvel_o(t, tpa, p, dt, pktable, points, coeffs):
         Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)
+        return _zvel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+    return _zvel_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
 @overload(zvel_o, jit_options={'fastmath': True})
-def _zvel_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+def _zvel_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _zvel_ov(t, tpa, p, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _zvel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _zvel_os(t, tpa, p, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _zvel_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     return None

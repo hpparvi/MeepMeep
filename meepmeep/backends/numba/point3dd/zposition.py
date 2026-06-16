@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 3D line-of-sight (z) position evaluators with parameter derivatives."""
+"""Single-expansion-point 3D line-of-sight (z) position evaluators with parameter derivatives."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -68,7 +68,7 @@ _zpos_cd_vp = njit(fastmath=True, parallel=True)(_zpos_cd_v_body)
 
 def zpos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
-    Evaluate the line-of-sight z position and its parameter derivatives at a knot-centered time.
+    Evaluate the line-of-sight z position and its parameter derivatives at an expansion-point-centered time.
 
     Centered companion to `position.zpos_c` that additionally returns
     the partial derivatives of the line-of-sight coordinate with
@@ -120,13 +120,13 @@ def _zpos_cd_overload(time, c, dc):
 
 
 @njit(fastmath=True)
-def _zpos_d_s(time, tc, p, c, dc, tk):
+def _zpos_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`zpos_d`. See that function for documentation."""
-    epoch = floor((time - tc - tk + 0.5 * p) / p)
-    return _zpos_cd_s(time - (tc + tk + epoch * p), c, dc)
+    epoch = floor((time - tc - te + 0.5 * p) / p)
+    return _zpos_cd_s(time - (tc + te + epoch * p), c, dc)
 
 
-def _zpos_d_v_body(time, tc, p, c, dc, tk):
+def _zpos_d_v_body(time, tc, p, c, dc, te):
     """Vector-kernel body for :func:`zpos_d`; see that function for documentation.
 
     Compiled twice: ``_zpos_d_v`` is the serial kernel (``prange`` compiles
@@ -138,8 +138,8 @@ def _zpos_d_v_body(time, tc, p, c, dc, tk):
     pz = zeros(n)
     dpz = zeros((n, 7))
     for j in prange(n):
-        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
-        pz[j] = _zpos_cd_w(time[j] - (tc + tk + epoch * p), c, dc, dpz[j])
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        pz[j] = _zpos_cd_w(time[j] - (tc + te + epoch * p), c, dc, dpz[j])
     return pz, dpz
 
 
@@ -147,7 +147,7 @@ _zpos_d_v = njit(fastmath=True)(_zpos_d_v_body)
 _zpos_d_vp = njit(fastmath=True, parallel=True)(_zpos_d_v_body)
 
 
-def zpos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, tk: float = 0.0):
+def zpos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
     """
     Evaluate the line-of-sight z position and its parameter derivatives at an absolute time.
 
@@ -165,9 +165,9 @@ def zpos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
         time axis as `time`.
-    tk : float, optional
-        Knot offset from the transit centre [days] - the same value that
-        was passed to `solve3d_d`. Defaults to 0.0, the knot at the
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
     p : float
         Orbital period, used for epoch folding.
@@ -189,18 +189,18 @@ def zpos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _zpos_d_v(time, tc, p, c, dc, tk)
-    return _zpos_d_s(time, tc, p, c, dc, tk)
+        return _zpos_d_v(time, tc, p, c, dc, te)
+    return _zpos_d_s(time, tc, p, c, dc, te)
 
 
 @overload(zpos_d, jit_options={'fastmath': True})
-def _zpos_d_overload(time, tc, p, c, dc, tk=0.0):
+def _zpos_d_overload(time, tc, p, c, dc, te=0.0):
     if _is_1d_array(time):
-        def impl(time, tc, p, c, dc, tk=0.0):
-            return _zpos_d_v(time, tc, p, c, dc, tk)
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _zpos_d_v(time, tc, p, c, dc, te)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tc, p, c, dc, tk=0.0):
-            return _zpos_d_s(time, tc, p, c, dc, tk)
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _zpos_d_s(time, tc, p, c, dc, te)
         return impl
     return None

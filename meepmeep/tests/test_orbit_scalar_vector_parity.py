@@ -1,4 +1,4 @@
-"""Scalar/vector parity for the orbit3d / orbit3dd multi-knot evaluators.
+"""Scalar/vector parity for the orbit3d / orbit3dd multi-expansion-point evaluators.
 
 The orbit-spanning evaluators have both scalar (``_*_os`` / ``_*_osd``) and
 vector (``_*_ov`` / ``_*_ovd``) variants. The vector variants either loop
@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.knots import create_knots
+from meepmeep.backends.numba.expansion_points import create_expansion_points
 from meepmeep.backends.numba.utils import (
     TWO_PI,
     mean_anomaly_at_transit,
@@ -58,23 +58,23 @@ def _setup(orbit_pars):
     p = orbit_pars["p"]
     e = orbit_pars["e"]
     w = orbit_pars["w"]
-    knot_times, _, dt, pktable = create_knots(NPT, max(e, 0.2), "ea")
-    coeffs = solve3d_orbit(knot_times, **orbit_pars, npt=NPT)
+    ep_times, _, dt, ep_table = create_expansion_points(NPT, max(e, 0.2), "ea")
+    coeffs = solve3d_orbit(ep_times, **orbit_pars, npt=NPT)
     tpa = -mean_anomaly_at_transit(e, w) / TWO_PI * p
     # Three representative times: near transit, mid-orbit, near eclipse.
     t_scalars = np.array([0.0, p * 0.25, p * 0.7])
-    return t_scalars, tpa, dt, pktable, knot_times, coeffs
+    return t_scalars, tpa, dt, ep_table, ep_times, coeffs
 
 
 def _setup_d(orbit_pars):
     p = orbit_pars["p"]
     e = orbit_pars["e"]
     w = orbit_pars["w"]
-    knot_times, _, dt, pktable = create_knots(NPT, max(e, 0.2), "ea")
-    coeffs, dcoeffs = solve3d_orbit_d(knot_times, **orbit_pars, npt=NPT)
+    ep_times, _, dt, ep_table = create_expansion_points(NPT, max(e, 0.2), "ea")
+    coeffs, dcoeffs = solve3d_orbit_d(ep_times, **orbit_pars, npt=NPT)
     tpa = -mean_anomaly_at_transit(e, w) / TWO_PI * p
     t_scalars = np.array([0.0, p * 0.25, p * 0.7])
-    return t_scalars, tpa, dt, pktable, knot_times, coeffs, dcoeffs
+    return t_scalars, tpa, dt, ep_table, ep_times, coeffs, dcoeffs
 
 
 @pytest.fixture(params=["circular", "eccentric", "high_e"])

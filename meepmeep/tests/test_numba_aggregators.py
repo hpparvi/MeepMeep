@@ -86,7 +86,7 @@ def test_numba_smoke_numba2d():
 
 def test_numba_smoke_numba3d():
     from meepmeep.numba3d import (
-        create_knots,
+        create_expansion_points,
         solve3d_orbit,
         pos_o,
     )
@@ -95,8 +95,8 @@ def test_numba_smoke_numba3d():
     NPT = 15
     p, a, i, e, w = 3.0, 10.0, 1.5, 0.0, 0.0
 
-    knot_times, _, dt, pktable = create_knots(NPT, max(e, 0.2), "ea")
-    coeffs = solve3d_orbit(knot_times, p, a, i, e, w, npt=NPT)
+    ep_times, _, dt, ep_table = create_expansion_points(NPT, max(e, 0.2), "ea")
+    coeffs = solve3d_orbit(ep_times, p, a, i, e, w, npt=NPT)
     t0_periastron = -mean_anomaly_at_transit(e, w) / TWO_PI * p
 
     @njit(cache=False)
@@ -106,6 +106,6 @@ def test_numba_smoke_numba3d():
         return x[0], y[0], z[0], v
 
     times = np.linspace(0.0, p, 11)
-    x0, y0, z0, v = run(times, t0_periastron, p, dt, pktable, knot_times, coeffs)
+    x0, y0, z0, v = run(times, t0_periastron, p, dt, ep_table, ep_times, coeffs)
     assert np.isfinite(x0) and np.isfinite(y0) and np.isfinite(z0)
     assert np.isfinite(v)

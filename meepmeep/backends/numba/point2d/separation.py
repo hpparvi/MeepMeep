@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 2D sky-projected planet-star separation evaluators."""
+"""Single-expansion-point 2D sky-projected planet-star separation evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -53,7 +53,7 @@ _sep_c_vp = njit(fastmath=True, parallel=True)(_sep_c_v_body)
 
 def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     """
-    Evaluate the sky-projected planet-star separation in the units of stellar radii at a knot-centered time.
+    Evaluate the sky-projected planet-star separation in the units of stellar radii at an expansion-point-centered time.
 
     Centered counterpart of `sep`: assumes `time` has already been shifted
     to be relative to the expansion point, evaluates the 2D position, and
@@ -94,13 +94,13 @@ def _sep_c_overload(time, c):
 
 
 @njit(fastmath=True, inline='always')
-def _sep_s(time, tc, p, c, tk):
+def _sep_s(time, tc, p, c, te):
     """Scalar kernel for :func:`sep`. See that function for documentation."""
-    epoch = floor((time - tc - tk + 0.5 * p) / p)
-    return _sep_c_s(time - (tc + tk + epoch * p), c)
+    epoch = floor((time - tc - te + 0.5 * p) / p)
+    return _sep_c_s(time - (tc + te + epoch * p), c)
 
 
-def _sep_v_body(time, tc, p, c, tk):
+def _sep_v_body(time, tc, p, c, te):
     """Vector-kernel body for :func:`sep`; see that function for documentation.
 
     Compiled twice: ``_sep_v`` is the serial kernel (``prange`` compiles
@@ -111,8 +111,8 @@ def _sep_v_body(time, tc, p, c, tk):
     n = time.size
     d = zeros(n)
     for j in prange(n):
-        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
-        d[j] = _sep_c_s(time[j] - (tc + tk + epoch * p), c)
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        d[j] = _sep_c_s(time[j] - (tc + te + epoch * p), c)
     return d
 
 
@@ -120,7 +120,7 @@ _sep_v = njit(fastmath=True)(_sep_v_body)
 _sep_vp = njit(fastmath=True, parallel=True)(_sep_v_body)
 
 
-def sep(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0) -> float | NDArray:
+def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
     """
     Evaluate the projected planet-star separation at an absolute time.
 
@@ -145,9 +145,9 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0)
         Orbital period.
     c : NDArray
         A (2, 5) coefficient matrix produced by `solve2d`.
-    tk : float, optional
-        Knot offset from the transit centre [days] - the same value that
-        was passed to `solve2d`. Defaults to 0.0, the knot at the
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve2d`. Defaults to 0.0, the expansion point at the
         transit centre.
 
     Returns
@@ -158,18 +158,18 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0)
         vs. eclipse) is not encoded here.
     """
     if isinstance(time, ndarray):
-        return _sep_v(time, tc, p, c, tk)
-    return _sep_s(time, tc, p, c, tk)
+        return _sep_v(time, tc, p, c, te)
+    return _sep_s(time, tc, p, c, te)
 
 
 @overload(sep, jit_options={'fastmath': True}, inline='always')
-def _sep_overload(time, tc, p, c, tk=0.0):
+def _sep_overload(time, tc, p, c, te=0.0):
     if _is_1d_array(time):
-        def impl(time, tc, p, c, tk=0.0):
-            return _sep_v(time, tc, p, c, tk)
+        def impl(time, tc, p, c, te=0.0):
+            return _sep_v(time, tc, p, c, te)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tc, p, c, tk=0.0):
-            return _sep_s(time, tc, p, c, tk)
+        def impl(time, tc, p, c, te=0.0):
+            return _sep_s(time, tc, p, c, te)
         return impl
     return None

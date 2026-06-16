@@ -22,11 +22,11 @@ parameter-derivative variants. All names are re-exported verbatim from
 ``meepmeep.backends.numba.*`` so user ``@njit`` kernels and
 direct callers can import them from one place.
 
-For 3D Taylor primitives and multi-knot orbit-spanning routines see
-:mod:`meepmeep.numba3d`. Dimension-agnostic primitives (knots, Newton
-solvers, orbital-mechanics utilities) are re-exported only from
-:mod:`meepmeep.numba3d`; 2D users who need them should import from
-``meepmeep.backends.numba.*`` directly.
+For 3D Taylor primitives and multi-expansion-point orbit-spanning
+routines see :mod:`meepmeep.numba3d`. Dimension-agnostic primitives
+(expansion points, Newton solvers, orbital-mechanics utilities) are
+re-exported only from :mod:`meepmeep.numba3d`; 2D users who need them
+should import from ``meepmeep.backends.numba.*`` directly.
 """
 
 from .backends.numba.point2d import (

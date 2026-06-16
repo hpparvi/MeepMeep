@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot planet z-velocity (line-of-sight) evaluators with parameter derivatives."""
+"""Multi-expansion-point planet z-velocity (line-of-sight) evaluators with parameter derivatives."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,8 +25,8 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
-def _zvel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvz):
-    """Write-into orbit kernel: epoch fold, knot lookup, and evaluation.
+def _zvel_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dvz):
+    """Write-into orbit kernel: epoch fold, expansion point lookup, and evaluation.
 
     Writes the seven-parameter gradient into the caller-provided ``(7,)``
     buffer ``dvz`` and returns the z velocity; see
@@ -34,41 +34,41 @@ def _zvel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvz):
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return _zvel_cd_w(tc - points[ix] * p, coeffs[ix], dcoeffs[ix], dvz)
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _zvel_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dvz)
 
 
 @njit(fastmath=True)
-def _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zvel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`zvel_od`. See that function for documentation."""
     dvz = zeros(7)
-    vz = _zvel_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dvz)
+    vz = _zvel_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dvz)
     return vz, dvz
 
 
 @njit(fastmath=True)
-def _zvel_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zvel_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`zvel_od`. See that function for documentation."""
     n = times.size
     vzs = zeros(n)
     dvzs = zeros((n, 7))
     for j in range(n):
-        vzs[j] = _zvel_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dvzs[j])
+        vzs[j] = _zvel_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dvzs[j])
     return vzs, dvzs
 
 
 @njit(fastmath=True, parallel=True)
-def _zvel_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zvel_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_zvel_ovd`."""
     n = times.size
     vzs = zeros(n)
     dvzs = zeros((n, 7))
     for j in prange(n):
-        vzs[j] = _zvel_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dvzs[j])
+        vzs[j] = _zvel_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dvzs[j])
     return vzs, dvzs
 
 
-def zvel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def zvel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Planet z-velocity and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -83,7 +83,7 @@ def zvel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ----------
     t : float or ndarray
         Time at which to evaluate the z-velocity and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
@@ -96,18 +96,18 @@ def zvel_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _zvel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _zvel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _zvel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(zvel_od, jit_options={'fastmath': True})
-def _zvel_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _zvel_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _zvel_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _zvel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _zvel_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _zvel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

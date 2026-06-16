@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 MeepMeep is a Python package for fast Keplerian orbit calculations optimized for exoplanet transit modeling. It uses 
-Taylor series expansions around knot points to achieve high-performance orbit evaluations.
+Taylor series expansions around expansion points to achieve high-performance orbit evaluations.
 
 Reference notebooks live in `notebooks/` and rendered docs source in `docs/`.
 
@@ -46,7 +46,7 @@ naive `pytest --cov` reports near-zero kernel coverage. `.coveragerc` excludes t
 registration bodies (they execute only during Numba type resolution and can never be traced).
 
 When finite-difference-testing parameter derivatives, sample a narrow near-transit window rather than the full
-orbit: perturbing timing/period shifts the periastron anchor and can remap a sampled time across a knot boundary,
+orbit: perturbing timing/period shifts the periastron anchor and can remap a sampled time across an expansion point boundary,
 giving O(1) FD error at isolated points. For exactness, prefer parity against the `*_od` routines.
 
 **Relocating/renaming backend modules** (common during the refactor): use `git mv` to
@@ -88,7 +88,7 @@ The build carries a residual backlog of ~110 Sphinx cross-reference warnings (th
 The Claude Code skill at `.claude/skills/meepmeep/` bundles a snapshot of it as
 `reference.md` — when revising `docs/llms.md`, re-copy it there (keep the sync header).
 
-**Citation.** The Taylor-series-around-knot-points method is published in Parviainen & Korth (2020), MNRAS 499, 3356; ADS bibcode `2020MNRAS.499.3356P`. Cite as "Parviainen and Korth (2020)" in docs.
+**Citation.** The Taylor-series-around-expansion-points method is published in Parviainen & Korth (2020), MNRAS 499, 3356; ADS bibcode `2020MNRAS.499.3356P`. Cite as "Parviainen and Korth (2020)" in docs.
 
 **Voice and audience.** Documentation prose is targeted at PhD-level astrophysicists who are comfortable with programming. Keep it informal, informative, and to the point. Favour short sentences in introductory text. The headline performance claim is "an order of magnitude faster than per-point Newton-Raphson" (the underlying benchmark is up to ~20×; do not quote the specific multiplier in user-facing docs).
 
@@ -98,10 +98,10 @@ The Claude Code skill at `.claude/skills/meepmeep/` bundles a snapshot of it as
 
 MeepMeep uses two parallel implementations:
 
-1. **Fast Taylor Series Approximations**: 5th-order Taylor expansions computed at knot points distributed along the orbit
+1. **Fast Taylor Series Approximations**: 5th-order Taylor expansions computed at expansion points distributed along the orbit
 2. **Exact Newton-Raphson Methods**: Reference implementations for validation and error analysis
 
-The Taylor series approach trades exact precision for speed by pre-computing coefficients at knot points and interpolating between them.
+The Taylor series approach trades exact precision for speed by pre-computing coefficients at expansion points and interpolating between them.
 
 ### Package Structure
 
@@ -109,18 +109,18 @@ The Taylor series approach trades exact precision for speed by pre-computing coe
 meepmeep/
 ├── __init__.py            # Exports Orbit, eclipse_light_travel_time
 ├── orbit.py               # Main Orbit class (user-facing API)
-├── knot2d.py              # High-level single-knot 2D wrapper (Knot2D)
+├── expansion2d.py              # High-level single-expansion-point 2D wrapper (Expansion2D)
 ├── numba2d.py             # Public low-level 2D Taylor API (re-exports of
 │                          # backends/numba/{point2d,point2dd}).
-├── numba3d.py             # Public low-level 3D Taylor API: single-knot 3D
-│                          # Taylor evaluators, multi-knot orbit-spanning
+├── numba3d.py             # Public low-level 3D Taylor API: single-expansion-point 3D
+│                          # Taylor evaluators, multi-expansion-point orbit-spanning
 │                          # routines, and dimension-agnostic primitives
-│                          # (knots, Newton solvers, orbital-mechanics utils).
+│                          # (expansion points, Newton solvers, orbital-mechanics utils).
 ├── version.py             # Reads version dynamically via importlib.metadata
 ├── tests/                 # ~25 test modules; conftest.py holds the shared
 │                          # fixtures (orbital params, tolerances). Most are
 │                          # named after the module under test
-│                          # (test_numba_solve3d.py, test_knot2d.py, ...);
+│                          # (test_numba_solve3d.py, test_expansion2d.py, ...);
 │                          # cross-cutting suites cover the dispatchers,
 │                          # parallel kernels, scalar/vector parity,
 │                          # contact points / durations / find_z_min
@@ -129,22 +129,22 @@ meepmeep/
 └── backends/
     ├── numba/             # Primary backend (Numba JIT-compiled)
     │   ├── utils.py       # Orbital mechanics utilities (anomaly conversions, etc.)
-    │   ├── knots.py       # Knot placement strategies (mm, ea, ta)
+    │   ├── expansion points.py       # Expansion point placement strategies (mm, ea, ta)
     │   ├── newton/
     │   │   └── newton.py  # Exact Kepler equation solvers (Newton-Raphson)
-    │   ├── point2d/         # Single-knot 2D evaluators (no derivatives),
+    │   ├── point2d/         # Single-expansion-point 2D evaluators (no derivatives),
     │   │                    # one module per quantity plus solve/util:
     │   │                    # position.py (pos), separation.py
     │   │                    # (sep), solve.py (solve2d), util.py (contact
     │   │                    # points, bounding box, durations, find_z_min).
     │   │                    # __init__.py re-exports the surface.
-    │   ├── point2dd/        # Single-knot 2D parameter-derivative evaluators
+    │   ├── point2dd/        # Single-expansion-point 2D parameter-derivative evaluators
     │   │                    # mirroring point2d/: position.py (pos_cd, pos_d),
     │   │                    # separation.py (sep_cd, sep_d), solve.py
     │   │                    # (solve2d_d). pos_cd/pos_d/sep_cd/sep_d are
     │   │                    # scalar-or-array @overload dispatchers (like
     │   │                    # orbit3d's *_o) over private _s/_v kernels.
-    │   ├── point3d/         # Single-knot 3D evaluators (no derivatives),
+    │   ├── point3d/         # Single-expansion-point 3D evaluators (no derivatives),
     │   │                    # one module per quantity plus solve/util:
     │   │                    # position.py (pos), zposition.py
     │   │                    # (zpos), separation.py (sep), velocity.py
@@ -152,7 +152,7 @@ meepmeep/
     │   │                    # (rv), solve.py (solve3d), util.py (contact
     │   │                    # points, bounding box, durations, find_z_min).
     │   │                    # __init__.py re-exports the surface.
-    │   ├── point3dd/        # Single-knot 3D parameter-derivative evaluators
+    │   ├── point3dd/        # Single-expansion-point 3D parameter-derivative evaluators
     │   │                    # mirroring point3d/: position.py (pos_cd, pos_d),
     │   │                    # zposition.py (zpos_cd, zpos_d), separation.py
     │   │                    # (sep_cd, sep_d), velocity.py (vel_cd),
@@ -161,13 +161,13 @@ meepmeep/
     │   │                    # solve.py (solve3d_d). The evaluators are
     │   │                    # scalar-or-array @overload dispatchers (like
     │   │                    # point2dd) over private _s/_v kernels.
-    │   ├── orbit3d/         # Multi-knot orbit-spanning evaluators, one
+    │   ├── orbit3d/         # Multi-expansion-point orbit-spanning evaluators, one
     │   │                    # module per quantity (position, separation,
     │   │                    # velocity, radial_velocity, true_anomaly,
     │   │                    # phase_angle, lambert, ev_signal, ...). Shared
     │   │                    # helpers in _common.py; __init__.py re-exports
     │   │                    # the full surface.
-    │   └── orbit3dd/        # Multi-knot orbit-spanning gradient evaluators,
+    │   └── orbit3dd/        # Multi-expansion-point orbit-spanning gradient evaluators,
     │                        # mirroring orbit3d/ one module per quantity
     │                        # (the *_od / *_osd / *_ovd families).
     └── jax/               # JAX backend (automatic differentiation)
@@ -196,25 +196,25 @@ function in `backends/numba/`, add it to the corresponding
 aggregator's `__all__` as well.
 
 `numba2d` covers the 2D Taylor surface only. `numba3d` covers the 3D
-Taylor surface, the multi-knot orbit-spanning routines from
-`orbit3d`/`orbit3dd`, and the dimension-agnostic primitives (knots,
+Taylor surface, the multi-expansion-point orbit-spanning routines from
+`orbit3d`/`orbit3dd`, and the dimension-agnostic primitives (expansion points,
 Newton solvers, orbital-mechanics utilities). 2D users who need
 dimension-agnostic primitives import them from
-`meepmeep.backends.numba.{knots,newton.newton,utils}`.
+`meepmeep.backends.numba.{expansion points,newton.newton,utils}`.
 
 ### Key Concepts
 
-**Knot Points**: A knot is a point along the orbit that serves as the *center* of a local 5th-order
+**Expansion point Points**: An expansion point is a point along the orbit that serves as the *center* of a local 5th-order
 Taylor expansion (not a spline-style segment *boundary* — those are the `change_times` returned by
-`create_knots`). The orbit is divided into segments with knots placed according to one of three strategies:
+`create_expansion_points`). The orbit is divided into segments with expansion points placed according to one of three strategies:
 - `'mm'`: Mean motion (uniform time distribution)
 - `'ea'`: Eccentric anomaly (default, better for eccentric orbits)
 - `'ta'`: True anomaly
 
-**Taylor Expansion**: At each knot point, position is expanded as a 5th-order Taylor series in time. The `_coeffs` 
-array stores position, velocity, acceleration, jerk, and snap at each knot.
+**Taylor Expansion**: At each expansion point, position is expanded as a 5th-order Taylor series in time. The `_coeffs` 
+array stores position, velocity, acceleration, jerk, and snap at each expansion point.
 
-**Time-to-Knot Table** (`pktable`): Maps normalized time to the appropriate knot segment for fast lookups during evaluation. Used by `knot_ix` in `backends/numba/orbit3d/_common.py` to dispatch a time to its knot.
+**Time-to-Expansion point Table** (`ep_table`): Maps normalized time to the appropriate expansion point segment for fast lookups during evaluation. Used by `ep_ix` in `backends/numba/orbit3d/_common.py` to dispatch a time to its expansion point.
 
 **Coefficient matrices**: `solve2d` returns a `(2, 5)` matrix, `solve3d` returns a `(3, 5)` matrix. Rows are spatial 
 dimensions (x, y or x, y, z), columns are Taylor order (position through snap, pre-scaled by factorial).
@@ -231,7 +231,7 @@ constant rotation of the sky-plane (x, y) about the line of sight (in 3D, the li
 
 Standard Keplerian elements used throughout:
 - `tc`: Time of inferior conjunction (transit center) [days]. `Orbit.set_pars` binds exactly one
-  of `tc` or `tp` (time of periastron passage); `Knot2D` takes `tc` directly.
+  of `tc` or `tp` (time of periastron passage); `Expansion2D` takes `tc` directly.
 - `p`: Orbital period [days]
 - `a`: Scaled semi-major axis [R_star]
 - `i`: Inclination [radians]
@@ -243,7 +243,7 @@ Standard Keplerian elements used throughout:
 
 - All performance-critical functions use `@njit` (Numba JIT compilation)
 - `fastmath=True` is used where numerical stability permits
-- Default `npt=15` knots balances accuracy and memory
+- Default `npt=15` expansion points balances accuracy and memory
 
 ### Coordinate Systems
 
@@ -257,19 +257,19 @@ The Taylor backend modules follow a consistent pattern. For each quantity there 
 
 1. **Centered (`X_c`)**: Takes time `t` already relative to the expansion point, plus coefficient matrix `c`
 2. **Direct (`X`)**: Takes absolute time `t`, the transit-centre time `tc`, period `p`, `c`, and a trailing
-   optional knot offset `tk=0.0` (the same value passed to the solver). Handles epoch-folding around the
-   knot (at `tc + tk` on the observation time axis) internally.
+   optional expansion-point offset `te=0.0` (the same value passed to the solver). Handles epoch-folding around the
+   expansion point (at `tc + te` on the observation time axis) internally.
 
 For parameter derivatives, the centered variant gets a `_cd` suffix and the direct variant a `_d` suffix (e.g., `pos_cd`, `pos_d`). These take an additional `dc` array of shape `(7, D, 5)`.
 
 To add a new quantity:
 1. Implement the centered version using Horner-scheme evaluation of the coefficient polynomial
 2. Implement the direct version that epoch-folds and delegates to the centered version
-3. If derivatives are needed, add `_d`/`_cd` variants in the corresponding derivative module (`point2dd/<quantity>.py` for single-knot 2D, `point3dd/<quantity>.py` for 3D)
+3. If derivatives are needed, add `_d`/`_cd` variants in the corresponding derivative module (`point2dd/<quantity>.py` for single-expansion-point 2D, `point3dd/<quantity>.py` for 3D)
 4. Decorate with `@njit(fastmath=True)`
-5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-knot routines).
+5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-expansion-point routines).
 
-The single-knot evaluators are organised into per-dimension packages:
+The single-expansion-point evaluators are organised into per-dimension packages:
 `point2d/`/`point2dd/` for 2D and `point3d/`/`point3dd/` for 3D, where the
 plain package holds the non-derivative evaluators and the `dd` package the
 parameter-derivative ones. Each has one module per physical quantity
@@ -277,7 +277,7 @@ parameter-derivative ones. Each has one module per physical quantity
 `velocity.py`, `zvelocity.py`, `radial_velocity.py`) plus a `solve.py`
 module and, in the non-derivative package, a `util.py` for transit
 geometry. Each package's `__init__.py` re-exports its surface, mirroring
-the `orbit3d`/`orbit3dd` layout. The non-derivative single-knot evaluators
+the `orbit3d`/`orbit3dd` layout. The non-derivative single-expansion-point evaluators
 (`point2d`/`point3d`) are scalar-or-array `@overload` dispatchers over
 private `_X_c_s`/`_X_c_v` (centered) and `_X_s`/`_X_v` (direct) kernels —
 the array path is an explicit loop over the scalar kernel, NOT NumPy
@@ -293,11 +293,11 @@ public name (`pos_cd`, `pos_d`, `sep_cd`, `sep_d`, and in 3D also `zpos_*`,
 dispatcher — same pattern as `orbit3d`'s `*_o` — each a plain-Python fallback
 plus an `@overload` routing to private `_X_..._s` (scalar) and `_X_..._v`
 (vector) kernels. `_is_1d_array` lives in each package's `_common.py`
-(`point2dd/_common.py`, `point3dd/_common.py`). This is the array path `Knot2D`
-uses in 2D, so there is no separate `_dv` variant. The single-knot `_v` kernels
+(`point2dd/_common.py`, `point3dd/_common.py`). This is the array path `Expansion2D`
+uses in 2D, so there is no separate `_dv` variant. The single-expansion-point `_v` kernels
 (many times, one coefficient matrix) are distinct from the `orbit3dd` `_X_ovd`
-vector kernels, which still exist because *multi-knot* dispatch (per-time knot
-lookup via `pktable`) is a separate concern.
+vector kernels, which still exist because *multi-expansion-point* dispatch (per-time expansion point
+lookup via `ep_table`) is a separate concern.
 
 **Write-into kernels (`_w` / `_ow`).** The gradient arithmetic itself lives in
 `inline='always'` *write-into* kernels that evaluate the Horner polynomials
@@ -305,7 +305,7 @@ directly into caller-provided `(7,)` buffers and return the value(s):
 `_X_cd_w` in `point2dd`/`point3dd` (e.g. `_pos_cd_w`, `_sep_cd_w`,
 `_rv_cd_w` with its hoistable `_rv_scale` helper), and `_X_ow` in `orbit3dd`
 (e.g. `_pos_ow`, `_zpos_ow`, `_cos_alpha_ow`; these also fold the epoch and
-look up the knot). The `_s`/`_osd` kernels allocate fresh gradient arrays and
+look up the expansion point). The `_s`/`_osd` kernels allocate fresh gradient arrays and
 delegate; the `_v`/`_ovd` kernels pass preallocated output rows (or hoisted
 scratch buffers for intermediate gradients). **Keep the hot vector loops
 allocation-free**: never call a scalar gradient kernel (which allocates its
@@ -316,7 +316,7 @@ contexts by an ulp; scalar-vs-vector parity tests need a tiny `atol` (~1e-14
 relative to signal scale), not `atol=0`.
 
 **Parallel twins (`_vp` / `_ovp` / `_ovdp`).** Every vector kernel —
-single-knot (`_v` -> `_vp`) and multi-knot (`_ov` -> `_ovp`,
+single-expansion-point (`_v` -> `_vp`) and multi-expansion-point (`_ov` -> `_ovp`,
 `_ovd` -> `_ovdp`) — has a `prange` twin living in the same quantity module,
 directly after its serial counterpart. Two construction patterns, chosen by
 whether the loop needs intermediate scratch:
@@ -326,7 +326,7 @@ whether the loop needs intermediate scratch:
   (`_X_v = njit(fastmath=True)(_X_v_body)`;
   `_X_vp = njit(fastmath=True, parallel=True)(_X_v_body)`). `prange`
   compiles as a plain `range` without `parallel=True`, so the serial kernel
-  is unchanged and the math exists once. All single-knot kernels except the
+  is unchanged and the math exists once. All single-expansion-point kernels except the
   rv gradients qualify.
 - **Scratch-using loops** (reuse an intermediate-gradient buffer across
   samples): *explicit twins* — the serial kernel keeps its single hoisted
@@ -334,21 +334,21 @@ whether the loop needs intermediate scratch:
   (`zeros((get_num_threads(), 7))`, indexed with `get_thread_id()`); a
   shared buffer would be a data race under `prange`, and putting per-thread
   indexing in a shared body costs the serial path ~5%. This covers the
-  single-knot rv gradient kernels and the derived multi-knot gradient
+  single-expansion-point rv gradient kernels and the derived multi-expansion-point gradient
   kernels.
 
 The public dispatchers always route to the serial kernels; the twins are
-opt-in via `Orbit(parallel=True)` (multi-knot) and `Knot2D(parallel=True)`
-(single-knot 2D), which use them only above the classes'
+opt-in via `Orbit(parallel=True)` (multi-expansion-point) and `Expansion2D(parallel=True)`
+(single-expansion-point 2D), which use them only above the classes'
 `_PARALLEL_NMIN_GRAD` / `_PARALLEL_NMIN_VALUE` thresholds (1e4 / 5e4 for
-`Orbit`, 1e4 / 1e5 for `Knot2D`) — below those sizes the parallel-region
+`Orbit`, 1e4 / 1e5 for `Expansion2D`) — below those sizes the parallel-region
 launch overhead makes them slower.
 Explicit twins must mirror the serial body exactly (including fastmath
 flags): kernels compiled without fastmath (e.g. `true_anomaly`) must not
 route positions through a fastmath path, or near-singular gradients drift
 beyond parity tolerances.
 
-For multi-knot evaluation (arrays of times with knot lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `knot_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-knot kernels look up the relevant knot via `pktable`/`knot_ix` and delegate to the single-knot evaluators in the `point3d` package (or their gradient variants in `point3dd`).
+For multi-expansion-point evaluation (arrays of times with expansion point lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `ep_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-expansion-point kernels look up the relevant expansion point via `ep_table`/`ep_ix` and delegate to the single-expansion-point evaluators in the `point3d` package (or their gradient variants in `point3dd`).
 
 Note on Numba `cache=True` callers: after introducing or modifying a dispatcher, purge stale `__pycache__/*.nbi` / `*.nbc` files so Numba recompiles against the new overload registration.
 
@@ -363,12 +363,12 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `vel_c`: velocity vector (centered)
   - `zvel_c`, `zvel`: line-of-sight velocity component
   - `rv_c`, `rv`: radial velocity
-  - `_c` suffix: centered (time argument is relative to the knot)
+  - `_c` suffix: centered (time argument is relative to the expansion point)
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
-  - In `point2dd` and `point3dd`, every derivative evaluator (`pos_cd`/`pos_d`/`sep_cd`/`sep_d`, plus in 3D `zpos_*`/`vel_cd`/`zvel_*`/`rv_*`) is a scalar-or-array `@overload` dispatcher (a scalar time gives a `(7,)` gradient; a 1-D time array of length `N` gives a leading-`N` axis, e.g. `sep_d` returns `d` shape `(N,)` and `dd` shape `(N, 7)`). Internally each routes to private `_s` (scalar) and `_v` (vector) kernels, e.g. `_pos_cd_s`/`_pos_cd_v`. This is the array path used by `Knot2D`; there is no `_dv` variant.
+  - In `point2dd` and `point3dd`, every derivative evaluator (`pos_cd`/`pos_d`/`sep_cd`/`sep_d`, plus in 3D `zpos_*`/`vel_cd`/`zvel_*`/`rv_*`) is a scalar-or-array `@overload` dispatcher (a scalar time gives a `(7,)` gradient; a 1-D time array of length `N` gives a leading-`N` axis, e.g. `sep_d` returns `d` shape `(N,)` and `dd` shape `(N, 7)`). Internally each routes to private `_s` (scalar) and `_v` (vector) kernels, e.g. `_pos_cd_s`/`_pos_cd_v`. This is the array path used by `Expansion2D`; there is no `_dv` variant.
   - Dimensionality (2D vs 3D) is encoded by the package name (`point2d`/`point2dd` vs `point3d`/`point3dd`), not by the function name.
-- In the `orbit3d/` / `orbit3dd/` packages (multi-knot dispatchers):
+- In the `orbit3d/` / `orbit3dd/` packages (multi-expansion-point dispatchers):
   - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)
   - `_od`: same, gradient-returning (in the `orbit3dd/` package; e.g. `pos_od`, `rv_od`)
   - `_os` / `_ov` (private, leading underscore): the underlying scalar and vector kernels the dispatcher routes to; only call directly when contributing

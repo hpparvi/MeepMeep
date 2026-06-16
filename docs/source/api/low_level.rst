@@ -45,12 +45,12 @@ parameter-derivative tensor.
 Two-dimensional position and distance
 -------------------------------------
 
-Single-knot evaluators for the sky-plane :math:`(x, y)` position and the
+Single-expansion-point evaluators for the sky-plane :math:`(x, y)` position and the
 projected planet-star distance :math:`d = \sqrt{x^2 + y^2}`. Each
 function operates on one ``(2, 5)`` coefficient matrix from
 :func:`~meepmeep.numba2d.solve2d` and is
 sufficient for transit light-curve modelling. The whole-orbit
-dispatchers that batch these calls across a knot grid live in
+dispatchers that batch these calls across a expansion-point grid live in
 :ref:`api.lowlevel.orbit_dispatchers`.
 
 .. currentmodule:: meepmeep.numba2d
@@ -79,12 +79,12 @@ Parameter-derivative variants:
 Three-dimensional position and distance
 ---------------------------------------
 
-Single-knot evaluators that additionally return the line-of-sight
+Single-expansion-point evaluators that additionally return the line-of-sight
 coordinate :math:`z`. Each function operates on one ``(3, 5)``
 coefficient matrix from
 :func:`~meepmeep.numba3d.solve3d`. Needed for
 eclipses, light travel time, phase curves, and radial velocities. The
-whole-orbit dispatchers that batch these calls across a knot grid live
+whole-orbit dispatchers that batch these calls across a expansion-point grid live
 in :ref:`api.lowlevel.orbit_dispatchers`.
 
 .. currentmodule:: meepmeep.numba3d
@@ -172,12 +172,12 @@ same set of helpers operating on ``(3, 5)`` coefficient matrices.
 
 .. _api.lowlevel.orbit_dispatchers:
 
-Whole-orbit dispatchers (multi-knot)
-------------------------------------
+Whole-orbit dispatchers (multi-expansion-point)
+-----------------------------------------------
 
-Whole-orbit evaluators that use a precomputed time-to-knot table
-(``pktable``) to dispatch each input time to the appropriate knot and
-delegate to the centered single-knot evaluators above. Each name is a
+Whole-orbit evaluators that use a precomputed time-to-expansion-point table
+(``ep_table``) to dispatch each input time to the appropriate expansion point and
+delegate to the centered single-expansion-point evaluators above. Each name is a
 single overloaded dispatcher that accepts either a scalar time or a
 1-D float64 array of times; the ``_o`` suffix denotes the forward
 dispatcher and ``_od`` its gradient-returning counterpart.
@@ -190,7 +190,7 @@ Orbit setup:
    :toctree: generated
 
    solve3d_orbit
-   knot_ix
+   ep_ix
 
 Positions and distances:
 
@@ -235,7 +235,7 @@ Whole-orbit dispatchers with parameter derivatives
 
 Gradient-returning counterparts of the orbit dispatchers above. Every
 function accepts an additional ``dcoeffs`` tensor of shape
-``(N, 7, D, 5)`` (knot, parameter, dimension, Taylor order) produced by
+``(N, 7, D, 5)`` (expansion point, parameter, dimension, Taylor order) produced by
 :func:`~meepmeep.numba3d.solve3d_orbit_d`.
 
 .. currentmodule:: meepmeep.numba3d
@@ -259,24 +259,24 @@ function accepts an additional ``dcoeffs`` tensor of shape
    light_travel_time_od
 
 
-Knot grid construction
-----------------------
+Expansion point grid construction
+---------------------------------
 
-The knot grid and the time-to-knot table consumed by the multi-knot
+The expansion-point grid and the time-to-expansion-point table consumed by the multi-expansion-point
 dispatchers are built once per orbit by
-:func:`~meepmeep.numba3d.create_knots`.
+:func:`~meepmeep.numba3d.create_expansion_points`.
 
 .. currentmodule:: meepmeep.numba3d
 
 .. autosummary::
    :toctree: generated
 
-   create_knots
+   create_expansion_points
 
 The two anomaly helpers below are not part of the aggregator surface
 but remain available at their source path.
 
-.. currentmodule:: meepmeep.backends.numba.knots
+.. currentmodule:: meepmeep.backends.numba.expansion_points
 
 .. autosummary::
    :toctree: generated

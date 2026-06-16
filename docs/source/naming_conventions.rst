@@ -37,7 +37,7 @@ line-of-sight velocity.
 
 
 Dimensionality lives in the module, not the function
------------------------------------------------------
+----------------------------------------------------
 
 The spatial dimensionality of an evaluator is encoded by the package name
 (the ``point2d``/``point2dd`` packages vs the ``point3d``/``point3dd``
@@ -56,29 +56,29 @@ Centered vs. direct suffix
 --------------------------
 
 A trailing ``_c`` marks a function as the **centered** variant: it takes a
-time argument already shifted to lie close to a knot and skips the
+time argument already shifted to lie close to an expansion point and skips the
 epoch-folding step. Functions without the ``_c`` are **direct** variants
 that accept an absolute time together with the transit-centre time ``tc``,
-the period ``p``, and a trailing optional knot offset ``tk`` (default 0.0).
+the period ``p``, and a trailing optional expansion-point offset ``te`` (default 0.0).
 
 .. note::
 
    Two time names are used consistently throughout the backend. ``tc`` is
    the **transit-centre** time (time of inferior conjunction; the orbital
    element the gradient slot 0 is taken with respect to), given on the
-   same time axis as the observation times. ``tk`` is the **knot offset**
+   same time axis as the observation times. ``te`` is the **expansion-point offset**
    from the transit centre — the time at the *center* of a local Taylor
-   expansion (a *knot*; see :ref:`taylor_overview`), measured relative to
-   ``tc``. The same ``tk`` value is the ``solve*`` first argument and the
+   expansion (an *expansion point*; see :ref:`taylor_overview`), measured relative to
+   ``tc``. The same ``te`` value is the ``solve*`` first argument and the
    optional trailing argument of the direct evaluators, which epoch-fold
-   around the knot at ``tc + tk`` on the observation time axis. The
-   default ``tk = 0`` places the knot at the transit centre.
+   around the expansion point at ``tc + te`` on the observation time axis. The
+   default ``te = 0`` places the expansion point at the transit centre.
 
 ==========================  ==============================================
 Suffix                      Meaning
 ==========================  ==============================================
 *(none)*                    Direct: accepts absolute time, epoch-folds.
-``_c``                      Centered: accepts time relative to the knot.
+``_c``                      Centered: accepts time relative to the expansion point.
 ==========================  ==============================================
 
 Examples: :func:`~meepmeep.backends.numba.point3d.position.pos` is the
@@ -86,11 +86,11 @@ direct variant, :func:`~meepmeep.backends.numba.point3d.position.pos_c`
 the centered one. Both share the same coefficient matrix.
 
 The centered evaluators are the shared workhorses for both usage modes
-introduced in :ref:`taylor_two_modes`. Single-knot callers reach them
+introduced in :ref:`taylor_two_modes`. Single-expansion-point callers reach them
 either directly (when observation times are already folded around the
-knot) or via the direct variants (when the evaluator should epoch-fold
-on the caller's behalf). Multi-knot dispatchers always reach them
-through a ``pktable`` lookup that yields a knot index and a
+expansion point) or via the direct variants (when the evaluator should epoch-fold
+on the caller's behalf). Multi-expansion-point dispatchers always reach them
+through a ``ep_table`` lookup that yields a expansion-point index and a
 centered time.
 
 The 2D module follows the same rule — ``pos`` / ``pos_c``, ``sep`` /
@@ -101,8 +101,8 @@ Parameter-derivative suffix
 ---------------------------
 
 The gradient-returning variants live in the ``*dd``-suffixed packages
-(the ``point2dd``/``point3dd`` single-knot packages and the ``orbit3dd/``
-multi-knot package) and return *both* the
+(the ``point2dd``/``point3dd`` single-expansion-point packages and the ``orbit3dd/``
+multi-expansion-point package) and return *both* the
 quantity and its partial derivatives with respect to the seven orbital
 parameters ``(tc, p, a, i, e, w, lan)``. The suffix encodes whether the
 underlying evaluator is centered or direct:
@@ -130,11 +130,11 @@ counterpart.
 Like their value-only twins (``pos`` / ``sep``), the ``_d`` / ``_cd``
 evaluators accept **either** a scalar time **or** a 1-D array of times and
 dispatch via ``numba.extending.overload`` at compile time (inside ``@njit``)
-or at call time (pure Python) — exactly like the ``_o`` / ``_od`` multi-knot
+or at call time (pure Python) — exactly like the ``_o`` / ``_od`` multi-expansion-point
 dispatchers below. A scalar time yields a length-7 gradient; a 1-D array of
 length ``N`` yields results with a leading ``N`` axis (e.g. ``sep_d`` returns
 ``d`` of shape ``(N,)`` and ``dd`` of shape ``(N, 7)``). The array path is the
-one used by the high-level ``Knot2D`` properties.
+one used by the high-level ``Expansion2D`` properties.
 
 Internally each dispatcher routes to a private kernel with the explicit
 ``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``_pos_cd_v``,
@@ -157,17 +157,17 @@ single shared body (``prange`` compiles as a plain ``range`` in the serial
 compilation, so the serial kernel is unchanged); the rv gradient kernels,
 whose loops reuse a hoisted scratch buffer, have explicit hand-written
 twins with one scratch buffer per thread. The high-level
-``Knot2D(parallel=True)`` opt-in routes large time grids to these twins.
+``Expansion2D(parallel=True)`` opt-in routes large time grids to these twins.
 
 
-Multi-knot dispatcher suffix
-----------------------------
+Multi-expansion-point dispatcher suffix
+---------------------------------------
 
 When the workflow needs a whole-orbit dispatcher — for example to
 evaluate a phase curve or an RV time series across an arbitrary range
 of times — the functions in
 :mod:`~meepmeep.backends.numba.orbit3d` look up the appropriate
-knot via ``pktable`` and delegate to a centered evaluator. The public
+expansion point via ``ep_table`` and delegate to a centered evaluator. The public
 surface is a single overloaded entry point per quantity that accepts
 either a scalar time or a 1-D array of times and dispatches at compile
 time (inside ``@njit``) or at call time (pure Python):
@@ -194,7 +194,7 @@ to MeepMeep itself.
 
 In ``orbit3dd/`` the gradient arithmetic lives in private *write-into*
 kernels with the ``_ow`` suffix (e.g. ``_pos_ow``, ``_zpos_ow``,
-``_cos_alpha_ow``) that fold the epoch, look up the knot, and write the
+``_cos_alpha_ow``) that fold the epoch, look up the expansion point, and write the
 gradients into caller-provided ``(7,)`` buffers. The ``_osd`` kernels
 allocate and delegate to ``_ow``; the ``_ovd`` kernels pass preallocated
 output rows (or hoisted scratch buffers for intermediate gradients) so
@@ -229,7 +229,7 @@ Module suffix     Contents
 ``position*``     Position / separation evaluators.
 ``velocity*``     Velocity / line-of-sight velocity evaluators.
 ``util*``         Geometric helpers (contact points, bounding box, durations).
-``orbit*``        Multi-knot dispatchers spanning a full orbit.
+``orbit*``        Multi-expansion-point dispatchers spanning a full orbit.
 *name*\ ``d``     Same module, parameter-derivative variants.
 ================  ========================================================
 

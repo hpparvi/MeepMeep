@@ -22,14 +22,14 @@ from ..utils import mean_anomaly_at_transit, TWO_PI
 
 
 @njit(fastmath=True)
-def solve2d(tk: float, p: float, a: float, i: float, e: float, w: float, lan: float = 0.0) -> ndarray:
-    """ Calculate the Taylor expansion for the (x, y) position around a given knot time relative to the transit centre.
+def solve2d(te: float, p: float, a: float, i: float, e: float, w: float, lan: float = 0.0) -> ndarray:
+    """ Calculate the Taylor expansion for the (x, y) position around a given expansion-point time relative to the transit centre.
 
     Parameters
     ----------
-    tk : float
-        Knot time: the time of the Taylor-series expansion [days], measured
-        relative to the transit centre (time of inferior conjunction). tk=0
+    te : float
+        Expansion-point time: the time of the Taylor-series expansion [days], measured
+        relative to the transit centre (time of inferior conjunction). te=0
         expands at the transit centre.
     p : float
         Orbital period [days].
@@ -68,7 +68,7 @@ def solve2d(tk: float, p: float, a: float, i: float, e: float, w: float, lan: fl
     # -----------------------------------------------
     # Matches the phase definition in utils.mean_anomaly for tc=0
     offset = mean_anomaly_at_transit(e, w)
-    ma = (TWO_PI * (tk - (-offset * p / TWO_PI)) / p) % TWO_PI
+    ma = (TWO_PI * (te - (-offset * p / TWO_PI)) / p) % TWO_PI
 
     ea = ea_from_ma(ma, e)
     sea = sin(ea)

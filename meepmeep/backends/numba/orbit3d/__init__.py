@@ -14,12 +14,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot Taylor-series evaluators over a full orbit.
+"""Multi-expansion-point Taylor-series evaluators over a full orbit.
 
 The functions in this package evaluate orbit-spanning quantities (position,
 velocity, projected separation, phase angle, radial velocity, etc.) at
-arbitrary times by looking up the appropriate knot via ``pktable`` and then
-delegating to the single-knot evaluators in ``position3d``/``velocity3d``.
+arbitrary times by looking up the appropriate expansion point via ``ep_table`` and then
+delegating to the single-expansion-point evaluators in ``position3d``/``velocity3d``.
 
 Coefficient layout: ``coeffs`` is an ``(npt, 3, 5)`` array as produced by
 ``solve3d_orbit`` — ``coeffs[ix]`` is the ``(3, 5)`` matrix consumed by
@@ -28,7 +28,7 @@ Coefficient layout: ``coeffs`` is an ``(npt, 3, 5)`` array as produced by
 Each physical quantity lives in its own module, holding that quantity's
 scalar kernel (``_X_os``), vector kernel (``_X_ov``), parallel vector twin
 (``_X_ovp``), public dispatcher (``X_o``), and Numba ``@overload``
-registration. Shared infrastructure (``_is_1d_array``, ``knot_ix``,
+registration. Shared infrastructure (``_is_1d_array``, ``ep_ix``,
 ``solve3d_orbit``) lives in ``_common``. This ``__init__`` re-exports the
 full surface as the package's public API.
 
@@ -40,7 +40,7 @@ array size (the parallel-region launch costs tens of microseconds, so for
 the value kernels the break-even is around 5e4 samples).
 """
 
-from ._common import _is_1d_array, solve3d_orbit, knot_ix
+from ._common import _is_1d_array, solve3d_orbit, ep_ix
 from .position import pos_o, _pos_os, _pos_ov, _pos_ovp
 from .zposition import zpos_o, _zpos_os, _zpos_ov, _zpos_ovp
 from .separation import sep_o, _sep_os, _sep_ov, _sep_ovp

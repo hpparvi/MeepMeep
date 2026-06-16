@@ -69,7 +69,7 @@ A transit-fitting or RV-fitting loop typically looks like this:
    import numpy as np
    from meepmeep import Orbit
 
-   # One-time setup: knot grid (constant) and the observation times.
+   # One-time setup: expansion-point grid (constant) and the observation times.
    o = Orbit(npt=15)
    o.set_data(times)                                  # observation times
 
@@ -95,21 +95,21 @@ arguments:
 ==================  ============================================================
 Argument            Meaning
 ==================  ============================================================
-``npt``             Number of knots used by the multi-knot Taylor expansion
+``npt``             Number of expansion points used by the multi-expansion-point Taylor expansion
                     (default 15). Includes the periodic-image slot. Raise this
-                    when the orbit is eccentric enough that 15 knots no longer
-                    cover periastron with adequate per-knot accuracy.
-``knot_placement``  Knot placement strategy: ``'mm'`` (uniform in mean motion),
+                    when the orbit is eccentric enough that 15 expansion points no longer
+                    cover periastron with adequate per-expansion-point accuracy.
+``ep_placement``    Expansion-point placement strategy: ``'mm'`` (uniform in mean motion),
                     ``'ea'`` (uniform in eccentric anomaly; default and
                     preferred for eccentric orbits), or ``'ta'`` (uniform in
-                    true anomaly). See :ref:`taylor_multi_knot` for the
+                    true anomaly). See :ref:`taylor_multi_ep` for the
                     placement strategies' implications.
 ``derivatives``     If ``True``, every observable also returns analytic
                     parameter derivatives. Costs roughly 2–4× the value-only
                     runtime.
 ==================  ============================================================
 
-The knot grid is built once at construction time; subsequent
+The expansion-point grid is built once at construction time; subsequent
 :meth:`~meepmeep.orbit.Orbit.set_pars` calls reuse it.
 
 
@@ -268,7 +268,7 @@ Convention bridge
 
 This class accepts either ``tc`` (transit-center time) or ``tp``
 (periastron-passage time) via :meth:`~meepmeep.orbit.Orbit.set_pars`.
-The underlying Taylor backend anchors its knot grid at periastron, so
+The underlying Taylor backend anchors its expansion-point grid at periastron, so
 :meth:`~meepmeep.orbit.Orbit.set_pars` converts once and stores both
 values internally: ``self._tc`` and ``self._tp``. Every Taylor-backend
 dispatcher call uses ``self._tp``; ``self._tc`` is used only by the
@@ -276,7 +276,7 @@ Newton-Raphson diagnostic paths and by
 :meth:`~meepmeep.orbit.Orbit.plot(show_exact=True)`.
 
 If you ever drop down to the Taylor backend directly, note that its
-multi-knot dispatchers
+multi-expansion-point dispatchers
 (:func:`~meepmeep.backends.numba.orbit3d.pos_o` and friends)
 take a ``tpa`` argument that is the periastron-anchored time — not the
 transit-center time. See :ref:`taylor_overview` for the low-level

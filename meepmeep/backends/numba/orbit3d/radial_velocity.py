@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot radial-velocity evaluators."""
+"""Multi-expansion-point radial-velocity evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,35 +25,35 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
-def _rv_os(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+def _rv_os(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`rv_o`. See that function for documentation."""
     scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
-    return _zvel_os(t, tpa, p, dt, pktable, points, coeffs) * scale
+    return _zvel_os(t, tpa, p, dt, ep_table, ep_times, coeffs) * scale
 
 
 @njit(fastmath=True)
-def _rv_ov(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+def _rv_ov(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`rv_o`. See that function for documentation."""
     n = times.size
     rvs = zeros(n)
     scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
     for j in range(n):
-        rvs[j] = _zvel_os(times[j], tpa, p, dt, pktable, points, coeffs) * scale
+        rvs[j] = _zvel_os(times[j], tpa, p, dt, ep_table, ep_times, coeffs) * scale
     return rvs
 
 
 @njit(fastmath=True, parallel=True)
-def _rv_ovp(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+def _rv_ovp(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_rv_ov`."""
     n = times.size
     rvs = zeros(n)
     scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
     for j in prange(n):
-        rvs[j] = _zvel_os(times[j], tpa, p, dt, pktable, points, coeffs) * scale
+        rvs[j] = _zvel_os(times[j], tpa, p, dt, ep_table, ep_times, coeffs) * scale
     return rvs
 
 
-def rv_o(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+def rv_o(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
     """Radial velocity at an array of times (Perryman 2018, Eq. 2.23).
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -81,9 +81,9 @@ def rv_o(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
         Inclination [radians].
     e : float
         Eccentricity.
-    dt, pktable, points, coeffs :
-        Multi-knot dispatch arrays from :func:`solve3d_orbit` /
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
+    dt, ep_table, ep_times, coeffs :
+        Multi-expansion-point dispatch arrays from :func:`solve3d_orbit` /
+        :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
 
     Returns
     -------
@@ -91,18 +91,18 @@ def rv_o(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
         Radial velocity [m s\\ :sup:`-1`]. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _rv_ov(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
-    return _rv_os(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
+        return _rv_ov(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
+    return _rv_os(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
 
 
 @overload(rv_o, jit_options={'fastmath': True})
-def _rv_o_overload(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
+def _rv_o_overload(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
-            return _rv_ov(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
+        def impl(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
+            return _rv_ov(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs):
-            return _rv_os(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs)
+        def impl(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
+            return _rv_os(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
         return impl
     return None

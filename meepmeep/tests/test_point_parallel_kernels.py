@@ -1,6 +1,6 @@
-"""Serial/parallel parity for the single-knot prange kernel twins.
+"""Serial/parallel parity for the single-expansion-point prange kernel twins.
 
-Every single-knot vector kernel (``_X_v`` / ``_X_cd_v`` / ``_X_d_v``) has a
+Every single-expansion-point vector kernel (``_X_v`` / ``_X_cd_v`` / ``_X_d_v``) has a
 parallel twin with a trailing ``p`` (``_X_vp`` etc.) compiled with
 ``parallel=True``. The scratch-free kernels are dual-decorated from one
 shared ``prange`` body (prange compiles as a plain range in the serial
@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from meepmeep.knot2d import Knot2D
+from meepmeep.expansion2d import Expansion2D
 from meepmeep.backends.numba.point2d import (
     solve2d,
     _pos_c_v, _pos_c_vp, _pos_v, _pos_vp,
@@ -53,31 +53,31 @@ from meepmeep.backends.numba.point3dd import (
 PARS = dict(p=3.4, a=8.0, i=1.54, e=0.1, w=0.4)
 P = PARS["p"]
 TC = 1.5
-TK = 0.01
+TE = 0.01
 K_RV = 50.0
-T_CEN = np.linspace(-0.06, 0.08, 2001)          # knot-centred times
-T_ABS = TC + TK + np.linspace(-0.06, 0.08, 2001)  # absolute times near the knot
+T_CEN = np.linspace(-0.06, 0.08, 2001)          # expansion-point-centred times
+T_ABS = TC + TE + np.linspace(-0.06, 0.08, 2001)  # absolute times near the expansion point
 TOL = {"rtol": 1e-12, "atol": 1e-14}
 
 
 @pytest.fixture(scope="module")
 def c2():
-    return solve2d(TK, **PARS)
+    return solve2d(TE, **PARS)
 
 
 @pytest.fixture(scope="module")
 def cdc2():
-    return solve2d_d(TK, **PARS)
+    return solve2d_d(TE, **PARS)
 
 
 @pytest.fixture(scope="module")
 def c3():
-    return solve3d(TK, **PARS)
+    return solve3d(TE, **PARS)
 
 
 @pytest.fixture(scope="module")
 def cdc3():
-    return solve3d_d(TK, **PARS)
+    return solve3d_d(TE, **PARS)
 
 
 def _compare(serial, par, args):
@@ -94,13 +94,13 @@ class TestPoint2dValue:
         _compare(_pos_c_v, _pos_c_vp, (T_CEN, c2))
 
     def test_pos(self, c2):
-        _compare(_pos_v, _pos_vp, (T_ABS, TC, P, c2, TK))
+        _compare(_pos_v, _pos_vp, (T_ABS, TC, P, c2, TE))
 
     def test_sep_c(self, c2):
         _compare(_sep_c_v, _sep_c_vp, (T_CEN, c2))
 
     def test_sep(self, c2):
-        _compare(_sep_v, _sep_vp, (T_ABS, TC, P, c2, TK))
+        _compare(_sep_v, _sep_vp, (T_ABS, TC, P, c2, TE))
 
 
 class TestPoint2dGradient:
@@ -109,14 +109,14 @@ class TestPoint2dGradient:
 
     def test_pos_d(self, cdc2):
         c, dc = cdc2
-        _compare(_pos_d_v, _pos_d_vp, (T_ABS, TC, P, c, dc, TK))
+        _compare(_pos_d_v, _pos_d_vp, (T_ABS, TC, P, c, dc, TE))
 
     def test_sep_cd(self, cdc2):
         _compare(_sep_cd_v, _sep_cd_vp, (T_CEN, *cdc2))
 
     def test_sep_d(self, cdc2):
         c, dc = cdc2
-        _compare(_sep_d_v, _sep_d_vp, (T_ABS, TC, P, c, dc, TK))
+        _compare(_sep_d_v, _sep_d_vp, (T_ABS, TC, P, c, dc, TE))
 
 
 class TestPoint3dValue:
@@ -124,19 +124,19 @@ class TestPoint3dValue:
         _compare(_pos_c_v3, _pos_c_vp3, (T_CEN, c3))
 
     def test_pos(self, c3):
-        _compare(_pos_v3, _pos_vp3, (T_ABS, TC, P, c3, TK))
+        _compare(_pos_v3, _pos_vp3, (T_ABS, TC, P, c3, TE))
 
     def test_zpos_c(self, c3):
         _compare(_zpos_c_v, _zpos_c_vp, (T_CEN, c3))
 
     def test_zpos(self, c3):
-        _compare(_zpos_v, _zpos_vp, (T_ABS, TC, P, c3, TK))
+        _compare(_zpos_v, _zpos_vp, (T_ABS, TC, P, c3, TE))
 
     def test_sep_c(self, c3):
         _compare(_sep_c_v3, _sep_c_vp3, (T_CEN, c3))
 
     def test_sep(self, c3):
-        _compare(_sep_v3, _sep_vp3, (T_ABS, TC, P, c3, TK))
+        _compare(_sep_v3, _sep_vp3, (T_ABS, TC, P, c3, TE))
 
     def test_vel_c(self, c3):
         _compare(_vel_c_v, _vel_c_vp, (T_CEN, c3))
@@ -145,7 +145,7 @@ class TestPoint3dValue:
         _compare(_zvel_c_v, _zvel_c_vp, (T_CEN, c3))
 
     def test_zvel(self, c3):
-        _compare(_zvel_v, _zvel_vp, (T_ABS, TC, P, c3, TK))
+        _compare(_zvel_v, _zvel_vp, (T_ABS, TC, P, c3, TE))
 
 
 class TestPoint3dGradient:
@@ -154,21 +154,21 @@ class TestPoint3dGradient:
 
     def test_pos_d(self, cdc3):
         c, dc = cdc3
-        _compare(_pos_d_v3, _pos_d_vp3, (T_ABS, TC, P, c, dc, TK))
+        _compare(_pos_d_v3, _pos_d_vp3, (T_ABS, TC, P, c, dc, TE))
 
     def test_zpos_cd(self, cdc3):
         _compare(_zpos_cd_v, _zpos_cd_vp, (T_CEN, *cdc3))
 
     def test_zpos_d(self, cdc3):
         c, dc = cdc3
-        _compare(_zpos_d_v, _zpos_d_vp, (T_ABS, TC, P, c, dc, TK))
+        _compare(_zpos_d_v, _zpos_d_vp, (T_ABS, TC, P, c, dc, TE))
 
     def test_sep_cd(self, cdc3):
         _compare(_sep_cd_v3, _sep_cd_vp3, (T_CEN, *cdc3))
 
     def test_sep_d(self, cdc3):
         c, dc = cdc3
-        _compare(_sep_d_v3, _sep_d_vp3, (T_ABS, TC, P, c, dc, TK))
+        _compare(_sep_d_v3, _sep_d_vp3, (T_ABS, TC, P, c, dc, TE))
 
     def test_vel_cd(self, cdc3):
         _compare(_vel_cd_v, _vel_cd_vp, (T_CEN, *cdc3))
@@ -178,17 +178,17 @@ class TestPoint3dGradient:
 
     def test_zvel_d(self, cdc3):
         c, dc = cdc3
-        _compare(_zvel_d_v, _zvel_d_vp, (T_ABS, TC, P, c, dc, TK))
+        _compare(_zvel_d_v, _zvel_d_vp, (T_ABS, TC, P, c, dc, TE))
 
 
-class TestKnot2dParallelOptIn:
-    """Knot2D(parallel=True) must change performance, never results."""
+class TestExpansion2dParallelOptIn:
+    """Expansion2D(parallel=True) must change performance, never results."""
 
     @pytest.fixture(params=[False, True], ids=["values", "derivatives"])
     def pair(self, request):
-        times = TC + TK + np.linspace(-0.05, 0.05, 500)
-        serial = Knot2D(tc=TC, tk=TK, derivatives=request.param, **PARS)
-        par = Knot2D(tc=TC, tk=TK, derivatives=request.param, parallel=True, **PARS)
+        times = TC + TE + np.linspace(-0.05, 0.05, 500)
+        serial = Expansion2D(tc=TC, te=TE, derivatives=request.param, **PARS)
+        par = Expansion2D(tc=TC, te=TE, derivatives=request.param, parallel=True, **PARS)
         # Force the parallel path regardless of array size.
         par._PARALLEL_NMIN_VALUE = 0
         par._PARALLEL_NMIN_GRAD = 0
@@ -197,7 +197,7 @@ class TestKnot2dParallelOptIn:
         return serial, par
 
     def test_default_is_serial(self):
-        assert Knot2D(tc=TC, **PARS)._parallel is False
+        assert Expansion2D(tc=TC, **PARS)._parallel is False
 
     def test_position(self, pair):
         s, p = pair
@@ -216,7 +216,7 @@ class TestKnot2dParallelOptIn:
         """With default thresholds, a small grid must use the serial path
         (kernel selection is observable through _select)."""
         from meepmeep.backends.numba.point2d import sep as sep_dispatcher
-        k2 = Knot2D(tc=TC, tk=TK, parallel=True, **PARS)
+        k2 = Expansion2D(tc=TC, te=TE, parallel=True, **PARS)
         k2.set_data(TC + np.linspace(-0.05, 0.05, 100))
         assert k2._select(sep_dispatcher, _sep_vp, k2._PARALLEL_NMIN_VALUE) is sep_dispatcher
 
@@ -232,7 +232,7 @@ class TestRvExplicitTwins:
     def test_rv_d(self, cdc3):
         c, dc = cdc3
         a, i, e = PARS["a"], PARS["i"], PARS["e"]
-        _compare(_rv_d_v, _rv_d_vp, (T_ABS, K_RV, TC, P, a, i, e, c, dc, TK))
+        _compare(_rv_d_v, _rv_d_vp, (T_ABS, K_RV, TC, P, a, i, e, c, dc, TE))
 
 
 if __name__ == "__main__":

@@ -14,13 +14,13 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot true-anomaly evaluators with parameter derivatives.
+"""Multi-expansion-point true-anomaly evaluators with parameter derivatives.
 
 The geometric definition uses the angle between the planet position vector
 and the eccentricity vector. Differentiating that (with the prograde sign
 correction from the mean anomaly) gives a well-defined gradient everywhere except at
 the two singular configurations ``edp = ±1`` (planet on the apsidal line).
-At those points the analytic derivative diverges; we set it to zero so
+At those ep_times the analytic derivative diverges; we set it to zero so
 downstream gradient-based fits don't get a NaN. The circular fast path
 (``ex ≤ -0.9999`` sentinel from ``eccentricity_vector``) collapses true
 anomaly to mean anomaly: ``f = 2π(t - tpa)/p`` ⇒ analytic derivatives are
@@ -36,7 +36,7 @@ from ._common import _is_1d_array
 
 
 @njit
-def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`true_anomaly_od`. See that function for documentation."""
     df = zeros(7)
     nes = ex * ex + ey * ey + ez * ez
@@ -53,8 +53,8 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dco
 
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    tcc = tc - points[ix] * p
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    tcc = tc - ep_times[ix] * p
     c = coeffs[ix]
     dc = dcoeffs[ix]
 
@@ -89,7 +89,7 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dco
 
 
 @njit
-def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`true_anomaly_od`. See that function for documentation."""
     n = times.size
     f = zeros(n)
@@ -120,8 +120,8 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
         t = times[j]
         epoch = floor((t - tpa) / p)
         tc = t - tpa - epoch * p
-        ix = pktable[int(floor(tc / (dt * p)))]
-        tcc = tc - points[ix] * p
+        ix = ep_table[int(floor(tc / (dt * p)))]
+        tcc = tc - ep_times[ix] * p
         c = coeffs[ix]
         dc = dcoeffs[ix]
 
@@ -161,7 +161,7 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs,
 
 
 @njit(parallel=True)
-def _true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+def _true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_true_anomaly_ovd`.
 
     Mirrors the serial vector body (rather than looping the scalar kernel)
@@ -194,8 +194,8 @@ def _true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs
         t = times[j]
         epoch = floor((t - tpa) / p)
         tc = t - tpa - epoch * p
-        ix = pktable[int(floor(tc / (dt * p)))]
-        tcc = tc - points[ix] * p
+        ix = ep_table[int(floor(tc / (dt * p)))]
+        tcc = tc - ep_times[ix] * p
 
         x, y, z = _pos_cd_w(tcc, coeffs[ix], dcoeffs[ix], dx, dy, dz)
 
@@ -225,7 +225,7 @@ def _true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs
     return f, df
 
 
-def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
     """True anomaly and its orbital-parameter derivatives.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -242,7 +242,7 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoef
     t : float or ndarray
         Time(s) at which to evaluate the true anomaly and gradient.
     tpa : float
-        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
+        Periastron time anchoring the expansion-point grid (see :func:`_pos_osd`).
     p : float
         Orbital period [days].
     ex, ey, ez : float
@@ -254,9 +254,9 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoef
         Argument of periastron [radians]. Kept for signature parity with
         the base function; currently unused inside this routine because
         the eccentricity vector is passed explicitly.
-    dt, pktable, points, coeffs, dcoeffs :
-        Multi-knot dispatch arrays from :func:`solve3d_orbit_d` /
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
+    dt, ep_table, ep_times, coeffs, dcoeffs :
+        Multi-expansion-point dispatch arrays from :func:`solve3d_orbit_d` /
+        :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
 
     Returns
     -------
@@ -278,18 +278,18 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoef
     the mean-anomaly identity :math:`f = 2\\pi(t - t_\\mathrm{pa}) / p`.
     """
     if isinstance(t, ndarray):
-        return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
-    return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
+        return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(true_anomaly_od)
-def _true_anomaly_od_overload(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
+def _true_anomaly_od_overload(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
-            return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs):
-            return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

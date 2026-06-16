@@ -14,21 +14,21 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 3D Taylor-series evaluators (non-derivative).
+"""Single-expansion-point 3D Taylor-series evaluators (non-derivative).
 
 The functions in this package evaluate orbital quantities (3D position,
 line-of-sight position, sky-projected separation, velocity, line-of-sight
 velocity, radial velocity) and transit geometry (contact points, durations,
 minimum separation) from a single 5th-order Taylor expansion around one
-knot. The code is organised one module per physical quantity to mirror the
+expansion point. The code is organised one module per physical quantity to mirror the
 ``orbit3d`` package layout, plus a ``solve`` module and a ``util`` module.
 
 Coefficient layout: ``c`` is a ``(3, 5)`` matrix produced by ``solve3d``
 (rows index the spatial dimensions x, y, z; columns index Taylor order from
 position through snap, pre-scaled by the factorial of the order).
 
-This ``__init__`` re-exports the full surface. The multi-knot dispatchers in
-``orbit3d`` delegate to the single-knot evaluators defined here.
+This ``__init__`` re-exports the full surface. The multi-expansion-point dispatchers in
+``orbit3d`` delegate to the single-expansion-point evaluators defined here.
 """
 
 from ._common import _is_1d_array

@@ -357,30 +357,30 @@ class TestVectorizedDerivatives:
     (N, 7) gradient layout. The same function name also serves scalar time."""
 
     def test_sep_d_array_matches_scalar_loop(self, eccentric_orbit):
-        tk = 0.0
-        c, dc = solve2d_d(tk, **eccentric_orbit)
+        te = 0.0
+        c, dc = solve2d_d(te, **eccentric_orbit)
         times = np.linspace(-0.02, 0.02, 9)
 
-        d, dd = sep_d(times, tk, eccentric_orbit["p"], c, dc)
+        d, dd = sep_d(times, te, eccentric_orbit["p"], c, dc)
 
         assert d.shape == (times.size,)
         assert dd.shape == (times.size, 7)
         for n, t in enumerate(times):
-            d_n, dd_n = sep_d(t, tk, eccentric_orbit["p"], c, dc)
+            d_n, dd_n = sep_d(t, te, eccentric_orbit["p"], c, dc)
             assert_allclose(d[n], d_n, rtol=1e-12)
             assert_allclose(dd[n], dd_n, rtol=1e-12)
 
     def test_pos_d_array_matches_scalar_loop(self, eccentric_orbit):
-        tk = 0.0
-        c, dc = solve2d_d(tk, **eccentric_orbit)
+        te = 0.0
+        c, dc = solve2d_d(te, **eccentric_orbit)
         times = np.linspace(-0.02, 0.02, 9)
 
-        xs, ys, dxs, dys = pos_d(times, tk, eccentric_orbit["p"], c, dc)
+        xs, ys, dxs, dys = pos_d(times, te, eccentric_orbit["p"], c, dc)
 
         assert xs.shape == ys.shape == (times.size,)
         assert dxs.shape == dys.shape == (times.size, 7)
         for n, t in enumerate(times):
-            x_n, y_n, dx_n, dy_n = pos_d(t, tk, eccentric_orbit["p"], c, dc)
+            x_n, y_n, dx_n, dy_n = pos_d(t, te, eccentric_orbit["p"], c, dc)
             assert_allclose(xs[n], x_n, rtol=1e-12)
             assert_allclose(ys[n], y_n, rtol=1e-12)
             assert_allclose(dxs[n], dx_n, rtol=1e-12)
@@ -388,18 +388,18 @@ class TestVectorizedDerivatives:
 
     def test_pos_d_scalar_returns_length7_gradient(self, eccentric_orbit):
         """The same name dispatches a scalar time to (7,) gradients."""
-        tk = 0.0
-        c, dc = solve2d_d(tk, **eccentric_orbit)
-        x, y, dx, dy = pos_d(0.003, tk, eccentric_orbit["p"], c, dc)
+        te = 0.0
+        c, dc = solve2d_d(te, **eccentric_orbit)
+        x, y, dx, dy = pos_d(0.003, te, eccentric_orbit["p"], c, dc)
         assert np.isscalar(x) and np.isscalar(y)
         assert dx.shape == (7,)
         assert dy.shape == (7,)
 
     def test_sep_d_scalar_returns_length7_gradient(self, eccentric_orbit):
         """The same name dispatches a scalar time to a (7,) gradient."""
-        tk = 0.0
-        c, dc = solve2d_d(tk, **eccentric_orbit)
-        d, dd = sep_d(0.003, tk, eccentric_orbit["p"], c, dc)
+        te = 0.0
+        c, dc = solve2d_d(te, **eccentric_orbit)
+        d, dd = sep_d(0.003, te, eccentric_orbit["p"], c, dc)
         assert np.isscalar(d)
         assert dd.shape == (7,)
 

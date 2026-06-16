@@ -26,7 +26,7 @@ where :math:`t_c` is the transit-centre time (time of inferior
 conjunction). The leading axis of every ``dc`` tensor follows this
 ordering. Note the sign: the orbit position depends on the elapsed
 time :math:`t_\mathrm{obs} - t_c`, so the :math:`t_c` partial is the
-negative of the partial w.r.t. the knot/expansion-time argument ``tk``
+negative of the partial w.r.t. the expansion point/expansion-time argument ``te``
 passed to the solver, :math:`\partial / \partial t_c = -\,\partial / \partial t_k`. This page documents how those derivatives are
 computed, the explicit formulas at each stage, and the practical
 regime in which they are accurate — useful when you are verifying the
@@ -44,7 +44,7 @@ The two-layer chain
 The gradient computation splits into two layers. The boundary between
 them is exactly where the analytic difficulty sits: everything that
 depends on Kepler's equation lives in Layer A and is computed once per
-knot; the per-evaluator math in Layer B is just polynomial
+expansion point; the per-evaluator math in Layer B is just polynomial
 manipulation and one-line chain rules.
 
 * **Layer A — derivative coefficients.** The solvers
@@ -154,7 +154,7 @@ this composite. The solver stores the result in ``doffset[4]`` and
 Step 3 — mean anomaly and its gradient
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The mean anomaly at the knot time :math:`t_k` (the solver's ``tk``
+The mean anomaly at the expansion-point time :math:`t_k` (the solver's ``te``
 argument, measured relative to the transit centre, with
 :math:`t_k = t_\mathrm{obs} - t_c` at evaluation) is
 
@@ -491,39 +491,39 @@ on top of :math:`\cos\alpha`, with its own closed-form derivative
 :math:`\mathrm d f / \mathrm d \cos\alpha`.
 
 
-Multi-knot propagation
-----------------------
+Multi-expansion-point propagation
+---------------------------------
 
 The orbit-spanning solver
 :func:`~meepmeep.backends.numba.orbit3dd.solve3d_orbit_d`
 applies
 :func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` once per
-knot and stacks the results into arrays of shape ``(N, 3, 5)`` for
+expansion point and stacks the results into arrays of shape ``(N, 3, 5)`` for
 ``coeffs`` and ``(N, 7, 3, 5)`` for ``dcoeffs``. The periodic-image
-contract on the last knot is honoured for both arrays — they share
+contract on the last expansion point is honoured for both arrays — they share
 their final slot with the first.
 
-Each multi-knot ``_d`` dispatcher then performs the same single-knot
-chain rule documented above after a ``pktable``-driven knot lookup:
+Each multi-expansion-point ``_d`` dispatcher then performs the same single-expansion-point
+chain rule documented above after a ``ep_table``-driven expansion point lookup:
 
 #. Epoch-fold the absolute time into a single period.
-#. Look up the knot index ``ix`` from the time-to-knot table.
-#. Subtract the knot phase to get the centered time.
-#. Call the matching centered single-knot ``_d`` evaluator with
+#. Look up the expansion-point index ``ix`` from the time-to-expansion-point table.
+#. Subtract the expansion point phase to get the centered time.
+#. Call the matching centered single-expansion-point ``_d`` evaluator with
    ``coeffs[ix]`` and ``dcoeffs[ix]``.
 
 No additional algebra is needed at the dispatcher level for positions,
 velocities, or distances; the chain rule for higher-level outputs
 (phase angle, Lambert curve, RV, light travel time) is applied
-identically to the single-knot case but using the dispatched value and
+identically to the single-expansion-point case but using the dispatched value and
 gradient.
 
 
 Numerical regime and pitfalls
 -----------------------------
 
-* **Validity window.** Each knot's Taylor expansion is accurate within
-  a region around the knot whose size depends on the orbit; near
+* **Validity window.** Each expansion point's Taylor expansion is accurate within
+  a region around the expansion point whose size depends on the orbit; near
   periastron of an eccentric orbit the window is narrowest. The
   *gradient* is accurate inside the same region — its truncation error
   has the same order as the value's.
@@ -552,7 +552,7 @@ Numerical regime and pitfalls
 * **Slot-0 convention.** Slot 0 is the partial with respect to the
   transit-centre time :math:`t_c`. Because the orbit depends on the
   elapsed time :math:`t_\mathrm{obs} - t_c`, this equals the negative of
-  the partial w.r.t. the solver's knot/expansion-time argument ``tk``:
+  the partial w.r.t. the solver's expansion point/expansion-time argument ``te``:
   :math:`\partial / \partial t_c = -\,\partial / \partial t_k`. The sign
   is applied once at the source (``dma[0] = -2\pi/p`` in ``solve2d_d`` /
   ``solve3d_d``) and propagates linearly through every evaluator, so all
@@ -597,7 +597,7 @@ of the timing row added to the :math:`p`, :math:`e`, and :math:`w` rows:
 The :math:`a`, :math:`i`, and :math:`\lambda` rows are unchanged, and slot 0 is
 numerically identical in both bases (it equals :math:`\partial/\partial t_c =
 \partial/\partial t_p` when the other parameters are held fixed). This change of
-basis is applied once to the per-knot coefficient derivatives by
+basis is applied once to the per-expansion-point coefficient derivatives by
 :func:`~meepmeep.numba3d.tc_to_tp_gradient`, so it propagates consistently to
 every derivative-returning quantity (radial velocity, position, separation,
 phase curves, ...). The relevant mean-anomaly-at-transit terms come from

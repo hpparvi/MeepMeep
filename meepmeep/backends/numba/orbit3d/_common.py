@@ -14,11 +14,11 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Shared helpers for the multi-knot orbit3d evaluators.
+"""Shared helpers for the multi-expansion-point orbit3d evaluators.
 
 Holds the per-quantity-agnostic infrastructure used across the orbit3d
 package: the Numba array-type predicate used by the ``*_o`` overloads,
-the per-orbit coefficient builder, and the time-to-knot lookup.
+the per-orbit coefficient builder, and the time-to-expansion-point lookup.
 """
 
 from numba import njit, types
@@ -34,20 +34,20 @@ def _is_1d_array(typ):
 
 
 @njit
-def solve3d_orbit(knot_times, p, a, i, e, w, lan=0.0, npt=15):
-    """Pre-compute Taylor coefficients at every knot of one orbit.
+def solve3d_orbit(ep_times, p, a, i, e, w, lan=0.0, npt=15):
+    """Pre-compute Taylor coefficients at every expansion point of one orbit.
 
-    For each interior knot this calls :func:`~meepmeep.backends.numba.point3d.solve.solve3d`
+    For each interior expansion point this calls :func:`~meepmeep.backends.numba.point3d.solve.solve3d`
     once and stacks the resulting ``(3, 5)`` matrices into a single
     ``(npt, 3, 5)`` array. The last slot is the periodic image of the
     first and is copied rather than recomputed.
 
     Parameters
     ----------
-    knot_times : ndarray, shape (npt,)
-        Normalised knot phases in ``[0, 1]``, with ``knot_times[-1]``
-        equal to ``knot_times[0] + 1``. Built by
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
+    ep_times : ndarray, shape (npt,)
+        Normalised expansion-point phases in ``[0, 1]``, with ``ep_times[-1]``
+        equal to ``ep_times[0] + 1``. Built by
+        :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
     p : float
         Orbital period [days].
     a : float
@@ -62,42 +62,42 @@ def solve3d_orbit(knot_times, p, a, i, e, w, lan=0.0, npt=15):
         Longitude of the ascending node [radians]. Constant rotation of the
         sky-plane (x, y) coordinates about the line of sight. Defaults to 0.0.
     npt : int, optional
-        Number of knots, including the periodic-image slot. Defaults to 15.
+        Number of expansion points, including the periodic-image slot. Defaults to 15.
 
     Returns
     -------
     coeffs : ndarray, shape (npt, 3, 5)
-        Taylor coefficient matrices at every knot. Each ``coeffs[ix]`` is a
+        Taylor coefficient matrices at every expansion point. Each ``coeffs[ix]`` is a
         ``(3, 5)`` matrix in the layout produced by ``solve3d`` (rows: x, y,
         z; columns: position, velocity, acceleration, jerk, snap; pre-scaled
         by factorial of the Taylor order).
 
     Notes
     -----
-    If you hand-roll ``knot_times`` you must enforce the periodic-image
-    contract yourself; ``knots.create_knots`` does this automatically.
+    If you hand-roll ``ep_times`` you must enforce the periodic-image
+    contract yourself; ``expansion points.create_expansion_points`` does this automatically.
     """
     coeffs = zeros((npt, 3, 5))
     to = mean_anomaly_at_transit(e, w) / (2 * pi) * p
     for ix in range(npt - 1):
-        coeffs[ix, :, :] = solve3d(p * knot_times[ix] - to, p, a, i, e, w, lan)
+        coeffs[ix, :, :] = solve3d(p * ep_times[ix] - to, p, a, i, e, w, lan)
     coeffs[-1, :, :] = coeffs[0]
     return coeffs
 
 
 @njit(fastmath=True, inline="always")
-def knot_ix(t, tpa, p, dt, pktable) -> int:
-    """Return the knot index for a single time.
+def ep_ix(t, tpa, p, dt, ep_table) -> int:
+    """Return the expansion-point index for a single time.
 
     Epoch-folds ``t`` into one period and dispatches it to the appropriate
-    knot via ``pktable``.
+    expansion point via ``ep_table``.
 
     Parameters
     ----------
     t : float
-        Time at which to look up the knot.
+        Time at which to look up the expansion point.
     tpa : float
-        Periastron time anchoring the knot grid. Note the convention
+        Periastron time anchoring the expansion-point grid. Note the convention
         difference: the high-level :class:`~meepmeep.orbit.Orbit` API
         takes the transit-center time as ``tc`` and converts it to
         periastron time before calling functions in this module (see
@@ -105,16 +105,16 @@ def knot_ix(t, tpa, p, dt, pktable) -> int:
     p : float
         Orbital period [days].
     dt : float
-        Width of one ``pktable`` bucket in fraction of the period.
-    pktable : ndarray of int
-        Time-to-knot lookup table built by
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
+        Width of one ``ep_table`` bucket in fraction of the period.
+    ep_table : ndarray of int
+        Time-to-expansion-point lookup table built by
+        :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
 
     Returns
     -------
     ix : int
-        Index into ``coeffs`` / ``points`` for the relevant knot.
+        Index into ``coeffs`` / ``ep_times`` for the relevant expansion point.
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    return pktable[int(floor(tc / (dt * p)))]
+    return ep_table[int(floor(tc / (dt * p)))]

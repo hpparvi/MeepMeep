@@ -14,12 +14,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Shared helpers for the multi-knot orbit3dd gradient evaluators.
+"""Shared helpers for the multi-expansion-point orbit3dd gradient evaluators.
 
 Holds the per-quantity-agnostic infrastructure used across the orbit3dd
 package: the Numba array-type predicate used by the ``*_od`` overloads and
 the per-orbit Taylor/derivative coefficient builder. The ``*_osd`` kernels
-fold the epoch inline, so there is no ``knot_ix`` here.
+fold the epoch inline, so there is no ``ep_ix`` here.
 """
 
 from numba import njit, types
@@ -35,22 +35,22 @@ def _is_1d_array(typ):
 
 
 @njit
-def solve3d_orbit_d(knot_times, p, a, i, e, w, lan=0.0, npt=15):
-    """Pre-compute Taylor and derivative coefficients at every knot of one orbit.
+def solve3d_orbit_d(ep_times, p, a, i, e, w, lan=0.0, npt=15):
+    """Pre-compute Taylor and derivative coefficients at every expansion point of one orbit.
 
     Derivative-returning counterpart of
     :func:`~meepmeep.backends.numba.orbit3d.solve3d_orbit`. Calls
     :func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` once per
-    interior knot and stacks the resulting ``(3, 5)`` and ``(6, 3, 5)``
+    interior expansion point and stacks the resulting ``(3, 5)`` and ``(6, 3, 5)``
     matrices into per-orbit arrays. The last slot is the periodic image of
     the first and is copied rather than recomputed.
 
     Parameters
     ----------
-    knot_times : ndarray, shape (npt,)
-        Normalised knot phases in ``[0, 1]``, with ``knot_times[-1]``
-        equal to ``knot_times[0] + 1``. Built by
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
+    ep_times : ndarray, shape (npt,)
+        Normalised expansion-point phases in ``[0, 1]``, with ``ep_times[-1]``
+        equal to ``ep_times[0] + 1``. Built by
+        :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
     p : float
         Orbital period [days].
     a : float
@@ -65,27 +65,27 @@ def solve3d_orbit_d(knot_times, p, a, i, e, w, lan=0.0, npt=15):
         Longitude of the ascending node [radians]. Constant rotation of the
         sky-plane (x, y) coordinates about the line of sight. Defaults to 0.0.
     npt : int, optional
-        Number of knots, including the periodic-image slot. Defaults to 15.
+        Number of expansion points, including the periodic-image slot. Defaults to 15.
 
     Returns
     -------
     coeffs : ndarray, shape (npt, 3, 5)
-        Taylor coefficient matrices at every knot (same layout as in
+        Taylor coefficient matrices at every expansion point (same layout as in
         :func:`~meepmeep.backends.numba.orbit3d.solve3d_orbit`).
     dcoeffs : ndarray, shape (npt, 7, 3, 5)
-        Parameter-derivative tensors at every knot. The second axis is
+        Parameter-derivative tensors at every expansion point. The second axis is
         ordered ``(tc, p, a, i, e, w, lan)``.
 
     Notes
     -----
-    If you hand-roll ``knot_times`` you must enforce the periodic-image
-    contract yourself; ``knots.create_knots`` does this automatically.
+    If you hand-roll ``ep_times`` you must enforce the periodic-image
+    contract yourself; ``expansion points.create_expansion_points`` does this automatically.
     """
     coeffs = zeros((npt, 3, 5))
     dcoeffs = zeros((npt, 7, 3, 5))
     to = mean_anomaly_at_transit(e, w) / (2 * pi) * p
     for ix in range(npt - 1):
-        cf, dcf = solve3d_d(p * knot_times[ix] - to, p, a, i, e, w, lan)
+        cf, dcf = solve3d_d(p * ep_times[ix] - to, p, a, i, e, w, lan)
         coeffs[ix, :, :] = cf
         dcoeffs[ix, :, :, :] = dcf
     coeffs[-1, :, :] = coeffs[0]

@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 2D position evaluators with orbital-parameter derivatives."""
+"""Single-expansion-point 2D position evaluators with orbital-parameter derivatives."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -74,7 +74,7 @@ _pos_cd_vp = njit(fastmath=True, parallel=True)(_pos_cd_v_body)
 
 def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
-    Evaluate the (x, y) position and its orbital-parameter derivatives at a knot-centered time.
+    Evaluate the (x, y) position and its orbital-parameter derivatives at an expansion-point-centered time.
 
     Centered companion to `position.pos_c` that additionally returns the
     partial derivatives of the sky-plane position with respect to each of
@@ -135,13 +135,13 @@ def _pos_cd_overload(time, c, dc):
 
 
 @njit(fastmath=True)
-def _pos_d_s(time, tc, p, c, dc, tk):
+def _pos_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`pos_d`. See that function for documentation."""
-    epoch = floor((time - tc - tk + 0.5 * p) / p)
-    return _pos_cd_s(time - (tc + tk + epoch * p), c, dc)
+    epoch = floor((time - tc - te + 0.5 * p) / p)
+    return _pos_cd_s(time - (tc + te + epoch * p), c, dc)
 
 
-def _pos_d_v_body(time, tc, p, c, dc, tk):
+def _pos_d_v_body(time, tc, p, c, dc, te):
     """Vector-kernel body for :func:`pos_d`; see that function for documentation.
 
     Compiled twice: ``_pos_d_v`` is the serial kernel (``prange`` compiles
@@ -155,8 +155,8 @@ def _pos_d_v_body(time, tc, p, c, dc, tk):
     dpx = zeros((n, 7))
     dpy = zeros((n, 7))
     for j in prange(n):
-        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
-        px[j], py[j] = _pos_cd_w(time[j] - (tc + tk + epoch * p), c, dc, dpx[j], dpy[j])
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        px[j], py[j] = _pos_cd_w(time[j] - (tc + te + epoch * p), c, dc, dpx[j], dpy[j])
     return px, py, dpx, dpy
 
 
@@ -164,13 +164,13 @@ _pos_d_v = njit(fastmath=True)(_pos_d_v_body)
 _pos_d_vp = njit(fastmath=True, parallel=True)(_pos_d_v_body)
 
 
-def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, tk: float = 0.0):
+def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
     """
     Evaluate the (x, y) position and its orbital-parameter derivatives at an absolute time.
 
     Direct counterpart of `pos_cd`: accepts an absolute observation time
     `time`, folds it back into a single orbital epoch around the expansion
-    time `tk`, and delegates the polynomial evaluation to `pos_cd`.
+    time `te`, and delegates the polynomial evaluation to `pos_cd`.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
     appropriate kernel at compile time (inside ``@njit``) or at call time
@@ -190,9 +190,9 @@ def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
     dc : NDArray
         A (7, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
         with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
-    tk : float, optional
-        Knot offset from the transit centre [days] - the same value that
-        was passed to `solve2d_d`. Defaults to 0.0, the knot at the
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve2d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
 
     Returns
@@ -212,18 +212,18 @@ def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 
     """
     if isinstance(time, ndarray):
-        return _pos_d_v(time, tc, p, c, dc, tk)
-    return _pos_d_s(time, tc, p, c, dc, tk)
+        return _pos_d_v(time, tc, p, c, dc, te)
+    return _pos_d_s(time, tc, p, c, dc, te)
 
 
 @overload(pos_d, jit_options={'fastmath': True})
-def _pos_d_overload(time, tc, p, c, dc, tk=0.0):
+def _pos_d_overload(time, tc, p, c, dc, te=0.0):
     if _is_1d_array(time):
-        def impl(time, tc, p, c, dc, tk=0.0):
-            return _pos_d_v(time, tc, p, c, dc, tk)
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _pos_d_v(time, tc, p, c, dc, te)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tc, p, c, dc, tk=0.0):
-            return _pos_d_s(time, tc, p, c, dc, tk)
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _pos_d_s(time, tc, p, c, dc, te)
         return impl
     return None

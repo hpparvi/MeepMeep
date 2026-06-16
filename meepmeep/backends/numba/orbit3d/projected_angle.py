@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot evaluators for the angle between the planet and a fixed vector."""
+"""Multi-expansion-point evaluators for the angle between the planet and a fixed vector."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,36 +25,36 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
-def _cos_v_p_angle_os(v, t, tpa, p, dt, pktable, points, coeffs):
+def _cos_v_p_angle_os(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`cos_v_p_angle_o`. See that function for documentation."""
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
-    x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+    x, y, z = _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
     return (x * v[0] + y * v[1] + z * v[2]) * inv_nv / sqrt(x * x + y * y + z * z)
 
 
 @njit(fastmath=True)
-def _cos_v_p_angle_ov(v, times, tpa, p, dt, pktable, points, coeffs):
+def _cos_v_p_angle_ov(v, times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`cos_v_p_angle_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     inv_nv = 1.0 / sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     for i in range(n):
-        x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        x, y, z = _pos_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
         out[i] = (x * v[0] + y * v[1] + z * v[2]) * inv_nv / sqrt(x * x + y * y + z * z)
     return out
 
 
 @njit(fastmath=True, parallel=True)
-def _cos_v_p_angle_ovp(v, times, tpa, p, dt, pktable, points, coeffs):
+def _cos_v_p_angle_ovp(v, times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_cos_v_p_angle_ov`."""
     n = times.size
     out = zeros(n)
     for i in prange(n):
-        out[i] = _cos_v_p_angle_os(v, times[i], tpa, p, dt, pktable, points, coeffs)
+        out[i] = _cos_v_p_angle_os(v, times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return out
 
 
-def cos_v_p_angle_o(v, t, tpa, p, dt, pktable, points, coeffs):
+def cos_v_p_angle_o(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Cosine of the angle between the planet position and a fixed reference vector.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -71,7 +71,7 @@ def cos_v_p_angle_o(v, t, tpa, p, dt, pktable, points, coeffs):
         from the dot product divided by the product of the norms.
     t : float or ndarray
         Time(s) at which to evaluate the angle.
-    tpa, p, dt, pktable, points, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs :
         See :func:`_pos_os`.
 
     Returns
@@ -81,18 +81,18 @@ def cos_v_p_angle_o(v, t, tpa, p, dt, pktable, points, coeffs):
         ``v``, in :math:`[-1, 1]`. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _cos_v_p_angle_ov(v, t, tpa, p, dt, pktable, points, coeffs)
-    return _cos_v_p_angle_os(v, t, tpa, p, dt, pktable, points, coeffs)
+        return _cos_v_p_angle_ov(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
+    return _cos_v_p_angle_os(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
 @overload(cos_v_p_angle_o, jit_options={'fastmath': True})
-def _cos_v_p_angle_o_overload(v, t, tpa, p, dt, pktable, points, coeffs):
+def _cos_v_p_angle_o_overload(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(v, t, tpa, p, dt, pktable, points, coeffs):
-            return _cos_v_p_angle_ov(v, t, tpa, p, dt, pktable, points, coeffs)
+        def impl(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _cos_v_p_angle_ov(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(v, t, tpa, p, dt, pktable, points, coeffs):
-            return _cos_v_p_angle_os(v, t, tpa, p, dt, pktable, points, coeffs)
+        def impl(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _cos_v_p_angle_os(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     return None

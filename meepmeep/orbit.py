@@ -34,7 +34,7 @@ in days), ``a`` (scaled semi-major axis :math:`a/R_\\star`), ``i``
 (inclination in radians), ``e`` (eccentricity), ``w`` (argument of
 periastron in radians), and the optional ``lan`` (longitude of the
 ascending node in radians, a sky-plane rotation about the line of sight;
-defaults to 0). Internally the Taylor backend anchors its knot
+defaults to 0). Internally the Taylor backend anchors its expansion point
 grid at periastron, so :meth:`Orbit.set_pars` converts once and stores
 the periastron-anchor time as ``self._tp`` and the transit-center time
 as ``self._tc``.
@@ -46,7 +46,7 @@ from matplotlib.patches import Circle, Wedge
 from matplotlib.pyplot import subplots, setp
 from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 
-from .backends.numba.knots import create_knots
+from .backends.numba.expansion_points import create_expansion_points
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
 from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector, tc_to_tp_gradient
 from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
@@ -78,7 +78,7 @@ class Orbit:
     gradient-based optimiser or HMC sampler wants.
 
     Workflow:
-    ``Orbit(npt, knot_placement, derivatives) → set_pars(tc=..., p=..., a=...,
+    ``Orbit(npt, ep_placement, derivatives) → set_pars(tc=..., p=..., a=...,
     i=..., e=..., w=...) → set_data(times) → call any observable``. Pass
     ``tp=...`` instead of ``tc=...`` to anchor the orbit at periastron
     passage instead of transit center.
@@ -86,12 +86,12 @@ class Orbit:
     Parameters
     ----------
     npt : int
-        Number of knots used by the multi-knot Taylor expansion (default
+        Number of expansion points used by the multi-expansion-point Taylor expansion (default
         15). Includes the periodic-image slot; raise this when the orbit is
-        eccentric enough that 15 knots no longer cover periastron with
-        adequate per-knot accuracy.
-    knot_placement : str
-        Knot placement strategy: ``'mm'`` (uniform in mean motion),
+        eccentric enough that 15 expansion points no longer cover periastron with
+        adequate per-expansion-point accuracy.
+    ep_placement : str
+        Expansion point placement strategy: ``'mm'`` (uniform in mean motion),
         ``'ea'`` (uniform in eccentric anomaly; default and preferred for
         eccentric orbits), or ``'ta'`` (uniform in true anomaly).
     derivatives : bool
@@ -134,7 +134,7 @@ class Orbit:
     Attributes
     ----------
     npt : int
-        Number of knots, set at construction.
+        Number of expansion points, set at construction.
     times : ndarray or None
         Time grid bound via :meth:`set_data`. ``None`` until set.
     _tc : float
@@ -153,31 +153,31 @@ class Orbit:
         derivative mode it selects the gradient basis: ``"tp"`` triggers a
         reparametrisation of ``_dcoeffs`` into the periastron basis.
     _coeffs : ndarray, shape (npt, 3, 5)
-        Taylor coefficient matrices at every knot, built in :meth:`set_pars`.
+        Taylor coefficient matrices at every expansion point, built in :meth:`set_pars`.
     _dcoeffs : ndarray, shape (npt, 7, 3, 5) or None
-        Parameter-derivative coefficient tensors at every knot. ``None``
+        Parameter-derivative coefficient tensors at every expansion point. ``None``
         unless the instance was constructed with ``derivatives=True``.
-    _points : ndarray, shape (npt,)
-        Normalised knot phases in ``[0, 1]`` from
-        :func:`~meepmeep.backends.numba.knots.create_knots`. Built at
-        construction for ``e = _KNOT_GRID_E_FLOOR`` and rebuilt by
+    _ep_times : ndarray, shape (npt,)
+        Normalised expansion-point phases in ``[0, 1]`` from
+        :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`. Built at
+        construction for ``e = _EP_GRID_E_FLOOR`` and rebuilt by
         :meth:`set_pars` when the bound eccentricity drifts more than
-        ``_KNOT_GRID_E_TOL`` from the grid's construction eccentricity
+        ``_EP_GRID_E_TOL`` from the grid's construction eccentricity
         (``'ea'``/``'ta'`` placements only; the ``'mm'`` grid is
         eccentricity-independent).
     _grid_e : float
-        Eccentricity the current knot grid was built for,
-        ``max(e, _KNOT_GRID_E_FLOOR)`` at the last rebuild.
+        Eccentricity the current expansion-point grid was built for,
+        ``max(e, _EP_GRID_E_FLOOR)`` at the last rebuild.
     _dt : float
-        Width of one ``_tptable`` bucket in fraction of the period.
-    _tptable : ndarray of int
-        Time-to-knot lookup table.
+        Width of one ``_ep_table`` bucket in fraction of the period.
+    _ep_table : ndarray of int
+        Time-to-expansion-point lookup table.
 
     Notes
     -----
     Convention bridge: this class accepts either ``tc`` (transit-center
     time) or ``tp`` (periastron-passage time) via :meth:`set_pars`. The
-    underlying orbit3d / orbit3dd dispatchers anchor their knot grid at
+    underlying orbit3d / orbit3dd dispatchers anchor their expansion-point grid at
     periastron, so :meth:`set_pars` converts once via
     :math:`t_p = t_c - M_\\mathrm{tr}(e, w) \\cdot p / (2\\pi)` and stores
     both values: ``self._tc`` (transit center) and ``self._tp``
@@ -187,15 +187,15 @@ class Orbit:
     :meth:`true_anomaly(exact=True)`) and by :meth:`plot(show_exact=True)`.
     """
 
-    # The knot grid is built for max(e, _KNOT_GRID_E_FLOOR): near-circular
+    # The expansion-point grid is built for max(e, _EP_GRID_E_FLOOR): near-circular
     # grids are essentially uniform, so anything below the floor shares one
     # grid. It is rebuilt in set_pars when the bound eccentricity drifts more
-    # than _KNOT_GRID_E_TOL from the grid's construction eccentricity. The
-    # tolerance keeps rebuilds rare: create_knots runs scipy root solves in
+    # than _EP_GRID_E_TOL from the grid's construction eccentricity. The
+    # tolerance keeps rebuilds rare: create_expansion_points runs scipy root solves in
     # Python (~0.3 ms), and set_pars is the per-likelihood-call hot path in
     # fitting applications.
-    _KNOT_GRID_E_FLOOR = 0.2
-    _KNOT_GRID_E_TOL = 0.05
+    _EP_GRID_E_FLOOR = 0.2
+    _EP_GRID_E_TOL = 0.05
 
     # Minimum time-array sizes for which the prange kernel twins beat the
     # serial kernels (measured on a 16-core machine; the parallel-region
@@ -204,7 +204,7 @@ class Orbit:
     _PARALLEL_NMIN_VALUE = 50_000
     _PARALLEL_NMIN_GRAD = 10_000
 
-    def __init__(self, npt: int = 15, knot_placement: str = "ea", derivatives: bool = False,
+    def __init__(self, npt: int = 15, ep_placement: str = "ea", derivatives: bool = False,
                  parallel: bool = False):
         """Construct a new ``Orbit``. See the class docstring for argument semantics."""
         self.npt: int = npt
@@ -212,7 +212,7 @@ class Orbit:
         self._parallel: bool = parallel
 
         self._dt: Optional[float] = None
-        self._points: Optional[float] = None
+        self._ep_times: Optional[float] = None
         self._coeffs: Optional[ndarray] = None
         self._dcoeffs: Optional[ndarray] = None
         self._tc: Optional[float] = None
@@ -224,11 +224,11 @@ class Orbit:
         self._lan: Optional[float] = None
         self._timing: str = "tc"
         self._derivatives: bool = derivatives
-        self._knot_placement: str = knot_placement
-        self._grid_e: float = self._KNOT_GRID_E_FLOOR
+        self._ep_placement: str = ep_placement
+        self._grid_e: float = self._EP_GRID_E_FLOOR
 
-        self._points, self._change_times, self._dt, self._tptable = \
-            create_knots(npt, self._grid_e, knot_placement)
+        self._ep_times, self._change_times, self._dt, self._ep_table = \
+            create_expansion_points(npt, self._grid_e, ep_placement)
 
     def _select(self, serial, par, times, nmin):
         """Pick the serial kernel or its prange twin for this evaluation.
@@ -258,7 +258,7 @@ class Orbit:
         self.times = times
 
     def set_pars(self, *, tc=None, tp=None, p, a, i, e, w, lan=0.0):
-        """Bind orbital parameters and (re-)compute the per-knot Taylor coefficients.
+        """Bind orbital parameters and (re-)compute the per-expansion-point Taylor coefficients.
 
         The time anchor is specified by exactly one of ``tc`` (transit
         center) or ``tp`` (periastron passage); the two are related by
@@ -305,10 +305,10 @@ class Orbit:
         ``self._tp`` holds the periastron-anchor time, regardless of which
         input was used.
 
-        For the ``'ea'`` and ``'ta'`` knot placements the knot grid is
+        For the ``'ea'`` and ``'ta'`` expansion point placements the expansion-point grid is
         rebuilt when ``max(e, 0.2)`` differs from the eccentricity the
-        current grid was built for by more than ``_KNOT_GRID_E_TOL``, so
-        the knots stay clustered near periastron as the bound orbit
+        current grid was built for by more than ``_EP_GRID_E_TOL``, so
+        the expansion points stay clustered near periastron as the bound orbit
         changes. Small eccentricity jitter (e.g. between MCMC steps) does
         not trigger a rebuild.
         """
@@ -334,29 +334,29 @@ class Orbit:
         self._w = w
         self._lan = lan
 
-        # Rebuild the knot grid if the bound eccentricity has drifted too far
+        # Rebuild the expansion-point grid if the bound eccentricity has drifted too far
         # from the eccentricity the current grid was built for. The 'mm' grid
         # is eccentricity-independent and never rebuilt.
-        if self._knot_placement != "mm":
-            e_grid = max(e, self._KNOT_GRID_E_FLOOR)
-            if abs(e_grid - self._grid_e) > self._KNOT_GRID_E_TOL:
-                self._points, self._change_times, self._dt, self._tptable = \
-                    create_knots(self.npt, e_grid, self._knot_placement)
+        if self._ep_placement != "mm":
+            e_grid = max(e, self._EP_GRID_E_FLOOR)
+            if abs(e_grid - self._grid_e) > self._EP_GRID_E_TOL:
+                self._ep_times, self._change_times, self._dt, self._ep_table = \
+                    create_expansion_points(self.npt, e_grid, self._ep_placement)
                 self._grid_e = e_grid
 
         if self._derivatives:
-            self._coeffs, self._dcoeffs = solve3d_orbit_d(self._points, p, a, i, e, w,
+            self._coeffs, self._dcoeffs = solve3d_orbit_d(self._ep_times, p, a, i, e, w,
                                                           lan=lan, npt=self.npt)
-            # When bound with tp, reparametrise the per-knot gradient from the
+            # When bound with tp, reparametrise the per-expansion-point gradient from the
             # transit-centre basis (the solver's native basis) to the periastron
-            # basis. Each knot slice of _dcoeffs is replaced with its
+            # basis. Each expansion point slice of _dcoeffs is replaced with its
             # reparametrised copy; because every derivative-returning method
             # reads _dcoeffs, the new basis propagates to all of them.
             if self._timing == "tp":
                 for kn in range(self.npt):
                     self._dcoeffs[kn] = tc_to_tp_gradient(self._dcoeffs[kn], p, e, w)
         else:
-            self._coeffs = solve3d_orbit(self._points, p, a, i, e, w, lan=lan, npt=self.npt)
+            self._coeffs = solve3d_orbit(self._ep_times, p, a, i, e, w, lan=lan, npt=self.npt)
 
     def mean_anomaly(self):
         """Mean anomaly at every bound time, wrapped into :math:`[0, 2\\pi)`.
@@ -407,10 +407,10 @@ class Orbit:
         if self._derivatives:
             fn = self._select(true_anomaly_od, _true_anomaly_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
-                      self._tptable, self._points, self._coeffs, self._dcoeffs, )
+                      self._ep_table, self._ep_times, self._coeffs, self._dcoeffs, )
         fn = self._select(true_anomaly_o, _true_anomaly_ovp, self.times, self._PARALLEL_NMIN_VALUE)
-        return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._tptable,
-                  self._points, self._coeffs, )
+        return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._ep_table,
+                  self._ep_times, self._coeffs, )
 
     def xyz(self, times: Optional[ndarray] = None):
         """Planet (x, y, z) position in the sky frame.
@@ -434,10 +434,10 @@ class Orbit:
         times = times if times is not None else self.times
         if self._derivatives:
             fn = self._select(pos_od, _pos_ovdp, times, self._PARALLEL_NMIN_GRAD)
-            return fn(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+            return fn(times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs,
                       self._dcoeffs, )
         fn = self._select(pos_o, _pos_ovp, times, self._PARALLEL_NMIN_VALUE)
-        return fn(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return fn(times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs)
 
     def _xyz_error(self):
         """Per-time position residuals against the Newton-Raphson reference.
@@ -467,10 +467,10 @@ class Orbit:
         """
         if self._derivatives:
             fn = self._select(vel_od, _vel_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
-            return fn(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+            return fn(self.times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs,
                       self._dcoeffs, )
         fn = self._select(vel_o, _vel_ovp, self.times, self._PARALLEL_NMIN_VALUE)
-        return fn(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return fn(self.times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs)
 
     def cos_phase(self):
         """Cosine of the phase angle, :math:`\\cos\\alpha = -z/r`.
@@ -489,10 +489,10 @@ class Orbit:
         """
         if self._derivatives:
             fn = self._select(cos_alpha_od, _cos_alpha_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
-            return fn(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs,
+            return fn(self.times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs,
                       self._dcoeffs, )
         fn = self._select(cos_alpha_o, _cos_alpha_ovp, self.times, self._PARALLEL_NMIN_VALUE)
-        return fn(self.times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return fn(self.times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs)
 
     def _cos_phase_error(self):
         """Per-time phase-angle-cosine residuals against the Newton-Raphson reference.
@@ -595,10 +595,10 @@ class Orbit:
         times = times if times is not None else self.times
         if self._derivatives:
             fn = self._select(star_planet_distance_od, _star_planet_distance_ovdp, times, self._PARALLEL_NMIN_GRAD)
-            return fn(times, self._tp, self._p, self._dt, self._tptable, self._points,
+            return fn(times, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
                       self._coeffs, self._dcoeffs, )
         fn = self._select(star_planet_distance_o, _star_planet_distance_ovp, times, self._PARALLEL_NMIN_VALUE)
-        return fn(times, self._tp, self._p, self._dt, self._tptable, self._points, self._coeffs)
+        return fn(times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs)
 
     def light_travel_time(self, rstar: float):
         """Light-travel-time correction, referenced to primary transit.
@@ -625,10 +625,10 @@ class Orbit:
         if self._derivatives:
             fn = self._select(light_travel_time_od, _light_travel_time_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt,
-                      self._tptable, self._points, self._coeffs, self._dcoeffs, )
+                      self._ep_table, self._ep_times, self._coeffs, self._dcoeffs, )
         fn = self._select(light_travel_time_o, _light_travel_time_ovp, self.times, self._PARALLEL_NMIN_VALUE)
-        return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt, self._tptable,
-                                    self._points, self._coeffs, )
+        return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt, self._ep_table,
+                                    self._ep_times, self._coeffs, )
 
     def radial_velocity(self, k: float):
         """Stellar radial velocity (Perryman 2018, Eq. 2.23).
@@ -652,10 +652,10 @@ class Orbit:
         """
         if self._derivatives:
             fn = self._select(rv_od, _rv_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
-            return fn(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable,
-                          self._points, self._coeffs, self._dcoeffs, )
+            return fn(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._ep_table,
+                          self._ep_times, self._coeffs, self._dcoeffs, )
         fn = self._select(rv_o, _rv_ovp, self.times, self._PARALLEL_NMIN_VALUE)
-        return fn(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._tptable, self._points,
+        return fn(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._ep_table, self._ep_times,
                      self._coeffs, )
 
     def lambert_phase_curve(self, k: float, ag: float, times: ndarray | None = None):
@@ -686,10 +686,10 @@ class Orbit:
         times = times if times is not None else self.times
         if self._derivatives:
             fn = self._select(lambert_phase_curve_od, _lambert_phase_curve_ovdp, times, self._PARALLEL_NMIN_GRAD)
-            return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable,
-                                           self._points, self._coeffs, self._dcoeffs, )
+            return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._ep_table,
+                                           self._ep_times, self._coeffs, self._dcoeffs, )
         fn = self._select(lambert_phase_curve_o, _lambert_phase_curve_ovp, times, self._PARALLEL_NMIN_VALUE)
-        return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._tptable, self._points,
+        return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
                                       self._coeffs, )
 
     def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):
@@ -722,10 +722,10 @@ class Orbit:
         times = times if times is not None else self.times
         if self._derivatives:
             fn = self._select(ev_signal_od, _ev_signal_ovdp, times, self._PARALLEL_NMIN_GRAD)
-            return fn(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable,
-                                 self._points, self._coeffs, self._dcoeffs, )
+            return fn(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._ep_table,
+                                 self._ep_times, self._coeffs, self._dcoeffs, )
         fn = self._select(ev_signal_o, _ev_signal_ovp, times, self._PARALLEL_NMIN_VALUE)
-        return fn(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._tptable, self._points,
+        return fn(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
                             self._coeffs, )
 
     def plot(self, figsize: Optional[tuple] = None, show_exact: bool = False, sr: float = 1.0, pr: float = 0.5, pc="k",
@@ -733,7 +733,7 @@ class Orbit:
         """Diagnostic three-panel plot of the orbit geometry.
 
         Renders front (X-Y), top (X-Z), and side (Z-Y) projections with
-        the planet drawn at the first knot, the orbit traced over one full
+        the planet drawn at the first expansion point, the orbit traced over one full
         period, and arrows along the X-Z trace indicating the direction of
         motion. Temporarily rebinds ``self.times`` to a dense grid of
         ``npt`` samples for the plot and restores it on exit.

@@ -91,7 +91,7 @@ def test_tc_path_unchanged():
     o.set_pars(tc=0.0, **SHAPE)
     _, g = o.star_planet_distance()
     _, g_direct = star_planet_distance_od(
-        times, o._tp, o._p, o._dt, o._tptable, o._points, o._coeffs, o._dcoeffs,
+        times, o._tp, o._p, o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
     )
     assert_allclose(g, g_direct, rtol=1e-12)
     assert o._timing == "tc"
@@ -155,11 +155,11 @@ def test_tp_separation_gradient_vs_finite_difference():
     matches central finite differences taken holding tp fixed.
 
     The finite difference perturbs each parameter through ``set_pars(tp=...)``,
-    which shifts the periastron anchor and hence the time-to-knot mapping. To
-    keep every sampled time inside a single, stable knot (so the difference is
-    not corrupted by a point straddling a knot boundary between the +eps and
+    which shifts the periastron anchor and hence the time-to-expansion-point mapping. To
+    keep every sampled time inside a single, stable expansion point (so the difference is
+    not corrupted by a point straddling an expansion point boundary between the +eps and
     -eps evaluations), we sample a narrow window around the transit centre.
-    Within one knot the analytic derivative is the exact derivative of the same
+    Within one expansion point the analytic derivative is the exact derivative of the same
     Taylor polynomial the finite difference probes, so they agree closely. The
     *exact* correctness of the transform is independently established by the
     tc<->tp consistency tests above, which agree to ~1e-10.
@@ -168,7 +168,7 @@ def test_tp_separation_gradient_vs_finite_difference():
     keys = ["tp", "p", "a", "i", "e", "w", "lan"]
 
     # Transit centre for tp=0: tc = tp + M_tr(e, w) * p / (2 pi). Sample a
-    # narrow window around it so all points share the transit knot.
+    # narrow window around it so all points share the transit expansion point.
     tc = mean_anomaly_at_transit(SHAPE["e"], SHAPE["w"]) / TWO_PI * SHAPE["p"]
     times = tc + np.linspace(-0.04, 0.04, 9)
 
@@ -200,7 +200,7 @@ def test_tp_rv_gradient_vs_finite_difference():
     transit), the radial velocity has genuine sensitivity to all of
     (tp, p, a, i, e, w), so this finite-difference check independently
     validates the e- and w-rows that the tc->tp transform modifies -- the
-    motivating science case. Same near-transit single-knot window as the
+    motivating science case. Same near-transit single-expansion-point window as the
     separation check. The tp and p columns are looser (~5e-3) because the
     radial velocity is a velocity and so carries one more order of Taylor
     sensitivity; the e/w/a/i columns agree to ~1e-9.

@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot light-travel-time correction evaluators with parameter derivatives."""
+"""Multi-expansion-point light-travel-time correction evaluators with parameter derivatives."""
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
@@ -32,7 +32,7 @@ LTT_DAYS_PER_RSUN = 2.685885891543453e-05
 
 
 @njit(fastmath=True)
-def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
+def _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Compute ``z(t_transit)`` and its full chain-rule derivative.
 
     Helper for the light-travel-time derivatives. The transit time depends
@@ -53,11 +53,11 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
     Parameters
     ----------
     tpa : float
-        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
+        Periastron time anchoring the expansion-point grid (see :func:`_pos_osd`).
     p, e, w : float
         Orbital period [days], eccentricity, argument of periastron [radians].
-    dt, pktable, points, coeffs, dcoeffs :
-        Multi-knot dispatch arrays.
+    dt, ep_table, ep_times, coeffs, dcoeffs :
+        Multi-expansion-point dispatch arrays.
 
     Returns
     -------
@@ -69,8 +69,8 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
 
     Notes
     -----
-    The ``phase`` slot inherits the multi-knot caveat documented at module
-    level: it reflects a per-knot phase shift at the knot containing
+    The ``phase`` slot inherits the multi-expansion-point caveat documented at module
+    level: it reflects a per-expansion-point phase shift at the expansion point containing
     ``t_transit``, not a global user-facing T0 shift.
     """
     m_tr, dm_tr_de, dm_tr_dw = mean_anomaly_at_transit_with_derivatives(e, w)
@@ -79,9 +79,9 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
     t_transit = tpa + to
 
     # Evaluate z and its (∂z/∂θ)|_{t=t_transit}.
-    z_tr, dz_tr_partial = _zpos_osd(t_transit, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    z_tr, dz_tr_partial = _zpos_osd(t_transit, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     # Velocity at transit (for the dt_transit/dθ chain term).
-    vz_tr = _zvel_os(t_transit, tpa, p, dt, pktable, points, coeffs)
+    vz_tr = _zvel_os(t_transit, tpa, p, dt, ep_table, ep_times, coeffs)
 
     # dto/dθ: only slots 1 (p), 4 (e), 5 (w) are non-zero.
     dto = zeros(7)
@@ -96,7 +96,7 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
+def _zvel_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Local z-velocity helper used by ``_ltt_transit_z_and_d``.
 
     Mirrors ``orbit3d.zvel_os`` but kept private here to avoid a
@@ -106,7 +106,7 @@ def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
     ----------
     t : float
         Time at which to evaluate the z-velocity.
-    tpa, p, dt, pktable, points, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs :
         See :func:`_pos_osd` (no ``dcoeffs`` — this is a value-only helper).
 
     Returns
@@ -116,15 +116,15 @@ def _zvel_os(t, tpa, p, dt, pktable, points, coeffs):
     """
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return zvel_c(tc - points[ix] * p, coeffs[ix])
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return zvel_c(tc - ep_times[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
-def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`light_travel_time_od`. See that function for documentation."""
-    z_t, dz_t = _zpos_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
+    z_t, dz_t = _zpos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs)
     factor = -rstar * LTT_DAYS_PER_RSUN
     ltt = factor * (z_t - z_tr)
     dltt = zeros(7)
@@ -134,17 +134,17 @@ def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, 
 
 
 @njit(fastmath=True)
-def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`light_travel_time_od`. See that function for documentation."""
     n = times.size
     ltt = zeros(n)
     dltt = zeros((n, 7))
     factor = -rstar * LTT_DAYS_PER_RSUN
     # Reference (z and its full derivative chain) computed once.
-    z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
+    z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs)
     dz = zeros(7)
     for j in range(n):
-        z = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dz)
+        z = _zpos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dz)
         ltt[j] = factor * (z - z_tr)
         for k in range(7):
             dltt[j, k] = factor * (dz[k] - dz_tr[k])
@@ -152,7 +152,7 @@ def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, pktable, points, coef
 
 
 @njit(fastmath=True, parallel=True)
-def _light_travel_time_ovdp(times, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+def _light_travel_time_ovdp(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_light_travel_time_ovd`.
 
     The z-gradient scratch is hoisted per thread; a single shared buffer
@@ -163,18 +163,18 @@ def _light_travel_time_ovdp(times, tpa, p, e, w, rstar, dt, pktable, points, coe
     ltt = zeros(n)
     dltt = zeros((n, 7))
     factor = -rstar * LTT_DAYS_PER_RSUN
-    z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, pktable, points, coeffs, dcoeffs)
+    z_tr, dz_tr = _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs)
     dz = zeros((get_num_threads(), 7))
     for j in prange(n):
         dzj = dz[get_thread_id()]
-        z = _zpos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dzj)
+        z = _zpos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dzj)
         ltt[j] = factor * (z - z_tr)
         for kk in range(7):
             dltt[j, kk] = factor * (dzj[kk] - dz_tr[kk])
     return ltt, dltt
 
 
-def light_travel_time_od(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Light travel time correction with gradients.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
@@ -202,7 +202,7 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dc
     t : float or ndarray
         Time(s) at which to evaluate the correction and gradient.
     tpa : float
-        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
+        Periastron time anchoring the expansion-point grid (see :func:`_pos_osd`).
     p : float
         Orbital period [days].
     e : float
@@ -211,8 +211,8 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dc
         Argument of periastron [radians].
     rstar : float
         Stellar radius [R_sun].
-    dt, pktable, points, coeffs, dcoeffs :
-        Multi-knot dispatch arrays.
+    dt, ep_table, ep_times, coeffs, dcoeffs :
+        Multi-expansion-point dispatch arrays.
 
     Returns
     -------
@@ -224,18 +224,18 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dc
         time, (N, 7) for an array time.
     """
     if isinstance(t, ndarray):
-        return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
-    return _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
+        return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(light_travel_time_od, jit_options={'fastmath': True})
-def _light_travel_time_od_overload(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
+def _light_travel_time_od_overload(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
-            return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs):
-            return _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

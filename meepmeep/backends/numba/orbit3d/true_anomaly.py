@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot true-anomaly evaluators."""
+"""Multi-expansion-point true-anomaly evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,7 +25,7 @@ from ._common import _is_1d_array
 
 
 @njit
-def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`true_anomaly_o`. See that function for documentation."""
     nes = ex * ex + ey * ey + ez * ez
 
@@ -40,8 +40,8 @@ def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
 
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    tcc = tc - points[ix] * p
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    tcc = tc - ep_times[ix] * p
     c = coeffs[ix]
     x, y, z = pos_c(tcc, c)
     edp = (x * ex + y * ey + z * ez) / sqrt((x * x + y * y + z * z) * nes)
@@ -63,7 +63,7 @@ def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
 
 
 @njit
-def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`true_anomaly_o`. See that function for documentation."""
     npt = times.size
     f = zeros(npt)
@@ -81,8 +81,8 @@ def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
             t = times[i]
             epoch = floor((t - tpa) / p)
             tc = t - tpa - epoch * p
-            ix = pktable[int(floor(tc / (dt * p)))]
-            tcc = tc - points[ix] * p
+            ix = ep_table[int(floor(tc / (dt * p)))]
+            tcc = tc - ep_times[ix] * p
             c = coeffs[ix]
             x, y, z = pos_c(tcc, c)
             edp = (x * ex + y * ey + z * ez) / sqrt((x * x + y * y + z * z) * nes)
@@ -100,16 +100,16 @@ def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
 
 
 @njit(parallel=True)
-def _true_anomaly_ovp(times, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+def _true_anomaly_ovp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_true_anomaly_ov`."""
     n = times.size
     f = zeros(n)
     for i in prange(n):
-        f[i] = _true_anomaly_os(times[i], tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
+        f[i] = _true_anomaly_os(times[i], tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
     return f
 
 
-def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     """True anomaly at an array of times.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -142,9 +142,9 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
         the gradient variant (``true_anomaly_od``); currently unused
         because the eccentricity vector is passed explicitly and the
         circular-orbit fast path needs only ``tpa`` and ``p``.
-    dt, pktable, points, coeffs :
-        Multi-knot dispatch arrays from :func:`solve3d_orbit` /
-        :func:`~meepmeep.backends.numba.knots.create_knots`.
+    dt, ep_table, ep_times, coeffs :
+        Multi-expansion-point dispatch arrays from :func:`solve3d_orbit` /
+        :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
 
     Returns
     -------
@@ -162,18 +162,18 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
     two stay in exact agreement for circular orbits.
     """
     if isinstance(t, ndarray):
-        return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
-    return _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
+        return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
+    return _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
 
 
 @overload(true_anomaly_o)
-def _true_anomaly_o_overload(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
+def _true_anomaly_o_overload(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
-            return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
+            return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs):
-            return _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
+            return _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
         return impl
     return None

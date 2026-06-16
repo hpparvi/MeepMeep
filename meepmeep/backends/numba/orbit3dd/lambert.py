@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot Lambertian phase-curve evaluators with parameter derivatives.
+"""Multi-expansion-point Lambertian phase-curve evaluators with parameter derivatives.
 
 Holds the Lambertian reflected-light phase curve with gradients
 (:func:`lambert_phase_curve_od`) and its shared phase kernel
@@ -65,10 +65,10 @@ def _lambert_kernel_d(cos_alpha):
 
 
 @njit(fastmath=True)
-def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`lambert_phase_curve_od`. See that function for documentation."""
     amplitude = k * k * ag / (a * a)
-    ca, dca = _cos_alpha_osd(time, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+    ca, dca = _cos_alpha_osd(time, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     phase, _, dphase_dc = _lambert_kernel_d(ca)
     flux = amplitude * phase
 
@@ -86,7 +86,7 @@ def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, pktable, points, coeffs
 
 
 @njit(fastmath=True)
-def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`lambert_phase_curve_od`. See that function for documentation."""
     n = times.size
     flux = zeros(n)
@@ -101,7 +101,7 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
     dy = zeros(7)
     dz = zeros(7)
     for j in range(n):
-        ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dca, dx, dy, dz)
+        ca = _cos_alpha_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dca, dx, dy, dz)
         phase, _, dphase_dc = _lambert_kernel_d(ca)
         flux[j] = amplitude * phase
         for kk in range(7):
@@ -113,7 +113,7 @@ def _lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, pktable, points, coeff
 
 
 @njit(fastmath=True, parallel=True)
-def _lambert_phase_curve_ovdp(times, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _lambert_phase_curve_ovdp(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_lambert_phase_curve_ovd`.
 
     The phase-angle and position-gradient scratch is hoisted per thread; a
@@ -132,7 +132,7 @@ def _lambert_phase_curve_ovdp(times, ag, a, k, tpa, p, dt, pktable, points, coef
     for j in prange(n):
         tid = get_thread_id()
         dca = dcas[tid]
-        ca = _cos_alpha_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs,
+        ca = _cos_alpha_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
                            dca, dxs[tid], dys[tid], dzs[tid])
         phase, _, dphase_dc = _lambert_kernel_d(ca)
         flux[j] = amplitude * phase
@@ -144,7 +144,7 @@ def _lambert_phase_curve_ovdp(times, ag, a, k, tpa, p, dt, pktable, points, coef
     return flux, dflux
 
 
-def lambert_phase_curve_od(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def lambert_phase_curve_od(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Lambertian phase-curve flux with gradients.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
@@ -164,7 +164,7 @@ def lambert_phase_curve_od(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dco
         Scaled semi-major axis :math:`a/R_\\star`.
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`_pos_osd`.
 
     Returns
@@ -177,18 +177,18 @@ def lambert_phase_curve_od(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dco
         scalar time, (N, 9) for an array time.
     """
     if isinstance(t, ndarray):
-        return _lambert_phase_curve_ovd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _lambert_phase_curve_osd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _lambert_phase_curve_ovd(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _lambert_phase_curve_osd(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(lambert_phase_curve_od, jit_options={'fastmath': True})
-def _lambert_phase_curve_od_overload(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _lambert_phase_curve_od_overload(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _lambert_phase_curve_ovd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _lambert_phase_curve_ovd(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _lambert_phase_curve_osd(t, ag, a, k, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _lambert_phase_curve_osd(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

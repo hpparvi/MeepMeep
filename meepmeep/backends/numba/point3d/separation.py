@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 3D sky-projected planet-star separation evaluators.
+"""Single-expansion-point 3D sky-projected planet-star separation evaluators.
 
 Unlike the 2D analogue, the centered evaluator inlines the x/y Horner
 passes rather than delegating to ``position.pos_c``, so it avoids
@@ -59,7 +59,7 @@ _sep_c_vp = njit(fastmath=True, parallel=True)(_sep_c_v_body)
 
 def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     """
-    Evaluate the sky-projected planet-star separation in units of stellar radii at a knot-centered time.
+    Evaluate the sky-projected planet-star separation in units of stellar radii at an expansion-point-centered time.
 
     Centered counterpart of `sep`: assumes `time` has already been
     shifted to be relative to the expansion point. Only the x and y
@@ -109,13 +109,13 @@ def _sep_c_overload(time, c):
 
 
 @njit(fastmath=True, inline='always')
-def _sep_s(time, tc, p, c, tk):
+def _sep_s(time, tc, p, c, te):
     """Scalar kernel for :func:`sep`. See that function for documentation."""
-    epoch = floor((time - tc - tk + 0.5 * p) / p)
-    return _sep_c_s(time - (tc + tk + epoch * p), c)
+    epoch = floor((time - tc - te + 0.5 * p) / p)
+    return _sep_c_s(time - (tc + te + epoch * p), c)
 
 
-def _sep_v_body(time, tc, p, c, tk):
+def _sep_v_body(time, tc, p, c, te):
     """Vector-kernel body for :func:`sep`; see that function for documentation.
 
     Compiled twice: ``_sep_v`` is the serial kernel (``prange`` compiles
@@ -126,8 +126,8 @@ def _sep_v_body(time, tc, p, c, tk):
     n = time.size
     d = zeros(n)
     for j in prange(n):
-        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
-        d[j] = _sep_c_s(time[j] - (tc + tk + epoch * p), c)
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        d[j] = _sep_c_s(time[j] - (tc + te + epoch * p), c)
     return d
 
 
@@ -135,11 +135,11 @@ _sep_v = njit(fastmath=True)(_sep_v_body)
 _sep_vp = njit(fastmath=True, parallel=True)(_sep_v_body)
 
 
-def sep(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0) -> float | NDArray:
+def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
     """
     Evaluate the sky-projected planet-star separation at an absolute time.
 
-    Folds the absolute observation time back to a knot-centered offset
+    Folds the absolute observation time back to an expansion-point-centered offset
     and delegates to the centered kernel. This is the quantity most
     commonly used by transit light-curve models, where it represents the
     sky-projected separation between the centers of the star and planet
@@ -160,9 +160,9 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0)
         Orbital period.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`.
-    tk : float, optional
-        Knot offset from the transit centre [days] - the same value that
-        was passed to `solve3d`. Defaults to 0.0, the knot at the
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve3d`. Defaults to 0.0, the expansion point at the
         transit centre.
 
     Returns
@@ -174,18 +174,18 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, tk: float = 0.0)
         if the transit/eclipse branch is needed.
     """
     if isinstance(time, ndarray):
-        return _sep_v(time, tc, p, c, tk)
-    return _sep_s(time, tc, p, c, tk)
+        return _sep_v(time, tc, p, c, te)
+    return _sep_s(time, tc, p, c, te)
 
 
 @overload(sep, jit_options={'fastmath': True}, inline='always')
-def _sep_overload(time, tc, p, c, tk=0.0):
+def _sep_overload(time, tc, p, c, te=0.0):
     if _is_1d_array(time):
-        def impl(time, tc, p, c, tk=0.0):
-            return _sep_v(time, tc, p, c, tk)
+        def impl(time, tc, p, c, te=0.0):
+            return _sep_v(time, tc, p, c, te)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tc, p, c, tk=0.0):
-            return _sep_s(time, tc, p, c, tk)
+        def impl(time, tc, p, c, te=0.0):
+            return _sep_s(time, tc, p, c, te)
         return impl
     return None

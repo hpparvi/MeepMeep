@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 3D line-of-sight (z) velocity evaluators with parameter derivatives."""
+"""Single-expansion-point 3D line-of-sight (z) velocity evaluators with parameter derivatives."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -68,7 +68,7 @@ _zvel_cd_vp = njit(fastmath=True, parallel=True)(_zvel_cd_v_body)
 
 def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
-    Evaluate the line-of-sight velocity and its parameter derivatives at a knot-centered time.
+    Evaluate the line-of-sight velocity and its parameter derivatives at an expansion-point-centered time.
 
     Centered companion to `velocity.zvel_c` that additionally
     returns the partial derivatives of the line-of-sight velocity
@@ -121,13 +121,13 @@ def _zvel_cd_overload(time, c, dc):
 
 
 @njit(fastmath=True)
-def _zvel_d_s(time, tc, p, c, dc, tk):
+def _zvel_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`zvel_d`. See that function for documentation."""
-    epoch = floor((time - tc - tk + 0.5 * p) / p)
-    return _zvel_cd_s(time - (tc + tk + epoch * p), c, dc)
+    epoch = floor((time - tc - te + 0.5 * p) / p)
+    return _zvel_cd_s(time - (tc + te + epoch * p), c, dc)
 
 
-def _zvel_d_v_body(time, tc, p, c, dc, tk):
+def _zvel_d_v_body(time, tc, p, c, dc, te):
     """Vector-kernel body for :func:`zvel_d`; see that function for documentation.
 
     Compiled twice: ``_zvel_d_v`` is the serial kernel (``prange`` compiles
@@ -139,8 +139,8 @@ def _zvel_d_v_body(time, tc, p, c, dc, tk):
     vz = zeros(n)
     dvz = zeros((n, 7))
     for j in prange(n):
-        epoch = floor((time[j] - tc - tk + 0.5 * p) / p)
-        vz[j] = _zvel_cd_w(time[j] - (tc + tk + epoch * p), c, dc, dvz[j])
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        vz[j] = _zvel_cd_w(time[j] - (tc + te + epoch * p), c, dc, dvz[j])
     return vz, dvz
 
 
@@ -148,7 +148,7 @@ _zvel_d_v = njit(fastmath=True)(_zvel_d_v_body)
 _zvel_d_vp = njit(fastmath=True, parallel=True)(_zvel_d_v_body)
 
 
-def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, tk: float = 0.0):
+def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
     """
     Evaluate the line-of-sight velocity and its parameter derivatives at an absolute time.
 
@@ -167,9 +167,9 @@ def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
         time axis as `time`.
-    tk : float, optional
-        Knot offset from the transit centre [days] - the same value that
-        was passed to `solve3d_d`. Defaults to 0.0, the knot at the
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
     p : float
         Orbital period, used for epoch folding.
@@ -191,18 +191,18 @@ def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _zvel_d_v(time, tc, p, c, dc, tk)
-    return _zvel_d_s(time, tc, p, c, dc, tk)
+        return _zvel_d_v(time, tc, p, c, dc, te)
+    return _zvel_d_s(time, tc, p, c, dc, te)
 
 
 @overload(zvel_d, jit_options={'fastmath': True})
-def _zvel_d_overload(time, tc, p, c, dc, tk=0.0):
+def _zvel_d_overload(time, tc, p, c, dc, te=0.0):
     if _is_1d_array(time):
-        def impl(time, tc, p, c, dc, tk=0.0):
-            return _zvel_d_v(time, tc, p, c, dc, tk)
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _zvel_d_v(time, tc, p, c, dc, te)
         return impl
     if isinstance(time, types.Float):
-        def impl(time, tc, p, c, dc, tk=0.0):
-            return _zvel_d_s(time, tc, p, c, dc, tk)
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _zvel_d_s(time, tc, p, c, dc, te)
         return impl
     return None

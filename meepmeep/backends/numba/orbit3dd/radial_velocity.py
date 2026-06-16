@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot radial-velocity evaluators with parameter derivatives."""
+"""Multi-expansion-point radial-velocity evaluators with parameter derivatives."""
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
@@ -25,22 +25,22 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True)
-def _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+def _rv_osd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`rv_od`. See that function for documentation."""
     s, dsp, dsa, dsi, dse = _rv_scale(k, p, a, i, e)
     drv = zeros(8)
     dvz = zeros(7)
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    rv_val = _rv_cd_w(tc - points[ix] * p, s, dsp, dsa, dsi, dse,
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    rv_val = _rv_cd_w(tc - ep_times[ix] * p, s, dsp, dsa, dsi, dse,
                       coeffs[ix], dcoeffs[ix], drv[:7], dvz)
     drv[7] = rv_val / k if k != 0.0 else 0.0
     return rv_val, drv
 
 
 @njit(fastmath=True)
-def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+def _rv_ovd(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`rv_od`. See that function for documentation."""
     n = times.size
     rvs = zeros(n)
@@ -51,8 +51,8 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
         t = times[j]
         epoch = floor((t - tpa) / p)
         tc = t - tpa - epoch * p
-        ix = pktable[int(floor(tc / (dt * p)))]
-        rv_val = _rv_cd_w(tc - points[ix] * p, s, dsp, dsa, dsi, dse,
+        ix = ep_table[int(floor(tc / (dt * p)))]
+        rv_val = _rv_cd_w(tc - ep_times[ix] * p, s, dsp, dsa, dsi, dse,
                           coeffs[ix], dcoeffs[ix], drvs[j, :7], dvz)
         rvs[j] = rv_val
         # drv/dk = rv / k  (rv is linear in k via the scale factor s = k/n).
@@ -61,7 +61,7 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _rv_ovdp(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+def _rv_ovdp(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_rv_ovd`.
 
     The z-velocity gradient scratch is hoisted per thread; a single shared
@@ -76,15 +76,15 @@ def _rv_ovdp(times, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
         t = times[j]
         epoch = floor((t - tpa) / p)
         tc = t - tpa - epoch * p
-        ix = pktable[int(floor(tc / (dt * p)))]
-        rv_val = _rv_cd_w(tc - points[ix] * p, s, dsp, dsa, dsi, dse,
+        ix = ep_table[int(floor(tc / (dt * p)))]
+        rv_val = _rv_cd_w(tc - ep_times[ix] * p, s, dsp, dsa, dsi, dse,
                           coeffs[ix], dcoeffs[ix], drvs[j, :7], dvz[get_thread_id()])
         rvs[j] = rv_val
         drvs[j, 7] = rv_val / k if k != 0.0 else 0.0
     return rvs, drvs
 
 
-def rv_od(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+def rv_od(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Radial velocity and parameter derivatives.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -100,7 +100,7 @@ def rv_od(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
     k : float
         Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
     tpa : float
-        Periastron time anchoring the knot grid (see :func:`_pos_osd`).
+        Periastron time anchoring the expansion-point grid (see :func:`_pos_osd`).
     p : float
         Orbital period [days].
     a : float
@@ -109,8 +109,8 @@ def rv_od(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
         Inclination [radians].
     e : float
         Eccentricity.
-    dt, pktable, points, coeffs, dcoeffs :
-        Multi-knot dispatch arrays.
+    dt, ep_table, ep_times, coeffs, dcoeffs :
+        Multi-expansion-point dispatch arrays.
 
     Returns
     -------
@@ -122,18 +122,18 @@ def rv_od(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
         scalar ``t``, (N, 8) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _rv_ovd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
-    return _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
+        return _rv_ovd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _rv_osd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(rv_od, jit_options={'fastmath': True})
-def _rv_od_overload(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
+def _rv_od_overload(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
-            return _rv_ovd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _rv_ovd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs):
-            return _rv_osd(t, k, tpa, p, a, i, e, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _rv_osd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

@@ -14,7 +14,7 @@ import pytest
 from numba import njit
 from numpy.testing import assert_allclose
 
-from meepmeep.backends.numba.knots import create_knots
+from meepmeep.backends.numba.expansion_points import create_expansion_points
 from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit
 from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
@@ -35,13 +35,13 @@ NPT = 15
 def orbit_args(test_orbital_params):
     pars = test_orbital_params["eccentric"]
     p, e, w = pars["p"], pars["e"], pars["w"]
-    knot_times, _, dt, pkt = create_knots(NPT, max(e, 0.2), "ea")
-    c = solve3d_orbit(knot_times, **pars, npt=NPT)
-    c_d_pair = solve3d_orbit_d(knot_times, **pars, npt=NPT)
+    ep_times, _, dt, pkt = create_expansion_points(NPT, max(e, 0.2), "ea")
+    c = solve3d_orbit(ep_times, **pars, npt=NPT)
+    c_d_pair = solve3d_orbit_d(ep_times, **pars, npt=NPT)
     tpa = -mean_anomaly_at_transit(e, w) / TWO_PI * p
     return {
         "pars": pars,
-        "tpa": tpa, "dt": dt, "pkt": pkt, "pts": knot_times,
+        "tpa": tpa, "dt": dt, "pkt": pkt, "pts": ep_times,
         "c": c, "c_d": c_d_pair[0], "dc_d": c_d_pair[1],
         "t_scalar": float(p * 0.3),
         "t_array": np.linspace(0.0, p, 25),

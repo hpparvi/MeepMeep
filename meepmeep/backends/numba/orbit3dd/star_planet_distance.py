@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot 3D star-planet distance evaluators with parameter derivatives."""
+"""Multi-expansion-point 3D star-planet distance evaluators with parameter derivatives."""
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
@@ -25,12 +25,12 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True)
-def _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _star_planet_distance_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`star_planet_distance_od`. See that function for documentation."""
     dx = zeros(7)
     dy = zeros(7)
     dz = zeros(7)
-    x, y, z = _pos_ow(t, tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+    x, y, z = _pos_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
     r = sqrt(x * x + y * y + z * z)
     inv_r = 1.0 / r
     dr = zeros(7)
@@ -40,7 +40,7 @@ def _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _star_planet_distance_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`star_planet_distance_od`. See that function for documentation."""
     n = times.size
     rs = zeros(n)
@@ -49,7 +49,7 @@ def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeff
     dy = zeros(7)
     dz = zeros(7)
     for j in range(n):
-        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
         r = sqrt(x * x + y * y + z * z)
         rs[j] = r
         inv_r = 1.0 / r
@@ -59,7 +59,7 @@ def _star_planet_distance_ovd(times, tpa, p, dt, pktable, points, coeffs, dcoeff
 
 
 @njit(fastmath=True, parallel=True)
-def _star_planet_distance_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _star_planet_distance_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Parallel (prange) twin of :func:`_star_planet_distance_ovd`.
 
     The position-gradient scratch is hoisted per thread; a single shared
@@ -73,7 +73,7 @@ def _star_planet_distance_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoef
     for j in prange(n):
         tid = get_thread_id()
         dx, dy, dz = dxs[tid], dys[tid], dzs[tid]
-        x, y, z = _pos_ow(times[j], tpa, p, dt, pktable, points, coeffs, dcoeffs, dx, dy, dz)
+        x, y, z = _pos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
         r = sqrt(x * x + y * y + z * z)
         rs[j] = r
         inv_r = 1.0 / r
@@ -82,7 +82,7 @@ def _star_planet_distance_ovdp(times, tpa, p, dt, pktable, points, coeffs, dcoef
     return rs, drs
 
 
-def star_planet_distance_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def star_planet_distance_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """3D star-planet distance and orbital-parameter derivatives.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -98,7 +98,7 @@ def star_planet_distance_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
     ----------
     t : float or ndarray
         Time(s) at which to evaluate the separation and gradient.
-    tpa, p, dt, pktable, points, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
         See :func:`_pos_osd`.
 
     Returns
@@ -111,18 +111,18 @@ def star_planet_distance_od(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
         ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _star_planet_distance_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
-    return _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        return _star_planet_distance_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+    return _star_planet_distance_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
 @overload(star_planet_distance_od, jit_options={'fastmath': True})
-def _star_planet_distance_od_overload(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
+def _star_planet_distance_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _star_planet_distance_ovd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _star_planet_distance_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs, dcoeffs):
-            return _star_planet_distance_osd(t, tpa, p, dt, pktable, points, coeffs, dcoeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+            return _star_planet_distance_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     return None

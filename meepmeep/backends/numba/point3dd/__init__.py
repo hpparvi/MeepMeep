@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 3D Taylor-series evaluators with parameter derivatives.
+"""Single-expansion-point 3D Taylor-series evaluators with parameter derivatives.
 
 Derivative-returning counterpart of the ``point3d`` package: each evaluator
 returns its quantity together with the partial derivatives with respect to
@@ -27,8 +27,8 @@ tensor, both produced by ``solve3d_d``. The leading axis of ``dc``
 enumerates the seven parameters in the canonical order
 ``(tc, p, a, i, e, w, lan)``.
 
-This ``__init__`` re-exports the full derivative surface. The multi-knot
-gradient dispatchers in ``orbit3dd`` delegate to the single-knot evaluators
+This ``__init__`` re-exports the full derivative surface. The multi-expansion-point
+gradient dispatchers in ``orbit3dd`` delegate to the single-expansion-point evaluators
 defined here.
 """
 

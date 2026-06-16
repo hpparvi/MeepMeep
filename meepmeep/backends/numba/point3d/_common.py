@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Shared helpers for the single-knot 3D value evaluators.
+"""Shared helpers for the single-expansion-point 3D value evaluators.
 
 Holds the Numba array-type predicate used by the scalar-or-array
 ``@overload`` dispatchers (``pos_c`` / ``pos`` / ``zpos_*`` / ``sep_*`` /

@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot planet (vx, vy, vz) velocity evaluators."""
+"""Multi-expansion-point planet (vx, vy, vz) velocity evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,35 +25,35 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
-def _vel_os(t, tpa, p, dt, pktable, points, coeffs):
+def _vel_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`vel_o`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return vel_c(tc - points[ix] * p, coeffs[ix])
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return vel_c(tc - ep_times[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
-def _vel_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _vel_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`vel_o`. See that function for documentation."""
     npt = times.size
     vxs, vys, vzs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
-        vxs[i], vys[i], vzs[i] = _vel_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        vxs[i], vys[i], vzs[i] = _vel_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return vxs, vys, vzs
 
 
 @njit(fastmath=True, parallel=True)
-def _vel_ovp(times, tpa, p, dt, pktable, points, coeffs):
+def _vel_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_vel_ov`."""
     n = times.size
     vxs, vys, vzs = zeros(n), zeros(n), zeros(n)
     for i in prange(n):
-        vxs[i], vys[i], vzs[i] = _vel_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        vxs[i], vys[i], vzs[i] = _vel_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return vxs, vys, vzs
 
 
-def vel_o(t, tpa, p, dt, pktable, points, coeffs):
+def vel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Planet (vx, vy, vz) velocity for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -64,7 +64,7 @@ def vel_o(t, tpa, p, dt, pktable, points, coeffs):
     ----------
     t : float or ndarray
         Time(s) at which to evaluate the velocity.
-    tpa, p, dt, pktable, points, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs :
         See :func:`pos_o`.
 
     Returns
@@ -76,18 +76,18 @@ def vel_o(t, tpa, p, dt, pktable, points, coeffs):
         an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _vel_os(t, tpa, p, dt, pktable, points, coeffs)
+        return _vel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+    return _vel_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
 @overload(vel_o, jit_options={'fastmath': True})
-def _vel_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+def _vel_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _vel_ov(t, tpa, p, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _vel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _vel_os(t, tpa, p, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _vel_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     return None

@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot ellipsoidal-variation signal evaluators."""
+"""Multi-expansion-point ellipsoidal-variation signal evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,11 +25,11 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
-def _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
+def _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`ev_signal_o`. See that function for documentation."""
     sin2_inc = sin(inc) ** 2
     pre = -alpha * mass_ratio * sin2_inc
-    x, y, z = _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+    x, y, z = _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
     d2 = x * x + y * y + z * z
     d = sqrt(d2)
     cz = z / d
@@ -37,14 +37,14 @@ def _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs
 
 
 @njit(fastmath=True)
-def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs):
+def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`ev_signal_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
     sin2_inc = sin(inc) ** 2
     pre = -alpha * mass_ratio * sin2_inc
     for i in range(n):
-        x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        x, y, z = _pos_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)
         cz = z / d
@@ -53,14 +53,14 @@ def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, co
 
 
 @njit(fastmath=True, parallel=True)
-def _ev_signal_ovp(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, coeffs):
+def _ev_signal_ovp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_ev_signal_ov`."""
     n = times.size
     out = zeros(n)
     sin2_inc = sin(inc) ** 2
     pre = -alpha * mass_ratio * sin2_inc
     for i in prange(n):
-        x, y, z = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        x, y, z = _pos_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
         d2 = x * x + y * y + z * z
         d = sqrt(d2)
         cz = z / d
@@ -68,7 +68,7 @@ def _ev_signal_ovp(alpha, mass_ratio, inc, times, tpa, p, dt, pktable, points, c
     return out
 
 
-def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
+def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Ellipsoidal variation signal (Lillo-Box et al. 2014, Eqs. 6-10).
 
     Returns the relative flux variation induced by the tidally distorted
@@ -91,7 +91,7 @@ def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
         Orbital inclination [radians].
     t : float or ndarray
         Time(s) at which to evaluate the signal.
-    tpa, p, dt, pktable, points, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs :
         See :func:`_pos_os`.
 
     Returns
@@ -106,18 +106,18 @@ def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
     redundant arccos/cos pair.
     """
     if isinstance(t, ndarray):
-        return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)
-    return _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)
+        return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
+    return _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
 @overload(ev_signal_o, jit_options={'fastmath': True})
-def _ev_signal_o_overload(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
+def _ev_signal_o_overload(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
-            return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)
+        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs):
-            return _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, pktable, points, coeffs)
+        def impl(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     return None

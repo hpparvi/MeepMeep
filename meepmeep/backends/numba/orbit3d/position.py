@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-knot planet (x, y, z) position evaluators."""
+"""Multi-expansion-point planet (x, y, z) position evaluators."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -25,35 +25,35 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
-def _pos_os(t, tpa, p, dt, pktable, points, coeffs):
+def _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`pos_o`. See that function for documentation."""
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
-    ix = pktable[int(floor(tc / (dt * p)))]
-    return pos_c(tc - points[ix] * p, coeffs[ix])
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return pos_c(tc - ep_times[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
-def _pos_ov(times, tpa, p, dt, pktable, points, coeffs):
+def _pos_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`pos_o`. See that function for documentation."""
     npt = times.size
     xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
     for i in range(npt):
-        xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return xs, ys, zs
 
 
 @njit(fastmath=True, parallel=True)
-def _pos_ovp(times, tpa, p, dt, pktable, points, coeffs):
+def _pos_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`_pos_ov`."""
     n = times.size
     xs, ys, zs = zeros(n), zeros(n), zeros(n)
     for i in prange(n):
-        xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, pktable, points, coeffs)
+        xs[i], ys[i], zs[i] = _pos_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return xs, ys, zs
 
 
-def pos_o(t, tpa, p, dt, pktable, points, coeffs):
+def pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Planet (x, y, z) position for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -65,17 +65,17 @@ def pos_o(t, tpa, p, dt, pktable, points, coeffs):
     t : float or ndarray
         Time(s) at which to evaluate the position.
     tpa : float
-        Periastron time anchoring the knot grid.
+        Periastron time anchoring the expansion-point grid.
     p : float
         Orbital period [days].
     dt : float
-        ``pktable`` bucket width in fraction of the period.
-    pktable : ndarray of int
-        Time-to-knot lookup table.
-    points : ndarray, shape (npt,)
-        Normalised knot phases in ``[0, 1]``.
+        ``ep_table`` bucket width in fraction of the period.
+    ep_table : ndarray of int
+        Time-to-expansion-point lookup table.
+    ep_times : ndarray, shape (npt,)
+        Normalised expansion-point phases in ``[0, 1]``.
     coeffs : ndarray, shape (npt, 3, 5)
-        Per-knot Taylor coefficient matrices from :func:`solve3d_orbit`.
+        Per-expansion-point Taylor coefficient matrices from :func:`solve3d_orbit`.
 
     Returns
     -------
@@ -85,18 +85,18 @@ def pos_o(t, tpa, p, dt, pktable, points, coeffs):
         (positive toward the observer). Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
-    return _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+        return _pos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+    return _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
 @overload(pos_o, jit_options={'fastmath': True})
-def _pos_o_overload(t, tpa, p, dt, pktable, points, coeffs):
+def _pos_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _pos_ov(t, tpa, p, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _pos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, dt, pktable, points, coeffs):
-            return _pos_os(t, tpa, p, dt, pktable, points, coeffs)
+        def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     return None

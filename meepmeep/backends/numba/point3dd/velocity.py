@@ -14,7 +14,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Single-knot 3D velocity evaluators with orbital-parameter derivatives."""
+"""Single-expansion-point 3D velocity evaluators with orbital-parameter derivatives."""
 
 from numba import njit, prange, types
 from numba.extending import overload
@@ -79,7 +79,7 @@ _vel_cd_vp = njit(fastmath=True, parallel=True)(_vel_cd_v_body)
 
 def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     """
-    Evaluate the (vx, vy, vz) velocity and its orbital-parameter derivatives at a knot-centered time.
+    Evaluate the (vx, vy, vz) velocity and its orbital-parameter derivatives at an expansion-point-centered time.
 
     Centered velocity companion to `position.pos_cd`. The velocity
     components are obtained by analytically differentiating the
