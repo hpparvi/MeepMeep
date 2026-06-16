@@ -36,8 +36,8 @@ def _vel_c_s(time, c):
 def _vel_c_v_body(time, c):
     """Vector-kernel body for :func:`vel_c`; see that function for documentation.
 
-    Compiled twice: ``_vel_c_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_vel_c_vp`` the
+    Compiled twice: ``vel_c_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``vel_c_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -50,8 +50,8 @@ def _vel_c_v_body(time, c):
     return vx, vy, vz
 
 
-_vel_c_v = njit(fastmath=True)(_vel_c_v_body)
-_vel_c_vp = njit(fastmath=True, parallel=True)(_vel_c_v_body)
+vel_c_v = njit(fastmath=True)(_vel_c_v_body)
+vel_c_vp = njit(fastmath=True, parallel=True)(_vel_c_v_body)
 
 
 def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray, float | NDArray]:
@@ -100,7 +100,7 @@ def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     even though the underlying position expansion is 5th order.
     """
     if isinstance(time, ndarray):
-        return _vel_c_v(time, c)
+        return vel_c_v(time, c)
     return _vel_c_s(time, c)
 
 
@@ -108,7 +108,7 @@ def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
 def _vel_c_overload(time, c):
     if _is_1d_array(time):
         def impl(time, c):
-            return _vel_c_v(time, c)
+            return vel_c_v(time, c)
         return impl
     if isinstance(time, types.Float):
         def impl(time, c):

@@ -32,7 +32,7 @@ def _rv_os(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True)
-def _rv_ov(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
+def rv_ov(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`rv_o`. See that function for documentation."""
     n = times.size
     rvs = zeros(n)
@@ -43,8 +43,8 @@ def _rv_ov(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _rv_ovp(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_rv_ov`."""
+def rv_ovp(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`rv_ov`."""
     n = times.size
     rvs = zeros(n)
     scale = k / (2 * pi / p * (a * sin(i)) / sqrt(1 - e * e))
@@ -57,7 +57,7 @@ def rv_o(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
     """Radial velocity at an array of times (Perryman 2018, Eq. 2.23).
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_rv_os`) or vector (:func:`_rv_ov`) kernel at compile time
+    scalar (:func:`_rv_os`) or vector (:func:`rv_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Converts the internal line-of-sight velocity (in
@@ -91,7 +91,7 @@ def rv_o(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
         Radial velocity [m s\\ :sup:`-1`]. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _rv_ov(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
+        return rv_ov(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
     return _rv_os(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
 
 
@@ -99,7 +99,7 @@ def rv_o(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
 def _rv_o_overload(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
-            return _rv_ov(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
+            return rv_ov(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):

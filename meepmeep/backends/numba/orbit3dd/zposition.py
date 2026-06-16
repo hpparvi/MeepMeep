@@ -47,7 +47,7 @@ def _zpos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _zpos_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def zpos_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`zpos_od`. See that function for documentation."""
     n = times.size
     zs = zeros(n)
@@ -58,8 +58,8 @@ def _zpos_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _zpos_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_zpos_ovd`."""
+def zpos_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`zpos_ovd`."""
     n = times.size
     zs = zeros(n)
     dzs = zeros((n, 7))
@@ -72,7 +72,7 @@ def zpos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Planet z-position and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_zpos_osd`) or vector (:func:`_zpos_ovd`) kernel at compile time
+    scalar (:func:`_zpos_osd`) or vector (:func:`zpos_ovd`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Cheaper than :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od` when
@@ -95,7 +95,7 @@ def zpos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _zpos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return zpos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _zpos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -103,7 +103,7 @@ def zpos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _zpos_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _zpos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return zpos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

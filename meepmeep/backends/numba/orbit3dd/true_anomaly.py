@@ -89,7 +89,7 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, 
 
 
 @njit
-def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`true_anomaly_od`. See that function for documentation."""
     n = times.size
     f = zeros(n)
@@ -161,8 +161,8 @@ def _true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coef
 
 
 @njit(parallel=True)
-def _true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_true_anomaly_ovd`.
+def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`true_anomaly_ovd`.
 
     Mirrors the serial vector body (rather than looping the scalar kernel)
     so the positions are evaluated under the same non-fastmath flags: near
@@ -229,7 +229,7 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
     """True anomaly and its orbital-parameter derivatives.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_true_anomaly_osd`) or vector (:func:`_true_anomaly_ovd`)
+    scalar (:func:`_true_anomaly_osd`) or vector (:func:`true_anomaly_ovd`)
     kernel at compile time (inside ``@njit``) or at call time (pure Python).
 
     Computed from the geometric angle between the planet position vector
@@ -278,7 +278,7 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
     the mean-anomaly identity :math:`f = 2\\pi(t - t_\\mathrm{pa}) / p`.
     """
     if isinstance(t, ndarray):
-        return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -286,7 +286,7 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
 def _true_anomaly_od_overload(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):

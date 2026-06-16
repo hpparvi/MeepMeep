@@ -40,7 +40,7 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _rv_ovd(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
+def rv_ovd(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`rv_od`. See that function for documentation."""
     n = times.size
     rvs = zeros(n)
@@ -61,8 +61,8 @@ def _rv_ovd(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _rv_ovdp(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_rv_ovd`.
+def rv_ovdp(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`rv_ovd`.
 
     The z-velocity gradient scratch is hoisted per thread; a single shared
     buffer would be a data race under ``prange``.
@@ -88,7 +88,7 @@ def rv_od(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Radial velocity and parameter derivatives.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_rv_osd`) or vector (:func:`_rv_ovd`) kernel at compile time
+    scalar (:func:`_rv_osd`) or vector (:func:`rv_ovd`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Derivative ordering: ``(tc, p, a, i, e, w, lan, k)`` - length 8.
@@ -122,7 +122,7 @@ def rv_od(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
         scalar ``t``, (N, 8) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _rv_ovd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return rv_ovd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _rv_osd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -130,7 +130,7 @@ def rv_od(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _rv_od_overload(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _rv_ovd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return rv_ovd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):

@@ -49,7 +49,7 @@ def _vel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _vel_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def vel_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`vel_od`. See that function for documentation."""
     n = times.size
     vxs = zeros(n)
@@ -65,8 +65,8 @@ def _vel_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _vel_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_vel_ovd`."""
+def vel_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`vel_ovd`."""
     n = times.size
     vxs, vys, vzs = zeros(n), zeros(n), zeros(n)
     dvxs, dvys, dvzs = zeros((n, 7)), zeros((n, 7)), zeros((n, 7))
@@ -80,7 +80,7 @@ def vel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Planet (vx, vy, vz) velocity and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_vel_osd`) or vector (:func:`_vel_ovd`) kernel at compile time
+    scalar (:func:`_vel_osd`) or vector (:func:`vel_ovd`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Parameters
@@ -100,7 +100,7 @@ def vel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _vel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return vel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _vel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -108,7 +108,7 @@ def vel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _vel_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _vel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return vel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

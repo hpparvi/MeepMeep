@@ -36,8 +36,8 @@ def _pos_c_s(time, c):
 def _pos_c_v_body(time, c):
     """Vector-kernel body for :func:`pos_c`; see that function for documentation.
 
-    Compiled twice: ``_pos_c_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_pos_c_vp`` the
+    Compiled twice: ``pos_c_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``pos_c_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -50,8 +50,8 @@ def _pos_c_v_body(time, c):
     return px, py, pz
 
 
-_pos_c_v = njit(fastmath=True)(_pos_c_v_body)
-_pos_c_vp = njit(fastmath=True, parallel=True)(_pos_c_v_body)
+pos_c_v = njit(fastmath=True)(_pos_c_v_body)
+pos_c_vp = njit(fastmath=True, parallel=True)(_pos_c_v_body)
 
 
 def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray, float | NDArray]:
@@ -98,7 +98,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     dispatch loops in `orbit3d`).
     """
     if isinstance(time, ndarray):
-        return _pos_c_v(time, c)
+        return pos_c_v(time, c)
     return _pos_c_s(time, c)
 
 
@@ -106,7 +106,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
 def _pos_c_overload(time, c):
     if _is_1d_array(time):
         def impl(time, c):
-            return _pos_c_v(time, c)
+            return pos_c_v(time, c)
         return impl
     if isinstance(time, types.Float):
         def impl(time, c):
@@ -125,8 +125,8 @@ def _pos_s(time, tc, p, c, te):
 def _pos_v_body(time, tc, p, c, te):
     """Vector-kernel body for :func:`pos`; see that function for documentation.
 
-    Compiled twice: ``_pos_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_pos_vp`` the
+    Compiled twice: ``pos_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``pos_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -140,8 +140,8 @@ def _pos_v_body(time, tc, p, c, te):
     return px, py, pz
 
 
-_pos_v = njit(fastmath=True)(_pos_v_body)
-_pos_vp = njit(fastmath=True, parallel=True)(_pos_v_body)
+pos_v = njit(fastmath=True)(_pos_v_body)
+pos_vp = njit(fastmath=True, parallel=True)(_pos_v_body)
 
 
 def pos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> tuple[
@@ -194,7 +194,7 @@ def pos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
 
     """
     if isinstance(time, ndarray):
-        return _pos_v(time, tc, p, c, te)
+        return pos_v(time, tc, p, c, te)
     return _pos_s(time, tc, p, c, te)
 
 
@@ -202,7 +202,7 @@ def pos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
 def _pos_overload(time, tc, p, c, te=0.0):
     if _is_1d_array(time):
         def impl(time, tc, p, c, te=0.0):
-            return _pos_v(time, tc, p, c, te)
+            return pos_v(time, tc, p, c, te)
         return impl
     if isinstance(time, types.Float):
         def impl(time, tc, p, c, te=0.0):

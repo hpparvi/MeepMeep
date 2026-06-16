@@ -134,7 +134,7 @@ def _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeff
 
 
 @njit(fastmath=True)
-def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
+def light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`light_travel_time_od`. See that function for documentation."""
     n = times.size
     ltt = zeros(n)
@@ -152,8 +152,8 @@ def _light_travel_time_ovd(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, c
 
 
 @njit(fastmath=True, parallel=True)
-def _light_travel_time_ovdp(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_light_travel_time_ovd`.
+def light_travel_time_ovdp(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`light_travel_time_ovd`.
 
     The z-gradient scratch is hoisted per thread; a single shared buffer
     would be a data race under ``prange``. The transit reference and its
@@ -179,7 +179,7 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs,
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
     scalar (:func:`_light_travel_time_osd`) or vector
-    (:func:`_light_travel_time_ovd`) kernel at compile time (inside ``@njit``)
+    (:func:`light_travel_time_ovd`) kernel at compile time (inside ``@njit``)
     or at call time (pure Python).
 
     The correction is referenced to primary transit:
@@ -224,7 +224,7 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs,
         time, (N, 7) for an array time.
     """
     if isinstance(t, ndarray):
-        return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _light_travel_time_osd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -232,7 +232,7 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs,
 def _light_travel_time_od_overload(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return light_travel_time_ovd(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs, dcoeffs):

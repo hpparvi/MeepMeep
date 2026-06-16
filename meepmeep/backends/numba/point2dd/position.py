@@ -53,8 +53,8 @@ def _pos_cd_s(time, c, dc):
 def _pos_cd_v_body(time, c, dc):
     """Vector-kernel body for :func:`pos_cd`; see that function for documentation.
 
-    Compiled twice: ``_pos_cd_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_pos_cd_vp`` the
+    Compiled twice: ``pos_cd_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``pos_cd_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -68,8 +68,8 @@ def _pos_cd_v_body(time, c, dc):
     return px, py, dpx, dpy
 
 
-_pos_cd_v = njit(fastmath=True)(_pos_cd_v_body)
-_pos_cd_vp = njit(fastmath=True, parallel=True)(_pos_cd_v_body)
+pos_cd_v = njit(fastmath=True)(_pos_cd_v_body)
+pos_cd_vp = njit(fastmath=True, parallel=True)(_pos_cd_v_body)
 
 
 def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
@@ -117,7 +117,7 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     """
     if isinstance(time, ndarray):
-        return _pos_cd_v(time, c, dc)
+        return pos_cd_v(time, c, dc)
     return _pos_cd_s(time, c, dc)
 
 
@@ -125,7 +125,7 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 def _pos_cd_overload(time, c, dc):
     if _is_1d_array(time):
         def impl(time, c, dc):
-            return _pos_cd_v(time, c, dc)
+            return pos_cd_v(time, c, dc)
         return impl
     if isinstance(time, types.Float):
         def impl(time, c, dc):
@@ -144,8 +144,8 @@ def _pos_d_s(time, tc, p, c, dc, te):
 def _pos_d_v_body(time, tc, p, c, dc, te):
     """Vector-kernel body for :func:`pos_d`; see that function for documentation.
 
-    Compiled twice: ``_pos_d_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_pos_d_vp`` the
+    Compiled twice: ``pos_d_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``pos_d_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -160,8 +160,8 @@ def _pos_d_v_body(time, tc, p, c, dc, te):
     return px, py, dpx, dpy
 
 
-_pos_d_v = njit(fastmath=True)(_pos_d_v_body)
-_pos_d_vp = njit(fastmath=True, parallel=True)(_pos_d_v_body)
+pos_d_v = njit(fastmath=True)(_pos_d_v_body)
+pos_d_vp = njit(fastmath=True, parallel=True)(_pos_d_v_body)
 
 
 def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
@@ -212,7 +212,7 @@ def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 
     """
     if isinstance(time, ndarray):
-        return _pos_d_v(time, tc, p, c, dc, te)
+        return pos_d_v(time, tc, p, c, dc, te)
     return _pos_d_s(time, tc, p, c, dc, te)
 
 
@@ -220,7 +220,7 @@ def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 def _pos_d_overload(time, tc, p, c, dc, te=0.0):
     if _is_1d_array(time):
         def impl(time, tc, p, c, dc, te=0.0):
-            return _pos_d_v(time, tc, p, c, dc, te)
+            return pos_d_v(time, tc, p, c, dc, te)
         return impl
     if isinstance(time, types.Float):
         def impl(time, tc, p, c, dc, te=0.0):

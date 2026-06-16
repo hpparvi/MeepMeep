@@ -20,34 +20,34 @@ from numpy.testing import assert_allclose
 from meepmeep.expansion2d import Expansion2D
 from meepmeep.backends.numba.point2d import (
     solve2d,
-    _pos_c_v, _pos_c_vp, _pos_v, _pos_vp,
-    _sep_c_v, _sep_c_vp, _sep_v, _sep_vp,
+    pos_c_v, pos_c_vp, pos_v, pos_vp,
+    sep_c_v, sep_c_vp, sep_v, sep_vp,
 )
 from meepmeep.backends.numba.point2dd import (
     solve2d_d,
-    _pos_cd_v, _pos_cd_vp, _pos_d_v, _pos_d_vp,
-    _sep_cd_v, _sep_cd_vp, _sep_d_v, _sep_d_vp,
+    pos_cd_v, pos_cd_vp, pos_d_v, pos_d_vp,
+    sep_cd_v, sep_cd_vp, sep_d_v, sep_d_vp,
 )
 from meepmeep.backends.numba.point3d import (
     solve3d,
-    _pos_c_v as _pos_c_v3, _pos_c_vp as _pos_c_vp3,
-    _pos_v as _pos_v3, _pos_vp as _pos_vp3,
-    _zpos_c_v, _zpos_c_vp, _zpos_v, _zpos_vp,
-    _sep_c_v as _sep_c_v3, _sep_c_vp as _sep_c_vp3,
-    _sep_v as _sep_v3, _sep_vp as _sep_vp3,
-    _vel_c_v, _vel_c_vp,
-    _zvel_c_v, _zvel_c_vp, _zvel_v, _zvel_vp,
+    pos_c_v as _pos_c_v3, pos_c_vp as _pos_c_vp3,
+    pos_v as _pos_v3, pos_vp as _pos_vp3,
+    zpos_c_v, zpos_c_vp, zpos_v, zpos_vp,
+    sep_c_v as _sep_c_v3, sep_c_vp as _sep_c_vp3,
+    sep_v as _sep_v3, sep_vp as _sep_vp3,
+    vel_c_v, vel_c_vp,
+    zvel_c_v, zvel_c_vp, zvel_v, zvel_vp,
 )
 from meepmeep.backends.numba.point3dd import (
     solve3d_d,
-    _pos_cd_v as _pos_cd_v3, _pos_cd_vp as _pos_cd_vp3,
-    _pos_d_v as _pos_d_v3, _pos_d_vp as _pos_d_vp3,
-    _zpos_cd_v, _zpos_cd_vp, _zpos_d_v, _zpos_d_vp,
-    _sep_cd_v as _sep_cd_v3, _sep_cd_vp as _sep_cd_vp3,
-    _sep_d_v as _sep_d_v3, _sep_d_vp as _sep_d_vp3,
-    _vel_cd_v, _vel_cd_vp,
-    _zvel_cd_v, _zvel_cd_vp, _zvel_d_v, _zvel_d_vp,
-    _rv_cd_v, _rv_cd_vp, _rv_d_v, _rv_d_vp,
+    pos_cd_v as _pos_cd_v3, pos_cd_vp as _pos_cd_vp3,
+    pos_d_v as _pos_d_v3, pos_d_vp as _pos_d_vp3,
+    zpos_cd_v, zpos_cd_vp, zpos_d_v, zpos_d_vp,
+    sep_cd_v as _sep_cd_v3, sep_cd_vp as _sep_cd_vp3,
+    sep_d_v as _sep_d_v3, sep_d_vp as _sep_d_vp3,
+    vel_cd_v, vel_cd_vp,
+    zvel_cd_v, zvel_cd_vp, zvel_d_v, zvel_d_vp,
+    rv_cd_v, rv_cd_vp, rv_d_v, rv_d_vp,
 )
 
 PARS = dict(p=3.4, a=8.0, i=1.54, e=0.1, w=0.4)
@@ -91,32 +91,32 @@ def _compare(serial, par, args):
 
 class TestPoint2dValue:
     def test_pos_c(self, c2):
-        _compare(_pos_c_v, _pos_c_vp, (T_CEN, c2))
+        _compare(pos_c_v, pos_c_vp, (T_CEN, c2))
 
     def test_pos(self, c2):
-        _compare(_pos_v, _pos_vp, (T_ABS, TC, P, c2, TE))
+        _compare(pos_v, pos_vp, (T_ABS, TC, P, c2, TE))
 
     def test_sep_c(self, c2):
-        _compare(_sep_c_v, _sep_c_vp, (T_CEN, c2))
+        _compare(sep_c_v, sep_c_vp, (T_CEN, c2))
 
     def test_sep(self, c2):
-        _compare(_sep_v, _sep_vp, (T_ABS, TC, P, c2, TE))
+        _compare(sep_v, sep_vp, (T_ABS, TC, P, c2, TE))
 
 
 class TestPoint2dGradient:
     def test_pos_cd(self, cdc2):
-        _compare(_pos_cd_v, _pos_cd_vp, (T_CEN, *cdc2))
+        _compare(pos_cd_v, pos_cd_vp, (T_CEN, *cdc2))
 
     def test_pos_d(self, cdc2):
         c, dc = cdc2
-        _compare(_pos_d_v, _pos_d_vp, (T_ABS, TC, P, c, dc, TE))
+        _compare(pos_d_v, pos_d_vp, (T_ABS, TC, P, c, dc, TE))
 
     def test_sep_cd(self, cdc2):
-        _compare(_sep_cd_v, _sep_cd_vp, (T_CEN, *cdc2))
+        _compare(sep_cd_v, sep_cd_vp, (T_CEN, *cdc2))
 
     def test_sep_d(self, cdc2):
         c, dc = cdc2
-        _compare(_sep_d_v, _sep_d_vp, (T_ABS, TC, P, c, dc, TE))
+        _compare(sep_d_v, sep_d_vp, (T_ABS, TC, P, c, dc, TE))
 
 
 class TestPoint3dValue:
@@ -127,10 +127,10 @@ class TestPoint3dValue:
         _compare(_pos_v3, _pos_vp3, (T_ABS, TC, P, c3, TE))
 
     def test_zpos_c(self, c3):
-        _compare(_zpos_c_v, _zpos_c_vp, (T_CEN, c3))
+        _compare(zpos_c_v, zpos_c_vp, (T_CEN, c3))
 
     def test_zpos(self, c3):
-        _compare(_zpos_v, _zpos_vp, (T_ABS, TC, P, c3, TE))
+        _compare(zpos_v, zpos_vp, (T_ABS, TC, P, c3, TE))
 
     def test_sep_c(self, c3):
         _compare(_sep_c_v3, _sep_c_vp3, (T_CEN, c3))
@@ -139,13 +139,13 @@ class TestPoint3dValue:
         _compare(_sep_v3, _sep_vp3, (T_ABS, TC, P, c3, TE))
 
     def test_vel_c(self, c3):
-        _compare(_vel_c_v, _vel_c_vp, (T_CEN, c3))
+        _compare(vel_c_v, vel_c_vp, (T_CEN, c3))
 
     def test_zvel_c(self, c3):
-        _compare(_zvel_c_v, _zvel_c_vp, (T_CEN, c3))
+        _compare(zvel_c_v, zvel_c_vp, (T_CEN, c3))
 
     def test_zvel(self, c3):
-        _compare(_zvel_v, _zvel_vp, (T_ABS, TC, P, c3, TE))
+        _compare(zvel_v, zvel_vp, (T_ABS, TC, P, c3, TE))
 
 
 class TestPoint3dGradient:
@@ -157,11 +157,11 @@ class TestPoint3dGradient:
         _compare(_pos_d_v3, _pos_d_vp3, (T_ABS, TC, P, c, dc, TE))
 
     def test_zpos_cd(self, cdc3):
-        _compare(_zpos_cd_v, _zpos_cd_vp, (T_CEN, *cdc3))
+        _compare(zpos_cd_v, zpos_cd_vp, (T_CEN, *cdc3))
 
     def test_zpos_d(self, cdc3):
         c, dc = cdc3
-        _compare(_zpos_d_v, _zpos_d_vp, (T_ABS, TC, P, c, dc, TE))
+        _compare(zpos_d_v, zpos_d_vp, (T_ABS, TC, P, c, dc, TE))
 
     def test_sep_cd(self, cdc3):
         _compare(_sep_cd_v3, _sep_cd_vp3, (T_CEN, *cdc3))
@@ -171,14 +171,14 @@ class TestPoint3dGradient:
         _compare(_sep_d_v3, _sep_d_vp3, (T_ABS, TC, P, c, dc, TE))
 
     def test_vel_cd(self, cdc3):
-        _compare(_vel_cd_v, _vel_cd_vp, (T_CEN, *cdc3))
+        _compare(vel_cd_v, vel_cd_vp, (T_CEN, *cdc3))
 
     def test_zvel_cd(self, cdc3):
-        _compare(_zvel_cd_v, _zvel_cd_vp, (T_CEN, *cdc3))
+        _compare(zvel_cd_v, zvel_cd_vp, (T_CEN, *cdc3))
 
     def test_zvel_d(self, cdc3):
         c, dc = cdc3
-        _compare(_zvel_d_v, _zvel_d_vp, (T_ABS, TC, P, c, dc, TE))
+        _compare(zvel_d_v, zvel_d_vp, (T_ABS, TC, P, c, dc, TE))
 
 
 class TestExpansion2dParallelOptIn:
@@ -218,7 +218,7 @@ class TestExpansion2dParallelOptIn:
         from meepmeep.backends.numba.point2d import sep as sep_dispatcher
         k2 = Expansion2D(tc=TC, te=TE, parallel=True, **PARS)
         k2.set_data(TC + np.linspace(-0.05, 0.05, 100))
-        assert k2._select(sep_dispatcher, _sep_vp, k2._PARALLEL_NMIN_VALUE) is sep_dispatcher
+        assert k2._select(sep_dispatcher, sep_vp, k2._PARALLEL_NMIN_VALUE) is sep_dispatcher
 
 
 class TestRvExplicitTwins:
@@ -227,12 +227,12 @@ class TestRvExplicitTwins:
     def test_rv_cd(self, cdc3):
         c, dc = cdc3
         a, i, e = PARS["a"], PARS["i"], PARS["e"]
-        _compare(_rv_cd_v, _rv_cd_vp, (T_CEN, K_RV, P, a, i, e, c, dc))
+        _compare(rv_cd_v, rv_cd_vp, (T_CEN, K_RV, P, a, i, e, c, dc))
 
     def test_rv_d(self, cdc3):
         c, dc = cdc3
         a, i, e = PARS["a"], PARS["i"], PARS["e"]
-        _compare(_rv_d_v, _rv_d_vp, (T_ABS, K_RV, TC, P, a, i, e, c, dc, TE))
+        _compare(rv_d_v, rv_d_vp, (T_ABS, K_RV, TC, P, a, i, e, c, dc, TE))
 
 
 if __name__ == "__main__":

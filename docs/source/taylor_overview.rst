@@ -320,9 +320,13 @@ float64 array of times:
   :ref:`taylor_derivatives`).
 
 Internally each dispatcher routes — at compile time inside ``@njit`` or
-at call time in pure Python — to a private scalar kernel (``_X_os``) or
-vector kernel (``_X_ov``); these underscored kernels are implementation
-detail, not part of the public surface. Each dispatcher looks up the
+at call time in pure Python — to a private scalar kernel (``_X_os``) or a
+public vector kernel (``X_ov``). The vector kernel and its parallel twin
+(``X_ovp``), together with their gradient counterparts (``X_ovd`` /
+``X_ovdp``), are part of the public surface and re-exported from
+:mod:`meepmeep.numba3d`; call them directly to commit to the array path and
+skip the dispatcher's scalar-or-array type check. Only the scalar kernels
+(``_X_os`` / ``_X_osd``) stay private. Each dispatcher looks up the
 relevant expansion point via ``ep_table`` and delegates to the corresponding
 centered evaluator in the
 :mod:`~meepmeep.backends.numba.point3d` package. Beyond raw

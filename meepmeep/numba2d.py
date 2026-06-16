@@ -22,6 +22,14 @@ parameter-derivative variants. All names are re-exported verbatim from
 ``meepmeep.backends.numba.*`` so user ``@njit`` kernels and
 direct callers can import them from one place.
 
+Each scalar-or-array dispatcher (``pos``, ``sep``, ``pos_d``, ...) also
+has explicit vector (``pos_v``, ``sep_v``, ``sep_d_v``, ...) and parallel
+(``pos_vp``, ``sep_vp``, ...) kernels. Call these directly to commit to
+the array path and skip the dispatcher's scalar-or-array type check; the
+parallel twins multi-thread the sample loop and pay off only for large
+time grids (see :class:`meepmeep.expansion2d.Expansion2D`'s ``parallel``
+flag for the size thresholds).
+
 For 3D Taylor primitives and multi-expansion-point orbit-spanning
 routines see :mod:`meepmeep.numba3d`. Dimension-agnostic primitives
 (expansion points, Newton solvers, orbital-mechanics utilities) are
@@ -31,6 +39,8 @@ should import from ``meepmeep.backends.numba.*`` directly.
 
 from .backends.numba.point2d import (
     pos_c, pos, sep_c, sep,
+    pos_c_v, pos_c_vp, pos_v, pos_vp,
+    sep_c_v, sep_c_vp, sep_v, sep_vp,
     solve2d,
     find_contact_point, bounding_box,
     t1, t12, t14, t23, t34, t4,
@@ -38,6 +48,8 @@ from .backends.numba.point2d import (
 )
 from .backends.numba.point2dd import (
     pos_cd, pos_d, sep_cd, sep_d,
+    pos_cd_v, pos_cd_vp, pos_d_v, pos_d_vp,
+    sep_cd_v, sep_cd_vp, sep_d_v, sep_d_vp,
     solve2d_d,
 )
 
@@ -47,12 +59,28 @@ __all__ = [
     "find_z_min",
     "pos",
     "pos_c",
+    "pos_c_v",
+    "pos_c_vp",
     "pos_cd",
+    "pos_cd_v",
+    "pos_cd_vp",
     "pos_d",
+    "pos_d_v",
+    "pos_d_vp",
+    "pos_v",
+    "pos_vp",
     "sep",
     "sep_c",
+    "sep_c_v",
+    "sep_c_vp",
     "sep_cd",
+    "sep_cd_v",
+    "sep_cd_vp",
     "sep_d",
+    "sep_d_v",
+    "sep_d_vp",
+    "sep_v",
+    "sep_vp",
     "solve2d",
     "solve2d_d",
     "t1",

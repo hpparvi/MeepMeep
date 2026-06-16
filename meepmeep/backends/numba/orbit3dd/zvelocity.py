@@ -47,7 +47,7 @@ def _zvel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _zvel_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def zvel_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`zvel_od`. See that function for documentation."""
     n = times.size
     vzs = zeros(n)
@@ -58,8 +58,8 @@ def _zvel_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _zvel_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_zvel_ovd`."""
+def zvel_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`zvel_ovd`."""
     n = times.size
     vzs = zeros(n)
     dvzs = zeros((n, 7))
@@ -72,7 +72,7 @@ def zvel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Planet z-velocity and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_zvel_osd`) or vector (:func:`_zvel_ovd`) kernel at compile time
+    scalar (:func:`_zvel_osd`) or vector (:func:`zvel_ovd`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Cheaper than :func:`~meepmeep.backends.numba.orbit3dd.velocity.vel_od` when
@@ -96,7 +96,7 @@ def zvel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _zvel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return zvel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _zvel_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -104,7 +104,7 @@ def zvel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _zvel_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _zvel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return zvel_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

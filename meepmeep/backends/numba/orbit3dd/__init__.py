@@ -50,27 +50,27 @@ around 1e4 samples).
 """
 
 from ._common import _is_1d_array, solve3d_orbit_d
-from .position import pos_od, _pos_ow, _pos_osd, _pos_ovd, _pos_ovdp
-from .zposition import zpos_od, _zpos_ow, _zpos_osd, _zpos_ovd, _zpos_ovdp
-from .separation import sep_od, _sep_ow, _sep_osd, _sep_ovd, _sep_ovdp
-from .velocity import vel_od, _vel_ow, _vel_osd, _vel_ovd, _vel_ovdp
-from .zvelocity import zvel_od, _zvel_ow, _zvel_osd, _zvel_ovd, _zvel_ovdp
-from .phase_angle import cos_alpha_od, _cos_alpha_ow, _cos_alpha_osd, _cos_alpha_ovd, _cos_alpha_ovdp
+from .position import pos_od, _pos_ow, _pos_osd, pos_ovd, pos_ovdp
+from .zposition import zpos_od, _zpos_ow, _zpos_osd, zpos_ovd, zpos_ovdp
+from .separation import sep_od, _sep_ow, _sep_osd, sep_ovd, sep_ovdp
+from .velocity import vel_od, _vel_ow, _vel_osd, vel_ovd, vel_ovdp
+from .zvelocity import zvel_od, _zvel_ow, _zvel_osd, zvel_ovd, zvel_ovdp
+from .phase_angle import cos_alpha_od, _cos_alpha_ow, _cos_alpha_osd, cos_alpha_ovd, cos_alpha_ovdp
 from .star_planet_distance import (
-    star_planet_distance_od, _star_planet_distance_osd, _star_planet_distance_ovd,
-    _star_planet_distance_ovdp,
+    star_planet_distance_od, _star_planet_distance_osd, star_planet_distance_ovd,
+    star_planet_distance_ovdp,
 )
-from .projected_angle import cos_v_p_angle_od, _cos_v_p_angle_osd, _cos_v_p_angle_ovd, _cos_v_p_angle_ovdp
-from .true_anomaly import true_anomaly_od, _true_anomaly_osd, _true_anomaly_ovd, _true_anomaly_ovdp
+from .projected_angle import cos_v_p_angle_od, _cos_v_p_angle_osd, cos_v_p_angle_ovd, cos_v_p_angle_ovdp
+from .true_anomaly import true_anomaly_od, _true_anomaly_osd, true_anomaly_ovd, true_anomaly_ovdp
 from .lambert import (
     _lambert_kernel_d,
-    lambert_phase_curve_od, _lambert_phase_curve_osd, _lambert_phase_curve_ovd,
-    _lambert_phase_curve_ovdp,
+    lambert_phase_curve_od, _lambert_phase_curve_osd, lambert_phase_curve_ovd,
+    lambert_phase_curve_ovdp,
 )
-from .ev_signal import ev_signal_od, _ev_signal_osd, _ev_signal_ovd, _ev_signal_ovdp
-from .radial_velocity import rv_od, _rv_osd, _rv_ovd, _rv_ovdp
+from .ev_signal import ev_signal_od, _ev_signal_osd, ev_signal_ovd, ev_signal_ovdp
+from .radial_velocity import rv_od, _rv_osd, rv_ovd, rv_ovdp
 from .light_travel_time import (
     LTT_DAYS_PER_RSUN,
-    light_travel_time_od, _light_travel_time_osd, _light_travel_time_ovd,
-    _light_travel_time_ovdp,
+    light_travel_time_od, _light_travel_time_osd, light_travel_time_ovd,
+    light_travel_time_ovdp,
 )

@@ -57,7 +57,7 @@ def _cos_alpha_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _cos_alpha_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def cos_alpha_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`cos_alpha_od`. See that function for documentation."""
     n = times.size
     cas = zeros(n)
@@ -72,8 +72,8 @@ def _cos_alpha_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _cos_alpha_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_cos_alpha_ovd`.
+def cos_alpha_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`cos_alpha_ovd`.
 
     The position-gradient scratch is hoisted per thread; a single shared
     buffer would be a data race under ``prange``.
@@ -94,7 +94,7 @@ def cos_alpha_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Cosine of the phase angle and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_cos_alpha_osd`) or vector (:func:`_cos_alpha_ovd`) kernel at
+    scalar (:func:`_cos_alpha_osd`) or vector (:func:`cos_alpha_ovd`) kernel at
     compile time (inside ``@njit``) or at call time (pure Python).
 
     With :math:`\\cos\\alpha = -z/r` and :math:`r = \\sqrt{x^2+y^2+z^2}`, the
@@ -125,7 +125,7 @@ def cos_alpha_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _cos_alpha_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return cos_alpha_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _cos_alpha_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -133,7 +133,7 @@ def cos_alpha_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _cos_alpha_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _cos_alpha_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return cos_alpha_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

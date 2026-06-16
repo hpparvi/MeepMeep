@@ -41,8 +41,8 @@ def _sep_c_s(time, c):
 def _sep_c_v_body(time, c):
     """Vector-kernel body for :func:`sep_c`; see that function for documentation.
 
-    Compiled twice: ``_sep_c_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_sep_c_vp`` the
+    Compiled twice: ``sep_c_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``sep_c_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -53,8 +53,8 @@ def _sep_c_v_body(time, c):
     return d
 
 
-_sep_c_v = njit(fastmath=True)(_sep_c_v_body)
-_sep_c_vp = njit(fastmath=True, parallel=True)(_sep_c_v_body)
+sep_c_v = njit(fastmath=True)(_sep_c_v_body)
+sep_c_vp = njit(fastmath=True, parallel=True)(_sep_c_v_body)
 
 
 def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
@@ -91,7 +91,7 @@ def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     computing the z coefficient that `pos_c` would also evaluate.
     """
     if isinstance(time, ndarray):
-        return _sep_c_v(time, c)
+        return sep_c_v(time, c)
     return _sep_c_s(time, c)
 
 
@@ -99,7 +99,7 @@ def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
 def _sep_c_overload(time, c):
     if _is_1d_array(time):
         def impl(time, c):
-            return _sep_c_v(time, c)
+            return sep_c_v(time, c)
         return impl
     if isinstance(time, types.Float):
         def impl(time, c):
@@ -118,8 +118,8 @@ def _sep_s(time, tc, p, c, te):
 def _sep_v_body(time, tc, p, c, te):
     """Vector-kernel body for :func:`sep`; see that function for documentation.
 
-    Compiled twice: ``_sep_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_sep_vp`` the
+    Compiled twice: ``sep_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``sep_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -131,8 +131,8 @@ def _sep_v_body(time, tc, p, c, te):
     return d
 
 
-_sep_v = njit(fastmath=True)(_sep_v_body)
-_sep_vp = njit(fastmath=True, parallel=True)(_sep_v_body)
+sep_v = njit(fastmath=True)(_sep_v_body)
+sep_vp = njit(fastmath=True, parallel=True)(_sep_v_body)
 
 
 def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
@@ -174,7 +174,7 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
         if the transit/eclipse branch is needed.
     """
     if isinstance(time, ndarray):
-        return _sep_v(time, tc, p, c, te)
+        return sep_v(time, tc, p, c, te)
     return _sep_s(time, tc, p, c, te)
 
 
@@ -182,7 +182,7 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
 def _sep_overload(time, tc, p, c, te=0.0):
     if _is_1d_array(time):
         def impl(time, tc, p, c, te=0.0):
-            return _sep_v(time, tc, p, c, te)
+            return sep_v(time, tc, p, c, te)
         return impl
     if isinstance(time, types.Float):
         def impl(time, tc, p, c, te=0.0):

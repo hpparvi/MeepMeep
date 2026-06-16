@@ -55,12 +55,12 @@ from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
 from .backends.numba.orbit3dd import (solve3d_orbit_d, pos_od, cos_alpha_od, vel_od, true_anomaly_od, rv_od,
                                              star_planet_distance_od, ev_signal_od, lambert_phase_curve_od,
                                              light_travel_time_od, )
-from .backends.numba.orbit3d import (_pos_ovp, _vel_ovp, _cos_alpha_ovp, _true_anomaly_ovp, _rv_ovp,
-                                            _star_planet_distance_ovp, _ev_signal_ovp, _lambert_phase_curve_ovp,
-                                            _light_travel_time_ovp, )
-from .backends.numba.orbit3dd import (_pos_ovdp, _vel_ovdp, _cos_alpha_ovdp, _true_anomaly_ovdp, _rv_ovdp,
-                                             _star_planet_distance_ovdp, _ev_signal_ovdp, _lambert_phase_curve_ovdp,
-                                             _light_travel_time_ovdp, )
+from .backends.numba.orbit3d import (pos_ovp, vel_ovp, cos_alpha_ovp, true_anomaly_ovp, rv_ovp,
+                                            star_planet_distance_ovp, ev_signal_ovp, lambert_phase_curve_ovp,
+                                            light_travel_time_ovp, )
+from .backends.numba.orbit3dd import (pos_ovdp, vel_ovdp, cos_alpha_ovdp, true_anomaly_ovdp, rv_ovdp,
+                                             star_planet_distance_ovdp, ev_signal_ovdp, lambert_phase_curve_ovdp,
+                                             light_travel_time_ovdp, )
 
 
 class Orbit:
@@ -405,10 +405,10 @@ class Orbit:
             return ta_newton_v(self.times, self._tc, self._p, self._e, self._w)
         ev = eccentricity_vector(self._i, self._e, self._w)
         if self._derivatives:
-            fn = self._select(true_anomaly_od, _true_anomaly_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(true_anomaly_od, true_anomaly_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
                       self._ep_table, self._ep_times, self._coeffs, self._dcoeffs, )
-        fn = self._select(true_anomaly_o, _true_anomaly_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(true_anomaly_o, true_anomaly_ovp, self.times, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._ep_table,
                   self._ep_times, self._coeffs, )
 
@@ -433,10 +433,10 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            fn = self._select(pos_od, _pos_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(pos_od, pos_ovdp, times, self._PARALLEL_NMIN_GRAD)
             return fn(times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs,
                       self._dcoeffs, )
-        fn = self._select(pos_o, _pos_ovp, times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(pos_o, pos_ovp, times, self._PARALLEL_NMIN_VALUE)
         return fn(times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs)
 
     def _xyz_error(self):
@@ -466,10 +466,10 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            fn = self._select(vel_od, _vel_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(vel_od, vel_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs,
                       self._dcoeffs, )
-        fn = self._select(vel_o, _vel_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(vel_o, vel_ovp, self.times, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs)
 
     def cos_phase(self):
@@ -488,10 +488,10 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            fn = self._select(cos_alpha_od, _cos_alpha_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(cos_alpha_od, cos_alpha_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs,
                       self._dcoeffs, )
-        fn = self._select(cos_alpha_o, _cos_alpha_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(cos_alpha_o, cos_alpha_ovp, self.times, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs)
 
     def _cos_phase_error(self):
@@ -594,10 +594,10 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            fn = self._select(star_planet_distance_od, _star_planet_distance_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(star_planet_distance_od, star_planet_distance_ovdp, times, self._PARALLEL_NMIN_GRAD)
             return fn(times, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
                       self._coeffs, self._dcoeffs, )
-        fn = self._select(star_planet_distance_o, _star_planet_distance_ovp, times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(star_planet_distance_o, star_planet_distance_ovp, times, self._PARALLEL_NMIN_VALUE)
         return fn(times, self._tp, self._p, self._dt, self._ep_table, self._ep_times, self._coeffs)
 
     def light_travel_time(self, rstar: float):
@@ -623,10 +623,10 @@ class Orbit:
             ``rstar`` is intentionally *not* returned (per package spec).
         """
         if self._derivatives:
-            fn = self._select(light_travel_time_od, _light_travel_time_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(light_travel_time_od, light_travel_time_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt,
                       self._ep_table, self._ep_times, self._coeffs, self._dcoeffs, )
-        fn = self._select(light_travel_time_o, _light_travel_time_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(light_travel_time_o, light_travel_time_ovp, self.times, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt, self._ep_table,
                                     self._ep_times, self._coeffs, )
 
@@ -651,10 +651,10 @@ class Orbit:
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
-            fn = self._select(rv_od, _rv_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(rv_od, rv_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._ep_table,
                           self._ep_times, self._coeffs, self._dcoeffs, )
-        fn = self._select(rv_o, _rv_ovp, self.times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(rv_o, rv_ovp, self.times, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, k, self._tp, self._p, self._a, self._i, self._e, self._dt, self._ep_table, self._ep_times,
                      self._coeffs, )
 
@@ -685,10 +685,10 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            fn = self._select(lambert_phase_curve_od, _lambert_phase_curve_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(lambert_phase_curve_od, lambert_phase_curve_ovdp, times, self._PARALLEL_NMIN_GRAD)
             return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._ep_table,
                                            self._ep_times, self._coeffs, self._dcoeffs, )
-        fn = self._select(lambert_phase_curve_o, _lambert_phase_curve_ovp, times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(lambert_phase_curve_o, lambert_phase_curve_ovp, times, self._PARALLEL_NMIN_VALUE)
         return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
                                       self._coeffs, )
 
@@ -721,10 +721,10 @@ class Orbit:
         """
         times = times if times is not None else self.times
         if self._derivatives:
-            fn = self._select(ev_signal_od, _ev_signal_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(ev_signal_od, ev_signal_ovdp, times, self._PARALLEL_NMIN_GRAD)
             return fn(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._ep_table,
                                  self._ep_times, self._coeffs, self._dcoeffs, )
-        fn = self._select(ev_signal_o, _ev_signal_ovp, times, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(ev_signal_o, ev_signal_ovp, times, self._PARALLEL_NMIN_VALUE)
         return fn(alpha, mass_ratio, self._i, times, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
                             self._coeffs, )
 

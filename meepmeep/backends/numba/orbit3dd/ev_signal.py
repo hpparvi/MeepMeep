@@ -55,7 +55,7 @@ def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, co
 
 
 @njit(fastmath=True)
-def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`ev_signal_od`. See that function for documentation."""
     n = times.size
     out = zeros(n)
@@ -105,8 +105,8 @@ def _ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times
 
 
 @njit(fastmath=True, parallel=True)
-def _ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_ev_signal_ovd`.
+def ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`ev_signal_ovd`.
 
     The position-gradient scratch is hoisted per thread; a single shared
     buffer would be a data race under ``prange``.
@@ -147,7 +147,7 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coef
     """Ellipsoidal variation signal with gradients.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
-    scalar (:func:`_ev_signal_osd`) or vector (:func:`_ev_signal_ovd`) kernel
+    scalar (:func:`_ev_signal_osd`) or vector (:func:`ev_signal_ovd`) kernel
     at compile time (inside ``@njit``) or at call time (pure Python).
 
     Implements
@@ -186,7 +186,7 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coef
         Shape (10,) for a scalar time, (N, 10) for an array time.
     """
     if isinstance(t, ndarray):
-        return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -194,7 +194,7 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coef
 def _ev_signal_od_overload(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

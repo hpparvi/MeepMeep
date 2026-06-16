@@ -40,7 +40,7 @@ def _star_planet_distance_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
 
 
 @njit(fastmath=True)
-def _star_planet_distance_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def star_planet_distance_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`star_planet_distance_od`. See that function for documentation."""
     n = times.size
     rs = zeros(n)
@@ -59,8 +59,8 @@ def _star_planet_distance_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dco
 
 
 @njit(fastmath=True, parallel=True)
-def _star_planet_distance_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_star_planet_distance_ovd`.
+def star_planet_distance_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`star_planet_distance_ovd`.
 
     The position-gradient scratch is hoisted per thread; a single shared
     buffer would be a data race under ``prange``.
@@ -87,7 +87,7 @@ def star_planet_distance_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
     scalar (:func:`_star_planet_distance_osd`) or vector
-    (:func:`_star_planet_distance_ovd`) kernel at compile time (inside
+    (:func:`star_planet_distance_ovd`) kernel at compile time (inside
     ``@njit``) or at call time (pure Python).
 
     Returns :math:`r = \\sqrt{x^2 + y^2 + z^2}` and
@@ -111,7 +111,7 @@ def star_planet_distance_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _star_planet_distance_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return star_planet_distance_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _star_planet_distance_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -119,7 +119,7 @@ def star_planet_distance_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _star_planet_distance_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _star_planet_distance_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return star_planet_distance_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

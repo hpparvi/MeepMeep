@@ -19,35 +19,35 @@ from meepmeep.backends.numba.utils import (
 )
 from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
-    _pos_os, _pos_ov,
-    _zpos_os, _zpos_ov,
-    _sep_os, _sep_ov,
-    _vel_os, _vel_ov,
-    _zvel_os, _zvel_ov,
-    _true_anomaly_os, _true_anomaly_ov,
-    _cos_v_p_angle_os, _cos_v_p_angle_ov,
-    _cos_alpha_os, _cos_alpha_ov,
-    _star_planet_distance_os, _star_planet_distance_ov,
-    _lambert_phase_curve_os, _lambert_phase_curve_ov,
-    _ev_signal_os, _ev_signal_ov,
-    _rv_os, _rv_ov,
-    _light_travel_time_os, _light_travel_time_ov,
+    _pos_os, pos_ov,
+    _zpos_os, zpos_ov,
+    _sep_os, sep_ov,
+    _vel_os, vel_ov,
+    _zvel_os, zvel_ov,
+    _true_anomaly_os, true_anomaly_ov,
+    _cos_v_p_angle_os, cos_v_p_angle_ov,
+    _cos_alpha_os, cos_alpha_ov,
+    _star_planet_distance_os, star_planet_distance_ov,
+    _lambert_phase_curve_os, lambert_phase_curve_ov,
+    _ev_signal_os, ev_signal_ov,
+    _rv_os, rv_ov,
+    _light_travel_time_os, light_travel_time_ov,
 )
 from meepmeep.backends.numba.orbit3dd import (
     solve3d_orbit_d,
-    _pos_osd, _pos_ovd,
-    _zpos_osd, _zpos_ovd,
-    _sep_osd, _sep_ovd,
-    _vel_osd, _vel_ovd,
-    _zvel_osd, _zvel_ovd,
-    _cos_alpha_osd, _cos_alpha_ovd,
-    _star_planet_distance_osd, _star_planet_distance_ovd,
-    _cos_v_p_angle_osd, _cos_v_p_angle_ovd,
-    _true_anomaly_osd, _true_anomaly_ovd,
-    _lambert_phase_curve_osd, _lambert_phase_curve_ovd,
-    _ev_signal_osd, _ev_signal_ovd,
-    _rv_osd, _rv_ovd,
-    _light_travel_time_osd, _light_travel_time_ovd,
+    _pos_osd, pos_ovd,
+    _zpos_osd, zpos_ovd,
+    _sep_osd, sep_ovd,
+    _vel_osd, vel_ovd,
+    _zvel_osd, zvel_ovd,
+    _cos_alpha_osd, cos_alpha_ovd,
+    _star_planet_distance_osd, star_planet_distance_ovd,
+    _cos_v_p_angle_osd, cos_v_p_angle_ovd,
+    _true_anomaly_osd, true_anomaly_ovd,
+    _lambert_phase_curve_osd, lambert_phase_curve_ovd,
+    _ev_signal_osd, ev_signal_ovd,
+    _rv_osd, rv_ovd,
+    _light_travel_time_osd, light_travel_time_ovd,
 )
 
 
@@ -91,7 +91,7 @@ class TestForwardParity:
     def test_pos(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
-        xs, ys, zs = _pos_ov(ts, tpa, p, dt, pkt, pts, c)
+        xs, ys, zs = pos_ov(ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             x, y, z = _pos_os(float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose([x, y, z], [xs[j], ys[j], zs[j]], rtol=1e-14, atol=1e-14)
@@ -99,7 +99,7 @@ class TestForwardParity:
     def test_zpos(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
-        zs = _zpos_ov(ts, tpa, p, dt, pkt, pts, c)
+        zs = zpos_ov(ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             z = _zpos_os(float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose(z, zs[j], rtol=1e-14, atol=1e-14)
@@ -107,7 +107,7 @@ class TestForwardParity:
     def test_sep(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
-        seps = _sep_ov(ts, tpa, p, dt, pkt, pts, c)
+        seps = sep_ov(ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             s = _sep_os(float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose(s, seps[j], rtol=1e-14, atol=1e-14)
@@ -115,7 +115,7 @@ class TestForwardParity:
     def test_vel(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
-        vxs, vys, vzs = _vel_ov(ts, tpa, p, dt, pkt, pts, c)
+        vxs, vys, vzs = vel_ov(ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             vx, vy, vz = _vel_os(float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose([vx, vy, vz], [vxs[j], vys[j], vzs[j]], rtol=1e-14, atol=1e-14)
@@ -123,7 +123,7 @@ class TestForwardParity:
     def test_zvel(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
-        vzs = _zvel_ov(ts, tpa, p, dt, pkt, pts, c)
+        vzs = zvel_ov(ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             vz = _zvel_os(float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose(vz, vzs[j], rtol=1e-14, atol=1e-14)
@@ -131,7 +131,7 @@ class TestForwardParity:
     def test_cos_alpha(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
-        cas = _cos_alpha_ov(ts, tpa, p, dt, pkt, pts, c)
+        cas = cos_alpha_ov(ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             ca = _cos_alpha_os(float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose(ca, cas[j], rtol=1e-14, atol=1e-14)
@@ -139,7 +139,7 @@ class TestForwardParity:
     def test_star_planet_distance(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
-        rs = _star_planet_distance_ov(ts, tpa, p, dt, pkt, pts, c)
+        rs = star_planet_distance_ov(ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             r = _star_planet_distance_os(float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose(r, rs[j], rtol=1e-14, atol=1e-14)
@@ -148,7 +148,7 @@ class TestForwardParity:
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
         v = np.array([0.3, -0.5, 0.8])
-        cs = _cos_v_p_angle_ov(v, ts, tpa, p, dt, pkt, pts, c)
+        cs = cos_v_p_angle_ov(v, ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             cval = _cos_v_p_angle_os(v, float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose(cval, cs[j], rtol=1e-14, atol=1e-14)
@@ -157,7 +157,7 @@ class TestForwardParity:
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
         ex, ey, ez = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
-        fs = _true_anomaly_ov(ts, tpa, p, ex, ey, ez, orbit_case["w"], dt, pkt, pts, c)
+        fs = true_anomaly_ov(ts, tpa, p, ex, ey, ez, orbit_case["w"], dt, pkt, pts, c)
         for j, t in enumerate(ts):
             f = _true_anomaly_os(float(t), tpa, p, ex, ey, ez, orbit_case["w"],
                                  dt, pkt, pts, c)
@@ -167,7 +167,7 @@ class TestForwardParity:
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
         ag, a, k = 0.3, orbit_case["a"], 0.1
-        fl = _lambert_phase_curve_ov(ts, ag, a, k, tpa, p, dt, pkt, pts, c)
+        fl = lambert_phase_curve_ov(ts, ag, a, k, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             f = _lambert_phase_curve_os(float(t), ag, a, k, tpa, p, dt, pkt, pts, c)
             assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
@@ -176,7 +176,7 @@ class TestForwardParity:
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
         alpha, mr, inc = 1.0, 1e-3, orbit_case["i"]
-        ev_v = _ev_signal_ov(alpha, mr, inc, ts, tpa, p, dt, pkt, pts, c)
+        ev_v = ev_signal_ov(alpha, mr, inc, ts, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             ev = _ev_signal_os(alpha, mr, inc, float(t), tpa, p, dt, pkt, pts, c)
             assert_allclose(ev, ev_v[j], rtol=1e-14, atol=1e-14)
@@ -185,7 +185,7 @@ class TestForwardParity:
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
         k_amp = 50.0
-        rvs = _rv_ov(ts, k_amp, tpa, p, orbit_case["a"], orbit_case["i"],
+        rvs = rv_ov(ts, k_amp, tpa, p, orbit_case["a"], orbit_case["i"],
                      orbit_case["e"], dt, pkt, pts, c)
         for j, t in enumerate(ts):
             rv = _rv_os(float(t), k_amp, tpa, p, orbit_case["a"], orbit_case["i"],
@@ -196,7 +196,7 @@ class TestForwardParity:
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
         e, w, rstar = orbit_case["e"], orbit_case["w"], 1.0
-        ltts = _light_travel_time_ov(ts, tpa, p, e, w, rstar, dt, pkt, pts, c)
+        ltts = light_travel_time_ov(ts, tpa, p, e, w, rstar, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             ltt = _light_travel_time_os(float(t), tpa, p, e, w, rstar, dt, pkt, pts, c)
             assert_allclose(ltt, ltts[j], rtol=1e-14, atol=1e-14)
@@ -211,7 +211,7 @@ class TestGradientParity:
     def test_pos(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        xs, ys, zs, dxs, dys, dzs = _pos_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
+        xs, ys, zs, dxs, dys, dzs = pos_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             x, y, z, dx, dy, dz = _pos_osd(float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose([x, y, z], [xs[j], ys[j], zs[j]], rtol=1e-14, atol=1e-14)
@@ -222,7 +222,7 @@ class TestGradientParity:
     def test_zpos(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        zs, dzs = _zpos_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
+        zs, dzs = zpos_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             z, dz = _zpos_osd(float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(z, zs[j], rtol=1e-14, atol=1e-14)
@@ -231,7 +231,7 @@ class TestGradientParity:
     def test_sep(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        ds, dds = _sep_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
+        ds, dds = sep_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             d, dd = _sep_osd(float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(d, ds[j], rtol=1e-14, atol=1e-14)
@@ -240,7 +240,7 @@ class TestGradientParity:
     def test_vel(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        vxs, vys, vzs, dvxs, dvys, dvzs = _vel_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
+        vxs, vys, vzs, dvxs, dvys, dvzs = vel_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             vx, vy, vz, dvx, dvy, dvz = _vel_osd(float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose([vx, vy, vz], [vxs[j], vys[j], vzs[j]], rtol=1e-14, atol=1e-14)
@@ -251,7 +251,7 @@ class TestGradientParity:
     def test_zvel(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        vzs, dvzs = _zvel_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
+        vzs, dvzs = zvel_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             vz, dvz = _zvel_osd(float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(vz, vzs[j], rtol=1e-14, atol=1e-14)
@@ -260,7 +260,7 @@ class TestGradientParity:
     def test_cos_alpha(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        cas, dcas = _cos_alpha_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
+        cas, dcas = cos_alpha_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             ca, dca = _cos_alpha_osd(float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(ca, cas[j], rtol=1e-14, atol=1e-14)
@@ -269,7 +269,7 @@ class TestGradientParity:
     def test_star_planet_distance(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        rs, drs = _star_planet_distance_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
+        rs, drs = star_planet_distance_ovd(ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             r, dr = _star_planet_distance_osd(float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(r, rs[j], rtol=1e-14, atol=1e-14)
@@ -279,7 +279,7 @@ class TestGradientParity:
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
         v = np.array([0.3, -0.5, 0.8])
-        cs, dcs = _cos_v_p_angle_ovd(v, ts, tpa, p, dt, pkt, pts, c, dc)
+        cs, dcs = cos_v_p_angle_ovd(v, ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             cval, dc_val = _cos_v_p_angle_osd(v, float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(cval, cs[j], rtol=1e-14, atol=1e-14)
@@ -289,7 +289,7 @@ class TestGradientParity:
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
         ex, ey, ez = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
-        fs, dfs = _true_anomaly_ovd(ts, tpa, p, ex, ey, ez, orbit_case["w"],
+        fs, dfs = true_anomaly_ovd(ts, tpa, p, ex, ey, ez, orbit_case["w"],
                                     dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             f, df = _true_anomaly_osd(float(t), tpa, p, ex, ey, ez, orbit_case["w"],
@@ -301,7 +301,7 @@ class TestGradientParity:
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
         ag, a, k = 0.3, orbit_case["a"], 0.1
-        fl, dfl = _lambert_phase_curve_ovd(ts, ag, a, k, tpa, p, dt, pkt, pts, c, dc)
+        fl, dfl = lambert_phase_curve_ovd(ts, ag, a, k, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             f, df = _lambert_phase_curve_osd(float(t), ag, a, k, tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
@@ -311,7 +311,7 @@ class TestGradientParity:
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
         alpha, mr, inc = 1.0, 1e-3, orbit_case["i"]
-        ev_v, dev_v = _ev_signal_ovd(alpha, mr, inc, ts, tpa, p, dt, pkt, pts, c, dc)
+        ev_v, dev_v = ev_signal_ovd(alpha, mr, inc, ts, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             ev, dev = _ev_signal_osd(alpha, mr, inc, float(t), tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(ev, ev_v[j], rtol=1e-14, atol=1e-14)
@@ -321,7 +321,7 @@ class TestGradientParity:
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
         k_amp = 50.0
-        rvs, drvs = _rv_ovd(ts, k_amp, tpa, p, orbit_case["a"], orbit_case["i"],
+        rvs, drvs = rv_ovd(ts, k_amp, tpa, p, orbit_case["a"], orbit_case["i"],
                             orbit_case["e"], dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             rv, drv = _rv_osd(float(t), k_amp, tpa, p, orbit_case["a"], orbit_case["i"],
@@ -333,7 +333,7 @@ class TestGradientParity:
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
         e, w, rstar = orbit_case["e"], orbit_case["w"], 1.0
-        ltts, dltts = _light_travel_time_ovd(ts, tpa, p, e, w, rstar, dt, pkt, pts, c, dc)
+        ltts, dltts = light_travel_time_ovd(ts, tpa, p, e, w, rstar, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             ltt, dltt = _light_travel_time_osd(float(t), tpa, p, e, w, rstar,
                                                dt, pkt, pts, c, dc)

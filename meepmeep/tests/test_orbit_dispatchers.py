@@ -19,12 +19,12 @@ from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit
 from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
     pos_o, sep_o, rv_o,
-    _pos_os, _pos_ov, _sep_os, _sep_ov, _rv_os, _rv_ov,
+    _pos_os, pos_ov, _sep_os, sep_ov, _rv_os, rv_ov,
 )
 from meepmeep.backends.numba.orbit3dd import (
     solve3d_orbit_d,
     pos_od, sep_od,
-    _pos_osd, _pos_ovd, _sep_osd, _sep_ovd,
+    _pos_osd, pos_ovd, _sep_osd, sep_ovd,
 )
 
 
@@ -80,7 +80,7 @@ class TestPythonDispatch:
         a = orbit_args
         via_dispatch = sep_o(a["t_array"], a["tpa"], a["pars"]["p"], a["dt"],
                              a["pkt"], a["pts"], a["c"])
-        via_private = _sep_ov(a["t_array"], a["tpa"], a["pars"]["p"], a["dt"],
+        via_private = sep_ov(a["t_array"], a["tpa"], a["pars"]["p"], a["dt"],
                               a["pkt"], a["pts"], a["c"])
         assert_allclose(via_dispatch, via_private, rtol=0, atol=0)
 
@@ -129,7 +129,7 @@ class TestNjitDispatch:
 
         result = caller(a["t_array"], a["tpa"], a["pars"]["p"], a["dt"],
                         a["pkt"], a["pts"], a["c"])
-        ref = _pos_ov(a["t_array"], a["tpa"], a["pars"]["p"], a["dt"],
+        ref = pos_ov(a["t_array"], a["tpa"], a["pars"]["p"], a["dt"],
                       a["pkt"], a["pts"], a["c"])
         for r, e in zip(result, ref):
             assert_allclose(r, e, rtol=0, atol=0)
@@ -157,7 +157,7 @@ class TestNjitDispatch:
 
         scalar_ref = _rv_os(a["t_scalar"], k, a["tpa"], p, a_, i_, e_,
                             a["dt"], a["pkt"], a["pts"], a["c"])
-        array_ref = _rv_ov(a["t_array"], k, a["tpa"], p, a_, i_, e_,
+        array_ref = rv_ov(a["t_array"], k, a["tpa"], p, a_, i_, e_,
                            a["dt"], a["pkt"], a["pts"], a["c"])
 
         assert scalar_result == scalar_ref
@@ -177,7 +177,7 @@ class TestNjitDispatch:
                                    a["pkt"], a["pts"], a["c_d"], a["dc_d"])
         s_scalar_ref, ds_scalar_ref = _sep_osd(a["t_scalar"], a["tpa"], p, a["dt"],
                                                a["pkt"], a["pts"], a["c_d"], a["dc_d"])
-        s_array_ref, ds_array_ref = _sep_ovd(a["t_array"], a["tpa"], p, a["dt"],
+        s_array_ref, ds_array_ref = sep_ovd(a["t_array"], a["tpa"], p, a["dt"],
                                              a["pkt"], a["pts"], a["c_d"], a["dc_d"])
         assert s_scalar == s_scalar_ref
         assert_allclose(ds_scalar, ds_scalar_ref, rtol=0, atol=0)

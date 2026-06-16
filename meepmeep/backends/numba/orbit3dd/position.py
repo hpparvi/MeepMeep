@@ -51,7 +51,7 @@ def _pos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _pos_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def pos_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`pos_od`. See that function for documentation."""
     n = times.size
     xs = zeros(n)
@@ -67,8 +67,8 @@ def _pos_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _pos_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_pos_ovd`."""
+def pos_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`pos_ovd`."""
     n = times.size
     xs, ys, zs = zeros(n), zeros(n), zeros(n)
     dxs, dys, dzs = zeros((n, 7)), zeros((n, 7)), zeros((n, 7))
@@ -82,7 +82,7 @@ def pos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Planet (x, y, z) position and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_pos_osd`) or vector (:func:`_pos_ovd`) kernel at compile time
+    scalar (:func:`_pos_osd`) or vector (:func:`pos_ovd`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Parameters
@@ -119,7 +119,7 @@ def pos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _pos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return pos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _pos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -127,7 +127,7 @@ def pos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _pos_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _pos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return pos_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

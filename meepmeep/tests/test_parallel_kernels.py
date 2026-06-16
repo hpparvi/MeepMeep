@@ -17,25 +17,25 @@ from numpy.testing import assert_allclose
 from meepmeep.backends.numba.expansion_points import create_expansion_points
 from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
-    _pos_ov, _pos_ovp, _zpos_ov, _zpos_ovp, _sep_ov, _sep_ovp,
-    _vel_ov, _vel_ovp, _zvel_ov, _zvel_ovp, _rv_ov, _rv_ovp,
-    _cos_alpha_ov, _cos_alpha_ovp, _cos_v_p_angle_ov, _cos_v_p_angle_ovp,
-    _star_planet_distance_ov, _star_planet_distance_ovp,
-    _true_anomaly_ov, _true_anomaly_ovp,
-    _lambert_phase_curve_ov, _lambert_phase_curve_ovp,
-    _ev_signal_ov, _ev_signal_ovp,
-    _light_travel_time_ov, _light_travel_time_ovp,
+    pos_ov, pos_ovp, zpos_ov, zpos_ovp, sep_ov, sep_ovp,
+    vel_ov, vel_ovp, zvel_ov, zvel_ovp, rv_ov, rv_ovp,
+    cos_alpha_ov, cos_alpha_ovp, cos_v_p_angle_ov, cos_v_p_angle_ovp,
+    star_planet_distance_ov, star_planet_distance_ovp,
+    true_anomaly_ov, true_anomaly_ovp,
+    lambert_phase_curve_ov, lambert_phase_curve_ovp,
+    ev_signal_ov, ev_signal_ovp,
+    light_travel_time_ov, light_travel_time_ovp,
 )
 from meepmeep.backends.numba.orbit3dd import (
     solve3d_orbit_d,
-    _pos_ovd, _pos_ovdp, _zpos_ovd, _zpos_ovdp, _sep_ovd, _sep_ovdp,
-    _vel_ovd, _vel_ovdp, _zvel_ovd, _zvel_ovdp, _rv_ovd, _rv_ovdp,
-    _cos_alpha_ovd, _cos_alpha_ovdp, _cos_v_p_angle_ovd, _cos_v_p_angle_ovdp,
-    _star_planet_distance_ovd, _star_planet_distance_ovdp,
-    _true_anomaly_ovd, _true_anomaly_ovdp,
-    _lambert_phase_curve_ovd, _lambert_phase_curve_ovdp,
-    _ev_signal_ovd, _ev_signal_ovdp,
-    _light_travel_time_ovd, _light_travel_time_ovdp,
+    pos_ovd, pos_ovdp, zpos_ovd, zpos_ovdp, sep_ovd, sep_ovdp,
+    vel_ovd, vel_ovdp, zvel_ovd, zvel_ovdp, rv_ovd, rv_ovdp,
+    cos_alpha_ovd, cos_alpha_ovdp, cos_v_p_angle_ovd, cos_v_p_angle_ovdp,
+    star_planet_distance_ovd, star_planet_distance_ovdp,
+    true_anomaly_ovd, true_anomaly_ovdp,
+    lambert_phase_curve_ovd, lambert_phase_curve_ovdp,
+    ev_signal_ovd, ev_signal_ovdp,
+    light_travel_time_ovd, light_travel_time_ovdp,
 )
 from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit, eccentricity_vector
 from meepmeep.orbit import Orbit
@@ -70,119 +70,119 @@ def _compare(serial, par, args):
 class TestValueKernelParity:
     def test_pos(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_pos_ov, _pos_ovp, (t, tpa, p, dt, pkt, pts, c))
+        _compare(pos_ov, pos_ovp, (t, tpa, p, dt, pkt, pts, c))
 
     def test_zpos(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_zpos_ov, _zpos_ovp, (t, tpa, p, dt, pkt, pts, c))
+        _compare(zpos_ov, zpos_ovp, (t, tpa, p, dt, pkt, pts, c))
 
     def test_sep(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_sep_ov, _sep_ovp, (t, tpa, p, dt, pkt, pts, c))
+        _compare(sep_ov, sep_ovp, (t, tpa, p, dt, pkt, pts, c))
 
     def test_vel(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_vel_ov, _vel_ovp, (t, tpa, p, dt, pkt, pts, c))
+        _compare(vel_ov, vel_ovp, (t, tpa, p, dt, pkt, pts, c))
 
     def test_zvel(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_zvel_ov, _zvel_ovp, (t, tpa, p, dt, pkt, pts, c))
+        _compare(zvel_ov, zvel_ovp, (t, tpa, p, dt, pkt, pts, c))
 
     def test_rv(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_rv_ov, _rv_ovp, (t, 0.05, tpa, p, PARS["a"], PARS["i"], PARS["e"], dt, pkt, pts, c))
+        _compare(rv_ov, rv_ovp, (t, 0.05, tpa, p, PARS["a"], PARS["i"], PARS["e"], dt, pkt, pts, c))
 
     def test_cos_alpha(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_cos_alpha_ov, _cos_alpha_ovp, (t, tpa, p, dt, pkt, pts, c))
+        _compare(cos_alpha_ov, cos_alpha_ovp, (t, tpa, p, dt, pkt, pts, c))
 
     def test_cos_v_p_angle(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
         v = np.array([0.3, 0.5, 0.81])
-        _compare(_cos_v_p_angle_ov, _cos_v_p_angle_ovp, (v, t, tpa, p, dt, pkt, pts, c))
+        _compare(cos_v_p_angle_ov, cos_v_p_angle_ovp, (v, t, tpa, p, dt, pkt, pts, c))
 
     def test_star_planet_distance(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_star_planet_distance_ov, _star_planet_distance_ovp, (t, tpa, p, dt, pkt, pts, c))
+        _compare(star_planet_distance_ov, star_planet_distance_ovp, (t, tpa, p, dt, pkt, pts, c))
 
     def test_true_anomaly(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, ev = setup
-        _compare(_true_anomaly_ov, _true_anomaly_ovp,
+        _compare(true_anomaly_ov, true_anomaly_ovp,
                  (t, tpa, p, ev[0], ev[1], ev[2], PARS["w"], dt, pkt, pts, c))
 
     def test_lambert_phase_curve(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_lambert_phase_curve_ov, _lambert_phase_curve_ovp,
+        _compare(lambert_phase_curve_ov, lambert_phase_curve_ovp,
                  (t, 0.3, PARS["a"], 0.1, tpa, p, dt, pkt, pts, c))
 
     def test_ev_signal(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_ev_signal_ov, _ev_signal_ovp, (8e-6, 1e-3, PARS["i"], t, tpa, p, dt, pkt, pts, c))
+        _compare(ev_signal_ov, ev_signal_ovp, (8e-6, 1e-3, PARS["i"], t, tpa, p, dt, pkt, pts, c))
 
     def test_light_travel_time(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
-        _compare(_light_travel_time_ov, _light_travel_time_ovp,
+        _compare(light_travel_time_ov, light_travel_time_ovp,
                  (t, tpa, p, PARS["e"], PARS["w"], 1.0, dt, pkt, pts, c))
 
 
 class TestGradientKernelParity:
     def test_pos(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_pos_ovd, _pos_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
+        _compare(pos_ovd, pos_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_zpos(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_zpos_ovd, _zpos_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
+        _compare(zpos_ovd, zpos_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_sep(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_sep_ovd, _sep_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
+        _compare(sep_ovd, sep_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_vel(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_vel_ovd, _vel_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
+        _compare(vel_ovd, vel_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_zvel(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_zvel_ovd, _zvel_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
+        _compare(zvel_ovd, zvel_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_rv(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_rv_ovd, _rv_ovdp,
+        _compare(rv_ovd, rv_ovdp,
                  (t, 0.05, tpa, p, PARS["a"], PARS["i"], PARS["e"], dt, pkt, pts, c, dc))
 
     def test_cos_alpha(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_cos_alpha_ovd, _cos_alpha_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
+        _compare(cos_alpha_ovd, cos_alpha_ovdp, (t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_cos_v_p_angle(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
         v = np.array([0.3, 0.5, 0.81])
-        _compare(_cos_v_p_angle_ovd, _cos_v_p_angle_ovdp, (v, t, tpa, p, dt, pkt, pts, c, dc))
+        _compare(cos_v_p_angle_ovd, cos_v_p_angle_ovdp, (v, t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_star_planet_distance(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_star_planet_distance_ovd, _star_planet_distance_ovdp,
+        _compare(star_planet_distance_ovd, star_planet_distance_ovdp,
                  (t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_true_anomaly(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, ev = setup
-        _compare(_true_anomaly_ovd, _true_anomaly_ovdp,
+        _compare(true_anomaly_ovd, true_anomaly_ovdp,
                  (t, tpa, p, ev[0], ev[1], ev[2], PARS["w"], dt, pkt, pts, c, dc))
 
     def test_lambert_phase_curve(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_lambert_phase_curve_ovd, _lambert_phase_curve_ovdp,
+        _compare(lambert_phase_curve_ovd, lambert_phase_curve_ovdp,
                  (t, 0.3, PARS["a"], 0.1, tpa, p, dt, pkt, pts, c, dc))
 
     def test_ev_signal(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_ev_signal_ovd, _ev_signal_ovdp,
+        _compare(ev_signal_ovd, ev_signal_ovdp,
                  (8e-6, 1e-3, PARS["i"], t, tpa, p, dt, pkt, pts, c, dc))
 
     def test_light_travel_time(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
-        _compare(_light_travel_time_ovd, _light_travel_time_ovdp,
+        _compare(light_travel_time_ovd, light_travel_time_ovdp,
                  (t, tpa, p, PARS["e"], PARS["w"], 1.0, dt, pkt, pts, c, dc))
 
 

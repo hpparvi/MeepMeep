@@ -143,7 +143,8 @@ meepmeep/
     │   │                    # separation.py (sep_cd, sep_d), solve.py
     │   │                    # (solve2d_d). pos_cd/pos_d/sep_cd/sep_d are
     │   │                    # scalar-or-array @overload dispatchers (like
-    │   │                    # orbit3d's *_o) over private _s/_v kernels.
+    │   │                    # orbit3d's *_o) over private _s scalar and
+    │   │                    # public _v/_vp vector kernels.
     │   ├── point3d/         # Single-expansion-point 3D evaluators (no derivatives),
     │   │                    # one module per quantity plus solve/util:
     │   │                    # position.py (pos), zposition.py
@@ -160,7 +161,8 @@ meepmeep/
     │   │                    # radial_velocity.py (rv_cd, rv_d),
     │   │                    # solve.py (solve3d_d). The evaluators are
     │   │                    # scalar-or-array @overload dispatchers (like
-    │   │                    # point2dd) over private _s/_v kernels.
+    │   │                    # point2dd) over private _s scalar and
+    │   │                    # public _v/_vp vector kernels.
     │   ├── orbit3d/         # Multi-expansion-point orbit-spanning evaluators, one
     │   │                    # module per quantity (position, separation,
     │   │                    # velocity, radial_velocity, true_anomaly,
@@ -267,7 +269,7 @@ To add a new quantity:
 2. Implement the direct version that epoch-folds and delegates to the centered version
 3. If derivatives are needed, add `_d`/`_cd` variants in the corresponding derivative module (`point2dd/<quantity>.py` for single-expansion-point 2D, `point3dd/<quantity>.py` for 3D)
 4. Decorate with `@njit(fastmath=True)`
-5. If the new function is intended for public use, add its name to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-expansion-point routines).
+5. If the new function is intended for public use, add its name — and the names of its public vector/parallel kernels (`X_v`/`X_vp`, or `X_ov`/`X_ovp`/`X_ovd`/`X_ovdp` for multi-expansion-point) — to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-expansion-point routines). The scalar (`_X_s`/`_X_os`/`_X_osd`), write-into (`_X_..._w`/`_X_ow`), and dual-decoration body (`_X_v_body`) kernels stay private and are not exported.
 
 The single-expansion-point evaluators are organised into per-dimension packages:
 `point2d/`/`point2dd/` for 2D and `point3d/`/`point3dd/` for 3D, where the
@@ -279,8 +281,8 @@ module and, in the non-derivative package, a `util.py` for transit
 geometry. Each package's `__init__.py` re-exports its surface, mirroring
 the `orbit3d`/`orbit3dd` layout. The non-derivative single-expansion-point evaluators
 (`point2d`/`point3d`) are scalar-or-array `@overload` dispatchers over
-private `_X_c_s`/`_X_c_v` (centered) and `_X_s`/`_X_v` (direct) kernels —
-the array path is an explicit loop over the scalar kernel, NOT NumPy
+private scalar `_X_c_s`/`_X_s` and **public** vector `X_c_v`/`X_v` (centered/direct)
+kernels — the array path is an explicit loop over the scalar kernel, NOT NumPy
 broadcasting (broadcasting inside `@njit` materialises a full-array
 temporary per Horner step and measured 4-40x slower). A new quantity adds
 `X_c`/`X` to a `point{2,3}d/<quantity>.py` module and, if needed,
@@ -291,13 +293,24 @@ gradient allocation is `(7,)` for a scalar but `(N, 7)` for an array), so each
 public name (`pos_cd`, `pos_d`, `sep_cd`, `sep_d`, and in 3D also `zpos_*`,
 `vel_cd`, `zvel_*`, `rv_*`) is a scalar-or-array `numba.extending.overload`
 dispatcher — same pattern as `orbit3d`'s `*_o` — each a plain-Python fallback
-plus an `@overload` routing to private `_X_..._s` (scalar) and `_X_..._v`
-(vector) kernels. `_is_1d_array` lives in each package's `_common.py`
-(`point2dd/_common.py`, `point3dd/_common.py`). This is the array path `Expansion2D`
-uses in 2D, so there is no separate `_dv` variant. The single-expansion-point `_v` kernels
-(many times, one coefficient matrix) are distinct from the `orbit3dd` `_X_ovd`
-vector kernels, which still exist because *multi-expansion-point* dispatch (per-time expansion point
-lookup via `ep_table`) is a separate concern.
+plus an `@overload` routing to a private `_X_..._s` (scalar) kernel and a
+**public** `X_..._v` (vector) kernel. `_is_1d_array` lives in each package's
+`_common.py` (`point2dd/_common.py`, `point3dd/_common.py`). This is the array
+path `Expansion2D` uses in 2D, so there is no separate `_dv` variant. The
+single-expansion-point `X_v` kernels (many times, one coefficient matrix) are
+distinct from the `orbit3dd` `X_ovd` vector kernels, which still exist because
+*multi-expansion-point* dispatch (per-time expansion point lookup via `ep_table`) is a
+separate concern.
+
+**Public vs private kernels.** As of the vector-kernel promotion, the vector
+(`X_v`/`X_c_v`/`X_cd_v`/`X_d_v`) and parallel (`X_vp`/...) kernels in
+`point{2,3}d{,d}`, and the multi-expansion-point vector/parallel kernels
+(`X_ov`/`X_ovp`/`X_ovd`/`X_ovdp`) in `orbit3d`/`orbit3dd`, are **public** —
+exported through `numba2d`/`numba3d` `__all__`. The scalar kernels
+(`_X_s`/`_X_c_s`/`_X_os`/`_X_osd`), the write-into kernels (`_X_..._w`/`_X_ow`),
+the dual-decoration bodies (`_X_v_body`), and helpers (`_rv_scale`,
+`_lambert_kernel`, `_is_1d_array`) keep their leading underscore and stay
+private.
 
 **Write-into kernels (`_w` / `_ow`).** The gradient arithmetic itself lives in
 `inline='always'` *write-into* kernels that evaluate the Horner polynomials
@@ -306,7 +319,7 @@ directly into caller-provided `(7,)` buffers and return the value(s):
 `_rv_cd_w` with its hoistable `_rv_scale` helper), and `_X_ow` in `orbit3dd`
 (e.g. `_pos_ow`, `_zpos_ow`, `_cos_alpha_ow`; these also fold the epoch and
 look up the expansion point). The `_s`/`_osd` kernels allocate fresh gradient arrays and
-delegate; the `_v`/`_ovd` kernels pass preallocated output rows (or hoisted
+delegate; the public `X_v`/`X_ovd` kernels pass preallocated output rows (or hoisted
 scratch buffers for intermediate gradients). **Keep the hot vector loops
 allocation-free**: never call a scalar gradient kernel (which allocates its
 outputs) inside a per-sample loop — call the `_w`/`_ow` kernel with reused
@@ -315,16 +328,17 @@ scalar and vector callers, `fastmath` contraction can differ between the two
 contexts by an ulp; scalar-vs-vector parity tests need a tiny `atol` (~1e-14
 relative to signal scale), not `atol=0`.
 
-**Parallel twins (`_vp` / `_ovp` / `_ovdp`).** Every vector kernel —
-single-expansion-point (`_v` -> `_vp`) and multi-expansion-point (`_ov` -> `_ovp`,
-`_ovd` -> `_ovdp`) — has a `prange` twin living in the same quantity module,
-directly after its serial counterpart. Two construction patterns, chosen by
+**Parallel twins (`X_vp` / `X_ovp` / `X_ovdp`, public).** Every vector kernel —
+single-expansion-point (`X_v` -> `X_vp`) and multi-expansion-point (`X_ov` -> `X_ovp`,
+`X_ovd` -> `X_ovdp`) — has a `prange` twin living in the same quantity module,
+directly after its serial counterpart. Both the serial and parallel kernels are
+public (exported via `numba2d`/`numba3d`). Two construction patterns, chosen by
 whether the loop needs intermediate scratch:
 
 - **Scratch-free loops** (write only into per-sample output elements/rows):
-  *dual decoration* — one shared body written with `prange`, compiled twice
-  (`_X_v = njit(fastmath=True)(_X_v_body)`;
-  `_X_vp = njit(fastmath=True, parallel=True)(_X_v_body)`). `prange`
+  *dual decoration* — one shared (private) body written with `prange`, compiled
+  twice (`X_v = njit(fastmath=True)(_X_v_body)`;
+  `X_vp = njit(fastmath=True, parallel=True)(_X_v_body)`). `prange`
   compiles as a plain `range` without `parallel=True`, so the serial kernel
   is unchanged and the math exists once. All single-expansion-point kernels except the
   rv gradients qualify.
@@ -337,9 +351,10 @@ whether the loop needs intermediate scratch:
   single-expansion-point rv gradient kernels and the derived multi-expansion-point gradient
   kernels.
 
-The public dispatchers always route to the serial kernels; the twins are
-opt-in via `Orbit(parallel=True)` (multi-expansion-point) and `Expansion2D(parallel=True)`
-(single-expansion-point 2D), which use them only above the classes'
+The scalar-or-array dispatchers route to the serial kernels; callers reach the
+parallel twins either directly (they are public) or via the
+`Orbit(parallel=True)` (multi-expansion-point) and `Expansion2D(parallel=True)`
+(single-expansion-point 2D) opt-ins, which use them only above the classes'
 `_PARALLEL_NMIN_GRAD` / `_PARALLEL_NMIN_VALUE` thresholds (1e4 / 5e4 for
 `Orbit`, 1e4 / 1e5 for `Expansion2D`) — below those sizes the parallel-region
 launch overhead makes them slower.
@@ -348,7 +363,7 @@ flags): kernels compiled without fastmath (e.g. `true_anomaly`) must not
 route positions through a fastmath path, or near-singular gradients drift
 beyond parity tolerances.
 
-For multi-expansion-point evaluation (arrays of times with expansion point lookup), add a new per-quantity module under `orbit3d/` containing a pair of private kernels — `_X_os` (scalar input time) and `_X_ov` (vector of times) — together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as `_X_osd` / `_X_ovd` plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `ep_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The public dispatcher is what `meepmeep/numba3d.py` re-exports and what callers use; the underscored kernels stay internal. Multi-expansion-point kernels look up the relevant expansion point via `ep_table`/`ep_ix` and delegate to the single-expansion-point evaluators in the `point3d` package (or their gradient variants in `point3dd`).
+For multi-expansion-point evaluation (arrays of times with expansion point lookup), add a new per-quantity module under `orbit3d/` containing a private scalar kernel `_X_os` (scalar input time) and a public vector kernel `X_ov` (vector of times), together with a public `X_o` dispatcher that uses `numba.extending.overload` to route between them at compile time / call time, then re-export all three (plus the parallel twin `X_ovp`) from `orbit3d/__init__.py`. Gradient counterparts go in the mirrored module under `orbit3dd/` as private `_X_osd` and public `X_ovd` (plus parallel `X_ovdp`) plus an `X_od` dispatcher, re-exported from `orbit3dd/__init__.py`. Shared helpers (`_is_1d_array`, `ep_ix`, `solve3d_orbit`) live in `orbit3d/_common.py` (`solve3d_orbit_d` and `_is_1d_array` in `orbit3dd/_common.py`). The dispatchers AND the vector/parallel kernels are what `meepmeep/numba3d.py` re-exports; the scalar (`_X_os`/`_X_osd`) and write-into kernels stay internal. Multi-expansion-point kernels look up the relevant expansion point via `ep_table`/`ep_ix` and delegate to the single-expansion-point evaluators in the `point3d` package (or their gradient variants in `point3dd`).
 
 Note on Numba `cache=True` callers: after introducing or modifying a dispatcher, purge stale `__pycache__/*.nbi` / `*.nbc` files so Numba recompiles against the new overload registration.
 
@@ -366,13 +381,15 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `_c` suffix: centered (time argument is relative to the expansion point)
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
-  - In `point2dd` and `point3dd`, every derivative evaluator (`pos_cd`/`pos_d`/`sep_cd`/`sep_d`, plus in 3D `zpos_*`/`vel_cd`/`zvel_*`/`rv_*`) is a scalar-or-array `@overload` dispatcher (a scalar time gives a `(7,)` gradient; a 1-D time array of length `N` gives a leading-`N` axis, e.g. `sep_d` returns `d` shape `(N,)` and `dd` shape `(N, 7)`). Internally each routes to private `_s` (scalar) and `_v` (vector) kernels, e.g. `_pos_cd_s`/`_pos_cd_v`. This is the array path used by `Expansion2D`; there is no `_dv` variant.
+  - In `point2dd` and `point3dd`, every derivative evaluator (`pos_cd`/`pos_d`/`sep_cd`/`sep_d`, plus in 3D `zpos_*`/`vel_cd`/`zvel_*`/`rv_*`) is a scalar-or-array `@overload` dispatcher (a scalar time gives a `(7,)` gradient; a 1-D time array of length `N` gives a leading-`N` axis, e.g. `sep_d` returns `d` shape `(N,)` and `dd` shape `(N, 7)`). Internally each routes to a private `_s` (scalar) kernel and a public `X_v` (vector) kernel, e.g. `_pos_cd_s`/`pos_cd_v`. This is the array path used by `Expansion2D`; there is no `_dv` variant.
+  - `_v` / `_vp` suffix (public): vector and parallel-vector kernels (e.g. `sep_v`/`sep_vp`, `sep_d_v`/`sep_d_vp`); call directly to skip the dispatcher's scalar-or-array type check. The `_vp` twin multi-threads the sample loop.
   - Dimensionality (2D vs 3D) is encoded by the package name (`point2d`/`point2dd` vs `point3d`/`point3dd`), not by the function name.
 - In the `orbit3d/` / `orbit3dd/` packages (multi-expansion-point dispatchers):
   - `_o`: public overloaded dispatcher; accepts scalar time OR 1-D float64 array (e.g. `pos_o`, `zvel_o`, `rv_o`)
   - `_od`: same, gradient-returning (in the `orbit3dd/` package; e.g. `pos_od`, `rv_od`)
-  - `_os` / `_ov` (private, leading underscore): the underlying scalar and vector kernels the dispatcher routes to; only call directly when contributing
-  - `_osd` / `_ovd` (private, leading underscore): same, gradient-returning kernels
+  - `_ov` / `_ovp` (public): the vector and parallel-vector value kernels the `_o` dispatcher routes to (e.g. `pos_ov`/`pos_ovp`)
+  - `_ovd` / `_ovdp` (public): the vector and parallel-vector gradient kernels the `_od` dispatcher routes to
+  - `_os` / `_osd` (private, leading underscore): the scalar value/gradient kernels; only call directly when contributing
 - The authoritative reference for the full naming scheme is
   `docs/source/naming_conventions.rst`. Update both that file and this
   section if the conventions change.

@@ -136,11 +136,14 @@ length ``N`` yields results with a leading ``N`` axis (e.g. ``sep_d`` returns
 ``d`` of shape ``(N,)`` and ``dd`` of shape ``(N, 7)``). The array path is the
 one used by the high-level ``Expansion2D`` properties.
 
-Internally each dispatcher routes to a private kernel with the explicit
-``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``_pos_cd_v``,
-present in both the ``point2dd/`` and ``point3dd/`` packages. Reach for those
-private kernels only when you need to avoid the dispatcher's type check (rarely
-useful) or when contributing to MeepMeep itself.
+Internally each dispatcher routes to a kernel with the explicit
+``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``pos_cd_v``,
+present in both the ``point2dd/`` and ``point3dd/`` packages. The **vector**
+kernels (``_v``) are public and re-exported from :mod:`meepmeep.numba2d` /
+:mod:`meepmeep.numba3d`; call them directly when you want to commit to the
+array path and skip the dispatcher's scalar-or-array type check. The
+**scalar** kernels (``_s``) remain private (leading underscore) — reach for
+them only when contributing to MeepMeep itself.
 
 The gradient arithmetic itself lives one level deeper, in a private
 *write-into* kernel with the ``_w`` suffix (e.g. ``_pos_cd_w``) that
@@ -150,14 +153,17 @@ gradient arrays and delegate to ``_w``; the ``_v`` kernels pass
 preallocated output rows so the hot vector loops run without per-sample
 allocations.
 
-Each vector kernel also has a *parallel twin* with a trailing ``p``
-(``_pos_c_vp``, ``_sep_d_vp``, ...), compiled with ``parallel=True`` and a
+Each vector kernel also has a public *parallel twin* with a trailing ``p``
+(``pos_c_vp``, ``sep_d_vp``, ...), compiled with ``parallel=True`` and a
 ``prange`` sample loop. Scratch-free kernels are dual-decorated from a
-single shared body (``prange`` compiles as a plain ``range`` in the serial
-compilation, so the serial kernel is unchanged); the rv gradient kernels,
-whose loops reuse a hoisted scratch buffer, have explicit hand-written
-twins with one scratch buffer per thread. The high-level
-``Expansion2D(parallel=True)`` opt-in routes large time grids to these twins.
+single shared (private) body (``prange`` compiles as a plain ``range`` in
+the serial compilation, so the serial kernel is unchanged); the rv gradient
+kernels, whose loops reuse a hoisted scratch buffer, have explicit
+hand-written twins with one scratch buffer per thread. The parallel twins
+pay off only for large time grids — the high-level
+``Expansion2D(parallel=True)`` opt-in routes large grids to them
+automatically. The non-derivative 3D radial velocity (``rv_c`` / ``rv``) is
+scalar-inline only and has no single-expansion-point vector kernel.
 
 
 Multi-expansion-point dispatcher suffix
@@ -185,12 +191,14 @@ Examples: :func:`~meepmeep.backends.numba.orbit3d.pos_o`,
 :func:`~meepmeep.backends.numba.orbit3dd.pos_od`,
 :func:`~meepmeep.backends.numba.orbit3dd.rv_od`.
 
-Internally each dispatcher routes to a private kernel with the explicit
+Internally each dispatcher routes to a kernel with the explicit
 ``_os`` / ``_ov`` (scalar / vector) suffix — e.g. ``_pos_os`` and
-``_pos_ov`` in the ``orbit3d/`` package, ``_pos_osd`` and ``_pos_ovd`` in
-the ``orbit3dd/`` package. Reach for those private kernels only when you need to
-avoid the dispatcher's type check (rarely useful) or when contributing
-to MeepMeep itself.
+``pos_ov`` in the ``orbit3d/`` package, ``_pos_osd`` and ``pos_ovd`` in
+the ``orbit3dd/`` package. The **vector** kernels (``_ov`` values, ``_ovd``
+gradients) are public and re-exported from :mod:`meepmeep.numba3d`; call
+them directly to commit to the array path and skip the dispatcher's
+scalar-or-array type check. The **scalar** kernels (``_os`` / ``_osd``)
+remain private — reach for them only when contributing to MeepMeep itself.
 
 In ``orbit3dd/`` the gradient arithmetic lives in private *write-into*
 kernels with the ``_ow`` suffix (e.g. ``_pos_ow``, ``_zpos_ow``,
@@ -200,14 +208,15 @@ allocate and delegate to ``_ow``; the ``_ovd`` kernels pass preallocated
 output rows (or hoisted scratch buffers for intermediate gradients) so
 the hot vector loops run without per-sample allocations.
 
-Every vector kernel also has a *parallel twin* with a trailing ``p``
-(``_X_ovp`` in ``orbit3d/``, ``_X_ovdp`` in ``orbit3dd/``), living in the
+Every vector kernel also has a public *parallel twin* with a trailing ``p``
+(``X_ovp`` in ``orbit3d/``, ``X_ovdp`` in ``orbit3dd/``), living in the
 same quantity module as its serial counterpart and compiled with
 ``parallel=True`` and a ``prange`` sample loop but otherwise identical.
-The public dispatchers always route to the serial kernels; the twins are
-reached through the ``Orbit(parallel=True)`` opt-in, which switches to
-them only above a per-family minimum array size (parallel-region launch
-overhead makes them slower than the serial kernels for small arrays).
+The scalar-or-array dispatchers route to the serial kernels; the parallel
+twins are reached either directly or through the ``Orbit(parallel=True)``
+opt-in, which switches to them only above a per-family minimum array size
+(parallel-region launch overhead makes them slower than the serial kernels
+for small arrays).
 
 .. note::
    When upgrading from an earlier MeepMeep release where the public

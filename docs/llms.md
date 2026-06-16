@@ -173,6 +173,17 @@ Available `_o`/`_od` quantities: `pos`, `zpos`, `sep`, `vel`, `zvel`,
 (angle to a fixed vector), `star_planet_distance`, `lambert_phase_curve`,
 `ev_signal`, `light_travel_time`.
 
+Vector / parallel kernels (public, optional). Every scalar-or-array
+dispatcher also exposes the kernels it routes to, so you can commit to the
+array path and skip the type check: single-expansion-point `X_v` / `X_vp`
+(e.g. `sep_v`, `sep_d_vp`) from `numba2d`/`numba3d`, and multi-expansion-point
+`X_ov` / `X_ovp` (values) and `X_ovd` / `X_ovdp` (gradients) from `numba3d`.
+The `_vp` / `_ovp` / `_ovdp` twins multi-thread the sample loop and pay off
+only for large time grids (same thresholds as `Orbit`/`Expansion2D`'s
+`parallel=True`). The scalar kernels remain private. The non-derivative 3D
+radial velocity (`rv_c`/`rv`) is scalar-inline only and has no single-expansion-point
+vector kernel.
+
 ## Pitfalls (the things agents get wrong)
 
 1. `k` MEANS TWO THINGS: planet-to-star radius ratio in transit-geometry

@@ -63,7 +63,7 @@ def _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
 
 
 @njit
-def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
+def true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`true_anomaly_o`. See that function for documentation."""
     npt = times.size
     f = zeros(npt)
@@ -100,8 +100,8 @@ def _true_anomaly_ov(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeff
 
 
 @njit(parallel=True)
-def _true_anomaly_ovp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_true_anomaly_ov`."""
+def true_anomaly_ovp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`true_anomaly_ov`."""
     n = times.size
     f = zeros(n)
     for i in prange(n):
@@ -113,7 +113,7 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     """True anomaly at an array of times.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_true_anomaly_os`) or vector (:func:`_true_anomaly_ov`) kernel at compile time
+    scalar (:func:`_true_anomaly_os`) or vector (:func:`true_anomaly_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Computed from the angle between the planet position vector and the
@@ -162,7 +162,7 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     two stay in exact agreement for circular orbits.
     """
     if isinstance(t, ndarray):
-        return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
+        return true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
     return _true_anomaly_os(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
 
 
@@ -170,7 +170,7 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
 def _true_anomaly_o_overload(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
-            return _true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
+            return true_anomaly_ov(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):

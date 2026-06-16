@@ -34,7 +34,7 @@ def _sep_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True)
-def _sep_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
+def sep_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`sep_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
@@ -44,8 +44,8 @@ def _sep_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _sep_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_sep_ov`."""
+def sep_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`sep_ov`."""
     n = times.size
     out = zeros(n)
     for i in prange(n):
@@ -57,7 +57,7 @@ def sep_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Sky-projected planet-star separation for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_sep_os`) or vector (:func:`_sep_ov`) kernel at compile time
+    scalar (:func:`_sep_os`) or vector (:func:`sep_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Returns :math:`\\sqrt{x^2 + y^2}` in units of the stellar radius -
@@ -77,7 +77,7 @@ def sep_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
         Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _sep_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+        return sep_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
     return _sep_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
@@ -85,7 +85,7 @@ def sep_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 def _sep_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _sep_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+            return sep_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):

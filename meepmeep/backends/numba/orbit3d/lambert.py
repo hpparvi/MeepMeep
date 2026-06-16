@@ -72,7 +72,7 @@ def _lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, ep_table, ep_times, coef
 
 
 @njit(fastmath=True)
-def _lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
+def lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`lambert_phase_curve_o`. See that function for documentation."""
     n = times.size
     res = zeros(n)
@@ -85,8 +85,8 @@ def _lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coe
 
 
 @njit(fastmath=True, parallel=True)
-def _lambert_phase_curve_ovp(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_lambert_phase_curve_ov`."""
+def lambert_phase_curve_ovp(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`lambert_phase_curve_ov`."""
     n = times.size
     res = zeros(n)
     amplitude = k * k * ag / (a * a)
@@ -107,7 +107,7 @@ def lambert_phase_curve_o(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
     scalar (:func:`_lambert_phase_curve_os`) or vector
-    (:func:`_lambert_phase_curve_ov`) kernel at compile time (inside
+    (:func:`lambert_phase_curve_ov`) kernel at compile time (inside
     ``@njit``) or at call time (pure Python).
 
     Parameters
@@ -130,7 +130,7 @@ def lambert_phase_curve_o(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
         array time argument.
     """
     if isinstance(t, ndarray):
-        return _lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
+        return lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
     return _lambert_phase_curve_os(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
@@ -138,7 +138,7 @@ def lambert_phase_curve_o(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
 def _lambert_phase_curve_o_overload(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
+            return lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):

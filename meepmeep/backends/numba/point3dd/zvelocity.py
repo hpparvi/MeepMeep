@@ -49,8 +49,8 @@ def _zvel_cd_s(time, c, dc):
 def _zvel_cd_v_body(time, c, dc):
     """Vector-kernel body for :func:`zvel_cd`; see that function for documentation.
 
-    Compiled twice: ``_zvel_cd_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_zvel_cd_vp`` the
+    Compiled twice: ``zvel_cd_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``zvel_cd_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -62,8 +62,8 @@ def _zvel_cd_v_body(time, c, dc):
     return vz, dvz
 
 
-_zvel_cd_v = njit(fastmath=True)(_zvel_cd_v_body)
-_zvel_cd_vp = njit(fastmath=True, parallel=True)(_zvel_cd_v_body)
+zvel_cd_v = njit(fastmath=True)(_zvel_cd_v_body)
+zvel_cd_vp = njit(fastmath=True, parallel=True)(_zvel_cd_v_body)
 
 
 def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
@@ -103,7 +103,7 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _zvel_cd_v(time, c, dc)
+        return zvel_cd_v(time, c, dc)
     return _zvel_cd_s(time, c, dc)
 
 
@@ -111,7 +111,7 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 def _zvel_cd_overload(time, c, dc):
     if _is_1d_array(time):
         def impl(time, c, dc):
-            return _zvel_cd_v(time, c, dc)
+            return zvel_cd_v(time, c, dc)
         return impl
     if isinstance(time, types.Float):
         def impl(time, c, dc):
@@ -130,8 +130,8 @@ def _zvel_d_s(time, tc, p, c, dc, te):
 def _zvel_d_v_body(time, tc, p, c, dc, te):
     """Vector-kernel body for :func:`zvel_d`; see that function for documentation.
 
-    Compiled twice: ``_zvel_d_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_zvel_d_vp`` the
+    Compiled twice: ``zvel_d_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``zvel_d_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -144,8 +144,8 @@ def _zvel_d_v_body(time, tc, p, c, dc, te):
     return vz, dvz
 
 
-_zvel_d_v = njit(fastmath=True)(_zvel_d_v_body)
-_zvel_d_vp = njit(fastmath=True, parallel=True)(_zvel_d_v_body)
+zvel_d_v = njit(fastmath=True)(_zvel_d_v_body)
+zvel_d_vp = njit(fastmath=True, parallel=True)(_zvel_d_v_body)
 
 
 def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
@@ -191,7 +191,7 @@ def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _zvel_d_v(time, tc, p, c, dc, te)
+        return zvel_d_v(time, tc, p, c, dc, te)
     return _zvel_d_s(time, tc, p, c, dc, te)
 
 
@@ -199,7 +199,7 @@ def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
 def _zvel_d_overload(time, tc, p, c, dc, te=0.0):
     if _is_1d_array(time):
         def impl(time, tc, p, c, dc, te=0.0):
-            return _zvel_d_v(time, tc, p, c, dc, te)
+            return zvel_d_v(time, tc, p, c, dc, te)
         return impl
     if isinstance(time, types.Float):
         def impl(time, tc, p, c, dc, te=0.0):

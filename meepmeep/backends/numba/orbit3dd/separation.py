@@ -47,7 +47,7 @@ def _sep_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _sep_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def sep_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`sep_od`. See that function for documentation."""
     n = times.size
     ds = zeros(n)
@@ -58,8 +58,8 @@ def _sep_ovd(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _sep_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_sep_ovd`."""
+def sep_ovdp(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`sep_ovd`."""
     n = times.size
     ds = zeros(n)
     dds = zeros((n, 7))
@@ -72,7 +72,7 @@ def sep_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Sky-projected planet-star separation and orbital-parameter derivatives for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_sep_osd`) or vector (:func:`_sep_ovd`) kernel at compile time
+    scalar (:func:`_sep_osd`) or vector (:func:`sep_ovd`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Returns :math:`\\sqrt{x^2 + y^2}` together with its gradient w.r.t.
@@ -98,7 +98,7 @@ def sep_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         scalar ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _sep_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return sep_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _sep_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -106,7 +106,7 @@ def sep_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _sep_od_overload(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _sep_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return sep_ovd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

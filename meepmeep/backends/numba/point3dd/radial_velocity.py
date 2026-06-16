@@ -70,7 +70,7 @@ def _rv_cd_s(time, k, p, a, i, e, c, dc):
 
 
 @njit(fastmath=True)
-def _rv_cd_v(time, k, p, a, i, e, c, dc):
+def rv_cd_v(time, k, p, a, i, e, c, dc):
     """Vector kernel for :func:`rv_cd`. See that function for documentation."""
     nt = time.size
     rv_val = zeros(nt)
@@ -83,8 +83,8 @@ def _rv_cd_v(time, k, p, a, i, e, c, dc):
 
 
 @njit(fastmath=True, parallel=True)
-def _rv_cd_vp(time, k, p, a, i, e, c, dc):
-    """Parallel (prange) twin of :func:`_rv_cd_v`.
+def rv_cd_vp(time, k, p, a, i, e, c, dc):
+    """Parallel (prange) twin of :func:`rv_cd_v`.
 
     Explicit twin rather than a dual-decorated shared body: the
     z-velocity gradient scratch is hoisted per thread here
@@ -162,7 +162,7 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
     `ds/de = -s*e/(1 - e^2)`.
     """
     if isinstance(time, ndarray):
-        return _rv_cd_v(time, k, p, a, i, e, c, dc)
+        return rv_cd_v(time, k, p, a, i, e, c, dc)
     return _rv_cd_s(time, k, p, a, i, e, c, dc)
 
 
@@ -170,7 +170,7 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
 def _rv_cd_overload(time, k, p, a, i, e, c, dc):
     if _is_1d_array(time):
         def impl(time, k, p, a, i, e, c, dc):
-            return _rv_cd_v(time, k, p, a, i, e, c, dc)
+            return rv_cd_v(time, k, p, a, i, e, c, dc)
         return impl
     if isinstance(time, types.Float):
         def impl(time, k, p, a, i, e, c, dc):
@@ -187,7 +187,7 @@ def _rv_d_s(time, k, tc, p, a, i, e, c, dc, te):
 
 
 @njit(fastmath=True)
-def _rv_d_v(time, k, tc, p, a, i, e, c, dc, te):
+def rv_d_v(time, k, tc, p, a, i, e, c, dc, te):
     """Vector kernel for :func:`rv_d`. See that function for documentation."""
     nt = time.size
     rv_val = zeros(nt)
@@ -201,11 +201,11 @@ def _rv_d_v(time, k, tc, p, a, i, e, c, dc, te):
 
 
 @njit(fastmath=True, parallel=True)
-def _rv_d_vp(time, k, tc, p, a, i, e, c, dc, te):
-    """Parallel (prange) twin of :func:`_rv_d_v`.
+def rv_d_vp(time, k, tc, p, a, i, e, c, dc, te):
+    """Parallel (prange) twin of :func:`rv_d_v`.
 
     Explicit twin with per-thread z-velocity gradient scratch; see
-    :func:`_rv_cd_vp`.
+    :func:`rv_cd_vp`.
     """
     nt = time.size
     rv_val = zeros(nt)
@@ -270,7 +270,7 @@ def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: floa
         Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
     """
     if isinstance(time, ndarray):
-        return _rv_d_v(time, k, tc, p, a, i, e, c, dc, te)
+        return rv_d_v(time, k, tc, p, a, i, e, c, dc, te)
     return _rv_d_s(time, k, tc, p, a, i, e, c, dc, te)
 
 
@@ -278,7 +278,7 @@ def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: floa
 def _rv_d_overload(time, k, tc, p, a, i, e, c, dc, te=0.0):
     if _is_1d_array(time):
         def impl(time, k, tc, p, a, i, e, c, dc, te=0.0):
-            return _rv_d_v(time, k, tc, p, a, i, e, c, dc, te)
+            return rv_d_v(time, k, tc, p, a, i, e, c, dc, te)
         return impl
     if isinstance(time, types.Float):
         def impl(time, k, tc, p, a, i, e, c, dc, te=0.0):

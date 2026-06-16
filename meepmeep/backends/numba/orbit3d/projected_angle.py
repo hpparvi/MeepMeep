@@ -33,7 +33,7 @@ def _cos_v_p_angle_os(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True)
-def _cos_v_p_angle_ov(v, times, tpa, p, dt, ep_table, ep_times, coeffs):
+def cos_v_p_angle_ov(v, times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`cos_v_p_angle_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
@@ -45,8 +45,8 @@ def _cos_v_p_angle_ov(v, times, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _cos_v_p_angle_ovp(v, times, tpa, p, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_cos_v_p_angle_ov`."""
+def cos_v_p_angle_ovp(v, times, tpa, p, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`cos_v_p_angle_ov`."""
     n = times.size
     out = zeros(n)
     for i in prange(n):
@@ -58,7 +58,7 @@ def cos_v_p_angle_o(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Cosine of the angle between the planet position and a fixed reference vector.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_cos_v_p_angle_os`) or vector (:func:`_cos_v_p_angle_ov`) kernel at compile time
+    scalar (:func:`_cos_v_p_angle_os`) or vector (:func:`cos_v_p_angle_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Useful for projecting the planet position onto an arbitrary
@@ -81,7 +81,7 @@ def cos_v_p_angle_o(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
         ``v``, in :math:`[-1, 1]`. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _cos_v_p_angle_ov(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
+        return cos_v_p_angle_ov(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
     return _cos_v_p_angle_os(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
@@ -89,7 +89,7 @@ def cos_v_p_angle_o(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
 def _cos_v_p_angle_o_overload(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _cos_v_p_angle_ov(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
+            return cos_v_p_angle_ov(v, t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(v, t, tpa, p, dt, ep_table, ep_times, coeffs):

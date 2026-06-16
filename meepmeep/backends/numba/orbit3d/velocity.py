@@ -34,7 +34,7 @@ def _vel_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True)
-def _vel_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
+def vel_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`vel_o`. See that function for documentation."""
     npt = times.size
     vxs, vys, vzs = zeros(npt), zeros(npt), zeros(npt)
@@ -44,8 +44,8 @@ def _vel_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _vel_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_vel_ov`."""
+def vel_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`vel_ov`."""
     n = times.size
     vxs, vys, vzs = zeros(n), zeros(n), zeros(n)
     for i in prange(n):
@@ -57,7 +57,7 @@ def vel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Planet (vx, vy, vz) velocity for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_vel_os`) or vector (:func:`_vel_ov`) kernel at compile time
+    scalar (:func:`_vel_os`) or vector (:func:`vel_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Parameters
@@ -76,7 +76,7 @@ def vel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
         an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _vel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+        return vel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
     return _vel_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
@@ -84,7 +84,7 @@ def vel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 def _vel_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _vel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+            return vel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):

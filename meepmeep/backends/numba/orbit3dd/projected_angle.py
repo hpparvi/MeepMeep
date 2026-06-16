@@ -47,7 +47,7 @@ def _cos_v_p_angle_osd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
 
 @njit(fastmath=True)
-def _cos_v_p_angle_ovd(v, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+def cos_v_p_angle_ovd(v, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Vector kernel for :func:`cos_v_p_angle_od`. See that function for documentation."""
     n = times.size
     cs = zeros(n)
@@ -73,8 +73,8 @@ def _cos_v_p_angle_ovd(v, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
 
 
 @njit(fastmath=True, parallel=True)
-def _cos_v_p_angle_ovdp(v, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-    """Parallel (prange) twin of :func:`_cos_v_p_angle_ovd`.
+def cos_v_p_angle_ovdp(v, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
+    """Parallel (prange) twin of :func:`cos_v_p_angle_ovd`.
 
     The position-gradient scratch is hoisted per thread; a single shared
     buffer would be a data race under ``prange``.
@@ -106,7 +106,7 @@ def cos_v_p_angle_od(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Cosine of the angle between planet position and a fixed reference vector ``v``, with gradients.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_cos_v_p_angle_osd`) or vector (:func:`_cos_v_p_angle_ovd`)
+    scalar (:func:`_cos_v_p_angle_osd`) or vector (:func:`cos_v_p_angle_ovd`)
     kernel at compile time (inside ``@njit``) or at call time (pure Python).
 
     The reference vector ``v`` is treated as a constant; gradients are
@@ -131,7 +131,7 @@ def cos_v_p_angle_od(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         ``t``, (N, 7) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _cos_v_p_angle_ovd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return cos_v_p_angle_ovd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
     return _cos_v_p_angle_osd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
 
 
@@ -139,7 +139,7 @@ def cos_v_p_angle_od(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 def _cos_v_p_angle_od_overload(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     if _is_1d_array(t):
         def impl(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _cos_v_p_angle_ovd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+            return cos_v_p_angle_ovd(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):

@@ -17,10 +17,10 @@
 
 from numpy import ndarray
 
-from .backends.numba.point2d import (solve2d, pos, sep, _pos_vp, _sep_vp,
+from .backends.numba.point2d import (solve2d, pos, sep, pos_vp, sep_vp,
                                             t12, t14, t23, t34,
                                             bounding_box, find_contact_point, find_z_min)
-from .backends.numba.point2dd import solve2d_d, pos_d, sep_d, _pos_d_vp, _sep_d_vp
+from .backends.numba.point2dd import solve2d_d, pos_d, sep_d, pos_d_vp, sep_d_vp
 
 
 class Expansion2D:
@@ -193,9 +193,9 @@ class Expansion2D:
             positions are in units of the stellar radius.
         """
         if self._derivatives:
-            fn = self._select(pos_d, _pos_d_vp, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(pos_d, pos_d_vp, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.te)
-        fn = self._select(pos, _pos_vp, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(pos, pos_vp, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tc, self._p, self._coeffs, self.te)
 
     @property
@@ -215,9 +215,9 @@ class Expansion2D:
             with respect to ``(tc, p, a, i, e, w, lan)``.
         """
         if self._derivatives:
-            fn = self._select(sep_d, _sep_d_vp, self._PARALLEL_NMIN_GRAD)
+            fn = self._select(sep_d, sep_d_vp, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.te)
-        fn = self._select(sep, _sep_vp, self._PARALLEL_NMIN_VALUE)
+        fn = self._select(sep, sep_vp, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tc, self._p, self._coeffs, self.te)
 
     def duration(self, k: float, kind: int = 14) -> float:

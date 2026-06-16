@@ -33,8 +33,8 @@ def _zpos_c_s(time, c):
 def _zpos_c_v_body(time, c):
     """Vector-kernel body for :func:`zpos_c`; see that function for documentation.
 
-    Compiled twice: ``_zpos_c_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_zpos_c_vp`` the
+    Compiled twice: ``zpos_c_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``zpos_c_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -45,8 +45,8 @@ def _zpos_c_v_body(time, c):
     return pz
 
 
-_zpos_c_v = njit(fastmath=True)(_zpos_c_v_body)
-_zpos_c_vp = njit(fastmath=True, parallel=True)(_zpos_c_v_body)
+zpos_c_v = njit(fastmath=True)(_zpos_c_v_body)
+zpos_c_vp = njit(fastmath=True, parallel=True)(_zpos_c_v_body)
 
 
 def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
@@ -78,7 +78,7 @@ def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
         values point toward the observer; negative values point away.
     """
     if isinstance(time, ndarray):
-        return _zpos_c_v(time, c)
+        return zpos_c_v(time, c)
     return _zpos_c_s(time, c)
 
 
@@ -86,7 +86,7 @@ def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
 def _zpos_c_overload(time, c):
     if _is_1d_array(time):
         def impl(time, c):
-            return _zpos_c_v(time, c)
+            return zpos_c_v(time, c)
         return impl
     if isinstance(time, types.Float):
         def impl(time, c):
@@ -105,8 +105,8 @@ def _zpos_s(time, tc, p, c, te):
 def _zpos_v_body(time, tc, p, c, te):
     """Vector-kernel body for :func:`zpos`; see that function for documentation.
 
-    Compiled twice: ``_zpos_v`` is the serial kernel (``prange`` compiles
-    as a plain ``range`` without ``parallel=True``) and ``_zpos_vp`` the
+    Compiled twice: ``zpos_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``zpos_vp`` the
     parallel twin. The loop writes only into per-sample output elements,
     so no per-thread scratch is needed.
     """
@@ -118,8 +118,8 @@ def _zpos_v_body(time, tc, p, c, te):
     return pz
 
 
-_zpos_v = njit(fastmath=True)(_zpos_v_body)
-_zpos_vp = njit(fastmath=True, parallel=True)(_zpos_v_body)
+zpos_v = njit(fastmath=True)(_zpos_v_body)
+zpos_vp = njit(fastmath=True, parallel=True)(_zpos_v_body)
 
 
 def zpos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
@@ -158,7 +158,7 @@ def zpos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0
         (negative z) branches of the orbit.
     """
     if isinstance(time, ndarray):
-        return _zpos_v(time, tc, p, c, te)
+        return zpos_v(time, tc, p, c, te)
     return _zpos_s(time, tc, p, c, te)
 
 
@@ -166,7 +166,7 @@ def zpos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0
 def _zpos_overload(time, tc, p, c, te=0.0):
     if _is_1d_array(time):
         def impl(time, tc, p, c, te=0.0):
-            return _zpos_v(time, tc, p, c, te)
+            return zpos_v(time, tc, p, c, te)
         return impl
     if isinstance(time, types.Float):
         def impl(time, tc, p, c, te=0.0):

@@ -34,7 +34,7 @@ def _zpos_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True)
-def _zpos_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
+def zpos_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`zpos_o`. See that function for documentation."""
     npt = times.size
     zs = zeros(npt)
@@ -44,8 +44,8 @@ def _zpos_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _zpos_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_zpos_ov`."""
+def zpos_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`zpos_ov`."""
     n = times.size
     out = zeros(n)
     for i in prange(n):
@@ -57,7 +57,7 @@ def zpos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Planet z-position (line-of-sight coordinate) for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_zpos_os`) or vector (:func:`_zpos_ov`) kernel at compile time
+    scalar (:func:`_zpos_os`) or vector (:func:`zpos_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Cheaper than :func:`pos_o` when only the line-of-sight coordinate is
@@ -77,7 +77,7 @@ def zpos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
         the observer. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _zpos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+        return zpos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
     return _zpos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
@@ -85,7 +85,7 @@ def zpos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 def _zpos_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _zpos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+            return zpos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):

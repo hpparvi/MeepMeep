@@ -37,7 +37,7 @@ def _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coe
 
 
 @njit(fastmath=True)
-def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs):
+def ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`ev_signal_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
@@ -53,8 +53,8 @@ def _ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times,
 
 
 @njit(fastmath=True, parallel=True)
-def _ev_signal_ovp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_ev_signal_ov`."""
+def ev_signal_ovp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`ev_signal_ov`."""
     n = times.size
     out = zeros(n)
     sin2_inc = sin(inc) ** 2
@@ -77,7 +77,7 @@ def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeff
     and the inverse cube of the instantaneous 3D separation.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
-    scalar (:func:`_ev_signal_os`) or vector (:func:`_ev_signal_ov`) kernel
+    scalar (:func:`_ev_signal_os`) or vector (:func:`ev_signal_ov`) kernel
     at compile time (inside ``@njit``) or at call time (pure Python). Time
     argument is the 4th positional.
 
@@ -106,7 +106,7 @@ def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeff
     redundant arccos/cos pair.
     """
     if isinstance(t, ndarray):
-        return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
+        return ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
     return _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
@@ -114,7 +114,7 @@ def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeff
 def _ev_signal_o_overload(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
+            return ev_signal_ov(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):

@@ -40,7 +40,7 @@ def _light_travel_time_os(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs
 
 
 @njit(fastmath=True)
-def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
+def light_travel_time_ov(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`light_travel_time_o`. See that function for documentation."""
     n = times.size
     ltt = zeros(n)
@@ -53,8 +53,8 @@ def _light_travel_time_ov(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, co
 
 
 @njit(fastmath=True, parallel=True)
-def _light_travel_time_ovp(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_light_travel_time_ov`."""
+def light_travel_time_ovp(times, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`light_travel_time_ov`."""
     n = times.size
     ltt = zeros(n)
     to = mean_anomaly_at_transit(e, w) / (2.0 * pi) * p
@@ -81,7 +81,7 @@ def light_travel_time_o(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
     scalar (:func:`_light_travel_time_os`) or vector
-    (:func:`_light_travel_time_ov`) kernel at compile time (inside
+    (:func:`light_travel_time_ov`) kernel at compile time (inside
     ``@njit``) or at call time (pure Python).
 
     Important: the convention in this module is that ``tc`` is the
@@ -114,7 +114,7 @@ def light_travel_time_o(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
         array time argument.
     """
     if isinstance(t, ndarray):
-        return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
+        return light_travel_time_ov(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
     return _light_travel_time_os(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
 
 
@@ -122,7 +122,7 @@ def light_travel_time_o(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
 def _light_travel_time_o_overload(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
-            return _light_travel_time_ov(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
+            return light_travel_time_ov(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):

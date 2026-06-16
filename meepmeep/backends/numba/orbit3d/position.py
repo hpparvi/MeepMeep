@@ -34,7 +34,7 @@ def _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True)
-def _pos_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
+def pos_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`pos_o`. See that function for documentation."""
     npt = times.size
     xs, ys, zs = zeros(npt), zeros(npt), zeros(npt)
@@ -44,8 +44,8 @@ def _pos_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _pos_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_pos_ov`."""
+def pos_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`pos_ov`."""
     n = times.size
     xs, ys, zs = zeros(n), zeros(n), zeros(n)
     for i in prange(n):
@@ -57,7 +57,7 @@ def pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Planet (x, y, z) position for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_pos_os`) or vector (:func:`_pos_ov`) kernel at compile time
+    scalar (:func:`_pos_os`) or vector (:func:`pos_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Parameters
@@ -85,7 +85,7 @@ def pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
         (positive toward the observer). Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _pos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+        return pos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
     return _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
@@ -93,7 +93,7 @@ def pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 def _pos_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _pos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+            return pos_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):

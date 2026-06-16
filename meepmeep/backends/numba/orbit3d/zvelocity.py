@@ -34,7 +34,7 @@ def _zvel_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True)
-def _zvel_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
+def zvel_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`zvel_o`. See that function for documentation."""
     npt = times.size
     vzs = zeros(npt)
@@ -44,8 +44,8 @@ def _zvel_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
 
 
 @njit(fastmath=True, parallel=True)
-def _zvel_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
-    """Parallel (prange) twin of :func:`_zvel_ov`."""
+def zvel_ovp(times, tpa, p, dt, ep_table, ep_times, coeffs):
+    """Parallel (prange) twin of :func:`zvel_ov`."""
     n = times.size
     out = zeros(n)
     for i in prange(n):
@@ -57,7 +57,7 @@ def zvel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Planet z-velocity (line-of-sight component) for any orbital phase.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
-    scalar (:func:`_zvel_os`) or vector (:func:`_zvel_ov`) kernel at compile time
+    scalar (:func:`_zvel_os`) or vector (:func:`zvel_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
     Cheaper than :func:`vel_o` when only the line-of-sight component is
@@ -77,7 +77,7 @@ def zvel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
         Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
-        return _zvel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+        return zvel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
     return _zvel_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
@@ -85,7 +85,7 @@ def zvel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 def _zvel_o_overload(t, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _zvel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
+            return zvel_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
         def impl(t, tpa, p, dt, ep_table, ep_times, coeffs):

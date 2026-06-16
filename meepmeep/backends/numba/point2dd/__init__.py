@@ -32,8 +32,8 @@ This ``__init__`` re-exports the full derivative surface.
 """
 
 from ._common import _is_1d_array
-from .position import (pos_cd, pos_d, _pos_cd_w, _pos_cd_s, _pos_cd_v, _pos_cd_vp,
-                       _pos_d_s, _pos_d_v, _pos_d_vp)
-from .separation import (sep_cd, sep_d, _sep_cd_w, _sep_cd_s, _sep_cd_v, _sep_cd_vp,
-                         _sep_d_s, _sep_d_v, _sep_d_vp)
+from .position import (pos_cd, pos_d, _pos_cd_w, _pos_cd_s, pos_cd_v, pos_cd_vp,
+                       _pos_d_s, pos_d_v, pos_d_vp)
+from .separation import (sep_cd, sep_d, _sep_cd_w, _sep_cd_s, sep_cd_v, sep_cd_vp,
+                         _sep_d_s, sep_d_v, sep_d_vp)
 from .solve import solve2d_d
