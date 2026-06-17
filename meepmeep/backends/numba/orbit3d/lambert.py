@@ -33,41 +33,42 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
-def _lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
+def _lambert_phase_curve_os(time, ag, k, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`lambert_phase_curve_o`. See that function for documentation."""
     epoch = floor((time - tpa) / p)
     tc = time - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    return _lambert_phase_curve_c_s(tc - ep_times[ix] * p, ag, a, k, coeffs[ix])
+    return _lambert_phase_curve_c_s(tc - ep_times[ix] * p, ag, k, coeffs[ix])
 
 
 @njit(fastmath=True)
-def lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
+def lambert_phase_curve_ov(times, ag, k, tpa, p, dt, ep_table, ep_times, coeffs):
     """Vector kernel for :func:`lambert_phase_curve_o`. See that function for documentation."""
     n = times.size
     res = zeros(n)
     for i in range(n):
-        res[i] = _lambert_phase_curve_os(times[i], ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
+        res[i] = _lambert_phase_curve_os(times[i], ag, k, tpa, p, dt, ep_table, ep_times, coeffs)
     return res
 
 
 @njit(fastmath=True, parallel=True)
-def lambert_phase_curve_ovp(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
+def lambert_phase_curve_ovp(times, ag, k, tpa, p, dt, ep_table, ep_times, coeffs):
     """Parallel (prange) twin of :func:`lambert_phase_curve_ov`."""
     n = times.size
     res = zeros(n)
     for i in prange(n):
-        res[i] = _lambert_phase_curve_os(times[i], ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
+        res[i] = _lambert_phase_curve_os(times[i], ag, k, tpa, p, dt, ep_table, ep_times, coeffs)
     return res
 
 
-def lambert_phase_curve_o(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
+def lambert_phase_curve_o(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs):
     """Lambertian phase-curve flux contribution.
 
-    Evaluates :math:`F(t) = (k/a)^2\\, A_g\\, f(\\alpha(t))` where
-    :math:`f` is the Lambert kernel and :math:`\\alpha(t)` is the
-    instantaneous phase angle. The result is the planet-to-star flux
-    ratio of reflected light at full phase scaled by the phase function.
+    Evaluates :math:`F(t) = (k/r(t))^2\\, A_g\\, f(\\alpha(t))` where
+    :math:`f` is the Lambert kernel, :math:`\\alpha(t)` is the
+    instantaneous phase angle, and :math:`r(t)` is the instantaneous
+    star-planet distance in stellar radii. The result is the
+    planet-to-star flux ratio of reflected light.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
     scalar (:func:`_lambert_phase_curve_os`) or vector
@@ -80,8 +81,6 @@ def lambert_phase_curve_o(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
         Time(s) at which to evaluate the flux contribution.
     ag : float
         Geometric albedo.
-    a : float
-        Scaled semi-major axis :math:`a/R_\\star`.
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
     tpa, p, dt, ep_table, ep_times, coeffs :
@@ -94,18 +93,18 @@ def lambert_phase_curve_o(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
         array time argument.
     """
     if isinstance(t, ndarray):
-        return lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
-    return _lambert_phase_curve_os(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
+        return lambert_phase_curve_ov(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs)
+    return _lambert_phase_curve_os(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs)
 
 
 @overload(lambert_phase_curve_o, jit_options={'fastmath': True})
-def _lambert_phase_curve_o_overload(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
+def _lambert_phase_curve_o_overload(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs):
     if _is_1d_array(t):
-        def impl(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
-            return lambert_phase_curve_ov(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
+        def impl(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs):
+            return lambert_phase_curve_ov(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
-            return _lambert_phase_curve_os(t, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
+        def impl(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs):
+            return _lambert_phase_curve_os(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs)
         return impl
     return None

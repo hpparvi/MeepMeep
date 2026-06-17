@@ -166,10 +166,10 @@ class TestValueParity:
 
     def test_lambert_phase_curve_od(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        flux_b = lambert_phase_curve_o(times, ag=0.3, a=orbit_case["a"], k=0.1,
+        flux_b = lambert_phase_curve_o(times, ag=0.3, k=0.1,
                                         tpa=tc, p=orbit_case["p"], dt=dt,
                                         ep_table=pkt, ep_times=pts, coeffs=c)
-        flux, dflux = lambert_phase_curve_od(times, ag=0.3, a=orbit_case["a"], k=0.1,
+        flux, dflux = lambert_phase_curve_od(times, ag=0.3, k=0.1,
                                                 tpa=tc, p=orbit_case["p"], dt=dt,
                                                 ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(flux, flux_b, rtol=1e-10, atol=1e-20)
@@ -294,10 +294,12 @@ class TestChainRuleConsistency:
         when stepped along the gradient (not a chain-rule check, but pins
         the sign convention)."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        flux, _ = lambert_phase_curve_od(times, ag=0.3, a=orbit_case["a"], k=0.1,
+        flux, _ = lambert_phase_curve_od(times, ag=0.3, k=0.1,
                                             tpa=tc, p=orbit_case["p"], dt=dt,
                                             ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
-        amplitude = 0.1 ** 2 * 0.3 / orbit_case["a"] ** 2
+        # (k/r)^2 ag f(alpha) with f <= 1 and r >= a(1-e).
+        r_min = orbit_case["a"] * (1.0 - orbit_case["e"])
+        amplitude = 0.1 ** 2 * 0.3 / r_min ** 2
         assert np.all(flux <= amplitude + 1e-12)
         assert np.all(flux >= -1e-12)
 
@@ -313,24 +315,24 @@ class TestExtraParameterFD:
     def test_lambert_phase_curve_d_ag(self, orbit_case):
         """dflux/d(ag) at index 7 (second-to-last)."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        ag, a, k = 0.3, orbit_case["a"], 0.1
+        ag, k = 0.3, 0.1
         h = 1e-7
-        f_p = lambert_phase_curve_o(times, ag + h, a, k, tc, orbit_case["p"], dt, pkt, pts, c)
-        f_m = lambert_phase_curve_o(times, ag - h, a, k, tc, orbit_case["p"], dt, pkt, pts, c)
+        f_p = lambert_phase_curve_o(times, ag + h, k, tc, orbit_case["p"], dt, pkt, pts, c)
+        f_m = lambert_phase_curve_o(times, ag - h, k, tc, orbit_case["p"], dt, pkt, pts, c)
         fd = (f_p - f_m) / (2 * h)
-        _, dflux = lambert_phase_curve_od(times, ag, a, k, tc, orbit_case["p"], dt,
+        _, dflux = lambert_phase_curve_od(times, ag, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
         assert_allclose(dflux[:, 7], fd, rtol=1e-5, atol=1e-10)
 
     def test_lambert_phase_curve_d_k(self, orbit_case):
         """dflux/dk at index 8."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
-        ag, a, k = 0.3, orbit_case["a"], 0.1
+        ag, k = 0.3, 0.1
         h = 1e-8
-        f_p = lambert_phase_curve_o(times, ag, a, k + h, tc, orbit_case["p"], dt, pkt, pts, c)
-        f_m = lambert_phase_curve_o(times, ag, a, k - h, tc, orbit_case["p"], dt, pkt, pts, c)
+        f_p = lambert_phase_curve_o(times, ag, k + h, tc, orbit_case["p"], dt, pkt, pts, c)
+        f_m = lambert_phase_curve_o(times, ag, k - h, tc, orbit_case["p"], dt, pkt, pts, c)
         fd = (f_p - f_m) / (2 * h)
-        _, dflux = lambert_phase_curve_od(times, ag, a, k, tc, orbit_case["p"], dt,
+        _, dflux = lambert_phase_curve_od(times, ag, k, tc, orbit_case["p"], dt,
                                              pkt, pts, c, dc)
         assert_allclose(dflux[:, 8], fd, rtol=1e-5, atol=1e-10)
 
@@ -428,12 +430,12 @@ class TestScalarVectorConsistency:
     def test_lambert_scalar_matches_vector(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         flux_v, dflux_v = lambert_phase_curve_od(
-            times, ag=0.3, a=orbit_case["a"], k=0.1,
+            times, ag=0.3, k=0.1,
             tpa=tc, p=orbit_case["p"], dt=dt,
             ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         for j in range(0, NTIMES, 7):
             flux, dflux = lambert_phase_curve_od(
-                times[j], 0.3, orbit_case["a"], 0.1,
+                times[j], 0.3, 0.1,
                 tc, orbit_case["p"], dt, pkt, pts, c, dc)
             assert_allclose(flux, flux_v[j], rtol=1e-12)
             assert_allclose(dflux, dflux_v[j], rtol=1e-12)

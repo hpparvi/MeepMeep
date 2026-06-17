@@ -487,10 +487,13 @@ single-expansion-point Lambertian phase-curve evaluator
 (:func:`~meepmeep.backends.numba.point3dd.lambert.lambert_phase_curve_cd`,
 which the whole-orbit
 :func:`~meepmeep.backends.numba.orbit3dd.lambert_phase_curve_od`
-delegates to) composes the Lambert kernel
+delegates to) forms the flux :math:`(k/r)^2 A_g\, f(\cos\alpha)`, combining the
+Lambert kernel
 :math:`f(\cos\alpha) = (\sin\alpha + (\pi - \alpha)\cos\alpha)/\pi`
-on top of :math:`\cos\alpha`, with its own closed-form derivative
-:math:`\mathrm d f / \mathrm d \cos\alpha`.
+(with its closed-form derivative :math:`\mathrm d f / \mathrm d \cos\alpha`)
+and the inverse-square illumination :math:`1/r^2` set by the instantaneous
+star-planet distance. Its gradient therefore chains through both
+:math:`\cos\alpha` and :math:`r`, using the two derivatives above.
 
 
 Multi-expansion-point propagation

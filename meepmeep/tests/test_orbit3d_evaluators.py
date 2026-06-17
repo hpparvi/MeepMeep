@@ -177,12 +177,15 @@ class TestRadialVelocity:
 class TestPhotometricSignals:
     def test_lambert_phase_curve_finite_and_bounded(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)
-        flux = lambert_phase_curve_o(times, ag=0.3, a=orbit_case["a"], k=0.1,
+        flux = lambert_phase_curve_o(times, ag=0.3, k=0.1,
                                       tpa=tc, p=orbit_case["p"], dt=dt,
                                       ep_table=pkt, ep_times=pts, coeffs=c)
         assert np.all(np.isfinite(flux))
         assert np.all(flux >= 0.0)
-        amplitude = 0.1 ** 2 * 0.3 / orbit_case["a"] ** 2
+        # Flux = (k/r)^2 ag f(alpha) with f <= 1 and r >= a(1-e), so the
+        # tightest constant ceiling uses the periastron distance.
+        r_min = orbit_case["a"] * (1.0 - orbit_case["e"])
+        amplitude = 0.1 ** 2 * 0.3 / r_min ** 2
         assert np.all(flux <= amplitude + 1e-12)
 
     def test_ev_signal_finite(self, orbit_case):

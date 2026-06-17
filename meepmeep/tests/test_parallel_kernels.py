@@ -113,7 +113,7 @@ class TestValueKernelParity:
     def test_lambert_phase_curve(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
         _compare(lambert_phase_curve_ov, lambert_phase_curve_ovp,
-                 (t, 0.3, PARS["a"], 0.1, tpa, p, dt, pkt, pts, c))
+                 (t, 0.3, 0.1, tpa, p, dt, pkt, pts, c))
 
     def test_ev_signal(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
@@ -173,7 +173,7 @@ class TestGradientKernelParity:
     def test_lambert_phase_curve(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
         _compare(lambert_phase_curve_ovd, lambert_phase_curve_ovdp,
-                 (t, 0.3, PARS["a"], 0.1, tpa, p, dt, pkt, pts, c, dc))
+                 (t, 0.3, 0.1, tpa, p, dt, pkt, pts, c, dc))
 
     def test_ev_signal(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup

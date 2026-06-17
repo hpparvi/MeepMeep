@@ -166,10 +166,10 @@ class TestForwardParity:
     def test_lambert_phase_curve(self, orbit_case):
         ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
         p = orbit_case["p"]
-        ag, a, k = 0.3, orbit_case["a"], 0.1
-        fl = lambert_phase_curve_ov(ts, ag, a, k, tpa, p, dt, pkt, pts, c)
+        ag, k = 0.3, 0.1
+        fl = lambert_phase_curve_ov(ts, ag, k, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
-            f = _lambert_phase_curve_os(float(t), ag, a, k, tpa, p, dt, pkt, pts, c)
+            f = _lambert_phase_curve_os(float(t), ag, k, tpa, p, dt, pkt, pts, c)
             assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
 
     def test_ev_signal(self, orbit_case):
@@ -300,10 +300,10 @@ class TestGradientParity:
     def test_lambert_phase_curve(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        ag, a, k = 0.3, orbit_case["a"], 0.1
-        fl, dfl = lambert_phase_curve_ovd(ts, ag, a, k, tpa, p, dt, pkt, pts, c, dc)
+        ag, k = 0.3, 0.1
+        fl, dfl = lambert_phase_curve_ovd(ts, ag, k, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
-            f, df = _lambert_phase_curve_osd(float(t), ag, a, k, tpa, p, dt, pkt, pts, c, dc)
+            f, df = _lambert_phase_curve_osd(float(t), ag, k, tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
             assert_allclose(df, dfl[j], rtol=1e-14, atol=1e-14)
 

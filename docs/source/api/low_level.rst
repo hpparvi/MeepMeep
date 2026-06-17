@@ -150,8 +150,10 @@ Phase angle and reflected light
 
 Single-expansion-point cosine-of-phase-angle and Lambertian reflected-light
 phase-curve evaluators, built on the same ``(3, 5)`` coefficient matrices.
-The Lambert evaluators form the flux :math:`(k/a)^2 A_g\, f(\alpha)` from the
-phase-angle cosine; the whole-orbit dispatchers in
+The Lambert evaluators form the flux :math:`(k/r)^2 A_g\, f(\alpha)` from the
+phase-angle cosine, using the instantaneous star-planet distance
+:math:`r = \sqrt{x^2+y^2+z^2}` for the inverse-square illumination (exact for
+eccentric orbits); the whole-orbit dispatchers in
 :ref:`api.lowlevel.orbit_dispatchers` delegate to these.
 
 .. currentmodule:: meepmeep.numba3d

@@ -194,7 +194,7 @@ class TestUnderlyingParity:
         o = orbit_deriv
         _, dflux = o.lambert_phase_curve(k=0.1, ag=0.3)
         _, dflux_r = lambert_phase_curve_od(
-            o.times, 0.3, o._a, 0.1, o._tp, o._p,
+            o.times, 0.3, 0.1, o._tp, o._p,
             o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
         )
         assert_allclose(dflux, dflux_r, rtol=RTOL_DERIV)

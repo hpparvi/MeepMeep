@@ -389,7 +389,7 @@ class Orbit:
         f : ndarray, shape (N,)
             True anomaly per time in radians, in :math:`[0, 2\\pi)`.
         df : ndarray, shape (N, 7)
-            Gradient w.r.t. ``(tc, p, a, i, e, w)``. Only returned when
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True`` (and ``exact`` is ``False``).
 
         Raises
@@ -428,7 +428,7 @@ class Orbit:
             ``ys`` are the sky-plane coordinates; ``zs`` is the
             line-of-sight depth (positive toward the observer).
         dxs, dys, dzs : ndarray, shape (N, 7)
-            Gradients w.r.t. ``(tc, p, a, i, e, w)``. Only returned
+            Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
         times = times if times is not None else self.times
@@ -462,7 +462,7 @@ class Orbit:
         vxs, vys, vzs : ndarray, shape (N,)
             Velocity components in :math:`R_\\star/\\mathrm{day}`.
         dvxs, dvys, dvzs : ndarray, shape (N, 7)
-            Gradients w.r.t. ``(tc, p, a, i, e, w)``. Only returned
+            Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
@@ -484,7 +484,7 @@ class Orbit:
         ca : ndarray, shape (N,)
             Cosine of the phase angle per time, in :math:`[-1, 1]`.
         dca : ndarray, shape (N, 7)
-            Gradient w.r.t. ``(tc, p, a, i, e, w)``. Only returned
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
@@ -519,7 +519,7 @@ class Orbit:
             Phase angle per time in radians, in :math:`[0, \\pi]`. Zero at
             superior conjunction, :math:`\\pi` at inferior conjunction.
         dph : ndarray, shape (N, 7)
-            Gradient w.r.t. ``(tc, p, a, i, e, w)``. Only returned when
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True``.
 
         Notes
@@ -553,7 +553,7 @@ class Orbit:
         th : ndarray, shape (N,)
             Supplement angle per time in radians, in :math:`[0, \\pi]`.
         dth : ndarray, shape (N, 7)
-            Gradient w.r.t. ``(tc, p, a, i, e, w)``. Only returned when
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True``.
 
         Notes
@@ -589,7 +589,7 @@ class Orbit:
         r : ndarray, shape (N,)
             3D star-planet separation per time, in stellar radii.
         dr : ndarray, shape (N, 7)
-            Gradient w.r.t. ``(tc, p, a, i, e, w)``. Only returned when
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True``.
         """
         times = times if times is not None else self.times
@@ -618,7 +618,7 @@ class Orbit:
         ltt : ndarray, shape (N,)
             Light travel time correction per time [days].
         dltt : ndarray, shape (N, 7)
-            Gradient w.r.t. ``(tc, p, a, i, e, w)``. Only returned when
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True``. The derivative w.r.t.
             ``rstar`` is intentionally *not* returned (per package spec).
         """
@@ -647,7 +647,7 @@ class Orbit:
         rvs : ndarray, shape (N,)
             Radial velocity per time [m s\\ :sup:`-1`].
         drvs : ndarray, shape (N, 8)
-            Gradient w.r.t. ``(tc, p, a, i, e, w, k)``. Only returned
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan, k)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
         if self._derivatives:
@@ -661,9 +661,12 @@ class Orbit:
     def lambert_phase_curve(self, k: float, ag: float, times: ndarray | None = None):
         """Reflected-light phase curve assuming Lambertian scattering.
 
-        Evaluates :math:`F(t) = (k/a)^2\\,A_g\\,f(\\alpha(t))` with the
+        Evaluates :math:`F(t) = (k/r(t))^2\\,A_g\\,f(\\alpha(t))` with the
         Lambert kernel
-        :math:`f(\\alpha) = (\\sin\\alpha + (\\pi - \\alpha)\\cos\\alpha)/\\pi`.
+        :math:`f(\\alpha) = (\\sin\\alpha + (\\pi - \\alpha)\\cos\\alpha)/\\pi`,
+        using the instantaneous star-planet distance :math:`r(t)` (in
+        stellar radii) for the inverse-square illumination - exact for
+        eccentric orbits, not just the circular case :math:`r = a`.
 
         Parameters
         ----------
@@ -680,16 +683,16 @@ class Orbit:
         flux : ndarray, shape (N,)
             Reflected planet-to-star flux ratio per time.
         dflux : ndarray, shape (N, 9)
-            Gradient w.r.t. ``(tc, p, a, i, e, w, ag, k)``. Only
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan, ag, k)``. Only
             returned when ``self._derivatives`` is ``True``.
         """
         times = times if times is not None else self.times
         if self._derivatives:
             fn = self._select(lambert_phase_curve_od, lambert_phase_curve_ovdp, times, self._PARALLEL_NMIN_GRAD)
-            return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._ep_table,
+            return fn(times, ag, k, self._tp, self._p, self._dt, self._ep_table,
                                            self._ep_times, self._coeffs, self._dcoeffs, )
         fn = self._select(lambert_phase_curve_o, lambert_phase_curve_ovp, times, self._PARALLEL_NMIN_VALUE)
-        return fn(times, ag, self._a, k, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
+        return fn(times, ag, k, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
                                       self._coeffs, )
 
     def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):
@@ -716,7 +719,7 @@ class Orbit:
             Relative flux variation due to ellipsoidal distortion.
         dev : ndarray, shape (N, 10)
             Gradient w.r.t.
-            ``(tc, p, a, i, e, w, alpha, mass_ratio, inc)``. Only
+            ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)``. Only
             returned when ``self._derivatives`` is ``True``.
         """
         times = times if times is not None else self.times
