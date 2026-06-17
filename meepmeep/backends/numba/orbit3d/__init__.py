@@ -48,7 +48,7 @@ from .velocity import vel_o, _vel_os, vel_ov, vel_ovp
 from .zvelocity import zvel_o, _zvel_os, zvel_ov, zvel_ovp
 from .true_anomaly import true_anomaly_o, _true_anomaly_os, true_anomaly_ov, true_anomaly_ovp
 from .projected_angle import cos_v_p_angle_o, _cos_v_p_angle_os, cos_v_p_angle_ov, cos_v_p_angle_ovp
-from .phase_angle import cos_alpha_o, _cos_alpha_os, cos_alpha_ov, cos_alpha_ovp
+from .cos_phase_angle import cos_alpha_o, _cos_alpha_os, cos_alpha_ov, cos_alpha_ovp
 from .star_planet_distance import (
     star_planet_distance_o, _star_planet_distance_os, star_planet_distance_ov,
     star_planet_distance_ovp,

@@ -25,7 +25,7 @@ from numba import njit, prange, types
 from numba.extending import overload
 from numpy import zeros, pi, sqrt, arccos, ndarray
 
-from .phase_angle import _cos_alpha_os
+from .cos_phase_angle import _cos_alpha_os
 from ._common import _is_1d_array
 
 

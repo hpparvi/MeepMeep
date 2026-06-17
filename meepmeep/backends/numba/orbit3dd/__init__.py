@@ -55,7 +55,7 @@ from .zposition import zpos_od, _zpos_ow, _zpos_osd, zpos_ovd, zpos_ovdp
 from .separation import sep_od, _sep_ow, _sep_osd, sep_ovd, sep_ovdp
 from .velocity import vel_od, _vel_ow, _vel_osd, vel_ovd, vel_ovdp
 from .zvelocity import zvel_od, _zvel_ow, _zvel_osd, zvel_ovd, zvel_ovdp
-from .phase_angle import cos_alpha_od, _cos_alpha_ow, _cos_alpha_osd, cos_alpha_ovd, cos_alpha_ovdp
+from .cos_phase_angle import cos_alpha_od, _cos_alpha_ow, _cos_alpha_osd, cos_alpha_ovd, cos_alpha_ovdp
 from .star_planet_distance import (
     star_planet_distance_od, _star_planet_distance_osd, star_planet_distance_ovd,
     star_planet_distance_ovdp,

@@ -18,17 +18,19 @@
 
 from numba import njit, prange, types
 from numba.extending import overload
-from numpy import zeros, sqrt, ndarray
+from numpy import zeros, floor, ndarray
 
-from .position import _pos_os
+from ..point3d.cos_phase_angle import cos_alpha_c
 from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
 def _cos_alpha_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`cos_alpha_o`. See that function for documentation."""
-    x, y, z = _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
-    return -z / sqrt(x * x + y * y + z * z)
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return cos_alpha_c(tc - ep_times[ix] * p, coeffs[ix])
 
 
 @njit(fastmath=True)
@@ -37,8 +39,7 @@ def cos_alpha_ov(times, tpa, p, dt, ep_table, ep_times, coeffs):
     n = times.size
     out = zeros(n)
     for i in range(n):
-        x, y, z = _pos_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
-        out[i] = -z / sqrt(x * x + y * y + z * z)
+        out[i] = _cos_alpha_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return out
 
 

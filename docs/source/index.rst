@@ -8,8 +8,9 @@ useful in exoplanet research, up to three orders of magnitude faster than
 standard Newton-Raphson approaches.
 
 In addition, MeepMeep can return the partial derivatives w.r.t. the orbital
-parameters for all the supported quantities. These are useful when developing
-code used with gradient-aware optimisers or MCMC samplers.
+parameters (and other input parameters) for all the supported quantities.
+These are useful when developing code used with gradient-aware optimisers or
+MCMC samplers.
 
 MeepMeep's speed comes from a Taylor-series approach presented in
 `Parviainen and Korth (2020) <https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P/abstract>`_.

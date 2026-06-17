@@ -44,4 +44,6 @@ from .zvelocity import (zvel_cd, zvel_d, _zvel_cd_w, _zvel_cd_s, zvel_cd_v, zvel
                         _zvel_d_s, zvel_d_v, zvel_d_vp)
 from .radial_velocity import (rv_cd, rv_d, _rv_scale, _rv_cd_w, _rv_cd_s, rv_cd_v, rv_cd_vp,
                               _rv_d_s, rv_d_v, rv_d_vp)
+from .cos_phase_angle import (cos_alpha_cd, cos_alpha_d, _cos_alpha_cd_w, _cos_alpha_cd_s,
+                          cos_alpha_cd_v, cos_alpha_cd_vp, _cos_alpha_d_s, cos_alpha_d_v, cos_alpha_d_vp)
 from .solve import solve3d_d

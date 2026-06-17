@@ -38,6 +38,10 @@ from .separation import sep_c, sep, _sep_c_s, sep_c_v, sep_c_vp, _sep_s, sep_v, 
 from .velocity import vel_c, _vel_c_s, vel_c_v, vel_c_vp
 from .zvelocity import zvel_c, zvel, _zvel_c_s, zvel_c_v, zvel_c_vp, _zvel_s, zvel_v, zvel_vp
 from .radial_velocity import rv_c, rv
+from .cos_phase_angle import (
+    cos_alpha_c, cos_alpha, _cos_alpha_c_s, cos_alpha_c_v, cos_alpha_c_vp,
+    _cos_alpha_s, cos_alpha_v, cos_alpha_vp,
+)
 from .solve import solve3d
 from .util import (
     find_contact_point, bounding_box,

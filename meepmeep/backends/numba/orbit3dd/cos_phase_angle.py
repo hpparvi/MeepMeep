@@ -18,9 +18,9 @@
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
-from numpy import zeros, sqrt, ndarray
+from numpy import zeros, floor, ndarray
 
-from .position import _pos_ow
+from ..point3dd.cos_phase_angle import _cos_alpha_cd_w
 from ._common import _is_1d_array
 
 
@@ -28,21 +28,18 @@ from ._common import _is_1d_array
 def _cos_alpha_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dca, dx, dy, dz):
     """Write-into orbit kernel for the phase-angle cosine and its gradient.
 
+    Epoch-folds, looks up the expansion point, and delegates the cosine and
+    gradient evaluation to the single-expansion-point
+    :func:`~meepmeep.backends.numba.point3dd.cos_phase_angle._cos_alpha_cd_w`.
     Writes the seven-parameter gradient into the caller-provided ``(7,)``
     buffer ``dca`` and returns the cosine. ``dx``, ``dy``, and ``dz`` are
     ``(7,)`` scratch buffers for the position gradients; vector loops
     (here and in ``lambert``) allocate them once and reuse them.
     """
-    x, y, z = _pos_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
-    r2 = x * x + y * y + z * z
-    r = sqrt(r2)
-    ca = -z / r
-    inv_r = 1.0 / r
-    inv_r3 = inv_r / r2
-    for k in range(7):
-        # d(-z/r)/dθ = -dz/r + z·(x·dx + y·dy + z·dz)/r^3
-        dca[k] = -dz[k] * inv_r + z * (x * dx[k] + y * dy[k] + z * dz[k]) * inv_r3
-    return ca
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _cos_alpha_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dca, dx, dy, dz)
 
 
 @njit(fastmath=True)
