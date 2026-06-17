@@ -42,6 +42,12 @@ from .cos_phase_angle import (
     cos_alpha_c, cos_alpha, _cos_alpha_c_s, cos_alpha_c_v, cos_alpha_c_vp,
     _cos_alpha_s, cos_alpha_v, cos_alpha_vp,
 )
+from .lambert import (
+    _lambert_kernel,
+    lambert_phase_curve_c, lambert_phase_curve, _lambert_phase_curve_c_s,
+    lambert_phase_curve_c_v, lambert_phase_curve_c_vp,
+    _lambert_phase_curve_s, lambert_phase_curve_v, lambert_phase_curve_vp,
+)
 from .solve import solve3d
 from .util import (
     find_contact_point, bounding_box,

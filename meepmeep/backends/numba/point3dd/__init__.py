@@ -46,4 +46,8 @@ from .radial_velocity import (rv_cd, rv_d, _rv_scale, _rv_cd_w, _rv_cd_s, rv_cd_
                               _rv_d_s, rv_d_v, rv_d_vp)
 from .cos_phase_angle import (cos_alpha_cd, cos_alpha_d, _cos_alpha_cd_w, _cos_alpha_cd_s,
                           cos_alpha_cd_v, cos_alpha_cd_vp, _cos_alpha_d_s, cos_alpha_d_v, cos_alpha_d_vp)
+from .lambert import (_lambert_kernel_d, lambert_phase_curve_cd, lambert_phase_curve_d,
+                      _lambert_phase_curve_cd_w, _lambert_phase_curve_cd_s,
+                      lambert_phase_curve_cd_v, lambert_phase_curve_cd_vp,
+                      _lambert_phase_curve_d_s, lambert_phase_curve_d_v, lambert_phase_curve_d_vp)
 from .solve import solve3d_d

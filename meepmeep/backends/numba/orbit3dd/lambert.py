@@ -17,71 +17,52 @@
 """Multi-expansion-point Lambertian phase-curve evaluators with parameter derivatives.
 
 Holds the Lambertian reflected-light phase curve with gradients
-(:func:`lambert_phase_curve_od`) and its shared phase kernel
-(:func:`_lambert_kernel_d`).
+(:func:`lambert_phase_curve_od`). Epoch folding and expansion-point lookup
+happen here; the flux and its gradient are delegated to the
+single-expansion-point
+:func:`~meepmeep.backends.numba.point3dd.lambert.lambert_phase_curve_cd`. The
+shared phase kernel (:func:`_lambert_kernel_d`) is re-exported from
+``point3dd.lambert`` for backward compatibility.
 """
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
-from numpy import zeros, pi, sqrt, arccos, ndarray
+from numpy import zeros, floor, ndarray
 
-from .cos_phase_angle import _cos_alpha_osd, _cos_alpha_ow
+from ..point3dd.lambert import _lambert_kernel_d, _lambert_phase_curve_cd_w
 from ._common import _is_1d_array
 
 
-@njit(fastmath=True)
-def _lambert_kernel_d(cos_alpha):
-    """Lambertian phase function, alpha, and ``dphase/dcos_alpha``.
+@njit(fastmath=True, inline='always')
+def _lambert_phase_curve_ow(time, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
+                            dflux, dca, dpx, dpy, dpz):
+    """Write-into orbit kernel for the Lambert flux and its gradient.
 
-    The analytic derivative of
-    :math:`\\mathrm{phase}(c) = (\\sqrt{1-c^2} + (\\pi - \\arccos c)\\,c)/\\pi`
-    simplifies to :math:`(\\pi - \\arccos c)/\\pi` because the contributions
-    from :math:`d/dc \\sqrt{1-c^2}` and :math:`c \\cdot d/dc \\arccos c`
-    cancel exactly.
-
-    Parameters
-    ----------
-    cos_alpha : float
-        Cosine of the phase angle. Clamped internally to ``[-1, 1]``.
-
-    Returns
-    -------
-    phase : float
-        Value of the Lambert kernel, in :math:`[0, 1]`.
-    alpha : float
-        Phase angle :math:`\\arccos(\\mathrm{cos\\_alpha})` [radians].
-    dphase_dc : float
-        Derivative :math:`d\\,\\mathrm{phase}/d\\,\\mathrm{cos\\_alpha}`.
+    Epoch-folds, looks up the expansion point, and delegates the flux and
+    nine-parameter gradient evaluation to the single-expansion-point
+    :func:`~meepmeep.backends.numba.point3dd.lambert._lambert_phase_curve_cd_w`.
+    Writes the gradient into the caller-provided ``(9,)`` buffer ``dflux``
+    and returns the flux. ``dca``, ``dpx``, ``dpy``, ``dpz`` are ``(7,)``
+    scratch buffers for the phase-angle and position gradients; vector loops
+    allocate them once and reuse them.
     """
-    if cos_alpha > 1.0:
-        cos_alpha = 1.0
-    elif cos_alpha < -1.0:
-        cos_alpha = -1.0
-    sin_alpha = sqrt(1.0 - cos_alpha * cos_alpha)
-    alpha = arccos(cos_alpha)
-    phase = (sin_alpha + (pi - alpha) * cos_alpha) / pi
-    dphase_dc = (pi - alpha) / pi
-    return phase, alpha, dphase_dc
+    epoch = floor((time - tpa) / p)
+    tc = time - tpa - epoch * p
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _lambert_phase_curve_cd_w(tc - ep_times[ix] * p, ag, a, k, coeffs[ix], dcoeffs[ix],
+                                     dflux, dca, dpx, dpy, dpz)
 
 
 @njit(fastmath=True)
 def _lambert_phase_curve_osd(time, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`lambert_phase_curve_od`. See that function for documentation."""
-    amplitude = k * k * ag / (a * a)
-    ca, dca = _cos_alpha_osd(time, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
-    phase, _, dphase_dc = _lambert_kernel_d(ca)
-    flux = amplitude * phase
-
     dflux = zeros(9)
-    # Orbital block — chain through cos_alpha and through amplitude (only `a` matters).
-    for kk in range(7):
-        dflux[kk] = amplitude * dphase_dc * dca[kk]
-    # Add d(amplitude)/da contribution to the `a` slot (index 2):
-    # damplitude/da = -2 k^2 ag / a^3.
-    dflux[2] += -2.0 * k * k * ag / (a * a * a) * phase
-    # Extras: ag (index 7), k (index 8).
-    dflux[7] = (k * k / (a * a)) * phase
-    dflux[8] = (2.0 * k * ag / (a * a)) * phase
+    dca = zeros(7)
+    dpx = zeros(7)
+    dpy = zeros(7)
+    dpz = zeros(7)
+    flux = _lambert_phase_curve_ow(time, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
+                                   dflux, dca, dpx, dpy, dpz)
     return flux, dflux
 
 
@@ -91,24 +72,13 @@ def lambert_phase_curve_ovd(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coe
     n = times.size
     flux = zeros(n)
     dflux = zeros((n, 9))
-    inv_a2 = 1.0 / (a * a)
-    amplitude = k * k * ag * inv_a2
-    da_amp = -2.0 * k * k * ag / (a * a * a)
-    dag_amp = k * k * inv_a2
-    dk_amp = 2.0 * k * ag * inv_a2
     dca = zeros(7)
-    dx = zeros(7)
-    dy = zeros(7)
-    dz = zeros(7)
+    dpx = zeros(7)
+    dpy = zeros(7)
+    dpz = zeros(7)
     for j in range(n):
-        ca = _cos_alpha_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dca, dx, dy, dz)
-        phase, _, dphase_dc = _lambert_kernel_d(ca)
-        flux[j] = amplitude * phase
-        for kk in range(7):
-            dflux[j, kk] = amplitude * dphase_dc * dca[kk]
-        dflux[j, 2] += da_amp * phase
-        dflux[j, 7] = dag_amp * phase
-        dflux[j, 8] = dk_amp * phase
+        flux[j] = _lambert_phase_curve_ow(times[j], ag, a, k, tpa, p, dt, ep_table, ep_times,
+                                          coeffs, dcoeffs, dflux[j], dca, dpx, dpy, dpz)
     return flux, dflux
 
 
@@ -122,25 +92,12 @@ def lambert_phase_curve_ovdp(times, ag, a, k, tpa, p, dt, ep_table, ep_times, co
     n = times.size
     flux = zeros(n)
     dflux = zeros((n, 9))
-    inv_a2 = 1.0 / (a * a)
-    amplitude = k * k * ag * inv_a2
-    da_amp = -2.0 * k * k * ag / (a * a * a)
-    dag_amp = k * k * inv_a2
-    dk_amp = 2.0 * k * ag * inv_a2
     nt = get_num_threads()
     dcas, dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
     for j in prange(n):
         tid = get_thread_id()
-        dca = dcas[tid]
-        ca = _cos_alpha_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
-                           dca, dxs[tid], dys[tid], dzs[tid])
-        phase, _, dphase_dc = _lambert_kernel_d(ca)
-        flux[j] = amplitude * phase
-        for kk in range(7):
-            dflux[j, kk] = amplitude * dphase_dc * dca[kk]
-        dflux[j, 2] += da_amp * phase
-        dflux[j, 7] = dag_amp * phase
-        dflux[j, 8] = dk_amp * phase
+        flux[j] = _lambert_phase_curve_ow(times[j], ag, a, k, tpa, p, dt, ep_table, ep_times,
+                                          coeffs, dcoeffs, dflux[j], dcas[tid], dxs[tid], dys[tid], dzs[tid])
     return flux, dflux
 
 

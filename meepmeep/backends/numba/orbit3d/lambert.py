@@ -17,58 +17,28 @@
 """Multi-expansion-point Lambertian phase-curve evaluators.
 
 Holds the Lambertian reflected-light phase curve
-(:func:`lambert_phase_curve_o`) and its shared phase kernel
-(:func:`_lambert_kernel`).
+(:func:`lambert_phase_curve_o`). Epoch folding and expansion-point lookup
+happen here; the flux itself is delegated to the single-expansion-point
+:func:`~meepmeep.backends.numba.point3d.lambert.lambert_phase_curve_c`. The
+shared phase kernel (:func:`_lambert_kernel`) is re-exported from
+``point3d.lambert`` for backward compatibility.
 """
 
 from numba import njit, prange, types
 from numba.extending import overload
-from numpy import zeros, pi, sqrt, arccos, ndarray
+from numpy import zeros, floor, ndarray
 
-from .cos_phase_angle import _cos_alpha_os
+from ..point3d.lambert import _lambert_kernel, _lambert_phase_curve_c_s
 from ._common import _is_1d_array
-
-
-@njit(fastmath=True, inline="always")
-def _lambert_kernel(cos_alpha):
-    """Lambertian phase function evaluated at a cosine of the phase angle.
-
-    Computes :math:`f(\\alpha) = (\\sin\\alpha + (\\pi - \\alpha)\\cos\\alpha)/\\pi`,
-    the disk-integrated reflectance of a Lambertian sphere. The
-    implementation substitutes :math:`\\sin\\alpha = \\sqrt{1 - \\cos^2\\alpha}`
-    to skip one trig call, and clamps ``cos_alpha`` to ``[-1, 1]`` so a
-    Taylor-rounding overshoot cannot produce a NaN from :func:`arccos`.
-
-    Parameters
-    ----------
-    cos_alpha : float
-        Cosine of the phase angle.
-
-    Returns
-    -------
-    phase : float
-        Value of the Lambert kernel, in :math:`[0, 1]`.
-    alpha : float
-        Phase angle :math:`\\arccos(\\text{cos\\_alpha})` [radians],
-        returned as a by-product so callers that also need
-        :math:`\\alpha` avoid a second :func:`arccos`.
-    """
-    if cos_alpha > 1.0:
-        cos_alpha = 1.0
-    elif cos_alpha < -1.0:
-        cos_alpha = -1.0
-    sin_alpha = sqrt(1.0 - cos_alpha * cos_alpha)
-    alpha = arccos(cos_alpha)
-    return (sin_alpha + (pi - alpha) * cos_alpha) / pi, alpha
 
 
 @njit(fastmath=True, inline="always")
 def _lambert_phase_curve_os(time, ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`lambert_phase_curve_o`. See that function for documentation."""
-    amplitude = k * k * ag / (a * a)
-    cos_alpha = _cos_alpha_os(time, tpa, p, dt, ep_table, ep_times, coeffs)
-    phase, _ = _lambert_kernel(cos_alpha)
-    return amplitude * phase
+    epoch = floor((time - tpa) / p)
+    tc = time - tpa - epoch * p
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _lambert_phase_curve_c_s(tc - ep_times[ix] * p, ag, a, k, coeffs[ix])
 
 
 @njit(fastmath=True)
@@ -76,11 +46,8 @@ def lambert_phase_curve_ov(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coef
     """Vector kernel for :func:`lambert_phase_curve_o`. See that function for documentation."""
     n = times.size
     res = zeros(n)
-    amplitude = k * k * ag / (a * a)
     for i in range(n):
-        cos_alpha = _cos_alpha_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
-        phase, _ = _lambert_kernel(cos_alpha)
-        res[i] = amplitude * phase
+        res[i] = _lambert_phase_curve_os(times[i], ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
     return res
 
 
@@ -89,11 +56,8 @@ def lambert_phase_curve_ovp(times, ag, a, k, tpa, p, dt, ep_table, ep_times, coe
     """Parallel (prange) twin of :func:`lambert_phase_curve_ov`."""
     n = times.size
     res = zeros(n)
-    amplitude = k * k * ag / (a * a)
     for i in prange(n):
-        cos_alpha = _cos_alpha_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
-        phase, _ = _lambert_kernel(cos_alpha)
-        res[i] = amplitude * phase
+        res[i] = _lambert_phase_curve_os(times[i], ag, a, k, tpa, p, dt, ep_table, ep_times, coeffs)
     return res
 
 
