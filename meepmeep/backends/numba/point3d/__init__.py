@@ -48,6 +48,11 @@ from .lambert import (
     lambert_phase_curve_c_v, lambert_phase_curve_c_vp,
     _lambert_phase_curve_s, lambert_phase_curve_v, lambert_phase_curve_vp,
 )
+from .ev_signal import (
+    ev_signal_c, ev_signal, _ev_signal_c_s,
+    ev_signal_c_v, ev_signal_c_vp,
+    _ev_signal_s, ev_signal_v, ev_signal_vp,
+)
 from .solve import solve3d
 from .util import (
     find_contact_point, bounding_box,

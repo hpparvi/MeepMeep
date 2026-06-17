@@ -152,6 +152,7 @@ meepmeep/
     │   │                    # (vel_c), zvelocity.py (zvel), radial_velocity.py
     │   │                    # (rv), cos_phase_angle.py (cos_alpha),
     │   │                    # lambert.py (lambert_phase_curve),
+    │   │                    # ev_signal.py (ev_signal),
     │   │                    # solve.py (solve3d), util.py (contact
     │   │                    # points, bounding box, durations, find_z_min).
     │   │                    # __init__.py re-exports the surface.
@@ -163,6 +164,7 @@ meepmeep/
     │   │                    # radial_velocity.py (rv_cd, rv_d),
     │   │                    # cos_phase_angle.py (cos_alpha_cd, cos_alpha_d),
     │   │                    # lambert.py (lambert_phase_curve_cd, lambert_phase_curve_d),
+    │   │                    # ev_signal.py (ev_signal_cd, ev_signal_d),
     │   │                    # solve.py (solve3d_d). The evaluators are
     │   │                    # scalar-or-array @overload dispatchers (like
     │   │                    # point2dd) over private _s scalar and
@@ -281,7 +283,7 @@ plain package holds the non-derivative evaluators and the `dd` package the
 parameter-derivative ones. Each has one module per physical quantity
 (`position.py`, `separation.py`, and for 3D also `zposition.py`,
 `velocity.py`, `zvelocity.py`, `radial_velocity.py`, `cos_phase_angle.py`,
-`lambert.py`) plus a `solve.py`
+`lambert.py`, `ev_signal.py`) plus a `solve.py`
 module and, in the non-derivative package, a `util.py` for transit
 geometry. Each package's `__init__.py` re-exports its surface, mirroring
 the `orbit3d`/`orbit3dd` layout. The non-derivative single-expansion-point evaluators

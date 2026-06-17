@@ -145,16 +145,17 @@ Parameter-derivative variants:
    rv_d
 
 
-Phase angle and reflected light
--------------------------------
+Phase angle, reflected light, and ellipsoidal variation
+--------------------------------------------------------
 
-Single-expansion-point cosine-of-phase-angle and Lambertian reflected-light
-phase-curve evaluators, built on the same ``(3, 5)`` coefficient matrices.
-The Lambert evaluators form the flux :math:`(k/r)^2 A_g\, f(\alpha)` from the
-phase-angle cosine, using the instantaneous star-planet distance
-:math:`r = \sqrt{x^2+y^2+z^2}` for the inverse-square illumination (exact for
-eccentric orbits); the whole-orbit dispatchers in
-:ref:`api.lowlevel.orbit_dispatchers` delegate to these.
+Single-expansion-point cosine-of-phase-angle, Lambertian reflected-light
+phase-curve, and ellipsoidal-variation evaluators, built on the same
+``(3, 5)`` coefficient matrices. The Lambert evaluators form the flux
+:math:`(k/r)^2 A_g\, f(\alpha)` from the phase-angle cosine, using the
+instantaneous star-planet distance :math:`r = \sqrt{x^2+y^2+z^2}` for the
+inverse-square illumination (exact for eccentric orbits); the
+ellipsoidal-variation signal scales as :math:`1/r^3`. The whole-orbit
+dispatchers in :ref:`api.lowlevel.orbit_dispatchers` delegate to these.
 
 .. currentmodule:: meepmeep.numba3d
 
@@ -165,6 +166,8 @@ eccentric orbits); the whole-orbit dispatchers in
    cos_alpha
    lambert_phase_curve_c
    lambert_phase_curve
+   ev_signal_c
+   ev_signal
 
 Parameter-derivative variants:
 
@@ -175,6 +178,8 @@ Parameter-derivative variants:
    cos_alpha_d
    lambert_phase_curve_cd
    lambert_phase_curve_d
+   ev_signal_cd
+   ev_signal_d
 
 
 Geometric utilities

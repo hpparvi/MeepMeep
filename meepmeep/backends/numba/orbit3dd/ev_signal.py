@@ -14,43 +14,50 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-expansion-point ellipsoidal-variation signal evaluators with parameter derivatives."""
+"""Multi-expansion-point ellipsoidal-variation signal evaluators with parameter derivatives.
+
+Epoch folding and expansion-point lookup happen here; the signal and its
+gradient are delegated to the single-expansion-point
+:func:`~meepmeep.backends.numba.point3dd.ev_signal.ev_signal_cd`.
+"""
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
 from numba.extending import overload
-from numpy import zeros, sin, cos, sqrt, ndarray
+from numpy import zeros, floor, ndarray
 
-from .position import _pos_osd, _pos_ow
+from ..point3dd.ev_signal import _ev_signal_cd_w
 from ._common import _is_1d_array
+
+
+@njit(fastmath=True, inline='always')
+def _ev_signal_ow(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
+                  dout, dpx, dpy, dpz):
+    """Write-into orbit kernel for the ellipsoidal-variation signal and its gradient.
+
+    Epoch-folds, looks up the expansion point, and delegates the signal and
+    ten-parameter gradient evaluation to the single-expansion-point
+    :func:`~meepmeep.backends.numba.point3dd.ev_signal._ev_signal_cd_w`.
+    Writes the gradient into the caller-provided ``(10,)`` buffer ``dout``
+    and returns the signal. ``dpx``, ``dpy``, ``dpz`` are ``(7,)`` scratch
+    buffers for the position gradients; vector loops allocate them once and
+    reuse them.
+    """
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _ev_signal_cd_w(tc - ep_times[ix] * p, alpha, mass_ratio, inc, coeffs[ix], dcoeffs[ix],
+                           dout, dpx, dpy, dpz)
 
 
 @njit(fastmath=True)
 def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`ev_signal_od`. See that function for documentation."""
-    sin_inc = sin(inc)
-    cos_inc = cos(inc)
-    sin2_inc = sin_inc * sin_inc
-    pre = -alpha * mass_ratio * sin2_inc
-
-    x, y, z, dx, dy, dz = _pos_osd(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
-    d2 = x * x + y * y + z * z
-    d = sqrt(d2)
-    cz = z / d
-    g = (2.0 * cz * cz - 1.0) / (d2 * d)
-    out = pre * g
-
-    d5 = d2 * d2 * d
-    A = 2.0 * z * z - d2
     dout = zeros(10)
-    for kk in range(7):
-        xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
-        dd = xdotdx / d
-        dA = -2.0 * (x * dx[kk] + y * dy[kk]) + 2.0 * z * dz[kk]
-        dg = (dA - 5.0 * A * dd / d2) / d5
-        dout[kk] = pre * dg
-    dout[7] = -mass_ratio * sin2_inc * g
-    dout[8] = -alpha * sin2_inc * g
-    dout[9] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
+    dpx = zeros(7)
+    dpy = zeros(7)
+    dpz = zeros(7)
+    out = _ev_signal_ow(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs,
+                        dout, dpx, dpy, dpz)
     return out, dout
 
 
@@ -60,47 +67,12 @@ def ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times,
     n = times.size
     out = zeros(n)
     dout = zeros((n, 10))
-    sin_inc = sin(inc)
-    cos_inc = cos(inc)
-    sin2_inc = sin_inc * sin_inc
-    pre = -alpha * mass_ratio * sin2_inc
-
-    dx = zeros(7)
-    dy = zeros(7)
-    dz = zeros(7)
+    dpx = zeros(7)
+    dpy = zeros(7)
+    dpz = zeros(7)
     for j in range(n):
-        x, y, z = _pos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
-        d2 = x * x + y * y + z * z
-        d = sqrt(d2)
-        cz = z / d
-        # S = pre · g, where g = (2 cz^2 - 1) / d^3.
-        # Rewrite g = (2 z^2 - d^2) / d^5 = (2 z^2 / d^5) - 1/d^3.
-        g = (2.0 * cz * cz - 1.0) / (d2 * d)
-        out[j] = pre * g
-
-        # dg/dθ via dx, dy, dz. Use g = (2 z^2 - d^2) / d^5.
-        # Let A = 2 z^2 - d^2,  d^5 = d2^2 · d.
-        # dA = 4 z·dz - 2(x·dx + y·dy + z·dz)
-        #    = -2(x·dx + y·dy) + 2 z·dz
-        # d(d^5)/dθ = 5 d^3 · dd, with dd = (x·dx + y·dy + z·dz)/d.
-        # dg = (dA · d^5 - A · 5 d^3 · dd) / d^10
-        #    = (dA - 5 A · dd / d^2) / d^5.
-        d5 = d2 * d2 * d
-        A = 2.0 * z * z - d2
-        for kk in range(7):
-            xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
-            dd = xdotdx / d
-            dA = -2.0 * (x * dx[kk] + y * dy[kk]) + 2.0 * z * dz[kk]
-            dg = (dA - 5.0 * A * dd / d2) / d5
-            dout[j, kk] = pre * dg
-        # Extras (no orbital chain).
-        # alpha (7): dS/dalpha = -mass_ratio · sin2_inc · g
-        dout[j, 7] = -mass_ratio * sin2_inc * g
-        # mass_ratio (8): dS/dmr = -alpha · sin2_inc · g
-        dout[j, 8] = -alpha * sin2_inc * g
-        # inc (9): d(sin^2 inc)/dinc = 2 sin_inc · cos_inc
-        dout[j, 9] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
-
+        out[j] = _ev_signal_ow(alpha, mass_ratio, inc, times[j], tpa, p, dt, ep_table, ep_times,
+                               coeffs, dcoeffs, dout[j], dpx, dpy, dpz)
     return out, dout
 
 
@@ -114,32 +86,12 @@ def ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times
     n = times.size
     out = zeros(n)
     dout = zeros((n, 10))
-    sin_inc = sin(inc)
-    cos_inc = cos(inc)
-    sin2_inc = sin_inc * sin_inc
-    pre = -alpha * mass_ratio * sin2_inc
     nt = get_num_threads()
     dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
     for j in prange(n):
         tid = get_thread_id()
-        dx, dy, dz = dxs[tid], dys[tid], dzs[tid]
-        x, y, z = _pos_ow(times[j], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz)
-        d2 = x * x + y * y + z * z
-        d = sqrt(d2)
-        cz = z / d
-        g = (2.0 * cz * cz - 1.0) / (d2 * d)
-        out[j] = pre * g
-        d5 = d2 * d2 * d
-        A = 2.0 * z * z - d2
-        for kk in range(7):
-            xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
-            dd = xdotdx / d
-            dA = -2.0 * (x * dx[kk] + y * dy[kk]) + 2.0 * z * dz[kk]
-            dg = (dA - 5.0 * A * dd / d2) / d5
-            dout[j, kk] = pre * dg
-        dout[j, 7] = -mass_ratio * sin2_inc * g
-        dout[j, 8] = -alpha * sin2_inc * g
-        dout[j, 9] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
+        out[j] = _ev_signal_ow(alpha, mass_ratio, inc, times[j], tpa, p, dt, ep_table, ep_times,
+                               coeffs, dcoeffs, dout[j], dxs[tid], dys[tid], dzs[tid])
     return out, dout
 
 

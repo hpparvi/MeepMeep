@@ -50,4 +50,7 @@ from .lambert import (_lambert_kernel_d, lambert_phase_curve_cd, lambert_phase_c
                       _lambert_phase_curve_cd_w, _lambert_phase_curve_cd_s,
                       lambert_phase_curve_cd_v, lambert_phase_curve_cd_vp,
                       _lambert_phase_curve_d_s, lambert_phase_curve_d_v, lambert_phase_curve_d_vp)
+from .ev_signal import (ev_signal_cd, ev_signal_d, _ev_signal_cd_w, _ev_signal_cd_s,
+                        ev_signal_cd_v, ev_signal_cd_vp,
+                        _ev_signal_d_s, ev_signal_d_v, ev_signal_d_vp)
 from .solve import solve3d_d

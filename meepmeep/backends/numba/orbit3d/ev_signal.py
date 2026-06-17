@@ -14,26 +14,28 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Multi-expansion-point ellipsoidal-variation signal evaluators."""
+"""Multi-expansion-point ellipsoidal-variation signal evaluators.
+
+Epoch folding and expansion-point lookup happen here; the signal itself is
+delegated to the single-expansion-point
+:func:`~meepmeep.backends.numba.point3d.ev_signal.ev_signal_c`.
+"""
 
 from numba import njit, prange, types
 from numba.extending import overload
-from numpy import zeros, sin, sqrt, ndarray
+from numpy import zeros, floor, ndarray
 
-from .position import _pos_os
+from ..point3d.ev_signal import _ev_signal_c_s
 from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline="always")
 def _ev_signal_os(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs):
     """Scalar kernel for :func:`ev_signal_o`. See that function for documentation."""
-    sin2_inc = sin(inc) ** 2
-    pre = -alpha * mass_ratio * sin2_inc
-    x, y, z = _pos_os(t, tpa, p, dt, ep_table, ep_times, coeffs)
-    d2 = x * x + y * y + z * z
-    d = sqrt(d2)
-    cz = z / d
-    return pre * (2.0 * cz * cz - 1.0) / (d2 * d)
+    epoch = floor((t - tpa) / p)
+    tc = t - tpa - epoch * p
+    ix = ep_table[int(floor(tc / (dt * p)))]
+    return _ev_signal_c_s(tc - ep_times[ix] * p, alpha, mass_ratio, inc, coeffs[ix])
 
 
 @njit(fastmath=True)
@@ -41,14 +43,8 @@ def ev_signal_ov(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times, 
     """Vector kernel for :func:`ev_signal_o`. See that function for documentation."""
     n = times.size
     out = zeros(n)
-    sin2_inc = sin(inc) ** 2
-    pre = -alpha * mass_ratio * sin2_inc
     for i in range(n):
-        x, y, z = _pos_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
-        d2 = x * x + y * y + z * z
-        d = sqrt(d2)
-        cz = z / d
-        out[i] = pre * (2.0 * cz * cz - 1.0) / (d2 * d)
+        out[i] = _ev_signal_os(alpha, mass_ratio, inc, times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return out
 
 
@@ -57,14 +53,8 @@ def ev_signal_ovp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times,
     """Parallel (prange) twin of :func:`ev_signal_ov`."""
     n = times.size
     out = zeros(n)
-    sin2_inc = sin(inc) ** 2
-    pre = -alpha * mass_ratio * sin2_inc
     for i in prange(n):
-        x, y, z = _pos_os(times[i], tpa, p, dt, ep_table, ep_times, coeffs)
-        d2 = x * x + y * y + z * z
-        d = sqrt(d2)
-        cz = z / d
-        out[i] = pre * (2.0 * cz * cz - 1.0) / (d2 * d)
+        out[i] = _ev_signal_os(alpha, mass_ratio, inc, times[i], tpa, p, dt, ep_table, ep_times, coeffs)
     return out
 
 

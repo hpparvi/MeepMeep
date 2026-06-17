@@ -29,6 +29,7 @@ Stem                     Quantity
 ``rv``                   Radial velocity (line-of-sight velocity, scaled).
 ``cos_alpha``            Cosine of the phase angle, :math:`-z/r` (3D only).
 ``lambert_phase_curve``  Lambertian reflected-light phase-curve flux (3D only).
+``ev_signal``            Ellipsoidal-variation (tidal) flux signal (3D only).
 =======================  ====================================================
 
 Examples: :func:`~meepmeep.backends.numba.point2d.position.pos` returns
