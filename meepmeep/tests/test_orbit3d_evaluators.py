@@ -28,6 +28,7 @@ from meepmeep.backends.numba.orbit3d import (
     true_anomaly_o,
     lambert_phase_curve_o,
     ev_signal_o,
+    emission_phase_curve_o,
 )
 from meepmeep.backends.numba.utils import (
     TWO_PI,
@@ -187,6 +188,17 @@ class TestPhotometricSignals:
         r_min = orbit_case["a"] * (1.0 - orbit_case["e"])
         amplitude = 0.1 ** 2 * 0.3 / r_min ** 2
         assert np.all(flux <= amplitude + 1e-12)
+
+    def test_emission_phase_curve_finite_and_bounded(self, orbit_case):
+        times, tc, dt, pkt, pts, c = _setup(orbit_case)
+        k, fratio = 0.1, 0.25
+        flux = emission_phase_curve_o(times, k, fratio, 0.4, tpa=tc, p=orbit_case["p"],
+                                      dt=dt, ep_table=pkt, ep_times=pts, coeffs=c)
+        assert np.all(np.isfinite(flux))
+        # F = k^2*fratio*(1 + cos d*cz + sin d*s)/2 with cz^2+s^2 <= 1, so 0 <= F <= k^2*fratio.
+        amp = k * k * fratio
+        assert np.all(flux >= -1e-12)
+        assert np.all(flux <= amp + 1e-12)
 
     def test_ev_signal_finite(self, orbit_case):
         times, tc, dt, pkt, pts, c = _setup(orbit_case)

@@ -53,6 +53,11 @@ from .ev_signal import (
     ev_signal_c_v, ev_signal_c_vp,
     _ev_signal_s, ev_signal_v, ev_signal_vp,
 )
+from .emission import (
+    emission_phase_curve_c, emission_phase_curve, _emission_phase_curve_c_s,
+    emission_phase_curve_c_v, emission_phase_curve_c_vp,
+    _emission_phase_curve_s, emission_phase_curve_v, emission_phase_curve_vp,
+)
 from .solve import solve3d
 from .util import (
     find_contact_point, bounding_box,

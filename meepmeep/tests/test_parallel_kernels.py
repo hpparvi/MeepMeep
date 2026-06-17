@@ -24,6 +24,7 @@ from meepmeep.backends.numba.orbit3d import (
     true_anomaly_ov, true_anomaly_ovp,
     lambert_phase_curve_ov, lambert_phase_curve_ovp,
     ev_signal_ov, ev_signal_ovp,
+    emission_phase_curve_ov, emission_phase_curve_ovp,
     light_travel_time_ov, light_travel_time_ovp,
 )
 from meepmeep.backends.numba.orbit3dd import (
@@ -35,6 +36,7 @@ from meepmeep.backends.numba.orbit3dd import (
     true_anomaly_ovd, true_anomaly_ovdp,
     lambert_phase_curve_ovd, lambert_phase_curve_ovdp,
     ev_signal_ovd, ev_signal_ovdp,
+    emission_phase_curve_ovd, emission_phase_curve_ovdp,
     light_travel_time_ovd, light_travel_time_ovdp,
 )
 from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit, eccentricity_vector
@@ -119,6 +121,11 @@ class TestValueKernelParity:
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
         _compare(ev_signal_ov, ev_signal_ovp, (8e-6, 1e-3, PARS["i"], t, tpa, p, dt, pkt, pts, c))
 
+    def test_emission_phase_curve(self, setup):
+        t, tpa, p, dt, pkt, pts, c, _, _ = setup
+        _compare(emission_phase_curve_ov, emission_phase_curve_ovp,
+                 (t, 0.1, 0.25, 0.4, tpa, p, dt, pkt, pts, c))
+
     def test_light_travel_time(self, setup):
         t, tpa, p, dt, pkt, pts, c, _, _ = setup
         _compare(light_travel_time_ov, light_travel_time_ovp,
@@ -179,6 +186,11 @@ class TestGradientKernelParity:
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup
         _compare(ev_signal_ovd, ev_signal_ovdp,
                  (8e-6, 1e-3, PARS["i"], t, tpa, p, dt, pkt, pts, c, dc))
+
+    def test_emission_phase_curve(self, setup):
+        t, tpa, p, dt, pkt, pts, c, dc, _ = setup
+        _compare(emission_phase_curve_ovd, emission_phase_curve_ovdp,
+                 (t, 0.1, 0.25, 0.4, tpa, p, dt, pkt, pts, c, dc))
 
     def test_light_travel_time(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup

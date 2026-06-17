@@ -51,16 +51,16 @@ from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
 from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector, tc_to_tp_gradient
 from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
                                             true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
-                                            lambert_phase_curve_o, light_travel_time_o, )
+                                            lambert_phase_curve_o, emission_phase_curve_o, light_travel_time_o, )
 from .backends.numba.orbit3dd import (solve3d_orbit_d, pos_od, cos_alpha_od, vel_od, true_anomaly_od, rv_od,
                                              star_planet_distance_od, ev_signal_od, lambert_phase_curve_od,
-                                             light_travel_time_od, )
+                                             emission_phase_curve_od, light_travel_time_od, )
 from .backends.numba.orbit3d import (pos_ovp, vel_ovp, cos_alpha_ovp, true_anomaly_ovp, rv_ovp,
                                             star_planet_distance_ovp, ev_signal_ovp, lambert_phase_curve_ovp,
-                                            light_travel_time_ovp, )
+                                            emission_phase_curve_ovp, light_travel_time_ovp, )
 from .backends.numba.orbit3dd import (pos_ovdp, vel_ovdp, cos_alpha_ovdp, true_anomaly_ovdp, rv_ovdp,
                                              star_planet_distance_ovdp, ev_signal_ovdp, lambert_phase_curve_ovdp,
-                                             light_travel_time_ovdp, )
+                                             emission_phase_curve_ovdp, light_travel_time_ovdp, )
 
 
 class Orbit:
@@ -99,7 +99,8 @@ class Orbit:
         derivatives in addition to its value(s). The derivative ordering is
         ``(tc, p, a, i, e, w, lan)`` followed by per-method physical extras
         (e.g. ``k`` for :meth:`radial_velocity`; ``ag, k`` for
-        :meth:`lambert_phase_curve`; ``alpha, mass_ratio, inc`` for
+        :meth:`lambert_phase_curve`; ``k, fratio, offset`` for
+        :meth:`emission_phase_curve`; ``alpha, mass_ratio, inc`` for
         :meth:`ellipsoidal_variation`; see the underlying ``*_od`` routines
         in :mod:`meepmeep.backends.numba.orbit3dd` for the full
         signatures).
@@ -693,6 +694,48 @@ class Orbit:
                                            self._ep_times, self._coeffs, self._dcoeffs, )
         fn = self._select(lambert_phase_curve_o, lambert_phase_curve_ovp, times, self._PARALLEL_NMIN_VALUE)
         return fn(times, ag, k, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
+                                      self._coeffs, )
+
+    def emission_phase_curve(self, k: float, fratio: float, offset: float,
+                             times: ndarray | None = None):
+        """Thermal-emission phase curve from a simple cosine model.
+
+        Evaluates :math:`F(t) = k^2\\,f_\\mathrm{ratio}\\,(1 + \\cos\\delta\\,c_z(t)
+        + \\sin\\delta\\,s(t))/2`, where :math:`c_z = -z/d` is the cosine of the
+        phase angle and :math:`s` the signed in-plane component built from the
+        orbital normal. The flux peaks at :math:`k^2 f_\\mathrm{ratio}` when the
+        hotspot faces the observer; the offset :math:`\\delta` shifts the peak
+        away from secondary eclipse, breaking the curve's time symmetry.
+
+        Parameters
+        ----------
+        k : float
+            Planet-to-star radius ratio :math:`R_p/R_\\star`.
+        fratio : float
+            Dayside-to-nightside per-surface-element flux ratio, scaling the
+            phase-curve amplitude so the peak-to-peak swing is
+            :math:`k^2 f_\\mathrm{ratio}`.
+        offset : float
+            Hotspot offset [radians].
+        times : ndarray or None
+            Times at which to evaluate the flux. If ``None``, uses the
+            grid bound via :meth:`set_data`.
+
+        Returns
+        -------
+        flux : ndarray, shape (N,)
+            Emitted planet-to-star flux ratio per time.
+        dflux : ndarray, shape (N, 10)
+            Gradient w.r.t. ``(tc, p, a, i, e, w, lan, k, fratio, offset)``.
+            Only returned when ``self._derivatives`` is ``True``.
+        """
+        times = times if times is not None else self.times
+        if self._derivatives:
+            fn = self._select(emission_phase_curve_od, emission_phase_curve_ovdp, times, self._PARALLEL_NMIN_GRAD)
+            return fn(times, k, fratio, offset, self._tp, self._p, self._dt, self._ep_table,
+                                           self._ep_times, self._coeffs, self._dcoeffs, )
+        fn = self._select(emission_phase_curve_o, emission_phase_curve_ovp, times, self._PARALLEL_NMIN_VALUE)
+        return fn(times, k, fratio, offset, self._tp, self._p, self._dt, self._ep_table, self._ep_times,
                                       self._coeffs, )
 
     def ellipsoidal_variation(self, alpha: float, mass_ratio: float, times: Optional[ndarray] = None):

@@ -18,19 +18,20 @@ Quantity stem
 The leading word of a function name identifies the quantity being
 evaluated:
 
-=======================  ====================================================
-Stem                     Quantity
-=======================  ====================================================
-``pos``                  Position (vector of coordinates).
-``sep``                  Sky-projected planet-star separation, :math:`\sqrt{x^2+y^2}`.
-``zpos``                 Line-of-sight (:math:`z`) coordinate only.
-``vel``                  Velocity vector (3D modules only).
-``zvel``                 Line-of-sight velocity component.
-``rv``                   Radial velocity (line-of-sight velocity, scaled).
-``cos_alpha``            Cosine of the phase angle, :math:`-z/r` (3D only).
-``lambert_phase_curve``  Lambertian reflected-light phase-curve flux (3D only).
-``ev_signal``            Ellipsoidal-variation (tidal) flux signal (3D only).
-=======================  ====================================================
+========================  ====================================================
+Stem                      Quantity
+========================  ====================================================
+``pos``                   Position (vector of coordinates).
+``sep``                   Sky-projected planet-star separation, :math:`\sqrt{x^2+y^2}`.
+``zpos``                  Line-of-sight (:math:`z`) coordinate only.
+``vel``                   Velocity vector (3D modules only).
+``zvel``                  Line-of-sight velocity component.
+``rv``                    Radial velocity (line-of-sight velocity, scaled).
+``cos_alpha``             Cosine of the phase angle, :math:`-z/r` (3D only).
+``lambert_phase_curve``   Lambertian reflected-light phase-curve flux (3D only).
+``ev_signal``             Ellipsoidal-variation (tidal) flux signal (3D only).
+``emission_phase_curve``  Cosine thermal-emission phase-curve flux (3D only).
+========================  ====================================================
 
 Examples: :func:`~meepmeep.backends.numba.point2d.position.pos` returns
 the (x, y) position; :func:`~meepmeep.backends.numba.point3d.separation.sep`

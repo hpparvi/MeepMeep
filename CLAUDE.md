@@ -153,6 +153,7 @@ meepmeep/
     │   │                    # (rv), cos_phase_angle.py (cos_alpha),
     │   │                    # lambert.py (lambert_phase_curve),
     │   │                    # ev_signal.py (ev_signal),
+    │   │                    # emission.py (emission_phase_curve),
     │   │                    # solve.py (solve3d), util.py (contact
     │   │                    # points, bounding box, durations, find_z_min).
     │   │                    # __init__.py re-exports the surface.
@@ -165,6 +166,7 @@ meepmeep/
     │   │                    # cos_phase_angle.py (cos_alpha_cd, cos_alpha_d),
     │   │                    # lambert.py (lambert_phase_curve_cd, lambert_phase_curve_d),
     │   │                    # ev_signal.py (ev_signal_cd, ev_signal_d),
+    │   │                    # emission.py (emission_phase_curve_cd, emission_phase_curve_d),
     │   │                    # solve.py (solve3d_d). The evaluators are
     │   │                    # scalar-or-array @overload dispatchers (like
     │   │                    # point2dd) over private _s scalar and
@@ -172,7 +174,7 @@ meepmeep/
     │   ├── orbit3d/         # Multi-expansion-point orbit-spanning evaluators, one
     │   │                    # module per quantity (position, separation,
     │   │                    # velocity, radial_velocity, true_anomaly,
-    │   │                    # cos_phase_angle, lambert, ev_signal, ...). Shared
+    │   │                    # cos_phase_angle, lambert, ev_signal, emission, ...). Shared
     │   │                    # helpers in _common.py; __init__.py re-exports
     │   │                    # the full surface.
     │   └── orbit3dd/        # Multi-expansion-point orbit-spanning gradient evaluators,

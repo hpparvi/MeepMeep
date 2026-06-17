@@ -68,6 +68,10 @@ from .lambert import (
     lambert_phase_curve_ovdp,
 )
 from .ev_signal import ev_signal_od, _ev_signal_osd, ev_signal_ovd, ev_signal_ovdp
+from .emission import (
+    emission_phase_curve_od, _emission_phase_curve_osd, emission_phase_curve_ovd,
+    emission_phase_curve_ovdp,
+)
 from .radial_velocity import rv_od, _rv_osd, rv_ovd, rv_ovdp
 from .light_travel_time import (
     LTT_DAYS_PER_RSUN,

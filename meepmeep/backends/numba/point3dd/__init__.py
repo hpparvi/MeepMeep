@@ -53,4 +53,7 @@ from .lambert import (_lambert_kernel_d, lambert_phase_curve_cd, lambert_phase_c
 from .ev_signal import (ev_signal_cd, ev_signal_d, _ev_signal_cd_w, _ev_signal_cd_s,
                         ev_signal_cd_v, ev_signal_cd_vp,
                         _ev_signal_d_s, ev_signal_d_v, ev_signal_d_vp)
+from .emission import (emission_phase_curve_cd, emission_phase_curve_d, _emission_phase_curve_cd_w,
+                       _emission_phase_curve_cd_s, emission_phase_curve_cd_v, emission_phase_curve_cd_vp,
+                       _emission_phase_curve_d_s, emission_phase_curve_d_v, emission_phase_curve_d_vp)
 from .solve import solve3d_d

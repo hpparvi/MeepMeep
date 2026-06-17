@@ -145,17 +145,20 @@ Parameter-derivative variants:
    rv_d
 
 
-Phase angle, reflected light, and ellipsoidal variation
---------------------------------------------------------
+Phase angle, reflected light, ellipsoidal variation, and emission
+-----------------------------------------------------------------
 
 Single-expansion-point cosine-of-phase-angle, Lambertian reflected-light
-phase-curve, and ellipsoidal-variation evaluators, built on the same
-``(3, 5)`` coefficient matrices. The Lambert evaluators form the flux
-:math:`(k/r)^2 A_g\, f(\alpha)` from the phase-angle cosine, using the
+phase-curve, ellipsoidal-variation, and cosine thermal-emission evaluators,
+built on the same ``(3, 5)`` coefficient matrices. The Lambert evaluators form
+the flux :math:`(k/r)^2 A_g\, f(\alpha)` from the phase-angle cosine, using the
 instantaneous star-planet distance :math:`r = \sqrt{x^2+y^2+z^2}` for the
 inverse-square illumination (exact for eccentric orbits); the
-ellipsoidal-variation signal scales as :math:`1/r^3`. The whole-orbit
-dispatchers in :ref:`api.lowlevel.orbit_dispatchers` delegate to these.
+ellipsoidal-variation signal scales as :math:`1/r^3`; the emission model is
+:math:`k^2 f_\mathrm{ratio}\,(1 + \cos\delta\,c_z + \sin\delta\,s)/2` with a
+signed in-plane component :math:`s` (from the orbital normal) and a hotspot
+offset :math:`\delta`. The whole-orbit dispatchers in
+:ref:`api.lowlevel.orbit_dispatchers` delegate to these.
 
 .. currentmodule:: meepmeep.numba3d
 
@@ -168,6 +171,8 @@ dispatchers in :ref:`api.lowlevel.orbit_dispatchers` delegate to these.
    lambert_phase_curve
    ev_signal_c
    ev_signal
+   emission_phase_curve_c
+   emission_phase_curve
 
 Parameter-derivative variants:
 
@@ -180,6 +185,8 @@ Parameter-derivative variants:
    lambert_phase_curve_d
    ev_signal_cd
    ev_signal_d
+   emission_phase_curve_cd
+   emission_phase_curve_d
 
 
 Geometric utilities
@@ -248,7 +255,7 @@ Velocities and radial velocity:
    zvel_o
    rv_o
 
-Phase angles, Lambert curves, and ellipsoidal variation:
+Phase angles, Lambert curves, ellipsoidal variation, and emission:
 
 .. autosummary::
    :toctree: generated
@@ -258,6 +265,7 @@ Phase angles, Lambert curves, and ellipsoidal variation:
    cos_v_p_angle_o
    lambert_phase_curve_o
    ev_signal_o
+   emission_phase_curve_o
 
 Light travel time:
 
@@ -292,6 +300,7 @@ function accepts an additional ``dcoeffs`` tensor of shape
    star_planet_distance_od
    lambert_phase_curve_od
    ev_signal_od
+   emission_phase_curve_od
    rv_od
    light_travel_time_od
 

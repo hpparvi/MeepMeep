@@ -30,6 +30,7 @@ from meepmeep.backends.numba.orbit3d import (
     _star_planet_distance_os, star_planet_distance_ov,
     _lambert_phase_curve_os, lambert_phase_curve_ov,
     _ev_signal_os, ev_signal_ov,
+    _emission_phase_curve_os, emission_phase_curve_ov,
     _rv_os, rv_ov,
     _light_travel_time_os, light_travel_time_ov,
 )
@@ -46,6 +47,7 @@ from meepmeep.backends.numba.orbit3dd import (
     _true_anomaly_osd, true_anomaly_ovd,
     _lambert_phase_curve_osd, lambert_phase_curve_ovd,
     _ev_signal_osd, ev_signal_ovd,
+    _emission_phase_curve_osd, emission_phase_curve_ovd,
     _rv_osd, rv_ovd,
     _light_travel_time_osd, light_travel_time_ovd,
 )
@@ -170,6 +172,14 @@ class TestForwardParity:
         fl = lambert_phase_curve_ov(ts, ag, k, tpa, p, dt, pkt, pts, c)
         for j, t in enumerate(ts):
             f = _lambert_phase_curve_os(float(t), ag, k, tpa, p, dt, pkt, pts, c)
+            assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
+
+    def test_emission_phase_curve(self, orbit_case):
+        ts, tpa, dt, pkt, pts, c = _setup(orbit_case)
+        p = orbit_case["p"]
+        fl = emission_phase_curve_ov(ts, 0.1, 0.25, 0.4, tpa, p, dt, pkt, pts, c)
+        for j, t in enumerate(ts):
+            f = _emission_phase_curve_os(float(t), 0.1, 0.25, 0.4, tpa, p, dt, pkt, pts, c)
             assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
 
     def test_ev_signal(self, orbit_case):
@@ -304,6 +314,15 @@ class TestGradientParity:
         fl, dfl = lambert_phase_curve_ovd(ts, ag, k, tpa, p, dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
             f, df = _lambert_phase_curve_osd(float(t), ag, k, tpa, p, dt, pkt, pts, c, dc)
+            assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
+            assert_allclose(df, dfl[j], rtol=1e-14, atol=1e-14)
+
+    def test_emission_phase_curve(self, orbit_case):
+        ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
+        p = orbit_case["p"]
+        fl, dfl = emission_phase_curve_ovd(ts, 0.1, 0.25, 0.4, tpa, p, dt, pkt, pts, c, dc)
+        for j, t in enumerate(ts):
+            f, df = _emission_phase_curve_osd(float(t), 0.1, 0.25, 0.4, tpa, p, dt, pkt, pts, c, dc)
             assert_allclose(f, fl[j], rtol=1e-14, atol=1e-14)
             assert_allclose(df, dfl[j], rtol=1e-14, atol=1e-14)
 

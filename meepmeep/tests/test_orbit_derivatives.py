@@ -29,6 +29,7 @@ from meepmeep.backends.numba.orbit3dd import (
     rv_od,
     lambert_phase_curve_od,
     ev_signal_od,
+    emission_phase_curve_od,
     true_anomaly_od,
     light_travel_time_od,
 )
@@ -195,6 +196,15 @@ class TestUnderlyingParity:
         _, dflux = o.lambert_phase_curve(k=0.1, ag=0.3)
         _, dflux_r = lambert_phase_curve_od(
             o.times, 0.3, 0.1, o._tp, o._p,
+            o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
+        )
+        assert_allclose(dflux, dflux_r, rtol=RTOL_DERIV)
+
+    def test_emission_phase_curve(self, orbit_deriv):
+        o = orbit_deriv
+        _, dflux = o.emission_phase_curve(k=0.1, fratio=0.25, offset=0.4)
+        _, dflux_r = emission_phase_curve_od(
+            o.times, 0.1, 0.25, 0.4, o._tp, o._p,
             o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
         )
         assert_allclose(dflux, dflux_r, rtol=RTOL_DERIV)

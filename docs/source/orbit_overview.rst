@@ -155,6 +155,7 @@ every evaluator that exposes a ``times=None`` parameter
 (:meth:`~meepmeep.orbit.Orbit.xyz`,
 :meth:`~meepmeep.orbit.Orbit.star_planet_distance`,
 :meth:`~meepmeep.orbit.Orbit.lambert_phase_curve`,
+:meth:`~meepmeep.orbit.Orbit.emission_phase_curve`,
 :meth:`~meepmeep.orbit.Orbit.ellipsoidal_variation`), and used
 unconditionally by methods that do not expose ``times`` at all
 (:meth:`~meepmeep.orbit.Orbit.vxyz`,
@@ -193,7 +194,9 @@ finite at the conjunction extrema; see the
 
 **Photometry.** :meth:`~meepmeep.orbit.Orbit.lambert_phase_curve`
 evaluates the reflected-light phase curve assuming Lambertian
-scattering.
+scattering. :meth:`~meepmeep.orbit.Orbit.emission_phase_curve`
+evaluates a simple cosine thermal-emission phase curve with a hotspot
+offset (amplitude :math:`k^2 f_\mathrm{ratio}`).
 :meth:`~meepmeep.orbit.Orbit.ellipsoidal_variation` evaluates the
 stellar ellipsoidal-distortion signal of Lillo-Box et al. (2014).
 
@@ -251,6 +254,8 @@ append physical extras:
      - ``k``
    * - :meth:`~meepmeep.orbit.Orbit.lambert_phase_curve`
      - ``ag``, ``k``
+   * - :meth:`~meepmeep.orbit.Orbit.emission_phase_curve`
+     - ``k``, ``fratio``, ``offset``
    * - :meth:`~meepmeep.orbit.Orbit.ellipsoidal_variation`
      - ``alpha``, ``mass_ratio``, ``inc``
 

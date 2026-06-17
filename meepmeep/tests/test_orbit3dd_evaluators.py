@@ -45,6 +45,7 @@ from meepmeep.backends.numba.orbit3d import (
     true_anomaly_o,
     lambert_phase_curve_o,
     ev_signal_o,
+    emission_phase_curve_o,
     cos_v_p_angle_o,
     sep_o,
     light_travel_time_o,
@@ -70,6 +71,7 @@ from meepmeep.backends.numba.orbit3dd import (
     lambert_phase_curve_od,
     lambert_phase_curve_od,
     ev_signal_od,
+    emission_phase_curve_od,
     rv_od,
     light_travel_time_od,
     light_travel_time_od,
@@ -174,6 +176,16 @@ class TestValueParity:
                                                 ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(flux, flux_b, rtol=1e-10, atol=1e-20)
         assert dflux.shape == (NTIMES, 9)
+        assert np.all(np.isfinite(dflux))
+
+    def test_emission_phase_curve_od(self, orbit_case):
+        times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
+        flux_b = emission_phase_curve_o(times, 0.1, 0.25, 0.4, tpa=tc, p=orbit_case["p"],
+                                        dt=dt, ep_table=pkt, ep_times=pts, coeffs=c)
+        flux, dflux = emission_phase_curve_od(times, 0.1, 0.25, 0.4, tpa=tc, p=orbit_case["p"],
+                                              dt=dt, ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
+        assert_allclose(flux, flux_b, rtol=1e-10, atol=1e-20)
+        assert dflux.shape == (NTIMES, 10)
         assert np.all(np.isfinite(dflux))
 
     def test_ev_signal_od(self, orbit_case):
@@ -336,6 +348,21 @@ class TestExtraParameterFD:
                                              pkt, pts, c, dc)
         assert_allclose(dflux[:, 8], fd, rtol=1e-5, atol=1e-10)
 
+    def test_emission_phase_curve_extras(self, orbit_case):
+        """FD on k (7), fratio (8), offset (9)."""
+        times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
+        k, fratio, offset = 0.1, 0.25, 0.4
+        _, dflux = emission_phase_curve_od(times, k, fratio, offset, tpa=tc, p=orbit_case["p"],
+                                           dt=dt, ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
+        base = [k, fratio, offset]
+        for slot, h in [(7, 1e-7), (8, 1e-7), (9, 1e-7)]:
+            ap = list(base); ap[slot - 7] += h
+            am = list(base); am[slot - 7] -= h
+            fp = emission_phase_curve_o(times, *ap, tc, orbit_case["p"], dt, pkt, pts, c)
+            fm = emission_phase_curve_o(times, *am, tc, orbit_case["p"], dt, pkt, pts, c)
+            fd = (fp - fm) / (2 * h)
+            assert_allclose(dflux[:, slot], fd, rtol=1e-5, atol=1e-10)
+
     def test_ev_signal_extras(self, orbit_case):
         """FD on alpha (7), mass_ratio (8), inc (9)."""
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
@@ -426,6 +453,17 @@ class TestScalarVectorConsistency:
             z, dz = zpos_od(times[j], tc, orbit_case["p"], dt, pkt, pts, c, dc)
             assert_allclose(z, z_v[j], rtol=1e-12)
             assert_allclose(dz, dz_v[j], rtol=1e-12)
+
+    def test_emission_scalar_matches_vector(self, orbit_case):
+        times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
+        flux_v, dflux_v = emission_phase_curve_od(
+            times, 0.1, 0.25, 0.4, tpa=tc, p=orbit_case["p"], dt=dt,
+            ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
+        for j in range(0, NTIMES, 7):
+            flux, dflux = emission_phase_curve_od(
+                times[j], 0.1, 0.25, 0.4, tc, orbit_case["p"], dt, pkt, pts, c, dc)
+            assert_allclose(flux, flux_v[j], rtol=1e-12)
+            assert_allclose(dflux, dflux_v[j], rtol=1e-12)
 
     def test_lambert_scalar_matches_vector(self, orbit_case):
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
