@@ -145,6 +145,36 @@ Parameter-derivative variants:
    rv_d
 
 
+Phase angle and reflected light
+-------------------------------
+
+Single-expansion-point cosine-of-phase-angle and Lambertian reflected-light
+phase-curve evaluators, built on the same ``(3, 5)`` coefficient matrices.
+The Lambert evaluators form the flux :math:`(k/a)^2 A_g\, f(\alpha)` from the
+phase-angle cosine; the whole-orbit dispatchers in
+:ref:`api.lowlevel.orbit_dispatchers` delegate to these.
+
+.. currentmodule:: meepmeep.numba3d
+
+.. autosummary::
+   :toctree: generated
+
+   cos_alpha_c
+   cos_alpha
+   lambert_phase_curve_c
+   lambert_phase_curve
+
+Parameter-derivative variants:
+
+.. autosummary::
+   :toctree: generated
+
+   cos_alpha_cd
+   cos_alpha_d
+   lambert_phase_curve_cd
+   lambert_phase_curve_d
+
+
 Geometric utilities
 -------------------
 

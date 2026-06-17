@@ -483,9 +483,11 @@ These appear in
 :func:`~meepmeep.backends.numba.orbit3dd.star_planet_distance_od`
 and
 :func:`~meepmeep.backends.numba.orbit3dd.cos_alpha_od`. The
-Lambertian phase-curve dispatcher
-(:func:`~meepmeep.backends.numba.orbit3dd.lambert_phase_curve_od`)
-composes the Lambert kernel
+single-expansion-point Lambertian phase-curve evaluator
+(:func:`~meepmeep.backends.numba.point3dd.lambert.lambert_phase_curve_cd`,
+which the whole-orbit
+:func:`~meepmeep.backends.numba.orbit3dd.lambert_phase_curve_od`
+delegates to) composes the Lambert kernel
 :math:`f(\cos\alpha) = (\sin\alpha + (\pi - \alpha)\cos\alpha)/\pi`
 on top of :math:`\cos\alpha`, with its own closed-form derivative
 :math:`\mathrm d f / \mathrm d \cos\alpha`.
