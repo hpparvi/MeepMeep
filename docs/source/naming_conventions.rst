@@ -27,6 +27,7 @@ Stem              Quantity
 ``vel``           Velocity vector (3D modules only).
 ``zvel``          Line-of-sight velocity component.
 ``rv``            Radial velocity (line-of-sight velocity, scaled).
+``cos_alpha``     Cosine of the phase angle, :math:`-z/r` (3D only).
 ================  ====================================================
 
 Examples: :func:`~meepmeep.backends.numba.point2d.position.pos` returns

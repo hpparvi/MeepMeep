@@ -150,7 +150,8 @@ meepmeep/
     │   │                    # position.py (pos), zposition.py
     │   │                    # (zpos), separation.py (sep), velocity.py
     │   │                    # (vel_c), zvelocity.py (zvel), radial_velocity.py
-    │   │                    # (rv), solve.py (solve3d), util.py (contact
+    │   │                    # (rv), cos_phase_angle.py (cos_alpha),
+    │   │                    # solve.py (solve3d), util.py (contact
     │   │                    # points, bounding box, durations, find_z_min).
     │   │                    # __init__.py re-exports the surface.
     │   ├── point3dd/        # Single-expansion-point 3D parameter-derivative evaluators
@@ -159,6 +160,7 @@ meepmeep/
     │   │                    # (sep_cd, sep_d), velocity.py (vel_cd),
     │   │                    # zvelocity.py (zvel_cd, zvel_d),
     │   │                    # radial_velocity.py (rv_cd, rv_d),
+    │   │                    # cos_phase_angle.py (cos_alpha_cd, cos_alpha_d),
     │   │                    # solve.py (solve3d_d). The evaluators are
     │   │                    # scalar-or-array @overload dispatchers (like
     │   │                    # point2dd) over private _s scalar and
@@ -166,7 +168,7 @@ meepmeep/
     │   ├── orbit3d/         # Multi-expansion-point orbit-spanning evaluators, one
     │   │                    # module per quantity (position, separation,
     │   │                    # velocity, radial_velocity, true_anomaly,
-    │   │                    # phase_angle, lambert, ev_signal, ...). Shared
+    │   │                    # cos_phase_angle, lambert, ev_signal, ...). Shared
     │   │                    # helpers in _common.py; __init__.py re-exports
     │   │                    # the full surface.
     │   └── orbit3dd/        # Multi-expansion-point orbit-spanning gradient evaluators,
@@ -276,7 +278,8 @@ The single-expansion-point evaluators are organised into per-dimension packages:
 plain package holds the non-derivative evaluators and the `dd` package the
 parameter-derivative ones. Each has one module per physical quantity
 (`position.py`, `separation.py`, and for 3D also `zposition.py`,
-`velocity.py`, `zvelocity.py`, `radial_velocity.py`) plus a `solve.py`
+`velocity.py`, `zvelocity.py`, `radial_velocity.py`, `cos_phase_angle.py`)
+plus a `solve.py`
 module and, in the non-derivative package, a `util.py` for transit
 geometry. Each package's `__init__.py` re-exports its surface, mirroring
 the `orbit3d`/`orbit3dd` layout. The non-derivative single-expansion-point evaluators
@@ -378,6 +381,7 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `vel_c`: velocity vector (centered)
   - `zvel_c`, `zvel`: line-of-sight velocity component
   - `rv_c`, `rv`: radial velocity
+  - `cos_alpha_c`, `cos_alpha`: cosine of the orbital phase angle (star-planet-observer)
   - `_c` suffix: centered (time argument is relative to the expansion point)
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives
