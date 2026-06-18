@@ -197,7 +197,7 @@ class TestValueParity:
                                   t=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                   ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         assert_allclose(ev, ev_b, rtol=1e-10, atol=1e-20)
-        assert dev.shape == (NTIMES, 10)
+        assert dev.shape == (NTIMES, 9)
         assert np.all(np.isfinite(dev))
 
     def test_rv_od(self, orbit_case):
@@ -364,17 +364,22 @@ class TestExtraParameterFD:
             assert_allclose(dflux[:, slot], fd, rtol=1e-5, atol=1e-10)
 
     def test_ev_signal_extras(self, orbit_case):
-        """FD on alpha (7), mass_ratio (8), inc (9)."""
+        """FD on the two genuinely-independent extras alpha (7), mass_ratio (8).
+
+        Both enter only through the amplitude prefactor, so the coefficients
+        are held fixed while the extra is perturbed. Inclination is NOT an
+        independent extra (it is the orbital ``i``); its combined derivative
+        is checked in :meth:`test_ev_signal_inclination_combined`.
+        """
         times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
         alpha, mr, inc = 1.0, 1e-3, orbit_case["i"]
         _, dev = ev_signal_od(alpha=alpha, mass_ratio=mr, inc=inc,
                                  t=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                  ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
         h = 1e-7
-        for slot, name in [(7, "alpha"), (8, "mr"), (9, "inc")]:
+        for slot, real_key in [(7, "alpha"), (8, "mass_ratio")]:
             kwargs_p = {"alpha": alpha, "mass_ratio": mr, "inc": inc}
             kwargs_m = dict(kwargs_p)
-            real_key = {"alpha": "alpha", "mr": "mass_ratio", "inc": "inc"}[name]
             kwargs_p[real_key] += h
             kwargs_m[real_key] -= h
             v_p = ev_signal_o(t=times, tpa=tc, p=orbit_case["p"], dt=dt,
@@ -382,7 +387,39 @@ class TestExtraParameterFD:
             v_m = ev_signal_o(t=times, tpa=tc, p=orbit_case["p"], dt=dt,
                                ep_table=pkt, ep_times=pts, coeffs=c, **kwargs_m)
             assert_allclose(dev[:, slot], (v_p - v_m) / (2 * h),
-                            rtol=1e-4, atol=1e-10, err_msg=f"slot {slot} ({name})")
+                            rtol=1e-4, atol=1e-10, err_msg=f"slot {slot} ({real_key})")
+
+    def test_ev_signal_inclination_combined(self, orbit_case):
+        """Slot 3 holds the TOTAL inclination derivative.
+
+        Inclination enters the EV signal both implicitly, through the
+        position geometry baked into the Taylor coefficients, and explicitly,
+        through the ``sin^2 inc`` prefactor. Both contributions must land in
+        the single inclination slot (slot 3). The finite difference therefore
+        perturbs inclination through the whole pipeline: it re-solves the
+        coefficients at ``i +/- h`` and feeds the matching ``inc`` to the
+        prefactor. The expansion-point placement depends only on the
+        eccentricity, so the same ``ep_times``/``ep_table`` and periastron
+        anchor ``tc`` are reused.
+        """
+        times, tc, dt, pkt, pts, c, dc = _setup(orbit_case)
+        alpha, mr = 1.0, 1e-3
+        i0 = orbit_case["i"]
+        _, dev = ev_signal_od(alpha=alpha, mass_ratio=mr, inc=i0,
+                                 t=times, tpa=tc, p=orbit_case["p"], dt=dt,
+                                 ep_table=pkt, ep_times=pts, coeffs=c, dcoeffs=dc)
+
+        def value_at(i):
+            pars = dict(orbit_case)
+            pars["i"] = i
+            coeffs, _ = solve3d_orbit_d(pts, **pars, npt=NPT)
+            return ev_signal_o(alpha=alpha, mass_ratio=mr, inc=i,
+                               t=times, tpa=tc, p=orbit_case["p"], dt=dt,
+                               ep_table=pkt, ep_times=pts, coeffs=coeffs)
+
+        h = 1e-6
+        fd = (value_at(i0 + h) - value_at(i0 - h)) / (2 * h)
+        assert_allclose(dev[:, 3], fd, rtol=1e-4, atol=1e-8)
 
     def test_rv_d_k(self, orbit_case):
         """drv/dk at slot 7. RV is linear in k, so drv/dk = rv/k exactly."""

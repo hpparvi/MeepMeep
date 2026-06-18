@@ -38,8 +38,8 @@ from ._common import _is_1d_array
 def _ev_signal_cd_w(time, alpha, mass_ratio, inc, c, dc, dout, dpx, dpy, dpz):
     """Write-into kernel shared by the scalar and vector evaluators.
 
-    Writes the ten-parameter signal gradient into the caller-provided
-    ``(10,)`` buffer ``dout`` and returns the signal. ``dpx``, ``dpy``,
+    Writes the nine-parameter signal gradient into the caller-provided
+    ``(9,)`` buffer ``dout`` and returns the signal. ``dpx``, ``dpy``,
     ``dpz`` are ``(7,)`` scratch buffers for the position gradients (filled
     by :func:`_pos_cd_w`); vector loops allocate them once and reuse them.
 
@@ -51,8 +51,14 @@ def _ev_signal_cd_w(time, alpha, mass_ratio, inc, c, dc, dout, dpx, dpy, dpz):
         A = 2 z^2 - d^2,  dA = -2(x dx + y dy) + 2 z dz,
         dd = (x dx + y dy + z dz) / d.
 
-    Gradient order ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)``; the
-    explicit ``inc`` (slot 9) is independent of the orbital ``i`` (slot 3).
+    Inclination enters the signal both implicitly through the position
+    (captured by the ``i`` slot of the orbital chain) and explicitly through
+    the ``sin^2 inc`` prefactor; ``inc`` is the orbital inclination, so both
+    contributions are summed into the single inclination slot (slot 3). The
+    explicit-prefactor term ``-alpha q 2 sin inc cos inc * g`` is added there
+    after the orbital loop.
+
+    Gradient order ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)``.
     """
     sin_inc = sin(inc)
     cos_inc = cos(inc)
@@ -74,16 +80,18 @@ def _ev_signal_cd_w(time, alpha, mass_ratio, inc, c, dc, dout, dpx, dpy, dpz):
         dA = -2.0 * (px * dpx[kk] + py * dpy[kk]) + 2.0 * pz * dpz[kk]
         dg = (dA - 5.0 * A * dd / d2) / d5
         dout[kk] = pre * dg
+    # Add the explicit sin^2(inc) prefactor contribution to the inclination
+    # slot, where the implicit position-geometry contribution already lives.
+    dout[3] += -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
     dout[7] = -mass_ratio * sin2_inc * g
     dout[8] = -alpha * sin2_inc * g
-    dout[9] = -alpha * mass_ratio * 2.0 * sin_inc * cos_inc * g
     return out
 
 
 @njit(fastmath=True)
 def _ev_signal_cd_s(time, alpha, mass_ratio, inc, c, dc):
     """Scalar kernel for :func:`ev_signal_cd`. See that function for documentation."""
-    dout = zeros(10)
+    dout = zeros(9)
     dpx = zeros(7)
     dpy = zeros(7)
     dpz = zeros(7)
@@ -96,7 +104,7 @@ def ev_signal_cd_v(time, alpha, mass_ratio, inc, c, dc):
     """Vector kernel for :func:`ev_signal_cd`. See that function for documentation."""
     n = time.size
     out = zeros(n)
-    dout = zeros((n, 10))
+    dout = zeros((n, 9))
     dpx = zeros(7)
     dpy = zeros(7)
     dpz = zeros(7)
@@ -117,7 +125,7 @@ def ev_signal_cd_vp(time, alpha, mass_ratio, inc, c, dc):
     """
     n = time.size
     out = zeros(n)
-    dout = zeros((n, 10))
+    dout = zeros((n, 9))
     nt = get_num_threads()
     dpx = zeros((nt, 7))
     dpy = zeros((nt, 7))
@@ -152,9 +160,10 @@ def ev_signal_cd(time: float | NDArray, alpha: float, mass_ratio: float, inc: fl
     mass_ratio : float
         Planet-to-star mass ratio :math:`M_p / M_\\star`.
     inc : float
-        Orbital inclination [radians]. Treated as a function-local input
-        independent of the orbital ``i`` axis of the gradient (slot 3);
-        callers that share them should sum slots 3 and 9.
+        Orbital inclination [radians]. This is the orbital inclination, the
+        same quantity as the ``i`` axis of the gradient; its full derivative
+        (the implicit position contribution plus the explicit ``sin^2 i``
+        prefactor) is accumulated into the single inclination slot (slot 3).
     c : NDArray
         A (3, 5) Taylor coefficient matrix produced by `solve3d`.
     dc : NDArray
@@ -167,8 +176,8 @@ def ev_signal_cd(time: float | NDArray, alpha: float, mass_ratio: float, inc: fl
         Ellipsoidal variation signal. Shape (N,) for an array `time`.
     dout : NDArray
         Partial derivatives of `out` with respect to
-        `(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`. Shape (10,) for
-        a scalar `time`, (N, 10) for an array `time`.
+        `(tc, p, a, i, e, w, lan, alpha, mass_ratio)`. Shape (9,) for
+        a scalar `time`, (N, 9) for an array `time`.
     """
     if isinstance(time, ndarray):
         return ev_signal_cd_v(time, alpha, mass_ratio, inc, c, dc)
@@ -200,7 +209,7 @@ def ev_signal_d_v(time, alpha, mass_ratio, inc, tc, p, c, dc, te):
     """Vector kernel for :func:`ev_signal_d`. See that function for documentation."""
     n = time.size
     out = zeros(n)
-    dout = zeros((n, 10))
+    dout = zeros((n, 9))
     dpx = zeros(7)
     dpy = zeros(7)
     dpz = zeros(7)
@@ -220,7 +229,7 @@ def ev_signal_d_vp(time, alpha, mass_ratio, inc, tc, p, c, dc, te):
     """
     n = time.size
     out = zeros(n)
-    dout = zeros((n, 10))
+    dout = zeros((n, 9))
     nt = get_num_threads()
     dpx = zeros((nt, 7))
     dpy = zeros((nt, 7))
@@ -254,8 +263,10 @@ def ev_signal_d(time: float | NDArray, alpha: float, mass_ratio: float, inc: flo
     mass_ratio : float
         Planet-to-star mass ratio :math:`M_p / M_\\star`.
     inc : float
-        Orbital inclination [radians]. Treated as a function-local input
-        independent of the orbital ``i`` axis of the gradient (slot 3).
+        Orbital inclination [radians]. This is the orbital inclination, the
+        same quantity as the ``i`` axis of the gradient; its full derivative
+        (the implicit position contribution plus the explicit ``sin^2 i``
+        prefactor) is accumulated into the single inclination slot (slot 3).
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
         time axis as `time`.
@@ -277,8 +288,8 @@ def ev_signal_d(time: float | NDArray, alpha: float, mass_ratio: float, inc: flo
         Ellipsoidal variation signal. Shape (N,) for an array `time`.
     dout : NDArray
         Partial derivatives of `out` with respect to
-        `(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`. Shape (10,) for
-        a scalar `time`, (N, 10) for an array `time`.
+        `(tc, p, a, i, e, w, lan, alpha, mass_ratio)`. Shape (9,) for
+        a scalar `time`, (N, 9) for an array `time`.
     """
     if isinstance(time, ndarray):
         return ev_signal_d_v(time, alpha, mass_ratio, inc, tc, p, c, dc, te)

@@ -265,7 +265,7 @@ class TestShapesAndChainRule:
     def test_ellipsoidal_variation_shape(self, orbit_deriv):
         ev, dev = orbit_deriv.ellipsoidal_variation(alpha=1.0, mass_ratio=1e-3)
         assert ev.shape == (NTIMES,)
-        assert dev.shape == (NTIMES, 10)  # 6 orbital + lan + alpha,mass_ratio,inc
+        assert dev.shape == (NTIMES, 9)  # 6 orbital + lan + alpha, mass_ratio
 
     def test_phase_chain_rule_against_cos_phase(self, orbit_deriv):
         """``dphase/dθ = -dcα/dθ / sqrt(1 - cα²)`` (clamped at boundary)."""

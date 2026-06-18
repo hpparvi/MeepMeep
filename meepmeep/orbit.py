@@ -760,9 +760,9 @@ class Orbit:
         -------
         ev : ndarray, shape (N,)
             Relative flux variation due to ellipsoidal distortion.
-        dev : ndarray, shape (N, 10)
+        dev : ndarray, shape (N, 9)
             Gradient w.r.t.
-            ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)``. Only
+            ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)``. Only
             returned when ``self._derivatives`` is ``True``.
         """
         times = times if times is not None else self.times

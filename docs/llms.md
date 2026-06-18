@@ -64,8 +64,8 @@ low-level variants) returns analytic gradients alongside values:
   orbital block, in argument order:
   - `radial_velocity(k)` -> gradient length 8: `(..., k)`
   - `lambert_phase_curve(k, ag)` -> length 9: `(..., ag, k)`
-  - `ellipsoidal_variation(alpha, mass_ratio)` -> length 10:
-    `(..., alpha, mass_ratio, inc)`
+  - `ellipsoidal_variation(alpha, mass_ratio)` -> length 9:
+    `(..., alpha, mass_ratio)`
   - `light_travel_time(rstar)` -> length 7 only (no rstar derivative).
 - TIMING BASIS: gradients follow the timing parameter you bind. Bind
   `set_pars(tc=...)` and slot 0 is d/dtc with shape parameters taken at

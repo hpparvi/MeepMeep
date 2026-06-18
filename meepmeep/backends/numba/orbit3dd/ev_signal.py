@@ -35,9 +35,9 @@ def _ev_signal_ow(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coe
     """Write-into orbit kernel for the ellipsoidal-variation signal and its gradient.
 
     Epoch-folds, looks up the expansion point, and delegates the signal and
-    ten-parameter gradient evaluation to the single-expansion-point
+    nine-parameter gradient evaluation to the single-expansion-point
     :func:`~meepmeep.backends.numba.point3dd.ev_signal._ev_signal_cd_w`.
-    Writes the gradient into the caller-provided ``(10,)`` buffer ``dout``
+    Writes the gradient into the caller-provided ``(9,)`` buffer ``dout``
     and returns the signal. ``dpx``, ``dpy``, ``dpz`` are ``(7,)`` scratch
     buffers for the position gradients; vector loops allocate them once and
     reuse them.
@@ -52,7 +52,7 @@ def _ev_signal_ow(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coe
 @njit(fastmath=True)
 def _ev_signal_osd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
     """Scalar kernel for :func:`ev_signal_od`. See that function for documentation."""
-    dout = zeros(10)
+    dout = zeros(9)
     dpx = zeros(7)
     dpy = zeros(7)
     dpz = zeros(7)
@@ -66,7 +66,7 @@ def ev_signal_ovd(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times,
     """Vector kernel for :func:`ev_signal_od`. See that function for documentation."""
     n = times.size
     out = zeros(n)
-    dout = zeros((n, 10))
+    dout = zeros((n, 9))
     dpx = zeros(7)
     dpy = zeros(7)
     dpz = zeros(7)
@@ -85,7 +85,7 @@ def ev_signal_ovdp(alpha, mass_ratio, inc, times, tpa, p, dt, ep_table, ep_times
     """
     n = times.size
     out = zeros(n)
-    dout = zeros((n, 10))
+    dout = zeros((n, 9))
     nt = get_num_threads()
     dxs, dys, dzs = zeros((nt, 7)), zeros((nt, 7)), zeros((nt, 7))
     for j in prange(n):
@@ -105,14 +105,14 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coef
     Implements
     :math:`S = -\\alpha\\,q\\,\\sin^2 i\\,(2 c_z^2 - 1) / d^3`
     where :math:`c_z = z/d` and :math:`d = \\sqrt{x^2 + y^2 + z^2}`. The
-    function-local ``inc`` parameter is independent of the orbital
-    inclination ``i`` - callers that share them should sum the two
-    derivative slots.
+    ``inc`` argument is the orbital inclination; its full derivative (the
+    implicit position contribution plus the explicit ``sin^2 i`` prefactor)
+    is accumulated into the single inclination slot (slot 3).
 
     Time argument is the 4th positional.
 
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)`` -
-    length 10.
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)`` -
+    length 9.
 
     Parameters
     ----------
@@ -121,8 +121,8 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coef
     mass_ratio : float
         Planet-to-star mass ratio :math:`M_p / M_\\star`.
     inc : float
-        Orbital inclination [radians]. Treated as a function-local input
-        independent of the orbital ``i`` axis of the gradient.
+        Orbital inclination [radians]. The same quantity as the ``i`` axis
+        of the gradient; its full derivative lands in slot 3.
     t : float or ndarray
         Time(s) at which to evaluate the signal and gradient.
     tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
@@ -134,8 +134,8 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coef
         Ellipsoidal variation signal. Arrays of shape (N,) for an array time
         argument.
     dout : ndarray
-        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, alpha, mass_ratio, inc)``.
-        Shape (10,) for a scalar time, (N, 10) for an array time.
+        Gradient w.r.t. ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)``.
+        Shape (9,) for a scalar time, (N, 9) for an array time.
     """
     if isinstance(t, ndarray):
         return ev_signal_ovd(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
