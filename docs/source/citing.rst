@@ -4,9 +4,7 @@ Citing MeepMeep
 ===============
 
 If MeepMeep contributes to work that leads to a publication, please cite
-Parviainen and Korth (2020), which introduces the
-Taylor-series-around-expansion-points method the package is built on
-(the paper refers to these expansion points as *knot points*):
+Parviainen and Korth (2020), which introduces the method the package is built on:
 
    Parviainen, H. and Korth, J. (2020), "Going back to basics:
    accelerating exoplanet transit modelling using Taylor-series expansion

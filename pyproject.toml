@@ -7,7 +7,7 @@ classifiers=[
   "Topic :: Scientific/Engineering",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -24,6 +24,10 @@ docs = [
     "nbsphinx>=0.9",
     "numpydoc>=1.6",
 ]
+test = [
+    "pytest",
+    "pytest-cov",
+]
 
 [project.urls]
 homepage = 'https://github.com/hpparvi/meepmeep'
@@ -38,8 +42,5 @@ build-backend = "setuptools.build_meta"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ['meepmeep', 'meepmeep.xy', 'meepmeep.xyz',
-           'meepmeep.backends', 'meepmeep.backends.numba',
-           'meepmeep.backends.numba.ts2d', 'meepmeep.backends.numba.ts3d',
-           'meepmeep.backends.jax.ts2d',
-           'meepmeep.backends.numba.newton', 'meepmeep.backends.jax']
+include = ['meepmeep', 'meepmeep.*']
+exclude = ['meepmeep.tests', 'meepmeep.tests.*']
