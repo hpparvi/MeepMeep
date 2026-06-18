@@ -1,0 +1,29 @@
+# Read the Docs configuration file.
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.12"
+  # pandoc is a system dependency of nbsphinx (notebook -> reST conversion).
+  apt_packages:
+    - pandoc
+  jobs:
+    # setuptools-scm derives the version from git tags; the default shallow
+    # clone omits them, so fetch the full history before the build.
+    post_checkout:
+      - git fetch --unshallow || true
+
+sphinx:
+  configuration: docs/source/conf.py
+  # Mirror the local `nitpicky` tripwire, but do not fail the hosted build
+  # on the known cross-reference backlog.
+  fail_on_warning: false
+
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs

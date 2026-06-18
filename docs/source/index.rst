@@ -63,8 +63,8 @@ See :ref:`orbit_overview` for the full tour and
 Two ways to use MeepMeep
 ------------------------
 
-The :class:`~meepmeep.orbit.Orbit` class is the convenience entry point:
-instantiate it once with your observation times, then update the orbital
+The :class:`~meepmeep.expansion2d.Expansion2D` and :class:`~meepmeep.orbit.Orbit` classes are convenience entry points:
+instantiate them once with your observation times, then update the orbital
 parameters inside a fitting loop and read out whichever observable you
 need. The low-level functions cover the same ground more directly — they
 are all numba-jitted and drop straight into a custom transit or RV model
@@ -82,7 +82,7 @@ currently complete; the JAX backend is partially implemented and
 slated for future development.
 
 There are two high-level classes. :class:`~meepmeep.expansion2d.Expansion2D`
-is the lightweight one for transit geometry: a single Taylor expansion in
+is the lightweight one for transit or eclipse geometry: a single Taylor expansion in
 the sky plane, giving planet position, projected separation, and
 contact-point / duration utilities. :class:`~meepmeep.orbit.Orbit` spans
 the whole orbit in 3D and adds velocity, radial velocity, phase curves,
