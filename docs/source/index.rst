@@ -10,14 +10,16 @@ standard Newton-Raphson approaches.
 In addition, MeepMeep can return the partial derivatives w.r.t. the orbital
 parameters (and other input parameters) for all the supported quantities.
 These are useful when developing code used with gradient-aware optimisers or
-MCMC samplers.
+MCMC samplers. This is all done without JAX or other autograd-approaches
+(although a JAX implementation is underway). The code is pure Numba-jitted
+Python.
 
 MeepMeep's speed comes from a Taylor-series approach presented in
 `Parviainen and Korth (2020) <https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P/abstract>`_.
 Kepler's equation is solved exactly only at a single point in time (for transit or eclipse modelling),
 or a small set of points along the orbit (for modelling phase curves, RVs, etc.). The planet's position
-is expanded into a Taylor series in these expansion points, after which every orbital position evaluation
-is just a short polynomial in time.
+is expanded into a Taylor series in these expansion points, after which every
+quantity evaluation is based on the planet's orbital position expressed as a short polynomial in time.
 
 Installation
 ------------
@@ -79,9 +81,21 @@ numba implementation and a JAX implementation. The numba backend is
 currently complete; the JAX backend is partially implemented and
 slated for future development.
 
-The pages below introduce the :class:`~meepmeep.orbit.Orbit` class
-first, then map the low-level Taylor-series backend it uses under the
-hood.
+There are two high-level classes. :class:`~meepmeep.expansion2d.Expansion2D`
+is the lightweight one for transit geometry: a single Taylor expansion in
+the sky plane, giving planet position, projected separation, and
+contact-point / duration utilities. :class:`~meepmeep.orbit.Orbit` spans
+the whole orbit in 3D and adds velocity, radial velocity, phase curves,
+and light travel time. The pages below introduce ``Expansion2D`` first,
+then ``Orbit``, then map the low-level Taylor-series backend they both
+use under the hood.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: High-level Expansion2D class
+
+   expansion2d_overview
+   api/high_level_expansion2d
 
 .. toctree::
    :maxdepth: 2

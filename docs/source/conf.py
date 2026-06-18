@@ -29,6 +29,12 @@ extensions = [
 
 autosummary_generate = True
 
+# Namespace auto-generated section labels by document, so that overview pages
+# sharing section titles (Quickstart, Construction, Observables, ...) do not
+# collide. Explicit ``.. _anchor:`` labels remain global and are unaffected;
+# all cross-references in these docs target those explicit anchors.
+autosectionlabel_prefix_document = True
+
 # numpydoc parses the NumPy-style docstrings (Parameters / Returns / Notes /
 # Examples) used throughout the package. The class-member summary table that
 # numpydoc inserts is disabled because the API pages drive their own member
