@@ -138,7 +138,7 @@ or at call time (pure Python) — exactly like the ``_o`` / ``_od`` multi-expans
 dispatchers below. A scalar time yields a length-7 gradient; a 1-D array of
 length ``N`` yields results with a leading ``N`` axis (e.g. ``sep_d`` returns
 ``d`` of shape ``(N,)`` and ``dd`` of shape ``(N, 7)``). The array path is the
-one used by the high-level ``Expansion2D`` methods.
+one used by the high-level ``Expansion2D`` and ``Expansion3D`` methods.
 
 Internally each dispatcher routes to a kernel with the explicit
 ``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``pos_cd_v``,
@@ -165,9 +165,10 @@ the serial compilation, so the serial kernel is unchanged); the rv gradient
 kernels, whose loops reuse a hoisted scratch buffer, have explicit
 hand-written twins with one scratch buffer per thread. The parallel twins
 pay off only for large time grids — the high-level
-``Expansion2D(parallel=True)`` opt-in routes large grids to them
-automatically. The non-derivative 3D radial velocity (``rv_c`` / ``rv``) is
-scalar-inline only and has no single-expansion-point vector kernel.
+``Expansion2D(parallel=True)`` / ``Expansion3D(parallel=True)`` opt-ins
+route large grids to them automatically. The non-derivative 3D radial
+velocity (``rv_c`` / ``rv``) is scalar-inline only and has no
+single-expansion-point vector kernel.
 
 
 Multi-expansion-point dispatcher suffix

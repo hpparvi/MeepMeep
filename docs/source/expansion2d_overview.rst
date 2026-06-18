@@ -16,8 +16,11 @@ The trade is scope for simplicity. A single expansion point is accurate
 only in the time window the series covers (a transit, an eclipse, a
 fixed-phase snapshot), and the class exposes only 2D quantities: the
 sky-plane :math:`(x, y)` position and the projected separation. There is
-no :math:`z`, no velocity, no radial velocity, and no phase curve — for
-any of those, reach for :class:`~meepmeep.orbit.Orbit`. In return the
+no :math:`z`, no velocity, no radial velocity, and no phase curve. For
+any of those within the same single-event window, reach for
+:class:`~meepmeep.expansion3d.Expansion3D` (the 3D single-expansion-point
+class); for whole-orbit coverage, reach for
+:class:`~meepmeep.orbit.Orbit`. In return the
 setup is a single ``(2, 5)`` Taylor solve, the time anchor is plain
 ``tc`` (no periastron bookkeeping), and contact points and durations
 fall straight out of the same coefficient matrix.
@@ -233,26 +236,32 @@ where nested thread pools would oversubscribe the machine.
 Relationship to the Orbit class
 -------------------------------
 
-:class:`~meepmeep.expansion2d.Expansion2D` and
+:class:`~meepmeep.expansion2d.Expansion2D`,
+:class:`~meepmeep.expansion3d.Expansion3D`, and
 :class:`~meepmeep.orbit.Orbit` share the same construct-once,
 update-in-a-loop workflow and the same ``set_pars`` / ``set_data``
 rhythm, so moving between them is mechanical. The differences are scope:
 
-==========================  ==============================  ==============================
-Aspect                      ``Expansion2D``                 ``Orbit``
-==========================  ==============================  ==============================
-Expansion points            One (single phase)              Grid of ``npt`` (whole orbit)
-Dimensionality              2D sky plane                    3D
-Quantities                  position, separation,           position, velocity, separation,
-                            transit geometry                phase, RV, phase curves, LTT
-Time anchor                 ``tc`` only                     ``tc`` or ``tp``
-Accurate window             Near the expansion point        The full orbit
-==========================  ==============================  ==============================
+==========================  ====================  ====================  ==============================
+Aspect                      ``Expansion2D``       ``Expansion3D``       ``Orbit``
+==========================  ====================  ====================  ==============================
+Expansion points            One (single phase)    One (single phase)    Grid of ``npt`` (whole orbit)
+Dimensionality              2D sky plane          3D                    3D
+Quantities                  position,             position, velocity,   position, velocity,
+                            separation,           separation, phase,    separation, phase, RV,
+                            transit geometry      RV, phase curves,     phase curves, LTT
+                                                  transit geometry
+Time anchor                 ``tc`` only           ``tc`` only           ``tc`` or ``tp``
+Accurate window             Near the              Near the              The full orbit
+                            expansion point       expansion point
+==========================  ====================  ====================  ==============================
 
 Use ``Expansion2D`` for transit- or eclipse-only light-curve work, where
 a single expansion covers the event and the 2D geometry is all the model
-consumes. Use :class:`~meepmeep.orbit.Orbit` whenever you need
-whole-orbit quantities or the line-of-sight coordinate. Both rest on the
-same Taylor backend; see :ref:`taylor_single_ep` for the single-expansion-point
-math underneath this class and :ref:`taylor_two_modes` for the two
-backend modes in general.
+consumes. Use :class:`~meepmeep.expansion3d.Expansion3D` when you need the
+line-of-sight coordinate or the dynamical and photometric quantities
+*within* a single event window. Use :class:`~meepmeep.orbit.Orbit`
+whenever a quantity must be correct across the whole orbit. All three rest
+on the same Taylor backend; see :ref:`taylor_single_ep` for the
+single-expansion-point math underneath this class and
+:ref:`taylor_two_modes` for the two backend modes in general.

@@ -193,7 +193,8 @@ variants and the choice belongs entirely in this single-expansion-point mode:
   :func:`~meepmeep.backends.numba.point2d.separation.sep_c`,
   :func:`~meepmeep.backends.numba.point3d.position.pos_c`,
   :func:`~meepmeep.backends.numba.point3d.separation.sep_c`,
-  :func:`~meepmeep.backends.numba.point3d.zposition.zpos_c`.
+  :func:`~meepmeep.backends.numba.point3d.zposition.zpos_c`,
+  :func:`~meepmeep.backends.numba.point3d.velocity.vel_c`.
 
 * **Direct** variants (no ``c`` suffix) accept an absolute time
   together with the expansion-point time ``te`` and ``p`` and epoch-fold internally via
@@ -204,7 +205,8 @@ variants and the choice belongs entirely in this single-expansion-point mode:
   :func:`~meepmeep.backends.numba.point2d.separation.sep`,
   :func:`~meepmeep.backends.numba.point3d.position.pos`,
   :func:`~meepmeep.backends.numba.point3d.separation.sep`,
-  :func:`~meepmeep.backends.numba.point3d.zposition.zpos`.
+  :func:`~meepmeep.backends.numba.point3d.zposition.zpos`,
+  :func:`~meepmeep.backends.numba.point3d.velocity.vel`.
 
 **Geometric helpers.** The
 :mod:`~meepmeep.backends.numba.point2d.util` and
@@ -404,7 +406,7 @@ For **single-expansion-point gradients**, swap
 Every gradient-returning evaluator
 (e.g. :func:`~meepmeep.backends.numba.point3dd.position.pos_d`,
 :func:`~meepmeep.backends.numba.point3dd.separation.sep_d`,
-:func:`~meepmeep.backends.numba.point3dd.velocity.vel_cd`) accepts
+:func:`~meepmeep.backends.numba.point3dd.velocity.vel_d`) accepts
 both ``c`` and ``dc`` and returns the value alongside a length-7
 gradient vector. The naming convention is ``_d`` for direct (absolute-
 time) variants and ``_cd`` for centered ones.

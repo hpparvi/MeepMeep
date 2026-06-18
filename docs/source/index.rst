@@ -81,14 +81,17 @@ numba implementation and a JAX implementation. The numba backend is
 currently complete; the JAX backend is partially implemented and
 slated for future development.
 
-There are two high-level classes. :class:`~meepmeep.expansion2d.Expansion2D`
+There are three high-level classes. :class:`~meepmeep.expansion2d.Expansion2D`
 is the lightweight one for transit or eclipse geometry: a single Taylor expansion in
 the sky plane, giving planet position, projected separation, and
-contact-point / duration utilities. :class:`~meepmeep.orbit.Orbit` spans
-the whole orbit in 3D and adds velocity, radial velocity, phase curves,
-and light travel time. The pages below introduce ``Expansion2D`` first,
-then ``Orbit``, then map the low-level Taylor-series backend they both
-use under the hood.
+contact-point / duration utilities. :class:`~meepmeep.expansion3d.Expansion3D`
+keeps the full 3D motion of that single expansion, adding the line-of-sight
+coordinate, velocity, radial velocity, phase angle, and phase-curve
+observables within the event window. :class:`~meepmeep.orbit.Orbit` spans
+the whole orbit in 3D and adds those same dynamical and photometric
+quantities at *any* orbital phase, plus light travel time. The pages below
+introduce ``Expansion2D`` first, then ``Expansion3D``, then ``Orbit``, then
+map the low-level Taylor-series backend they all use under the hood.
 
 .. toctree::
    :maxdepth: 2
@@ -96,6 +99,13 @@ use under the hood.
 
    expansion2d_overview
    api/high_level_expansion2d
+
+.. toctree::
+   :maxdepth: 2
+   :caption: High-level Expansion3D class
+
+   expansion3d_overview
+   api/high_level_expansion3d
 
 .. toctree::
    :maxdepth: 2

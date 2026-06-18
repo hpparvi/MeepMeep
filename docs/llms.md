@@ -18,8 +18,9 @@ Import ONLY from these entry points; everything under
 without notice:
 
 ```python
-from meepmeep import Orbit, eclipse_light_travel_time  # high-level
-from meepmeep.expansion2d import Expansion2D                     # high-level, single expansion point, 2D
+from meepmeep import Orbit, Expansion2D, Expansion3D, eclipse_light_travel_time  # high-level
+from meepmeep.expansion2d import Expansion2D          # high-level, single expansion point, 2D
+from meepmeep.expansion3d import Expansion3D          # high-level, single expansion point, 3D
 import meepmeep.numba2d as mm2                         # low-level 2D primitives
 import meepmeep.numba3d as mm3                         # low-level 3D + multi-expansion-point + utils
 ```
@@ -133,6 +134,44 @@ methods for large grids (>= ~1e4 points in derivative mode, ~1e5 in
 value mode; identical results) - same caveat as Orbit's `parallel` flag
 about process-level parallelism.
 
+## High-level API: Expansion3D (single expansion point, near-transit, 3D)
+
+The 3D counterpart of Expansion2D: one Taylor expansion at a single phase,
+but keeping the full 3D motion - so it exposes the line-of-sight `z`, the
+velocity vector, radial velocity, phase angle, and the phase-curve
+observables (the `Orbit` quantity set, restricted to a single event
+window). Same construction signature, `tc`-only anchor, and `te` /
+`derivatives` / `parallel` semantics as Expansion2D.
+
+```python
+k3 = Expansion3D(tc=0.0, p=3.4, a=8.0, i=1.55, e=0.1, w=0.4,
+            lan=0.0, te=0.0, derivatives=False, parallel=False)
+k3.set_data(times)
+x, y, z = k3.position()              # 3D position; +(dx,dy,dz) when derivatives=True
+zc = k3.z_position()                 # line-of-sight z alone
+d = k3.projected_separation()        # sqrt(x^2+y^2); (d, dd) with derivatives
+vx, vy, vz = k3.velocity()           # velocity vector [R_star/day]
+vz = k3.z_velocity()                 # line-of-sight velocity alone
+ca = k3.cos_phase()                  # cos of phase angle = -z/r
+rv = k3.radial_velocity(k)           # k = RV semi-amplitude (output in k's units)
+fl = k3.lambert_phase_curve(ag, k)   # ag = geometric albedo, k = radius ratio
+ev = k3.ellipsoidal_variation(alpha, mass_ratio)   # inclination taken from bound pars
+em = k3.emission_phase_curve(k, fratio, offset)
+k3.duration(k, kind=14); k3.contact_point(k, point)   # same transit geometry as 2D
+k3.bounding_box(k); k3.min_separation(guess=0.0)
+```
+
+Gradient widths (derivatives=True): the pure-geometry methods AND
+`radial_velocity(k)` return width 7 (the orbital block only - note `k` is
+a pure linear scale here and carries NO derivative column, unlike
+`Orbit.radial_velocity`, which returns width 8). `lambert_phase_curve(ag, k)`
+-> 9 `(..., ag, k)`; `ellipsoidal_variation(alpha, mass_ratio)` -> 9
+`(..., alpha, mass_ratio)`; `emission_phase_curve(k, fratio, offset)` -> 10
+`(..., k, fratio, offset)`. Accuracy degrades away from the expansion
+point; for a quantity that must be correct at every phase (full-orbit RV
+or phase curve) use `Orbit`. The value-only `radial_velocity` has no
+parallel kernel and always runs serially.
+
 ## Low-level API
 
 2D (`meepmeep.numba2d`): `solve2d(te, p, a, i, e, w, lan=0.0)` returns a
@@ -151,8 +190,12 @@ expansion point, unlike the `Expansion2D` methods, which return absolute
 times).
 
 3D (`meepmeep.numba3d`): the same single-expansion-point families with a (3, 5)
-matrix from `solve3d` (adds `zpos*`, `vel_c`, `zvel*`, `rv*`), plus the
-multi-expansion-point orbit-spanning evaluators. Multi-expansion-point workflow:
+matrix from `solve3d` (adds `zpos*`, the velocity vector `vel_c`/`vel` and
+its gradient `vel_cd`/`vel_d`, `zvel*`, `rv*`), plus the
+multi-expansion-point orbit-spanning evaluators. Like every other
+single-expansion-point family, velocity now ships both a centered (`vel_c`/
+`vel_cd`) and a direct/epoch-folding (`vel(time, tc, p, c, te=0.0)`,
+`vel_d(time, tc, p, c, dc, te=0.0)`) variant. Multi-expansion-point workflow:
 
 ```python
 import numpy as np
