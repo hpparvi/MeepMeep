@@ -16,16 +16,40 @@ author = 'Hannu Parviainen'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.githubpages',
+    'sphinx.ext.autosectionlabel',
+    'sphinx_copybutton',
+    'sphinx_design',
+    'nbsphinx',
+    'numpydoc'
 ]
 
 autosummary_generate = True
 
-napoleon_numpy_docstring = True
-napoleon_google_docstring = False
-napoleon_use_param = True
-napoleon_use_rtype = True
+# numpydoc parses the NumPy-style docstrings (Parameters / Returns / Notes /
+# Examples) used throughout the package. The class-member summary table that
+# numpydoc inserts is disabled because the API pages drive their own member
+# listings through autosummary :toctree: directives; leaving it on duplicates
+# those entries and emits "toctree references nonexisting document" warnings.
+numpydoc_show_class_members = False
+numpydoc_xref_param_type = True
+
+# With xref_param_type on, numpydoc tries to cross-reference every token in a
+# type field. These words are prose/structure that leak out of NumPy-style
+# type strings ("ndarray, shape (N,), optional", "matplotlib color") and have
+# no resolvable target; list them so the refs are never generated (cleaner
+# than suppressing the resulting warnings after the fact).
+numpydoc_xref_ignore = {
+    'shape', 'optional', 'default', 'of', 'or', 'type',
+    'N', 'npt', 'color', 'matplotlib',
+}
+
+# Docstring validation is available via numpydoc_validation_checks (e.g.
+# {"GL08", "PR01", "RT01"}); left unset for now to avoid flooding the build
+# while the refactor is in progress. Enable once the baseline is curated.
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
@@ -48,11 +72,12 @@ nitpicky = True
 # Targets that legitimately have no resolvable inventory. Each entry
 # silences a structural false positive, not genuine cross-reference rot:
 #   - the numba API and numpy typing internals (no usable objects.inv);
-#   - bare tokens that NumPy-style "ndarray, shape (N, 3, 5)" type fields
-#     leak into the type position (``shape``, ``N``, ``5``, ``default ...``);
 #   - the array-type aliases used in docstring signatures;
 #   - the private dispatcher kernels (``_pos_osd`` etc.) that the public
 #     ``*_o`` / ``*_od`` docstrings mention but that stay undocumented.
+# Prose/structure tokens that leak out of NumPy-style type fields
+# ("ndarray, shape (N,), optional") are handled upstream by
+# ``numpydoc_xref_ignore`` so the refs are never generated in the first place.
 nitpick_ignore_regex = [
     (r'py:.*', r'numba\..*'),
     (r'py:.*', r'numpy\._typing.*'),
@@ -60,12 +85,6 @@ nitpick_ignore_regex = [
     (r'py:.*', r'(NDArray|ndarray)$'),
     (r'py:.*', r'.*\.ndarray$'),
     (r'py:.*', r'Optional$'),
-    (r'py:class', r'shape$'),
-    (r'py:class', r'optional$'),
-    (r'py:class', r'default .*'),
-    (r'py:class', r'[A-Z]$'),
-    (r'py:class', r'\d+$'),
-    (r'py:class', r"['{].*"),  # "{'mm', 'ea', 'ta'}" choice literals
     (r'py:func', r'_[a-z_]+_o[sv]d?$'),
     (r'py:meth', r'.*\(.*\)$'),
 ]
@@ -80,5 +99,5 @@ nitpick_ignore_regex = [
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = 'sphinx_book_theme'
 html_static_path = ['_static']
