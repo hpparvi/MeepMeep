@@ -213,7 +213,7 @@ class Orbit:
         self._parallel: bool = parallel
 
         self._dt: Optional[float] = None
-        self._ep_times: Optional[float] = None
+        self._ep_times: Optional[ndarray] = None
         self._coeffs: Optional[ndarray] = None
         self._dcoeffs: Optional[ndarray] = None
         self._tc: Optional[float] = None
@@ -498,13 +498,14 @@ class Orbit:
     def _cos_phase_error(self):
         """Per-time phase-angle-cosine residuals against the Newton-Raphson reference.
 
-        Diagnostic helper. Currently compares the Taylor backend's
-        ``cos_phase`` against the *true anomaly* from
-        :func:`~meepmeep.backends.numba.newton.newton.ta_newton_v` — i.e.
-        a coarse sanity check, not a tight residual.
+        Diagnostic helper. Compares the Taylor backend's ``cos_phase`` against
+        the exact phase-angle cosine built from the Newton-Raphson position,
+        ``cos alpha = -z / sqrt(x**2 + y**2 + z**2)`` (the same definition used
+        by the backend's ``cos_alpha`` evaluators), and returns the per-time
+        difference.
         """
-        ta = ta_newton_v(self.times, self._tc, self._p, self._e, self._w)
-        cos_alpha_t = ta
+        xt, yt, zt = xyz_newton_v(self.times, self._tc, self._p, self._a, self._i, self._e, self._w)
+        cos_alpha_t = -zt / sqrt(xt ** 2 + yt ** 2 + zt ** 2)
         if self._derivatives:
             ca, _ = self.cos_phase()
         else:
