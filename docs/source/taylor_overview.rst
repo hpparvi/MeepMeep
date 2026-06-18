@@ -25,13 +25,11 @@ and durations all reduce to fast Horner-scheme polynomial evaluations.
    the expansion is most accurate close to the expansion point, degrading as you
    move away from it.
 
-   An expansion point is the *center* of its region of validity, not a
-   boundary between regions. The boundaries between the regions of
+   For full-orbit computations, the boundaries between the regions of
    validity of adjacent expansion points are a separate set of times
    (the ``change_times`` returned by
    :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`), encoded in the
-   time-to-expansion-point table used for dispatch. So: expansion points are expansion
-   centers, not segment edges.
+   time-to-expansion-point table used for dispatch.
 
 .. note::
 
