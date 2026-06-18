@@ -130,8 +130,8 @@ class TestExpansion2dAbsoluteAnchoring:
     def test_offcentre_ep_far_tc(self, newton_xy):
         k2 = Expansion2D(tc=TC, te=TE, **PARS)
         k2.set_data(TIMES)
-        assert_allclose(k2.projected_separation, np.hypot(*newton_xy), **ORACLE_TOL)
-        x, y = k2.position
+        assert_allclose(k2.projected_separation(), np.hypot(*newton_xy), **ORACLE_TOL)
+        x, y = k2.position()
         assert_allclose(x, newton_xy[0], **ORACLE_TOL)
 
 

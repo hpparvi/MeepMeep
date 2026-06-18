@@ -114,8 +114,8 @@ the transit matters:
 k2 = Expansion2D(tc=0.0, p=3.4, a=8.0, i=1.55, e=0.1, w=0.4,
             lan=0.0, te=0.0, derivatives=False, parallel=False)
 k2.set_data(times)
-z = k2.projected_separation     # property; (z, dz) when derivatives=True
-x, y = k2.position              # property
+z = k2.projected_separation()   # method; (z, dz) when derivatives=True
+x, y = k2.position()            # method
 k2.duration(k, kind=14)         # kind in {14, 23, 12, 34} (total, full,
                                 # ingress, egress) [days]
 k2.contact_point(k, point)      # point in 1..4; ABSOLUTE time
@@ -129,7 +129,7 @@ offset `te` (expansion point at `tc + te`) is a construction-time
 constant that `set_pars` keeps. Accuracy degrades away
 from the transit; do not use Expansion2D for full-orbit quantities.
 `Expansion2D(..., parallel=True)` multi-threads the position/separation
-properties for large grids (>= ~1e4 points in derivative mode, ~1e5 in
+methods for large grids (>= ~1e4 points in derivative mode, ~1e5 in
 value mode; identical results) - same caveat as Orbit's `parallel` flag
 about process-level parallelism.
 

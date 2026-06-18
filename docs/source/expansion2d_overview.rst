@@ -43,11 +43,11 @@ Quickstart
                    e=0.1, w=np.radians(90.0))
    o.set_data(np.linspace(-0.05, 0.05, 1001))
 
-   x, y = o.position                  # sky-plane position per time
-   d = o.projected_separation         # sky-projected separation
+   x, y = o.position()                # sky-plane position per time
+   d = o.projected_separation()       # sky-projected separation
 
-Note that ``position`` and ``projected_separation`` are **properties**:
-reading them evaluates the bound time grid, so there are no parentheses.
+Note that ``position`` and ``projected_separation`` are **methods**:
+calling them evaluates the bound time grid.
 
 For analytic gradients in addition to values, switch to derivative mode
 at construction time and unpack the extra arrays:
@@ -60,8 +60,8 @@ at construction time and unpack the extra arrays:
                    e=0.1, w=np.radians(90.0), derivatives=True)
    o.set_data(np.linspace(-0.05, 0.05, 1001))
 
-   x, y, dx, dy = o.position          # values plus (N, 7) gradients
-   d, dd = o.projected_separation     # value plus (N, 7) gradient
+   x, y, dx, dy = o.position()        # values plus (N, 7) gradients
+   d, dd = o.projected_separation()   # value plus (N, 7) gradient
 
 The trailing gradient axis is always the orbital block
 ``(tc, p, a, i, e, w, lan)``; see :ref:`expansion2d_derivative_mode`
@@ -88,7 +88,7 @@ transit-fitting loop typically looks like this:
    def log_likelihood(theta):
        tc, p, a, i, e, w = theta
        o.set_pars(tc=tc, p=p, a=a, i=i, e=e, w=w)     # update the orbit
-       z = o.projected_separation                     # read out separation
+       z = o.projected_separation()                   # read out separation
        flux = transit_model(z, k, ldc)                # your limb-darkened model
        return -0.5 * np.sum(((flux_obs - flux) / flux_err)**2)
 
@@ -146,9 +146,9 @@ Binding times
 
 :meth:`~meepmeep.expansion2d.Expansion2D.set_data` binds a 1-D time
 array to the instance. The bound grid is the one evaluated by the
-:attr:`~meepmeep.expansion2d.Expansion2D.position` and
-:attr:`~meepmeep.expansion2d.Expansion2D.projected_separation`
-properties. Both expect absolute observation times in days; the
+:meth:`~meepmeep.expansion2d.Expansion2D.position` and
+:meth:`~meepmeep.expansion2d.Expansion2D.projected_separation`
+methods. Both expect absolute observation times in days; the
 evaluators epoch-fold around the expansion point internally.
 
 You can rebind the grid as often as you like without recomputing the
@@ -163,10 +163,10 @@ The class exposes two grid-evaluated quantities and four transit-geometry
 queries. Per-method detail (parameters, return shapes, units, edge cases)
 lives in the docstrings, surfaced on the API page; this section is a tour.
 
-**Grid quantities (properties).**
-:attr:`~meepmeep.expansion2d.Expansion2D.position` returns the sky-plane
+**Grid quantities (methods).**
+:meth:`~meepmeep.expansion2d.Expansion2D.position` returns the sky-plane
 :math:`(x, y)` position at the bound times, in units of the stellar
-radius. :attr:`~meepmeep.expansion2d.Expansion2D.projected_separation`
+radius. :meth:`~meepmeep.expansion2d.Expansion2D.projected_separation`
 returns the sky-projected separation between the centers of the star and
 planet, :math:`d = \sqrt{x^2 + y^2}`, in the same units — the quantity a
 transit light-curve model consumes directly.
@@ -196,10 +196,10 @@ Derivative mode
 Construct with ``derivatives=True`` to switch both grid quantities into
 gradient-returning form:
 
-- :attr:`~meepmeep.expansion2d.Expansion2D.position` returns
+- :meth:`~meepmeep.expansion2d.Expansion2D.position` returns
   ``(xs, ys, dxs, dys)`` instead of ``(xs, ys)``, with each ``d*s`` of
   shape ``(N, 7)``.
-- :attr:`~meepmeep.expansion2d.Expansion2D.projected_separation` returns
+- :meth:`~meepmeep.expansion2d.Expansion2D.projected_separation` returns
   ``(d, dd)`` instead of ``d``, with ``dd`` of shape ``(N, 7)``.
 
 The trailing axis of every gradient is the orbital block

@@ -138,7 +138,7 @@ or at call time (pure Python) — exactly like the ``_o`` / ``_od`` multi-expans
 dispatchers below. A scalar time yields a length-7 gradient; a 1-D array of
 length ``N`` yields results with a leading ``N`` axis (e.g. ``sep_d`` returns
 ``d`` of shape ``(N,)`` and ``dd`` of shape ``(N, 7)``). The array path is the
-one used by the high-level ``Expansion2D`` properties.
+one used by the high-level ``Expansion2D`` methods.
 
 Internally each dispatcher routes to a kernel with the explicit
 ``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``pos_cd_v``,

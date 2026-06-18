@@ -3,9 +3,9 @@
 Expansion2D is a thin convenience layer over the single-expansion-point 2D Taylor
 evaluators with an Orbit-style API: orbital elements are bound via
 ``set_pars`` (the constructor forwards to it), the observation times via
-``set_data``, and ``position`` / ``projected_separation`` are properties
+``set_data``, and ``position`` / ``projected_separation`` are methods
 evaluated over the bound time grid. These tests check (a) that the
-properties forward to the low-level functions faithfully, (b) that values
+methods forward to the low-level functions faithfully, (b) that values
 match the exact Newton-Raphson reference near the expansion point, (c) that derivative
 mode matches finite differences, and (d) that the contact-point / duration
 helpers behave sensibly and return absolute times.
@@ -54,7 +54,7 @@ class TestConstruction:
 
 
 class TestForwarding:
-    """The properties should forward to the low-level API unchanged."""
+    """The methods should forward to the low-level API unchanged."""
 
     def test_separation_matches_low_level(self, eccentric_orbit):
         te, tc = 0.0, 1234.5
@@ -63,7 +63,7 @@ class TestForwarding:
         times = tc + np.linspace(-0.02, 0.02, 7)
         k.set_data(times)
         expected = np.array([sep(t - tc, te, eccentric_orbit["p"], c) for t in times])
-        assert_allclose(k.projected_separation, expected, rtol=1e-12)
+        assert_allclose(k.projected_separation(), expected, rtol=1e-12)
 
     def test_absolute_time_offset(self, circular_orbit):
         """Evaluating at tc+dt with tc set must equal dt with tc=0."""
@@ -72,7 +72,7 @@ class TestForwarding:
         kt = Expansion2D(te=0.0, tc=500.0, **circular_orbit)
         k0.set_data(dt)
         kt.set_data(500.0 + dt)
-        assert_allclose(k0.projected_separation, kt.projected_separation, rtol=1e-12)
+        assert_allclose(k0.projected_separation(), kt.projected_separation(), rtol=1e-12)
 
 
 class TestAccuracyVsNewton:
@@ -83,7 +83,7 @@ class TestAccuracyVsNewton:
         k = Expansion2D(te=0.0, tc=0.0, **circular_orbit)
         times = np.linspace(-0.02, 0.02, 11)
         k.set_data(times)
-        xs, ys = k.position
+        xs, ys = k.position()
         xn, yn = xy_newton_v(times, 0.0, **circular_orbit)
         assert_allclose(xs, xn, rtol=1e-6, atol=1e-8)
         assert_allclose(ys, yn, rtol=1e-6, atol=1e-8)
@@ -93,7 +93,7 @@ class TestAccuracyVsNewton:
         k = Expansion2D(te=0.0, tc=0.0, **eccentric_orbit)
         times = np.linspace(-0.02, 0.02, 11)
         k.set_data(times)
-        d_ep = k.projected_separation
+        d_ep = k.projected_separation()
         d_newton = z_newton_v(times, 0.0, **eccentric_orbit)
         assert_allclose(d_ep, d_newton, rtol=1e-5, atol=1e-8)
 
@@ -115,7 +115,7 @@ class TestDerivatives:
 
         k = Expansion2D(derivatives=True, **base)
         k.set_data(times)
-        _, dd = k.projected_separation
+        _, dd = k.projected_separation()
 
         fd = np.zeros(7)
         for j, key in enumerate(keys):
@@ -125,12 +125,12 @@ class TestDerivatives:
             khi, klo = Expansion2D(**hi), Expansion2D(**lo)
             khi.set_data(times)
             klo.set_data(times)
-            fd[j] = (khi.projected_separation[0] - klo.projected_separation[0]) / (2 * eps)
+            fd[j] = (khi.projected_separation()[0] - klo.projected_separation()[0]) / (2 * eps)
 
         assert_allclose(dd[0], fd, rtol=1e-4, atol=1e-6)
 
-    def test_property_matches_scalar_loop(self, eccentric_orbit):
-        """Vectorized property equals looping the scalar low-level evaluators."""
+    def test_method_matches_scalar_loop(self, eccentric_orbit):
+        """Vectorized method equals looping the scalar low-level evaluators."""
         from meepmeep.backends.numba.point2dd import solve2d_d, sep_d, pos_d
 
         te, tc = 0.0, 0.0
@@ -140,15 +140,15 @@ class TestDerivatives:
         k = Expansion2D(te=te, tc=tc, derivatives=True, **eccentric_orbit)
         k.set_data(times)
 
-        # Separation property vs scalar sep_d loop.
-        d, dd = k.projected_separation
+        # Separation method vs scalar sep_d loop.
+        d, dd = k.projected_separation()
         for n, t in enumerate(times):
             d_n, dd_n = sep_d(t - tc, te, eccentric_orbit["p"], c, dc)
             assert_allclose(d[n], d_n, rtol=1e-12)
             assert_allclose(dd[n], dd_n, rtol=1e-12)
 
-        # Position property vs scalar pos_d loop.
-        xs, ys, dxs, dys = k.position
+        # Position method vs scalar pos_d loop.
+        xs, ys, dxs, dys = k.position()
         for n, t in enumerate(times):
             x_n, y_n, dx_n, dy_n = pos_d(t - tc, te, eccentric_orbit["p"], c, dc)
             assert_allclose(xs[n], x_n, rtol=1e-12)

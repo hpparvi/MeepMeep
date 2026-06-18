@@ -201,12 +201,12 @@ class TestExpansion2dParallelOptIn:
 
     def test_position(self, pair):
         s, p = pair
-        for u, v in zip(s.position, p.position):
+        for u, v in zip(s.position(), p.position()):
             assert_allclose(v, u, **TOL)
 
     def test_projected_separation(self, pair):
         s, p = pair
-        res_s, res_p = s.projected_separation, p.projected_separation
+        res_s, res_p = s.projected_separation(), p.projected_separation()
         if not isinstance(res_s, tuple):
             res_s, res_p = (res_s,), (res_p,)
         for u, v in zip(res_s, res_p):

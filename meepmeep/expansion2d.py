@@ -50,13 +50,13 @@ class Expansion2D:
         construct once, then rebind orbital elements with :meth:`set_pars` and
         the observation times with :meth:`set_data` as needed. The
         constructor itself simply forwards its orbital arguments to
-        :meth:`set_pars`. The :attr:`position` and :attr:`projected_separation`
-        **properties** evaluate the bound time grid directly: the underlying
+        :meth:`set_pars`. The :meth:`position` and :meth:`projected_separation`
+        **methods** evaluate the bound time grid directly: the underlying
         direct evaluators take the transit centre ``tc`` and the expansion-point offset
         ``te`` and epoch-fold around the expansion point.
 
         The ``derivatives`` flag is a once-per-instance switch: when ``True``,
-        :attr:`position` and :attr:`projected_separation` return the value
+        :meth:`position` and :meth:`projected_separation` return the value
         together with its orbital-parameter derivatives; when ``False`` they
         return the value only.
 
@@ -84,10 +84,10 @@ class Expansion2D:
             at the transit centre. The expansion-point time is fixed for the lifetime of
             the instance; rebinding via :meth:`set_pars` reuses it.
         derivatives : bool, optional
-            If ``True``, :attr:`position` and :attr:`projected_separation`
+            If ``True``, :meth:`position` and :meth:`projected_separation`
             also return parameter derivatives. Defaults to ``False``.
         parallel : bool, optional
-            If ``True``, :attr:`position` and :attr:`projected_separation`
+            If ``True``, :meth:`position` and :meth:`projected_separation`
             route time grids with at least ``_PARALLEL_NMIN_GRAD``
             (derivative mode) or ``_PARALLEL_NMIN_VALUE`` (value mode)
             samples to multi-threaded ``prange`` kernel twins; smaller
@@ -169,17 +169,16 @@ class Expansion2D:
         return serial
 
     def set_data(self, times):
-        """Bind a time grid evaluated by the position / separation properties.
+        """Bind a time grid evaluated by the position / separation methods.
 
         Parameters
         ----------
         times : ndarray, shape (N,)
-            Absolute observation times [days] at which :attr:`position` and
-            :attr:`projected_separation` evaluate the orbit.
+            Absolute observation times [days] at which :meth:`position` and
+            :meth:`projected_separation` evaluate the orbit.
         """
         self.times = times
 
-    @property
     def position(self):
         """Sky-plane (x, y) position at the times bound via :meth:`set_data`.
 
@@ -198,7 +197,6 @@ class Expansion2D:
         fn = self._select(pos, pos_vp, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tc, self._p, self._coeffs, self.te)
 
-    @property
     def projected_separation(self):
         """Sky-projected star-planet separation at the times bound via :meth:`set_data`.
 
