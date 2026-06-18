@@ -149,7 +149,7 @@ meepmeep/
     │   │                    # one module per quantity plus solve/util:
     │   │                    # position.py (pos), zposition.py
     │   │                    # (zpos), separation.py (sep), velocity.py
-    │   │                    # (vel_c), zvelocity.py (zvel), radial_velocity.py
+    │   │                    # (vel_c, vel), zvelocity.py (zvel), radial_velocity.py
     │   │                    # (rv), cos_phase_angle.py (cos_alpha),
     │   │                    # lambert.py (lambert_phase_curve),
     │   │                    # ev_signal.py (ev_signal),
@@ -160,7 +160,7 @@ meepmeep/
     │   ├── point3dd/        # Single-expansion-point 3D parameter-derivative evaluators
     │   │                    # mirroring point3d/: position.py (pos_cd, pos_d),
     │   │                    # zposition.py (zpos_cd, zpos_d), separation.py
-    │   │                    # (sep_cd, sep_d), velocity.py (vel_cd),
+    │   │                    # (sep_cd, sep_d), velocity.py (vel_cd, vel_d),
     │   │                    # zvelocity.py (zvel_cd, zvel_d),
     │   │                    # radial_velocity.py (rv_cd, rv_d),
     │   │                    # cos_phase_angle.py (cos_alpha_cd, cos_alpha_d),
@@ -384,7 +384,7 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `pos_c`, `pos`: position (centered, direct)
   - `sep_c`, `sep`: sky-projected separation
   - `zpos_c`, `zpos`: line-of-sight (z) coordinate only
-  - `vel_c`: velocity vector (centered)
+  - `vel_c`, `vel`: velocity vector (centered, direct)
   - `zvel_c`, `zvel`: line-of-sight velocity component
   - `rv_c`, `rv`: radial velocity
   - `cos_alpha_c`, `cos_alpha`: cosine of the orbital phase angle (star-planet-observer)

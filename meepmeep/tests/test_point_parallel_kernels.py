@@ -35,7 +35,7 @@ from meepmeep.backends.numba.point3d import (
     zpos_c_v, zpos_c_vp, zpos_v, zpos_vp,
     sep_c_v as _sep_c_v3, sep_c_vp as _sep_c_vp3,
     sep_v as _sep_v3, sep_vp as _sep_vp3,
-    vel_c_v, vel_c_vp,
+    vel_c_v, vel_c_vp, vel_v, vel_vp,
     zvel_c_v, zvel_c_vp, zvel_v, zvel_vp,
 )
 from meepmeep.backends.numba.point3dd import (
@@ -45,7 +45,7 @@ from meepmeep.backends.numba.point3dd import (
     zpos_cd_v, zpos_cd_vp, zpos_d_v, zpos_d_vp,
     sep_cd_v as _sep_cd_v3, sep_cd_vp as _sep_cd_vp3,
     sep_d_v as _sep_d_v3, sep_d_vp as _sep_d_vp3,
-    vel_cd_v, vel_cd_vp,
+    vel_cd_v, vel_cd_vp, vel_d_v, vel_d_vp,
     zvel_cd_v, zvel_cd_vp, zvel_d_v, zvel_d_vp,
     rv_cd_v, rv_cd_vp, rv_d_v, rv_d_vp,
 )
@@ -141,6 +141,9 @@ class TestPoint3dValue:
     def test_vel_c(self, c3):
         _compare(vel_c_v, vel_c_vp, (T_CEN, c3))
 
+    def test_vel(self, c3):
+        _compare(vel_v, vel_vp, (T_ABS, TC, P, c3, TE))
+
     def test_zvel_c(self, c3):
         _compare(zvel_c_v, zvel_c_vp, (T_CEN, c3))
 
@@ -172,6 +175,10 @@ class TestPoint3dGradient:
 
     def test_vel_cd(self, cdc3):
         _compare(vel_cd_v, vel_cd_vp, (T_CEN, *cdc3))
+
+    def test_vel_d(self, cdc3):
+        c, dc = cdc3
+        _compare(vel_d_v, vel_d_vp, (T_ABS, TC, P, c, dc, TE))
 
     def test_zvel_cd(self, cdc3):
         _compare(zvel_cd_v, zvel_cd_vp, (T_CEN, *cdc3))

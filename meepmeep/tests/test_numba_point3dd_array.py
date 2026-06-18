@@ -14,7 +14,7 @@ from numpy.testing import assert_allclose
 from meepmeep.backends.numba.point3dd import (
     solve3d_d,
     pos_cd, pos_d, sep_cd, sep_d, zpos_cd, zpos_d,
-    vel_cd, zvel_cd, zvel_d, rv_cd, rv_d,
+    vel_cd, vel_d, zvel_cd, zvel_d, rv_cd, rv_d,
 )
 
 
@@ -131,7 +131,7 @@ class TestZpos:
             assert_allclose(dpz[n], dpz_n, rtol=1e-12)
 
 
-# --- velocity (cd-only) ----------------------------------------------------
+# --- velocity --------------------------------------------------------------
 
 class TestVel:
     def test_vel_cd_array_matches_scalar_loop(self, setup):
@@ -144,6 +144,23 @@ class TestVel:
             assert_allclose([vx[n], vy[n], vz[n]], [vx_n, vy_n, vz_n], rtol=1e-12)
             assert_allclose(dvx[n], dvx_n, rtol=1e-12)
             assert_allclose(dvz[n], dvz_n, rtol=1e-12)
+
+    def test_vel_d_array_matches_scalar_loop(self, setup):
+        c, dc, times, p = setup
+        vx, vy, vz, dvx, dvy, dvz = vel_d(times, 0.0, p, c, dc)
+        _check_vector_quantities((vx, vy, vz), times.size)
+        _check_gradients((dvx, dvy, dvz), times.size)
+        for n, t in enumerate(times):
+            vx_n, vy_n, vz_n, dvx_n, dvy_n, dvz_n = vel_d(t, 0.0, p, c, dc)
+            assert_allclose([vx[n], vy[n], vz[n]], [vx_n, vy_n, vz_n], rtol=1e-12)
+            assert_allclose(dvx[n], dvx_n, rtol=1e-12)
+            assert_allclose(dvz[n], dvz_n, rtol=1e-12)
+
+    def test_vel_d_scalar_gradient_shape(self, setup):
+        c, dc, _, p = setup
+        vx, vy, vz, dvx, dvy, dvz = vel_d(0.003, 0.0, p, c, dc)
+        assert np.isscalar(vx) and np.isscalar(vy) and np.isscalar(vz)
+        assert dvx.shape == dvy.shape == dvz.shape == (7,)
 
 
 # --- z velocity ------------------------------------------------------------

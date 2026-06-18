@@ -15,24 +15,22 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-from numpy import floor, ndarray
+from numpy import ndarray
 
 from .backends.numba.point3d import (
     solve3d,
-    pos, zpos, sep, zvel, rv, cos_alpha,
-    vel_c, vel_c_vp,
+    pos, zpos, sep, vel, zvel, rv, cos_alpha,
     lambert_phase_curve, ev_signal, emission_phase_curve,
-    pos_vp, zpos_vp, sep_vp, zvel_vp, cos_alpha_vp,
+    pos_vp, zpos_vp, sep_vp, vel_vp, zvel_vp, cos_alpha_vp,
     lambert_phase_curve_vp, ev_signal_vp, emission_phase_curve_vp,
     find_contact_point, bounding_box, find_z_min,
     t12, t14, t23, t34,
 )
 from .backends.numba.point3dd import (
     solve3d_d,
-    pos_d, zpos_d, sep_d, zvel_d, rv_d, cos_alpha_d,
-    vel_cd, vel_cd_vp,
+    pos_d, zpos_d, sep_d, vel_d, zvel_d, rv_d, cos_alpha_d,
     lambert_phase_curve_d, ev_signal_d, emission_phase_curve_d,
-    pos_d_vp, zpos_d_vp, sep_d_vp, zvel_d_vp, rv_d_vp, cos_alpha_d_vp,
+    pos_d_vp, zpos_d_vp, sep_d_vp, vel_d_vp, zvel_d_vp, rv_d_vp, cos_alpha_d_vp,
     lambert_phase_curve_d_vp, ev_signal_d_vp, emission_phase_curve_d_vp,
 )
 
@@ -207,41 +205,6 @@ class Expansion3D:
             return par
         return serial
 
-    def _centered_times(self):
-        """Fold the bound absolute times into expansion-point-centered times.
-
-        The direct (absolute-time) evaluators epoch-fold internally, but the
-        velocity backend ships only the *centered* ``vel_c`` / ``vel_cd``
-        kernels. To evaluate velocity on the bound absolute-time grid we
-        reproduce the same fold here, in NumPy, and feed the result to the
-        centered kernels. Because a direct evaluator is exactly "fold, then
-        call the centered kernel" (the epoch bin is selected, not
-        differentiated), folding here and calling ``vel_cd`` yields a gradient
-        bit-identical to a hypothetical direct ``vel_d``.
-
-        Returns
-        -------
-        ndarray, shape (N,)
-            ``self.times`` shifted so each sample is measured relative to the
-            expansion point at ``tc + te`` of its own orbital epoch.
-
-        Notes
-        -----
-        The fold MUST match the one in the direct kernels exactly (see
-        ``_pos_d_s`` / ``_pos_s`` in the ``point3d`` / ``point3dd`` backends),
-        or velocity will silently drift wherever a sample crosses an
-        expansion-point boundary. The kernels use, with ``t = self.times``,
-        ``tc = self._tc``, ``te = self.te``, ``p = self._p``::
-
-            epoch    = floor((t - tc - te + 0.5 * p) / p)
-            centered = t - (tc + te + epoch * p)
-        """
-        # TODO(you): implement the epoch fold described above and return the
-        # centered times. `floor` is already imported from numpy at the top of
-        # this module; everything you need is on `self` (`self.times`,
-        # `self._tc`, `self.te`, `self._p`).
-        raise NotImplementedError("Expansion3D._centered_times is not yet implemented.")
-
     # ------------------------------------------------------------------
     # Geometry on the bound time grid
     # ------------------------------------------------------------------
@@ -308,11 +271,6 @@ class Expansion3D:
     def velocity(self):
         """Planet (vx, vy, vz) velocity at the times bound via :meth:`set_data`.
 
-        The velocity backend ships only the centered ``vel_c`` / ``vel_cd``
-        kernels, so this method first folds the bound absolute times to
-        expansion-point-centered times via :meth:`_centered_times` and then
-        evaluates the centered kernel.
-
         Returns
         -------
         tuple
@@ -321,12 +279,11 @@ class Expansion3D:
             gradients with respect to ``(tc, p, a, i, e, w, lan)``. Velocities
             are in units of stellar radii per day.
         """
-        tcen = self._centered_times()
         if self._derivatives:
-            fn = self._select(vel_cd, vel_cd_vp, self._PARALLEL_NMIN_GRAD)
-            return fn(tcen, self._coeffs, self._dcoeffs)
-        fn = self._select(vel_c, vel_c_vp, self._PARALLEL_NMIN_VALUE)
-        return fn(tcen, self._coeffs)
+            fn = self._select(vel_d, vel_d_vp, self._PARALLEL_NMIN_GRAD)
+            return fn(self.times, self._tc, self._p, self._coeffs, self._dcoeffs, self.te)
+        fn = self._select(vel, vel_vp, self._PARALLEL_NMIN_VALUE)
+        return fn(self.times, self._tc, self._p, self._coeffs, self.te)
 
     def z_velocity(self):
         """Line-of-sight (z) velocity at the times bound via :meth:`set_data`.

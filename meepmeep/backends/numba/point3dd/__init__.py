@@ -39,7 +39,8 @@ from .zposition import (zpos_cd, zpos_d, _zpos_cd_w, _zpos_cd_s, zpos_cd_v, zpos
                         _zpos_d_s, zpos_d_v, zpos_d_vp)
 from .separation import (sep_cd, sep_d, _sep_cd_w, _sep_cd_s, sep_cd_v, sep_cd_vp,
                          _sep_d_s, sep_d_v, sep_d_vp)
-from .velocity import vel_cd, _vel_cd_w, _vel_cd_s, vel_cd_v, vel_cd_vp
+from .velocity import (vel_cd, _vel_cd_w, _vel_cd_s, vel_cd_v, vel_cd_vp,
+                       vel_d, _vel_d_s, vel_d_v, vel_d_vp)
 from .zvelocity import (zvel_cd, zvel_d, _zvel_cd_w, _zvel_cd_s, zvel_cd_v, zvel_cd_vp,
                         _zvel_d_s, zvel_d_v, zvel_d_vp)
 from .radial_velocity import (rv_cd, rv_d, _rv_scale, _rv_cd_w, _rv_cd_s, rv_cd_v, rv_cd_vp,

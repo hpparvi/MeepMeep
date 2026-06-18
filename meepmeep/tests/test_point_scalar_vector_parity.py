@@ -82,6 +82,9 @@ class TestPoint3dValueParity:
     def test_vel_c(self, c3):
         _check(point3d.vel_c, (c3,))
 
+    def test_vel(self, c3):
+        _check(point3d.vel, (0.0, P, c3))
+
     def test_zvel_c(self, c3):
         _check(point3d.zvel_c, (c3,))
 

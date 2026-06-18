@@ -18,7 +18,7 @@
 
 from numba import njit, prange, types
 from numba.extending import overload
-from numpy import zeros, ndarray
+from numpy import floor, zeros, ndarray
 from numpy.typing import NDArray
 
 from ._common import _is_1d_array
@@ -153,5 +153,120 @@ def _vel_cd_overload(time, c, dc):
     if isinstance(time, types.Float):
         def impl(time, c, dc):
             return _vel_cd_s(time, c, dc)
+        return impl
+    return None
+
+
+@njit(fastmath=True)
+def _vel_d_s(time, tc, p, c, dc, te):
+    """Scalar kernel for :func:`vel_d`. See that function for documentation."""
+    epoch = floor((time - tc - te + 0.5 * p) / p)
+    return _vel_cd_s(time - (tc + te + epoch * p), c, dc)
+
+
+def _vel_d_v_body(time, tc, p, c, dc, te):
+    """Vector-kernel body for :func:`vel_d`; see that function for documentation.
+
+    Compiled twice: ``vel_d_v`` is the serial kernel (``prange`` compiles
+    as a plain ``range`` without ``parallel=True``) and ``vel_d_vp`` the
+    parallel twin. The loop writes only into per-sample output elements,
+    so no per-thread scratch is needed.
+    """
+    n = time.size
+    vx = zeros(n)
+    vy = zeros(n)
+    vz = zeros(n)
+    dvx = zeros((n, 7))
+    dvy = zeros((n, 7))
+    dvz = zeros((n, 7))
+    for j in prange(n):
+        epoch = floor((time[j] - tc - te + 0.5 * p) / p)
+        vx[j], vy[j], vz[j] = _vel_cd_w(time[j] - (tc + te + epoch * p), c, dc, dvx[j], dvy[j], dvz[j])
+    return vx, vy, vz, dvx, dvy, dvz
+
+
+vel_d_v = njit(fastmath=True)(_vel_d_v_body)
+vel_d_vp = njit(fastmath=True, parallel=True)(_vel_d_v_body)
+
+
+def vel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
+    """
+    Evaluate the (vx, vy, vz) velocity and its parameter derivatives at an absolute time.
+
+    Direct counterpart of the centered `vel_cd`: it accepts an absolute
+    observation time `time`, folds it back into a single orbital epoch
+    around the expansion point `te`, and then evaluates the 4th-order
+    velocity polynomials (and their parameter-derivative companions)
+    using Horner's scheme via the centered kernel. The epoch bin is
+    selected, not differentiated, so the gradient matches the centered
+    `vel_cd` evaluated at the folded time.
+
+    Accepts a scalar time or a 1-D array of times and dispatches to the
+    appropriate kernel at compile time (inside ``@njit``) or at call time
+    (pure Python).
+
+    Parameters
+    ----------
+    time : float or NDArray
+        Absolute observation time(s) in the same units as `tc` and `p`
+        (typically days). Scalar or array inputs are both accepted; the
+        return type matches.
+    tc : float
+        Transit-centre time (time of inferior conjunction), on the same
+        time axis as `time`.
+    p : float
+        Orbital period, used to fold `time` into a single epoch around
+        the expansion point.
+    c : NDArray
+        A (3, 5) coefficient matrix produced by `solve3d`. Rows index
+        the spatial dimensions (x, y, z) and columns the Taylor order
+        from position through snap (pre-scaled by the factorial of the
+        order).
+    dc : NDArray
+        A (7, 3, 5) tensor of parameter-derivative coefficients produced
+        by `solve3d_d`. The leading axis enumerates the seven Keplerian
+        parameters in the canonical order `(tc, p, a, i, e, w, lan)`; the
+        remaining axes mirror the layout of `c`.
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same
+        value that was passed to `solve3d`. Defaults to 0.0, the expansion
+        point at the transit centre.
+
+    Returns
+    -------
+    vx : float or ndarray
+        Sky-plane x velocity in stellar radii per unit time. Shape (N,)
+        for an array `time`.
+    vy : float or ndarray
+        Sky-plane y velocity in stellar radii per unit time. Shape (N,)
+        for an array `time`.
+    vz : float or ndarray
+        Line-of-sight z velocity in stellar radii per unit time.
+        Positive values indicate motion toward the observer. Shape (N,)
+        for an array `time`.
+    dvx : NDArray
+        Partial derivatives of `vx` w.r.t. `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
+    dvy : NDArray
+        Partial derivatives of `vy` w.r.t. `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
+    dvz : NDArray
+        Partial derivatives of `vz` w.r.t. `(tc, p, a, i, e, w, lan)`.
+        Shape (7,) for a scalar `time`, (N, 7) for an array `time`.
+    """
+    if isinstance(time, ndarray):
+        return vel_d_v(time, tc, p, c, dc, te)
+    return _vel_d_s(time, tc, p, c, dc, te)
+
+
+@overload(vel_d, jit_options={'fastmath': True})
+def _vel_d_overload(time, tc, p, c, dc, te=0.0):
+    if _is_1d_array(time):
+        def impl(time, tc, p, c, dc, te=0.0):
+            return vel_d_v(time, tc, p, c, dc, te)
+        return impl
+    if isinstance(time, types.Float):
+        def impl(time, tc, p, c, dc, te=0.0):
+            return _vel_d_s(time, tc, p, c, dc, te)
         return impl
     return None

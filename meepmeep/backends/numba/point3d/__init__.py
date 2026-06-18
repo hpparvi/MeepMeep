@@ -35,7 +35,8 @@ from ._common import _is_1d_array
 from .position import pos_c, pos, _pos_c_s, pos_c_v, pos_c_vp, _pos_s, pos_v, pos_vp
 from .zposition import zpos_c, zpos, _zpos_c_s, zpos_c_v, zpos_c_vp, _zpos_s, zpos_v, zpos_vp
 from .separation import sep_c, sep, _sep_c_s, sep_c_v, sep_c_vp, _sep_s, sep_v, sep_vp
-from .velocity import vel_c, _vel_c_s, vel_c_v, vel_c_vp
+from .velocity import (vel_c, _vel_c_s, vel_c_v, vel_c_vp,
+                       vel, _vel_s, vel_v, vel_vp)
 from .zvelocity import zvel_c, zvel, _zvel_c_s, zvel_c_v, zvel_c_vp, _zvel_s, zvel_v, zvel_vp
 from .radial_velocity import rv_c, rv
 from .cos_phase_angle import (
