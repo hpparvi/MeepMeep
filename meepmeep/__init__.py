@@ -16,4 +16,8 @@
 
 
 from .orbit import Orbit
+from .expansion2d import Expansion2D
+from .expansion3d import Expansion3D
 from .backends.numba.newton.newton import eclipse_light_travel_time
+
+__all__ = ["Orbit", "Expansion2D", "Expansion3D", "eclipse_light_travel_time"]
