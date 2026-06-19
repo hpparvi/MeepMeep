@@ -5,7 +5,7 @@
 MeepMeep computes Keplerian orbit quantities — transit geometry, projected
 separations, radial velocities, and phase curves — using 5th-order Taylor
 expansions around a set of expansion points distributed along the orbit. This
-makes it an order of magnitude faster than per-point Newton-Raphson while
+makes it 2-3 orders of magnitude faster than standard Newton-Raphson approaches while
 keeping the approximation error well below the photometric noise of current
 instruments. Optional analytic gradients with respect to the orbital
 parameters make it suitable for gradient-based inference (HMC, optimisers).
@@ -41,7 +41,6 @@ o.set_pars(tc=0.0, p=3.4, a=8.0, i=1.55, e=0.1, w=0.4)   # times in days, angles
 o.set_data(np.linspace(-0.15, 0.15, 500))
 
 x, y, z = o.xyz()                       # sky-frame position (R_star); z > 0 toward observer
-sep = np.hypot(x, y)                    # sky-projected separation, the b(t) of transit models
 rv  = o.radial_velocity(k=120.0)        # radial velocity in the units of k
 ```
 
@@ -75,10 +74,6 @@ x, y, z, dx, dy, dz = o.xyz()           # gradients w.r.t. (tc, p, a, i, e, w, l
 | `meepmeep.Orbit` | 3D, multi-expansion-point orbit; any orbital phase |
 | `meepmeep.Expansion2D` / `Expansion3D` | single-expansion-point, transit-window evaluators |
 | `meepmeep.numba2d` / `meepmeep.numba3d` | low-level `@njit` Taylor primitives |
-
-Everything under `meepmeep.backends/` is implementation detail and may be
-restructured without notice; import only from the entry points above. See
-[`docs/llms.md`](docs/llms.md) for a complete API cheatsheet.
 
 ## Testing
 
