@@ -2,24 +2,24 @@ MeepMeep documentation
 ======================
 
 MeepMeep is an extremely fast Keplerian orbit evaluator for exoplanet
-light-curve and radial-velocity modelling. It calculates sky-projected
+light-curve and radial-velocity modelling. It computes sky-projected
 planet-star separations, phase curves, RV signals, and other quantities
-useful in exoplanet research, up to three orders of magnitude faster than
-standard Newton-Raphson approaches.
+used in exoplanet research up to two orders of magnitude faster than
+per-point Newton-Raphson.
 
-In addition, MeepMeep can return the partial derivatives w.r.t. the orbital
-parameters (and other input parameters) for all the supported quantities.
-These are useful when developing code used with gradient-aware optimisers or
-MCMC samplers. This is all done without JAX or other autograd-approaches
-(although a JAX implementation is underway). The code is pure Numba-jitted
-Python.
+For every supported quantity it can also return the partial derivatives
+with respect to the orbital parameters (and any other inputs), which feed
+directly into gradient-based optimisers and MCMC samplers. The gradients are
+computed analytically, without JAX or other automatic-differentiation tools;
+the code is pure Numba-jitted Python (a JAX backend is underway).
 
-MeepMeep's speed comes from a Taylor-series approach presented in
+MeepMeep's speed comes from the Taylor-series approach presented in
 `Parviainen and Korth (2020) <https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P/abstract>`_.
-Kepler's equation is solved exactly only at a single point in time (for transit or eclipse modelling),
-or a small set of points along the orbit (for modelling phase curves, RVs, etc.). The planet's position
-is expanded into a Taylor series in these expansion points, after which every
-quantity evaluation is based on the planet's orbital position expressed as a short polynomial in time.
+Kepler's equation is solved exactly at a single point in time (for transit or
+eclipse modelling) or a small set of points along the orbit (for phase curves, RVs, and
+similar). The planet's position is expanded into a Taylor series around these expansion
+points, so every subsequent quantity evaluation is based on the planet's orbital position
+expressed as a short polynomial in time.
 
 Installation
 ------------
@@ -63,23 +63,21 @@ See :ref:`orbit_overview` for the full tour and
 Two ways to use MeepMeep
 ------------------------
 
-The :class:`~meepmeep.expansion2d.Expansion2D` and :class:`~meepmeep.orbit.Orbit` classes are convenience entry points:
-instantiate them once with your observation times, then update the orbital
-parameters inside a fitting loop and read out whichever observable you
-need. The low-level functions cover the same ground more directly — they
-are all numba-jitted and drop straight into a custom transit or RV model
-with minimal overhead. Use the class for the batteries-included workflow;
-use the low-level functions when you want the orbit math to inline into
-your own hot loop.
+MeepMeep offers two ways in: a low-level API and a convenience high-level
+API. The high-level classes —
+:class:`~meepmeep.expansion2d.Expansion2D`,
+:class:`~meepmeep.expansion3d.Expansion3D`, and
+:class:`~meepmeep.orbit.Orbit` — wrap the orbit math behind a stateful
+object: instantiate one with your observation times, then update the orbital
+parameters inside a fitting loop and read out whichever observable you need.
+The low-level functions cover the same ground more directly — they are all
+numba-jitted and drop straight into a custom transit or RV model with minimal
+overhead. Use a class for the batteries-included workflow; use the low-level
+functions when you want the orbit math to inline into your own hot loop.
 
-Derivative mode adds analytic gradients of every quantity w.r.t. the
-seven orbital parameters (and any method-specific extras), making the
-package a natural fit for gradient-based optimisers and HMC samplers.
-
-Both the high-level class and the low-level functions are backed by a
-numba implementation and a JAX implementation. The numba backend is
-currently complete; the JAX backend is partially implemented and
-slated for future development.
+Both paths expose the same derivative mode: analytic gradients of every
+quantity with respect to the seven orbital parameters (plus any
+method-specific extras).
 
 There are three high-level classes. :class:`~meepmeep.expansion2d.Expansion2D`
 is the lightweight one for transit or eclipse geometry: a single Taylor expansion in
