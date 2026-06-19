@@ -24,6 +24,7 @@ from .backends.numba.point2dd import solve2d_d, pos_d, sep_d, pos_d_vp, sep_d_vp
 
 
 class Expansion2D:
+    """High-level wrapper over the single-expansion-point 2D Taylor evaluators."""
 
     # Minimum time-array sizes for which the prange kernel twins beat the
     # serial kernels (measured on a 16-core machine). The single-expansion-point value

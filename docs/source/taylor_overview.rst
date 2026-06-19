@@ -171,7 +171,7 @@ the ``(D, 5)`` coefficient matrix at that expansion point:
 
 .. code-block:: python
 
-   from meepmeep.backends.numba.point2d import solve2d
+   from meepmeep.numba2d import solve2d
 
    c = solve2d(te, p, a, i, e, w)   # shape (2, 5)
 
@@ -230,8 +230,7 @@ into single-expansion-point pipelines such as transit duration calculators.
 .. code-block:: python
 
    import numpy as np
-   from meepmeep.backends.numba.point2d import solve2d
-   from meepmeep.backends.numba.point2d import sep_c
+   from meepmeep.numba2d import solve2d, sep_c
 
    # Orbital parameters (tc is the transit-centre time)
    tc, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
@@ -353,8 +352,7 @@ evaluate at an array of times:
 .. code-block:: python
 
    import numpy as np
-   from meepmeep.backends.numba.expansion_points import create_expansion_points
-   from meepmeep.backends.numba.orbit3d import solve3d_orbit, pos_o
+   from meepmeep.numba3d import create_expansion_points, solve3d_orbit, pos_o
    from meepmeep.backends.numba.utils import mean_anomaly_at_transit
 
    # Orbital parameters (tc is the transit-center time, the high-level convention)

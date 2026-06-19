@@ -2,6 +2,8 @@
 name = "MeepMeep"
 dynamic = ["version"]
 description = 'Fast Keplerian orbit computation using Taylor series expansions.'
+readme = "README.md"
+requires-python = ">=3.10"
 authors=[{name='Hannu Parviainen', email='hpparvi@gmail.com'}]
 classifiers=[
   "Topic :: Scientific/Engineering",
@@ -13,7 +15,12 @@ classifiers=[
   "Programming Language :: Python",
 ]
 keywords = ['astronomy',  'astrophysics',  'exoplanets']
-dependencies = ["numpy", "numba", "scipy", "matplotlib"]
+dependencies = [
+    "numpy>=1.24",
+    "numba>=0.59,<0.64",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+]
 
 [project.optional-dependencies]
 docs = [
@@ -31,6 +38,8 @@ test = [
 
 [project.urls]
 homepage = 'https://github.com/hpparvi/meepmeep'
+repository = 'https://github.com/hpparvi/meepmeep'
+documentation = 'https://meepmeep.readthedocs.io'
 
 [build-system]
 requires = ["setuptools", "setuptools-scm>=8"]
@@ -39,7 +48,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 
 [tool.setuptools]
-include-package-data = true
+# setuptools_scm's VCS file-finder would otherwise sweep git-tracked test
+# files in as package data (include-package-data defaults to True for
+# pyproject builds), defeating the packages.find exclude below.
+include-package-data = false
 
 [tool.setuptools.packages.find]
 include = ['meepmeep', 'meepmeep.*']

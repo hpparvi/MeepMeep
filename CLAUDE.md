@@ -129,7 +129,7 @@ meepmeep/
 └── backends/
     ├── numba/             # Primary backend (Numba JIT-compiled)
     │   ├── utils.py       # Orbital mechanics utilities (anomaly conversions, etc.)
-    │   ├── expansion points.py       # Expansion point placement strategies (mm, ea, ta)
+    │   ├── expansion_points.py       # Expansion point placement strategies (mm, ea, ta)
     │   ├── newton/
     │   │   └── newton.py  # Exact Kepler equation solvers (Newton-Raphson)
     │   ├── point2d/         # Single-expansion-point 2D evaluators (no derivatives),
@@ -210,7 +210,7 @@ Taylor surface, the multi-expansion-point orbit-spanning routines from
 `orbit3d`/`orbit3dd`, and the dimension-agnostic primitives (expansion points,
 Newton solvers, orbital-mechanics utilities). 2D users who need
 dimension-agnostic primitives import them from
-`meepmeep.backends.numba.{expansion points,newton.newton,utils}`.
+`meepmeep.backends.numba.{expansion_points,newton.newton,utils}`.
 
 ### Key Concepts
 

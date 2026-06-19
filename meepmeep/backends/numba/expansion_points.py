@@ -108,11 +108,9 @@ def create_expansion_points(n_ep: int, e: float, quantity: str = 'ea', tres: int
         if quantity == 'ea':
             def cfun(t, e, v):
                 return eccentric_anomaly(t, e) - v
-        elif quantity == 'ta':
+        else:  # quantity == 'ta' (validated above)
             def cfun(t, e, v):
                 return true_anomaly(t, e) - v
-        else:
-            raise NotImplementedError
 
         ep_sep = 2 * pi / n_ep
 

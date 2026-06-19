@@ -36,6 +36,7 @@ from .backends.numba.point3dd import (
 
 
 class Expansion3D:
+    """High-level wrapper over the single-expansion-point 3D Taylor evaluators."""
 
     # Minimum time-array sizes for which the prange kernel twins beat the
     # serial kernels (measured on a 16-core machine). The single-expansion-point
