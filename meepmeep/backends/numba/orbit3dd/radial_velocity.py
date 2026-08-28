@@ -35,6 +35,8 @@ def _rv_osd(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     ix = ep_table[int(floor(tc / (dt * p)))]
     rv_val = _rv_cd_w(tc - ep_times[ix] * p, s, dsp, dsa, dsi, dse,
                       coeffs[ix], dcoeffs[ix], drv[:7], dvz)
+    # Period-folding chain term (see position._pos_ow).
+    drv[1] += epoch * drv[0]
     drv[7] = rv_val / k if k != 0.0 else 0.0
     return rv_val, drv
 
@@ -54,6 +56,8 @@ def rv_ovd(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
         ix = ep_table[int(floor(tc / (dt * p)))]
         rv_val = _rv_cd_w(tc - ep_times[ix] * p, s, dsp, dsa, dsi, dse,
                           coeffs[ix], dcoeffs[ix], drvs[j, :7], dvz)
+        # Period-folding chain term (see position._pos_ow).
+        drvs[j, 1] += epoch * drvs[j, 0]
         rvs[j] = rv_val
         # drv/dk = rv / k  (rv is linear in k via the scale factor s = k/n).
         drvs[j, 7] = rv_val / k if k != 0.0 else 0.0
@@ -79,6 +83,8 @@ def rv_ovdp(times, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
         ix = ep_table[int(floor(tc / (dt * p)))]
         rv_val = _rv_cd_w(tc - ep_times[ix] * p, s, dsp, dsa, dsi, dse,
                           coeffs[ix], dcoeffs[ix], drvs[j, :7], dvz[get_thread_id()])
+        # Period-folding chain term (see position._pos_ow).
+        drvs[j, 1] += epoch * drvs[j, 0]
         rvs[j] = rv_val
         drvs[j, 7] = rv_val / k if k != 0.0 else 0.0
     return rvs, drvs

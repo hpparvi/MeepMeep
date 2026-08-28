@@ -183,7 +183,11 @@ def _rv_cd_overload(time, k, p, a, i, e, c, dc):
 def _rv_d_s(time, k, tc, p, a, i, e, c, dc, te):
     """Scalar kernel for :func:`rv_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _rv_cd_s(time - (tc + te + epoch * p), k, p, a, i, e, c, dc)
+    rv_val, drv = _rv_cd_s(time - (tc + te + epoch * p), k, p, a, i, e, c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    drv[1] += epoch * drv[0]
+    return rv_val, drv
 
 
 @njit(fastmath=True)
@@ -197,6 +201,7 @@ def rv_d_v(time, k, tc, p, a, i, e, c, dc, te):
     for j in range(nt):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         rv_val[j] = _rv_cd_w(time[j] - (tc + te + epoch * p), s, dsp, dsa, dsi, dse, c, dc, drv[j], dvz)
+        drv[j, 1] += epoch * drv[j, 0]
     return rv_val, drv
 
 
@@ -216,6 +221,7 @@ def rv_d_vp(time, k, tc, p, a, i, e, c, dc, te):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         rv_val[j] = _rv_cd_w(time[j] - (tc + te + epoch * p), s, dsp, dsa, dsi, dse,
                              c, dc, drv[j], dvz[get_thread_id()])
+        drv[j, 1] += epoch * drv[j, 0]
     return rv_val, drv
 
 

@@ -123,7 +123,11 @@ def _zpos_cd_overload(time, c, dc):
 def _zpos_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`zpos_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _zpos_cd_s(time - (tc + te + epoch * p), c, dc)
+    pz, dpz = _zpos_cd_s(time - (tc + te + epoch * p), c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dpz[1] += epoch * dpz[0]
+    return pz, dpz
 
 
 def _zpos_d_v_body(time, tc, p, c, dc, te):
@@ -140,6 +144,7 @@ def _zpos_d_v_body(time, tc, p, c, dc, te):
     for j in prange(n):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         pz[j] = _zpos_cd_w(time[j] - (tc + te + epoch * p), c, dc, dpz[j])
+        dpz[j, 1] += epoch * dpz[j, 0]
     return pz, dpz
 
 

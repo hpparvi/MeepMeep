@@ -458,3 +458,73 @@ class TestTransitCenterTimeDerivative:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestPeriodEpochTerm:
+    """Regression: period derivatives are total over multi-orbit time spans.
+
+    The multi-expansion-point evaluators fold times as ``t - tpa - epoch*p``,
+    and their period columns once lacked the epoch chain term
+    ``epoch * d/dtc``: every gradient was the within-orbit derivative only,
+    wrong for any time more than one orbit from the anchor, with an error
+    growing linearly in the orbit count. The finite differences here perturb
+    ``p`` through ``set_pars`` at fixed ``tc`` (the bound timing basis) over
+    ~8 orbits.
+
+    Velocity-based quantities get a looser tolerance (differentiating the
+    Taylor series costs roughly an order of magnitude in accuracy), and
+    ``light_travel_time`` is excluded: its transit-reference term carries a
+    known tc-basis inconsistency (~1% of the p column) unrelated to the
+    epoch term. ``true_anomaly`` wraps at periastron passages, so isolated
+    samples straddle a moving 2*pi jump under the perturbation - the bulk
+    criterion absorbs those, as it does the expansion-point-boundary
+    remappings of the other quantities.
+    """
+
+    CASES = [
+        ("xyz", (), (3, 4, 5), 1e-3),
+        ("vxyz", (), (3, 4, 5), 1e-2),
+        ("star_planet_distance", (), (1,), 1e-3),
+        ("cos_phase", (), (1,), 1e-3),
+        ("true_anomaly", (), (1,), 1e-3),
+        ("radial_velocity", (1.0,), (1,), 1e-2),
+        ("lambert_phase_curve", (0.1, 0.3), (1,), 1e-3),
+        ("emission_phase_curve", (0.1, 0.2, 0.1), (1,), 1e-3),
+        ("ellipsoidal_variation", (1.0, 1e-3), (1,), 1e-3),
+    ]
+
+    @pytest.mark.parametrize("method,args,gidx,rtol", CASES, ids=[c[0] for c in CASES])
+    def test_period_column_fd(self, method, args, gidx, rtol):
+        pars = dict(tc=0.11, p=1.7, a=6.0, i=1.53, e=0.12, w=0.7)
+        times = np.linspace(0.0, 8.3 * pars["p"], 900)
+        og = Orbit(derivatives=True)
+        og.set_pars(**pars)
+        og.set_data(times)
+        ov = Orbit(derivatives=False)
+        ov.set_data(times)
+
+        h = 1e-7
+        res = getattr(og, method)(*args)
+        hi, lo = dict(pars), dict(pars)
+        hi["p"] += h
+        lo["p"] -= h
+        ov.set_pars(**hi)
+        vhi = getattr(ov, method)(*args)
+        ov.set_pars(**lo)
+        vlo = getattr(ov, method)(*args)
+
+        if method in ("xyz", "vxyz"):
+            grads = [res[g] for g in gidx]
+            fds = [(np.asarray(a_) - np.asarray(b_)) / (2 * h) for a_, b_ in zip(vhi, vlo)]
+        else:
+            grads = [res[1]]
+            fds = [(np.asarray(vhi) - np.asarray(vlo)) / (2 * h)]
+
+        for comp, (gr, fd) in enumerate(zip(grads, fds)):
+            an = gr[:, 1]
+            err = np.abs(an - fd)
+            tol = rtol * np.abs(fd) + 1e-4 * max(np.abs(an).max(), 1e-14)
+            ok = err <= tol
+            assert ok.mean() >= 0.95, (
+                f"{method} component {comp}: only {ok.mean():.0%} of points within "
+                f"tolerance; max violation {err[~ok].max():.3e}")

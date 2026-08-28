@@ -85,12 +85,19 @@ class TestVelEpochFolding:
 
     @pytest.mark.parametrize("nepoch", [-3, -1, 1, 4])
     def test_vel_d_periodic(self, coeffs, in_epoch_times, nepoch):
+        """Values and gradients repeat across epochs - except the period
+        column, which gains the epoch chain term ``nepoch * d/dtc`` from the
+        ``-epoch*p`` dependence of the folded evaluation time."""
         c, dc = coeffs
         p = PARS["p"]
         base = vel_d(in_epoch_times, TC, p, c, dc)
         shifted = vel_d(in_epoch_times + nepoch * p, TC, p, c, dc)
-        for b, s in zip(base, shifted):
+        for b, s in zip(base[:3], shifted[:3]):
             assert_allclose(s, b, **PERIODIC_TOL)
+        for b, s in zip(base[3:], shifted[3:]):
+            expected = b.copy()
+            expected[:, 1] += nepoch * b[:, 0]
+            assert_allclose(s, expected, **PERIODIC_TOL)
 
     def test_vel_nonzero_te_matches_centered(self, in_epoch_times):
         """With a non-zero expansion point te, the fold centres on tc + te."""

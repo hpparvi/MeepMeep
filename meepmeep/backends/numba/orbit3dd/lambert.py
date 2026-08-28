@@ -49,8 +49,11 @@ def _lambert_phase_curve_ow(time, ag, k, tpa, p, dt, ep_table, ep_times, coeffs,
     epoch = floor((time - tpa) / p)
     tc = time - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    return _lambert_phase_curve_cd_w(tc - ep_times[ix] * p, ag, k, coeffs[ix], dcoeffs[ix],
+    flux = _lambert_phase_curve_cd_w(tc - ep_times[ix] * p, ag, k, coeffs[ix], dcoeffs[ix],
                                      dflux, dpx, dpy, dpz)
+    # Period-folding chain term (see position._pos_ow).
+    dflux[1] += epoch * dflux[0]
+    return flux
 
 
 @njit(fastmath=True)

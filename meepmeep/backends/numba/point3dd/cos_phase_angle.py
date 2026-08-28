@@ -167,7 +167,11 @@ def _cos_alpha_cd_overload(time, c, dc):
 def _cos_alpha_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`cos_alpha_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _cos_alpha_cd_s(time - (tc + te + epoch * p), c, dc)
+    ca, dca = _cos_alpha_cd_s(time - (tc + te + epoch * p), c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dca[1] += epoch * dca[0]
+    return ca, dca
 
 
 @njit(fastmath=True)
@@ -182,6 +186,7 @@ def cos_alpha_d_v(time, tc, p, c, dc, te):
     for j in range(n):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         ca[j] = _cos_alpha_cd_w(time[j] - (tc + te + epoch * p), c, dc, dca[j], dpx, dpy, dpz)
+        dca[j, 1] += epoch * dca[j, 0]
     return ca, dca
 
 
@@ -203,6 +208,7 @@ def cos_alpha_d_vp(time, tc, p, c, dc, te):
         tid = get_thread_id()
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         ca[j] = _cos_alpha_cd_w(time[j] - (tc + te + epoch * p), c, dc, dca[j], dpx[tid], dpy[tid], dpz[tid])
+        dca[j, 1] += epoch * dca[j, 0]
     return ca, dca
 
 

@@ -37,7 +37,15 @@ def _pos_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dx, dy, dz):
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    return _pos_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dx, dy, dz)
+    x, y, z = _pos_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dx, dy, dz)
+    # Period-folding chain term: the folded time depends on the period via
+    # -epoch*p, so the total period derivative (slot 1) gains epoch times
+    # the timing derivative (slot 0). Zero at epoch 0, grows with the orbit
+    # count; derived-quantity kernels built on these gradients inherit it.
+    dx[1] += epoch * dx[0]
+    dy[1] += epoch * dy[0]
+    dz[1] += epoch * dz[0]
+    return x, y, z
 
 
 @njit(fastmath=True)

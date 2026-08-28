@@ -201,7 +201,11 @@ def _ev_signal_cd_overload(time, alpha, mass_ratio, inc, c, dc):
 def _ev_signal_d_s(time, alpha, mass_ratio, inc, tc, p, c, dc, te):
     """Scalar kernel for :func:`ev_signal_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _ev_signal_cd_s(time - (tc + te + epoch * p), alpha, mass_ratio, inc, c, dc)
+    out, dout = _ev_signal_cd_s(time - (tc + te + epoch * p), alpha, mass_ratio, inc, c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dout[1] += epoch * dout[0]
+    return out, dout
 
 
 @njit(fastmath=True)
@@ -217,6 +221,7 @@ def ev_signal_d_v(time, alpha, mass_ratio, inc, tc, p, c, dc, te):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         out[j] = _ev_signal_cd_w(time[j] - (tc + te + epoch * p), alpha, mass_ratio, inc, c, dc,
                                  dout[j], dpx, dpy, dpz)
+        dout[j, 1] += epoch * dout[j, 0]
     return out, dout
 
 
@@ -239,6 +244,7 @@ def ev_signal_d_vp(time, alpha, mass_ratio, inc, tc, p, c, dc, te):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         out[j] = _ev_signal_cd_w(time[j] - (tc + te + epoch * p), alpha, mass_ratio, inc, c, dc,
                                  dout[j], dpx[tid], dpy[tid], dpz[tid])
+        dout[j, 1] += epoch * dout[j, 0]
     return out, dout
 
 

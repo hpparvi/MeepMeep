@@ -147,7 +147,11 @@ def _sep_cd_overload(time, c, dc):
 def _sep_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`sep_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _sep_cd_s(time - (tc + te + epoch * p), c, dc)
+    d, dd = _sep_cd_s(time - (tc + te + epoch * p), c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dd[1] += epoch * dd[0]
+    return d, dd
 
 
 def _sep_d_v_body(time, tc, p, c, dc, te):
@@ -164,6 +168,7 @@ def _sep_d_v_body(time, tc, p, c, dc, te):
     for j in prange(n):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         d[j] = _sep_cd_w(time[j] - (tc + te + epoch * p), c, dc, dd[j])
+        dd[j, 1] += epoch * dd[j, 0]
     return d, dd
 
 

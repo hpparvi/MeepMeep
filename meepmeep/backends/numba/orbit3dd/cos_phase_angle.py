@@ -39,7 +39,10 @@ def _cos_alpha_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dca, dx, d
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    return _cos_alpha_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dca, dx, dy, dz)
+    ca = _cos_alpha_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dca, dx, dy, dz)
+    # Period-folding chain term (see position._pos_ow).
+    dca[1] += epoch * dca[0]
+    return ca
 
 
 @njit(fastmath=True)

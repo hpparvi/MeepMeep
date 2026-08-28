@@ -227,7 +227,11 @@ def _lambert_phase_curve_cd_overload(time, ag, k, c, dc):
 def _lambert_phase_curve_d_s(time, ag, k, tc, p, c, dc, te):
     """Scalar kernel for :func:`lambert_phase_curve_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _lambert_phase_curve_cd_s(time - (tc + te + epoch * p), ag, k, c, dc)
+    flux, dflux = _lambert_phase_curve_cd_s(time - (tc + te + epoch * p), ag, k, c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dflux[1] += epoch * dflux[0]
+    return flux, dflux
 
 
 @njit(fastmath=True)
@@ -243,6 +247,7 @@ def lambert_phase_curve_d_v(time, ag, k, tc, p, c, dc, te):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         flux[j] = _lambert_phase_curve_cd_w(time[j] - (tc + te + epoch * p), ag, k, c, dc,
                                             dflux[j], dpx, dpy, dpz)
+        dflux[j, 1] += epoch * dflux[j, 0]
     return flux, dflux
 
 
@@ -265,6 +270,7 @@ def lambert_phase_curve_d_vp(time, ag, k, tc, p, c, dc, te):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         flux[j] = _lambert_phase_curve_cd_w(time[j] - (tc + te + epoch * p), ag, k, c, dc,
                                             dflux[j], dpx[tid], dpy[tid], dpz[tid])
+        dflux[j, 1] += epoch * dflux[j, 0]
     return flux, dflux
 
 

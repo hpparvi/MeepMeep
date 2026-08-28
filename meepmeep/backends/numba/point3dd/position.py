@@ -151,7 +151,13 @@ def _pos_cd_overload(time, c, dc):
 def _pos_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`pos_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _pos_cd_s(time - (tc + te + epoch * p), c, dc)
+    px, py, pz, dpx, dpy, dpz = _pos_cd_s(time - (tc + te + epoch * p), c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dpx[1] += epoch * dpx[0]
+    dpy[1] += epoch * dpy[0]
+    dpz[1] += epoch * dpz[0]
+    return px, py, pz, dpx, dpy, dpz
 
 
 def _pos_d_v_body(time, tc, p, c, dc, te):
@@ -172,6 +178,9 @@ def _pos_d_v_body(time, tc, p, c, dc, te):
     for j in prange(n):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         px[j], py[j], pz[j] = _pos_cd_w(time[j] - (tc + te + epoch * p), c, dc, dpx[j], dpy[j], dpz[j])
+        dpx[j, 1] += epoch * dpx[j, 0]
+        dpy[j, 1] += epoch * dpy[j, 0]
+        dpz[j, 1] += epoch * dpz[j, 0]
     return px, py, pz, dpx, dpy, dpz
 
 

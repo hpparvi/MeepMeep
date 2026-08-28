@@ -35,7 +35,12 @@ def _vel_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dvx, dvy, dvz):
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    return _vel_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dvx, dvy, dvz)
+    vx, vy, vz = _vel_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dvx, dvy, dvz)
+    # Period-folding chain term (see position._pos_ow).
+    dvx[1] += epoch * dvx[0]
+    dvy[1] += epoch * dvy[0]
+    dvz[1] += epoch * dvz[0]
+    return vx, vy, vz
 
 
 @njit(fastmath=True)

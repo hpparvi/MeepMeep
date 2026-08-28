@@ -35,7 +35,10 @@ def _sep_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dd):
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    return _sep_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dd)
+    d = _sep_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dd)
+    # Period-folding chain term (see position._pos_ow).
+    dd[1] += epoch * dd[0]
+    return d
 
 
 @njit(fastmath=True)

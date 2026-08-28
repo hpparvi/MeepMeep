@@ -358,7 +358,8 @@ Implemented in
 and their direct counterparts
 :func:`~meepmeep.backends.numba.point2dd.position.pos_d` and
 :func:`~meepmeep.backends.numba.point3dd.position.pos_d` (which epoch-fold
-``t`` first; the discrete epoch shift contributes no derivative).
+``t`` first; the ``-epoch\,p`` term in the folded time makes the period
+derivative gain ``epoch`` times the ``tc`` column, which the kernels add).
 
 
 Projected distance

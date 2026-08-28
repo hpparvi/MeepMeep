@@ -45,8 +45,11 @@ def _ev_signal_ow(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coe
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    return _ev_signal_cd_w(tc - ep_times[ix] * p, alpha, mass_ratio, inc, coeffs[ix], dcoeffs[ix],
+    out = _ev_signal_cd_w(tc - ep_times[ix] * p, alpha, mass_ratio, inc, coeffs[ix], dcoeffs[ix],
                            dout, dpx, dpy, dpz)
+    # Period-folding chain term (see position._pos_ow).
+    dout[1] += epoch * dout[0]
+    return out
 
 
 @njit(fastmath=True)

@@ -210,7 +210,11 @@ def _emission_phase_curve_cd_overload(time, k, fratio, offset, c, dc):
 def _emission_phase_curve_d_s(time, k, fratio, offset, tc, p, c, dc, te):
     """Scalar kernel for :func:`emission_phase_curve_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _emission_phase_curve_cd_s(time - (tc + te + epoch * p), k, fratio, offset, c, dc)
+    flux, dflux = _emission_phase_curve_cd_s(time - (tc + te + epoch * p), k, fratio, offset, c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dflux[1] += epoch * dflux[0]
+    return flux, dflux
 
 
 @njit(fastmath=True)
@@ -229,6 +233,7 @@ def emission_phase_curve_d_v(time, k, fratio, offset, tc, p, c, dc, te):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         flux[j] = _emission_phase_curve_cd_w(time[j] - (tc + te + epoch * p), k, fratio, offset, c, dc,
                                              dout[j], dpx, dpy, dpz, dvx, dvy, dvz)
+        dout[j, 1] += epoch * dout[j, 0]
     return flux, dout
 
 
@@ -255,6 +260,7 @@ def emission_phase_curve_d_vp(time, k, fratio, offset, tc, p, c, dc, te):
         flux[j] = _emission_phase_curve_cd_w(time[j] - (tc + te + epoch * p), k, fratio, offset, c, dc,
                                              dout[j], dpx[tid], dpy[tid], dpz[tid],
                                              dvx[tid], dvy[tid], dvz[tid])
+        dout[j, 1] += epoch * dout[j, 0]
     return flux, dout
 
 

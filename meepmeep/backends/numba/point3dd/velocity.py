@@ -161,7 +161,13 @@ def _vel_cd_overload(time, c, dc):
 def _vel_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`vel_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _vel_cd_s(time - (tc + te + epoch * p), c, dc)
+    vx, vy, vz, dvx, dvy, dvz = _vel_cd_s(time - (tc + te + epoch * p), c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dvx[1] += epoch * dvx[0]
+    dvy[1] += epoch * dvy[0]
+    dvz[1] += epoch * dvz[0]
+    return vx, vy, vz, dvx, dvy, dvz
 
 
 def _vel_d_v_body(time, tc, p, c, dc, te):
@@ -182,6 +188,9 @@ def _vel_d_v_body(time, tc, p, c, dc, te):
     for j in prange(n):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         vx[j], vy[j], vz[j] = _vel_cd_w(time[j] - (tc + te + epoch * p), c, dc, dvx[j], dvy[j], dvz[j])
+        dvx[j, 1] += epoch * dvx[j, 0]
+        dvy[j, 1] += epoch * dvy[j, 0]
+        dvz[j, 1] += epoch * dvz[j, 0]
     return vx, vy, vz, dvx, dvy, dvz
 
 

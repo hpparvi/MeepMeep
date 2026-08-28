@@ -45,8 +45,11 @@ def _emission_phase_curve_ow(t, k, fratio, offset, tpa, p, dt, ep_table, ep_time
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    return _emission_phase_curve_cd_w(tc - ep_times[ix] * p, k, fratio, offset, coeffs[ix], dcoeffs[ix],
+    flux = _emission_phase_curve_cd_w(tc - ep_times[ix] * p, k, fratio, offset, coeffs[ix], dcoeffs[ix],
                                       dout, dpx, dpy, dpz, dvx, dvy, dvz)
+    # Period-folding chain term (see position._pos_ow).
+    dout[1] += epoch * dout[0]
+    return flux
 
 
 @njit(fastmath=True)

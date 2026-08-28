@@ -73,6 +73,15 @@ low-level variants) returns analytic gradients alongside values:
   constant tc (the default). Bind `set_pars(tp=...)` and the gradient is
   returned in the periastron basis `(tp, p, a, i, e, w, lan)`. The
   conversion utility is `numba3d.tc_to_tp_gradient`.
+- EPOCH FOLDING: every epoch-folding evaluator (the multi-expansion-point
+  `Orbit`/`*_od` family and the direct single-expansion-point `X_d`
+  variants) returns TOTAL period derivatives: the `-epoch*p` term in the
+  folded evaluation time contributes `epoch` times the timing column to
+  the `p` column, and the kernels include it - consumers must not add it
+  again. For the single-expansion-point direct variants the term inherits
+  slot 0's Taylor-truncation accuracy, so its error grows linearly with
+  the epoch count; prefer the multi-expansion-point family for long
+  multi-orbit baselines.
 
 ## High-level API: Orbit (3D, multi-expansion-point, any orbital phase)
 

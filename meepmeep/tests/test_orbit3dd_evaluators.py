@@ -680,9 +680,10 @@ class TestEVSignalOrbitalGradientRegression:
       p/e/w perturbation at fixed tc moves the anchor via
       ``tpa = tc - M0(e, w)/(2 pi) * p``, so ``tpa`` must be recomputed from
       every perturbed parameter set.
-    - Every sample stays inside the first orbit after the anchor: the p slot
-      holds the epoch-0 derivative, and crossing an epoch boundary would add
-      an ``epoch * d/dtc`` folding term the FD sees but the column does not.
+    - The samples span several orbits, so the test also guards the epoch
+      chain term ``epoch * d/dtc`` that the period column must include (the
+      ``-epoch*p`` term of the folded time; it was once missing, leaving
+      within-orbit period derivatives only).
     """
 
     def test_ev_signal_orbital_slots_fd(self, orbit_case):
@@ -691,7 +692,7 @@ class TestEVSignalOrbitalGradientRegression:
         ep_times, _, dt, ep_table = create_expansion_points(NPT, max(e, 0.2), "ea")
         coeffs, dcoeffs = solve3d_orbit_d(ep_times, **orbit_case, npt=NPT)
         tpa0 = -mean_anomaly_at_transit(e, orbit_case["w"]) / TWO_PI * p
-        times = tpa0 + np.linspace(0.02, 0.98, NTIMES) * p
+        times = tpa0 + np.linspace(0.02, 3.98, NTIMES) * p
 
         _, dev = ev_signal_od(alpha=alpha, mass_ratio=mr, inc=i0, t=times,
                               tpa=tpa0, p=p, dt=dt, ep_table=ep_table,

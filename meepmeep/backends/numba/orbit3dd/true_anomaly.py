@@ -49,6 +49,8 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, 
         f = twopi * tau_red / p
         df[0] = -twopi / p
         df[1] = -twopi * tau_red / (p * p)
+        # Period-folding chain term (see position._pos_ow).
+        df[1] += epoch * df[0]
         return f, df
 
     epoch = floor((t - tpa) / p)
@@ -85,6 +87,8 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, 
         dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
         df_k = -dedp / denom
         df[k] = df_k if sign > 0.0 else -df_k
+    # Period-folding chain term (see position._pos_ow).
+    df[1] += epoch * df[0]
     return f, df
 
 
@@ -111,6 +115,7 @@ def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeff
             f[j] = twopi * tau_red / p
             df[j, 0] = -twopi / p
             df[j, 1] = -twopi * tau_red / (p * p)
+            df[j, 1] += epoch * df[j, 0]
         return f, df
 
     dx = zeros(7)
@@ -157,6 +162,8 @@ def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeff
                 # Equivalent: dedp = (dxdote * r2 - xdote * xdotdx * inv_r2 * r2) ... keep clarity.
                 df_k = -dedp / denom
                 df[j, k] = df_k if sign > 0.0 else -df_k
+            # Period-folding chain term (see position._pos_ow).
+            df[j, 1] += epoch * df[j, 0]
     return f, df
 
 
@@ -184,6 +191,7 @@ def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coef
             f[j] = twopi * tau_red / p
             df[j, 0] = -twopi / p
             df[j, 1] = -twopi * tau_red / (p * p)
+            df[j, 1] += epoch * df[j, 0]
         return f, df
 
     nt = get_num_threads()
@@ -222,6 +230,8 @@ def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coef
                 dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
                 df_k = -dedp / denom
                 df[j, kk] = df_k if sign > 0.0 else -df_k
+            # Period-folding chain term (see position._pos_ow).
+            df[j, 1] += epoch * df[j, 0]
     return f, df
 
 

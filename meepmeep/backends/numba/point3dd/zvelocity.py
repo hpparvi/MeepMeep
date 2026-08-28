@@ -124,7 +124,11 @@ def _zvel_cd_overload(time, c, dc):
 def _zvel_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`zvel_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    return _zvel_cd_s(time - (tc + te + epoch * p), c, dc)
+    vz, dvz = _zvel_cd_s(time - (tc + te + epoch * p), c, dc)
+    # Period-folding chain term: the folded time depends on p via -epoch*p,
+    # so the total period derivative gains epoch times the timing column.
+    dvz[1] += epoch * dvz[0]
+    return vz, dvz
 
 
 def _zvel_d_v_body(time, tc, p, c, dc, te):
@@ -141,6 +145,7 @@ def _zvel_d_v_body(time, tc, p, c, dc, te):
     for j in prange(n):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
         vz[j] = _zvel_cd_w(time[j] - (tc + te + epoch * p), c, dc, dvz[j])
+        dvz[j, 1] += epoch * dvz[j, 0]
     return vz, dvz
 
 
