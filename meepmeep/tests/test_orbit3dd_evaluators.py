@@ -661,5 +661,75 @@ class TestLightTravelTime:
         assert ltt.max() < 1e-3
 
 
+class TestEVSignalOrbitalGradientRegression:
+    """Regression: FD of the EV signal's full orbital gradient block.
+
+    The ``-5 A dd`` chain term in ``_ev_signal_cd_w`` was once divided by
+    ``d**2`` instead of ``d``, corrupting every orbital gradient column of the
+    ellipsoidal-variation signal (the a-derivative even came out with the
+    wrong sign) while leaving the values and the extras (alpha, mass_ratio)
+    untouched. The bug slipped under the fixed ``atol=1e-8`` of the
+    inclination test at its small-amplitude geometry, so this test perturbs
+    every orbital parameter through the whole pipeline with a larger
+    mass_ratio and compares with tolerances tied to the derivative scale.
+
+    Two conventions matter for the finite differences:
+
+    - The gradient basis is ``(tc, p, a, i, e, w, lan)`` with tc the transit
+      centre, even though the evaluators anchor at the periastron time: a
+      p/e/w perturbation at fixed tc moves the anchor via
+      ``tpa = tc - M0(e, w)/(2 pi) * p``, so ``tpa`` must be recomputed from
+      every perturbed parameter set.
+    - Every sample stays inside the first orbit after the anchor: the p slot
+      holds the epoch-0 derivative, and crossing an epoch boundary would add
+      an ``epoch * d/dtc`` folding term the FD sees but the column does not.
+    """
+
+    def test_ev_signal_orbital_slots_fd(self, orbit_case):
+        alpha, mr = 1.0, 1e-2
+        p, e, i0 = orbit_case["p"], orbit_case["e"], orbit_case["i"]
+        ep_times, _, dt, ep_table = create_expansion_points(NPT, max(e, 0.2), "ea")
+        coeffs, dcoeffs = solve3d_orbit_d(ep_times, **orbit_case, npt=NPT)
+        tpa0 = -mean_anomaly_at_transit(e, orbit_case["w"]) / TWO_PI * p
+        times = tpa0 + np.linspace(0.02, 0.98, NTIMES) * p
+
+        _, dev = ev_signal_od(alpha=alpha, mass_ratio=mr, inc=i0, t=times,
+                              tpa=tpa0, p=p, dt=dt, ep_table=ep_table,
+                              ep_times=ep_times, coeffs=coeffs, dcoeffs=dcoeffs)
+
+        def value(pars, tc=0.0):
+            cf = solve3d_orbit_d(ep_times, **pars, npt=NPT)[0]
+            tpa = tc - mean_anomaly_at_transit(pars["e"], pars["w"]) / TWO_PI * pars["p"]
+            return ev_signal_o(alpha=alpha, mass_ratio=mr, inc=pars["i"],
+                               t=times, tpa=tpa, p=pars["p"], dt=dt,
+                               ep_table=ep_table, ep_times=ep_times, coeffs=cf)
+
+        h = 1e-6
+        atol = 1e-4 * np.abs(dev).max()
+        for slot, key in enumerate(["tc", "p", "a", "i", "e", "w", "lan"]):
+            if key == "tc":
+                fd = (value(dict(orbit_case), tc=h)
+                      - value(dict(orbit_case), tc=-h)) / (2 * h)
+            elif key == "e" and e < h:
+                hi = dict(orbit_case)
+                hi["e"] = e + h
+                fd = (value(hi) - value(dict(orbit_case))) / h
+            else:
+                hi, lo = dict(orbit_case), dict(orbit_case)
+                hi[key] = hi.get(key, 0.0) + h
+                lo[key] = lo.get(key, 0.0) - h
+                fd = (value(hi) - value(lo)) / (2 * h)
+            # A timing-like perturbation can remap isolated samples across an
+            # expansion-point lookup boundary, where the FD (not the analytic
+            # column) picks up an O(accuracy)/h artifact -- so require the
+            # bulk of the points to agree instead of every single one. The
+            # bug this guards against broke every point by order unity.
+            err = np.abs(dev[:, slot] - fd)
+            tol = 1e-2 * np.abs(fd) + atol
+            ok = err <= tol
+            assert ok.mean() >= 0.95, (
+                f"slot {slot} ({key}): only {ok.mean():.0%} of points within "
+                f"tolerance; max violation {err[~ok].max():.3e}")
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

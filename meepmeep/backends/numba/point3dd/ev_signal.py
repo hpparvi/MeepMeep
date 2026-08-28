@@ -47,7 +47,7 @@ def _ev_signal_cd_w(time, alpha, mass_ratio, inc, c, dc, dout, dpx, dpy, dpz):
     ``g = (2 z^2 - d^2) / d^5`` and ``d^2 = x^2 + y^2 + z^2``, the orbital
     block chains through the position via
 
-        dg/dtheta = (dA - 5 A dd / d^2) / d^5,
+        dg/dtheta = (dA - 5 A dd / d) / d^5,
         A = 2 z^2 - d^2,  dA = -2(x dx + y dy) + 2 z dz,
         dd = (x dx + y dy + z dz) / d.
 
@@ -78,7 +78,7 @@ def _ev_signal_cd_w(time, alpha, mass_ratio, inc, c, dc, dout, dpx, dpy, dpz):
         xdotdx = px * dpx[kk] + py * dpy[kk] + pz * dpz[kk]
         dd = xdotdx / d
         dA = -2.0 * (px * dpx[kk] + py * dpy[kk]) + 2.0 * pz * dpz[kk]
-        dg = (dA - 5.0 * A * dd / d2) / d5
+        dg = (dA - 5.0 * A * dd / d) / d5
         dout[kk] = pre * dg
     # Add the explicit sin^2(inc) prefactor contribution to the inclination
     # slot, where the implicit position-geometry contribution already lives.
