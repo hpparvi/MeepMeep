@@ -472,10 +472,8 @@ class TestPeriodEpochTerm:
     ~8 orbits.
 
     Velocity-based quantities get a looser tolerance (differentiating the
-    Taylor series costs roughly an order of magnitude in accuracy), and
-    ``light_travel_time`` is excluded: its transit-reference term carries a
-    known tc-basis inconsistency (~1% of the p column) unrelated to the
-    epoch term. ``true_anomaly`` wraps at periastron passages, so isolated
+    Taylor series costs roughly an order of magnitude in accuracy).
+    ``true_anomaly`` wraps at periastron passages, so isolated
     samples straddle a moving 2*pi jump under the perturbation - the bulk
     criterion absorbs those, as it does the expansion-point-boundary
     remappings of the other quantities.
@@ -491,6 +489,7 @@ class TestPeriodEpochTerm:
         ("lambert_phase_curve", (0.1, 0.3), (1,), 1e-3),
         ("emission_phase_curve", (0.1, 0.2, 0.1), (1,), 1e-3),
         ("ellipsoidal_variation", (1.0, 1e-3), (1,), 1e-3),
+        ("light_travel_time", (1.0,), (1,), 1e-3),
     ]
 
     @pytest.mark.parametrize("method,args,gidx,rtol", CASES, ids=[c[0] for c in CASES])
@@ -528,3 +527,51 @@ class TestPeriodEpochTerm:
             assert ok.mean() >= 0.95, (
                 f"{method} component {comp}: only {ok.mean():.0%} of points within "
                 f"tolerance; max violation {err[~ok].max():.3e}")
+
+
+class TestLightTravelTimeBasis:
+    """Regression: the light-travel-time gradient in both timing bases.
+
+    The transit-reference term of the LTT gradient chains through the
+    transit time, whose parameter dependence differs between the two timing
+    bases: with tc bound the transit time IS tc (only the timing slot
+    moves), while with tp bound it is ``tp + M_tr(e, w) p / (2 pi)``. The
+    kernel once applied the tp-basis chain unconditionally and omitted the
+    timing slot, which biased the p/e/w columns by ~1% of the p-column
+    scale and the timing column by a constant ``vz(t_transit)`` term. This
+    finite-differences every column in both bases over several orbits.
+    """
+
+    BASE = dict(p=1.7, a=6.0, i=1.53, e=0.12, w=0.7)
+
+    @pytest.mark.parametrize("timing,tval", [("tc", 0.11), ("tp", -0.05)])
+    def test_ltt_gradient_fd(self, timing, tval):
+        times = np.linspace(0.0, 14.0, 800)
+        og = Orbit(derivatives=True)
+        og.set_pars(**{timing: tval}, **self.BASE)
+        og.set_data(times)
+        ov = Orbit(derivatives=False)
+        ov.set_data(times)
+        _, dltt = og.light_travel_time(1.0)
+
+        h = 1e-7
+        for j, name in enumerate([timing, "p", "a", "i", "e", "w"]):
+            hi, lo = dict(self.BASE), dict(self.BASE)
+            thi = tlo = tval
+            if j == 0:
+                thi, tlo = tval + h, tval - h
+            else:
+                hi[name] += h
+                lo[name] -= h
+            ov.set_pars(**{timing: thi}, **hi)
+            fp = ov.light_travel_time(1.0)
+            ov.set_pars(**{timing: tlo}, **lo)
+            fm = ov.light_travel_time(1.0)
+            fd = (fp - fm) / (2 * h)
+            an = dltt[:, j]
+            err = np.abs(an - fd)
+            tol = 1e-3 * np.abs(fd) + 1e-4 * max(np.abs(an).max(), np.abs(fd).max(), 1e-14)
+            ok = err <= tol
+            assert ok.mean() >= 0.9, (
+                f"{timing} basis, {name} column: only {ok.mean():.0%} of points "
+                f"within tolerance; max violation {err[~ok].max():.3e}")

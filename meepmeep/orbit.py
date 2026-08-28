@@ -627,7 +627,8 @@ class Orbit:
         if self._derivatives:
             fn = self._select(light_travel_time_od, light_travel_time_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt,
-                      self._ep_table, self._ep_times, self._coeffs, self._dcoeffs, )
+                      self._ep_table, self._ep_times, self._coeffs, self._dcoeffs,
+                      self._timing == "tc")
         fn = self._select(light_travel_time_o, light_travel_time_ovp, self.times, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tp, self._p, self._e, self._w, rstar, self._dt, self._ep_table,
                                     self._ep_times, self._coeffs, )
