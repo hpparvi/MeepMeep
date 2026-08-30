@@ -180,10 +180,20 @@ meepmeep/
     │   └── orbit3dd/        # Multi-expansion-point orbit-spanning gradient evaluators,
     │                        # mirroring orbit3d/ one module per quantity
     │                        # (the *_od / *_osd / *_ovd families).
-    └── jax/               # JAX backend (automatic differentiation)
-        ├── ea.py          # Eccentric anomaly with custom JVP for AD
-        └── ts2d/
-            └── positiond.py  # 2D position with JAX AD support
+    ├── jax/               # JAX backend (automatic differentiation)
+    │   ├── ea.py          # Eccentric anomaly with custom JVP for AD
+    │   └── ts2d/
+    │       └── positiond.py  # 2D position with JAX AD support
+    └── opencl/            # OpenCL backend: device functions only (no kernels)
+        ├── source.py      # SOURCE_FILES, read_kernel_source, read_full_source,
+        │                  # build_options (stdlib-only; imports without pyopencl)
+        ├── common.cl      # REAL machinery, constants, Horner + utils helpers
+        ├── point2d.cl     # 2D values ("2"-suffixed names: pos_c2, sep2, ...)
+        ├── point2dd.cl    # 2D gradients (pos_cd2, sep_d2, ...)
+        ├── point3d.cl     # 3D values ("3"-suffixed names: pos_c3, sep3, ...)
+        ├── point3dd.cl    # 3D gradients (pos_cd3, sep_d3, ...)
+        ├── orbit3d.cl     # multi-expansion-point values (+ ep_lookup/ep_ix)
+        └── orbit3dd.cl    # multi-expansion-point gradients
 ```
 
 The package version is resolved dynamically: `pyproject.toml` declares
@@ -260,6 +270,66 @@ Standard Keplerian elements used throughout:
 - **X-axis**: Points right along the projected sky plane
 - **Y-axis**: Points up along the projected sky plane
 - **Z-axis**: Points toward the observer (negative = away from observer)
+
+### OpenCL Backend
+
+`meepmeep/backends/opencl/` ships the Numba backend's *evaluation* surface as
+OpenCL C **device functions only** — no `__kernel` entry points. Downstream
+packages (e.g. pt3/PyTransit) prepend `read_kernel_source(...)` output to
+their own kernel code; context/queue/program management is deliberately left
+to them. Whether MeepMeep will ever ship full kernels is an open decision.
+
+Key conventions (documented in each `.cl` header and `source.py`):
+
+- **Names mirror numba**, with three C-imposed deviations: only the
+  scalar evaluators exist (the NDRange supplies the loop, so `*_v`/`*_vp`/
+  `*_ov*` have no counterpart; each function takes the public dispatcher's
+  name — `_pos_cd_w`/`pos_cd` → `pos_cd3`, `_pos_os` → `pos_o`); the
+  single-expansion-point functions take a trailing dimension digit
+  (`pos_c2`/`pos_c3`, `sep_cd2`/`sep_cd3`, ...) because OpenCL C has one
+  flat namespace where numba disambiguates 2D/3D by package — the
+  multi-expansion-point `_o`/`_od` evaluators and the dimension-agnostic
+  helpers (`lambert_kernel(_d)`, `rv_scale`, `rv_cd_w`, `ep_lookup`,
+  `ep_ix`, `ltt_transit_z_and_d`) are unsuffixed; and optional arguments
+  (`te`, `lan`, `timing_is_tc`) are mandatory (pass `(REAL)0.0` / 0/1).
+- **Gradients keep the full 7-parameter `(tc, p, a, i, e, w, lan)` order**
+  (pt3's 6-row truncation is applied host-side by pt3, not here). Extra
+  physical inputs append after the orbital block: `rv_od` is 8 wide (+k),
+  lambert and ev_signal 9, emission 10. Every slot is written on every path;
+  `true_anomaly_od` zeroes its buffer on entry because its early returns
+  rely on numba's `zeros(7)` (an uninitialised read is UB in C).
+- **Precision**: `REAL` is set by `build_options(precision)`
+  (`-DREAL=double -DUSE_FP64` / `-DREAL=float`); every FP literal is
+  `(REAL)`-cast. **Never add `-cl-fast-relaxed-math`** — the tests pin
+  ~1e-12 agreement with numba, and the numba kernels that deliberately drop
+  fastmath (`true_anomaly`, `rv`) rely on strict math. In fp32 builds,
+  absolute times must be host-shifted by a float64 reference epoch (a
+  float32 ulp at BJD ~2.4e6 is ~0.25 d).
+- **Device-safety guards absent from numba**: `ep_lookup` tests `isnan`
+  before the int cast (`(int)floor(NAN)` is INT_MIN on NVIDIA and an OOB
+  `__global` read kills the shared context) and clamps the bucket index.
+  `ep_table` must be uploaded as int32 (`astype(np.int32)`); the numba
+  backend builds it int64.
+- **Excluded (stay host-side)**: all `solve*`, `newton/`,
+  `expansion_points.py` (scipy), and the `util.py` contact-point bisection.
+  The intended flow is pt3's: solve coefficients on the host (jitted),
+  upload the flattened arrays, evaluate on device.
+- **`.cl` files ship as package data** via `[tool.setuptools.package-data]`
+  (explicit globs are honoured despite `include-package-data = false`);
+  `pyopencl` is the optional `opencl` dependency group, and nothing in the
+  shipped Python imports it.
+- **Tests** (`meepmeep/tests/test_opencl_*.py`) guard with
+  `pytest.importorskip("pyopencl")` plus a platform check, build test-only
+  `__kernel` wrappers around the device functions (shared plumbing in
+  `tests/opencl_utils.py`), and compare against the numba dispatchers at
+  `rtol=1e-12` over multi-epoch times — the period chain term
+  `d[1] += epoch*d[0]` is unobservable at epoch 0, so single-epoch parity
+  tests cannot catch its omission. Mutation-test new `.cl` functions (flip
+  a sign, verify red) rather than trusting green tests.
+- Each `.cl` function is written to be diffable side-by-side against its
+  numba `_s`/`_w` kernel — that correspondence is the primary correctness
+  argument. When a numba kernel changes, port the change and keep the
+  structure aligned.
 
 ### Adding New Taylor Series Functions
 

@@ -4,6 +4,24 @@ All notable changes to MeepMeep are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- OpenCL backend (`meepmeep.backends.opencl`) shipping the evaluation
+  surface of the Numba backend as OpenCL C *device functions* (no
+  `__kernel` entry points): packages using MeepMeep prepend the source
+  returned by `read_kernel_source` to their own kernels. Covers the 2D and
+  3D single-expansion-point evaluators and the multi-expansion-point
+  orbit-spanning evaluators, in both value-only and value-plus-gradient
+  forms with the full seven-parameter `(tc, p, a, i, e, w, lan)`
+  convention. The `solve*` coefficient solvers, Newton reference solvers,
+  expansion-point placement, and contact-point bisection remain host-side
+  (Numba/JAX). Function names mirror the Numba backend, with the
+  single-expansion-point functions carrying a trailing dimension digit
+  (`pos_c2`/`pos_c3`, `sep_cd2`/`sep_cd3`, ...) because OpenCL C has a
+  single flat namespace where Numba disambiguates 2D/3D by package.
+  Install the optional dependency with `pip install meepmeep[opencl]`.
+
 ## [1.0.0] - 2026-06-18
 
 First stable release. The orbit backend was reorganised into a clear,

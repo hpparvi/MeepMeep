@@ -1,3 +1,6 @@
+<!-- SYNCED SNAPSHOT of docs/llms.md - do not edit here.
+     Edit docs/llms.md and re-copy (see CLAUDE.md, "LLM-facing docs"). -->
+
 # MeepMeep: API cheatsheet for LLM agents
 
 MeepMeep computes Keplerian orbit quantities for exoplanet modelling

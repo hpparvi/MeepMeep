@@ -249,3 +249,32 @@ Module suffix     Contents
 
 So ``point3dd/position.py`` is read as "3D position evaluators, with derivatives",
 and the ``orbit3dd/`` package as "orbit-spanning 3D dispatchers, with derivatives".
+
+
+OpenCL backend
+--------------
+
+The OpenCL backend (``meepmeep.backends.opencl``) ships the evaluation
+surface as OpenCL C *device functions* in ``.cl`` files mirroring the Numba
+package split (``point2d.cl``, ``point2dd.cl``, ``point3d.cl``,
+``point3dd.cl``, ``orbit3d.cl``, ``orbit3dd.cl``, plus shared helpers in
+``common.cl``). The names follow the Numba convention with three
+C-imposed adjustments:
+
+- Only the scalar evaluators exist; the vector and parallel kernels
+  (``*_v``/``*_vp``/``*_ov*``) have no counterpart because the OpenCL
+  NDRange supplies the loop over samples. Each function takes the name of
+  the public Numba dispatcher (``pos_cd``, ``pos_o``, ``pos_od``, ...),
+  and gradient outputs are caller-provided private buffers.
+- The single-expansion-point functions carry a trailing dimension digit:
+  ``2`` for 2D (``pos_c2``, ``sep2``, ``pos_cd2``, ...) and ``3`` for 3D
+  (``pos_c3``, ``sep3``, ``sep_cd3``, ...). OpenCL C has a single flat
+  namespace, so the digit replaces the package-based 2D/3D disambiguation
+  of the Numba backend. The multi-expansion-point ``_o``/``_od``
+  evaluators and the dimension-agnostic helpers (``lambert_kernel``,
+  ``rv_scale``, ``ep_ix``, ...) are unsuffixed.
+- Optional arguments (``te``, ``lan``, ``timing_is_tc``) are mandatory.
+
+The ``solve*`` coefficient solvers, Newton solvers, expansion-point
+placement, and the ``util`` contact-point helpers stay host-side; the
+OpenCL functions evaluate the coefficient arrays those produce.
