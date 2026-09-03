@@ -1,10 +1,12 @@
 """Tests for the periastron-basis (t_p) gradient support.
 
-The transform from the transit-centre gradient basis (tc, p, a, i, e, w, lan)
-to the periastron basis (tp, p, a, i, e, w, lan) is an exact closed-form chain
-rule. These tests check the primitive in isolation, its re-export, and its
-wiring into the Orbit class (exact tc<->tp consistency plus one finite-difference
-sign check).
+The transforms between the transit-centre gradient basis (tc, p, a, i, e, w, lan)
+and the periastron basis (tp, p, a, i, e, w, lan) are exact closed-form chain
+rules. The orbit-spanning solver is anchored at periastron, so the periastron
+basis is the native one and a tc-bound Orbit applies tp_to_tc_gradient. These
+tests check the primitives in isolation, their re-export, and their wiring into
+the Orbit class (exact tc<->tp consistency plus finite-difference checks in
+both bases).
 """
 import numpy as np
 import pytest
@@ -12,6 +14,7 @@ from numpy.testing import assert_allclose
 
 from meepmeep.orbit import Orbit
 from meepmeep.backends.numba.utils import (
+    tp_to_tc_gradient,
     tc_to_tp_gradient,
     mean_anomaly_at_transit,
     mean_anomaly_at_transit_with_derivatives,
@@ -76,25 +79,63 @@ def test_numba3d_reexports_primitive():
     import meepmeep.numba3d as n3
     assert "tc_to_tp_gradient" in n3.__all__
     assert hasattr(n3, "tc_to_tp_gradient")
+    assert "tp_to_tc_gradient" in n3.__all__
+    assert hasattr(n3, "tp_to_tc_gradient")
 
 
 def _times():
     return np.linspace(0.0, SHAPE["p"], 60)
 
 
-def test_tc_path_unchanged():
-    """A tc-bound orbit must apply NO transform: its gradient equals a direct
+def test_tp_path_unchanged():
+    """A tp-bound orbit must apply NO transform: the orbit-spanning solver is
+    anchored at periastron, so its gradient equals a direct
     star_planet_distance_od call on the raw solver coefficients."""
     times = _times()
     o = Orbit(npt=15, derivatives=True)
     o.set_data(times)
-    o.set_pars(tc=0.0, **SHAPE)
+    o.set_pars(tp=0.0, **SHAPE)
     _, g = o.star_planet_distance()
     _, g_direct = star_planet_distance_od(
         times, o._tp, o._p, o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
     )
     assert_allclose(g, g_direct, rtol=1e-12)
-    assert o._timing == "tc"
+    assert o._timing == "tp"
+
+
+def test_transforms_are_inverses():
+    rng = np.random.default_rng(2)
+    dc = rng.standard_normal((7, 3, 5))
+    p, e, w = 5.0, 0.3, 0.5
+    assert_allclose(tp_to_tc_gradient(tc_to_tp_gradient(dc, p, e, w), p, e, w), dc, rtol=1e-12, atol=1e-12)
+    assert_allclose(tc_to_tp_gradient(tp_to_tc_gradient(dc, p, e, w), p, e, w), dc, rtol=1e-12, atol=1e-12)
+
+
+def test_tc_separation_gradient_vs_finite_difference():
+    """The transit-centre basis is the transformed one now; its shape columns must
+    still match central finite differences taken holding tc fixed, which move the
+    periastron-anchored expansion points. Before the periastron anchoring the e and
+    w columns were off by the fifth-order term (about 1e-4 in this window)."""
+    base = dict(tc=0.3, **SHAPE)
+    keys = ["tc", "p", "a", "i", "e", "w", "lan"]
+    times = 0.3 + np.linspace(-0.04, 0.04, 9)
+    od = Orbit(npt=15, derivatives=True)
+    od.set_data(times)
+    od.set_pars(**base)
+    _, h = od.star_planet_distance()
+    ov = Orbit(npt=15, derivatives=False)
+    ov.set_data(times)
+    eps = 1e-6
+    for j, key in enumerate(keys):
+        hi, lo = dict(base), dict(base)
+        hi[key] += eps
+        lo[key] -= eps
+        ov.set_pars(**hi)
+        r_hi = ov.star_planet_distance()
+        ov.set_pars(**lo)
+        r_lo = ov.star_planet_distance()
+        fd = (r_hi - r_lo) / (2 * eps)
+        assert_allclose(h[:, j], fd, rtol=1e-6, atol=1e-7, err_msg=key)
 
 
 def test_tp_matches_transformed_tc_separation():
@@ -160,9 +201,7 @@ def test_tp_separation_gradient_vs_finite_difference():
     not corrupted by a point straddling an expansion point boundary between the +eps and
     -eps evaluations), we sample a narrow window around the transit centre.
     Within one expansion point the analytic derivative is the exact derivative of the same
-    Taylor polynomial the finite difference probes, so they agree closely. The
-    *exact* correctness of the transform is independently established by the
-    tc<->tp consistency tests above, which agree to ~1e-10.
+    Taylor polynomial the finite difference probes, so they agree to round-off.
     """
     base = dict(tp=0.0, **SHAPE)
     keys = ["tp", "p", "a", "i", "e", "w", "lan"]
@@ -189,7 +228,7 @@ def test_tp_separation_gradient_vs_finite_difference():
         ov.set_pars(**lo)
         r_lo = ov.star_planet_distance()
         fd = (r_hi - r_lo) / (2 * eps)
-        assert_allclose(h[:, j], fd, rtol=3e-3, atol=1e-5)
+        assert_allclose(h[:, j], fd, rtol=1e-6, atol=1e-7, err_msg=key)
 
 
 @pytest.mark.accuracy
@@ -201,9 +240,8 @@ def test_tp_rv_gradient_vs_finite_difference():
     (tp, p, a, i, e, w), so this finite-difference check independently
     validates the e- and w-rows that the tc->tp transform modifies -- the
     motivating science case. Same near-transit single-expansion-point window as the
-    separation check. The tp and p columns are looser (~5e-3) because the
-    radial velocity is a velocity and so carries one more order of Taylor
-    sensitivity; the e/w/a/i columns agree to ~1e-9.
+    separation check. The analytic gradient is that of the evaluated
+    polynomial, so every column agrees with the finite difference to round-off.
     """
     base = dict(tp=0.0, **SHAPE)
     keys = ["tp", "p", "a", "i", "e", "w", "lan"]
@@ -231,4 +269,4 @@ def test_tp_rv_gradient_vs_finite_difference():
         fd = (r_hi - r_lo) / (2 * eps)
         # h[:, :7] are the orbital columns; the k column (index 7) is not
         # perturbed here and is covered by test_tp_matches_transformed_tc_rv.
-        assert_allclose(h[:, j], fd, rtol=1e-2, atol=1e-3)
+        assert_allclose(h[:, j], fd, rtol=1e-5, atol=1e-6, err_msg=key)

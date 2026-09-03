@@ -48,7 +48,7 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 
 from .backends.numba.expansion_points import create_expansion_points
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
-from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector, tc_to_tp_gradient
+from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector, tp_to_tc_gradient
 from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
                                             true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
                                             lambert_phase_curve_o, emission_phase_curve_o, light_travel_time_o, )
@@ -110,9 +110,11 @@ class Orbit:
         slot 0 is :math:`\\partial/\\partial t_c` with the ``e``, ``w``,
         ``p`` derivatives taken at constant ``tc``; bind ``tp`` and the
         gradient is returned in the periastron basis
-        ``(tp, p, a, i, e, w, lan)`` (constant ``tp``). See the
-        "Transit-centre vs periastron parametrisation" section of the
-        derivatives documentation for the exact relationship.
+        ``(tp, p, a, i, e, w, lan)`` (constant ``tp``). The periastron basis
+        is the native one, because the expansion points sit at fixed phases
+        from periastron; the transit-centre basis is obtained by an exact
+        change of basis. See the "Transit-centre vs periastron
+        parametrisation" section of the derivatives documentation.
 
         With ``derivatives=True``, multi-coordinate returns are extended
         with derivative arrays (e.g. :meth:`xyz` returns
@@ -151,8 +153,9 @@ class Orbit:
     _timing : str
         Which timing convention was last bound via :meth:`set_pars`,
         ``"tc"`` (transit centre) or ``"tp"`` (periastron passage). In
-        derivative mode it selects the gradient basis: ``"tp"`` triggers a
-        reparametrisation of ``_dcoeffs`` into the periastron basis.
+        derivative mode it selects the gradient basis: ``"tc"`` triggers a
+        reparametrisation of ``_dcoeffs`` from the native periastron basis
+        into the transit-centre basis.
     _coeffs : ndarray, shape (npt, 3, 5)
         Taylor coefficient matrices at every expansion point, built in :meth:`set_pars`.
     _dcoeffs : ndarray, shape (npt, 7, 3, 5) or None
@@ -348,14 +351,15 @@ class Orbit:
         if self._derivatives:
             self._coeffs, self._dcoeffs = solve3d_orbit_d(self._ep_times, p, a, i, e, w,
                                                           lan=lan, npt=self.npt)
-            # When bound with tp, reparametrise the per-expansion-point gradient from the
-            # transit-centre basis (the solver's native basis) to the periastron
-            # basis. Each expansion point slice of _dcoeffs is replaced with its
-            # reparametrised copy; because every derivative-returning method
-            # reads _dcoeffs, the new basis propagates to all of them.
-            if self._timing == "tp":
+            # The orbit-spanning solver anchors every expansion point at a fixed phase
+            # from periastron, so its gradient rows are natively in the periastron
+            # basis (tp, p, a, i, e, w, lan) and exact for the polynomial it evaluates.
+            # When bound with tc, reparametrise each expansion point slice into the
+            # transit-centre basis; because every derivative-returning method reads
+            # _dcoeffs, the new basis propagates to all of them.
+            if self._timing == "tc":
                 for kn in range(self.npt):
-                    self._dcoeffs[kn] = tc_to_tp_gradient(self._dcoeffs[kn], p, e, w)
+                    self._dcoeffs[kn] = tp_to_tc_gradient(self._dcoeffs[kn], p, e, w)
         else:
             self._coeffs = solve3d_orbit(self._ep_times, p, a, i, e, w, lan=lan, npt=self.npt)
 

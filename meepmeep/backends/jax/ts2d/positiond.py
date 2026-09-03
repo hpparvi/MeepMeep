@@ -158,12 +158,18 @@ def solve_xy_p5_d(phase, p, a, i, e, w):
         Taylor coefficients.
     dcf : jnp.ndarray (6, 2, 5)
         Parameter derivatives: dcf[k] = d(cf)/d(theta_k)
-        for theta = (phase, p, a, i, e, w).
+        for theta = (phase, p, a, i, e, w). The phase row is the derivative
+        of the truncated polynomial, dcf[0, :, n] = (n + 1) cf[:, n + 1].
     """
     cf = solve_xy_p5(phase, p, a, i, e, w)
-    dcf = jax.jacfwd(solve_xy_p5, argnums=(0, 1, 2, 3, 4, 5))(phase, p, a, i, e, w)
-    dcf = jnp.stack(dcf, axis=0)  # (6, 2, 5)
-    return cf, dcf
+    dcf = jax.jacfwd(solve_xy_p5, argnums=(1, 2, 3, 4, 5))(phase, p, a, i, e, w)
+    # The phase row is the derivative of the truncated polynomial, not of the
+    # exact orbit: the polynomial depends on the expansion time only through
+    # its argument, so d/dphase = +P', i.e. dcf[0, :, n] = (n + 1) cf[:, n + 1]
+    # with a zero fourth-order entry. Differentiating the coefficients with
+    # autodiff would add the fifth-order term the polynomial does not carry.
+    dphase = jnp.concatenate([jnp.arange(1, 5) * cf[:, 1:5], jnp.zeros((2, 1))], axis=1)
+    return cf, jnp.concatenate([dphase[None], jnp.stack(dcf, axis=0)], axis=0)  # (6, 2, 5)
 
 
 def xy_t15_d(tc, t0, p, c, dc):

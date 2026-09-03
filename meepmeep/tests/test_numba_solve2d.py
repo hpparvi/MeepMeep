@@ -302,7 +302,7 @@ class TestSolve2dDLan:
             assert_allclose(dcf[k, 0], expected_x, rtol=1e-12, atol=1e-12)
             assert_allclose(dcf[k, 1], expected_y, rtol=1e-12, atol=1e-12)
 
-    @pytest.mark.parametrize("kidx", [0, 1, 2, 3, 4, 5])
+    @pytest.mark.parametrize("kidx", [1, 2, 3, 4, 5])
     def test_kepler_derivatives_vs_finite_diff(self, eccentric_orbit, kidx):
         """With a non-zero lan, the first six derivative rows still match finite
         differences w.r.t. their parameters (tc, p, a, i, e, w)."""
@@ -317,12 +317,10 @@ class TestSolve2dDLan:
         fd = (cf_p - cf_m) / (2 * h)
         _, dcf = solve2d_d(params[0], params[1], params[2], params[3],
                            params[4], params[5], lan=lan)
-        # Slot 0 is the derivative w.r.t. the transit-centre time tc. The orbit
-        # depends on (t_obs - tc), so d/dtc = -d/dtk; the finite difference above
-        # perturbs the solver's expansion point-time argument te (= d/dtk), so the
-        # slot-0 reference is negated.
-        expected = -fd if kidx == 0 else fd
-        assert_allclose(dcf[kidx], expected, rtol=1e-5, atol=1e-7)
+        # Slot 0 is the derivative of the truncated polynomial and has its own
+        # exact test in TestT0Derivative; a finite difference in the expansion
+        # time would compare it with the exact orbit's derivative instead.
+        assert_allclose(dcf[kidx], fd, rtol=1e-5, atol=1e-7)
 
 
 class TestT0Derivative:
@@ -331,21 +329,22 @@ class TestT0Derivative:
 
     @pytest.mark.parametrize("orbit_fixture", ["circular_orbit", "eccentric_orbit", "high_e_orbit"])
     def test_slot0_equals_negative_next_coefficient(self, orbit_fixture, request):
-        """Exact, truncation-free check of the tc convention. Because the Taylor
-        coefficient c[:, n] = P^(n)(0)/n! and d/dtc = -d/dtk, the (n+1)-th
-        coefficient is the te-derivative of the n-th, so the tc-derivative obeys
-        dc[0, :, n] = -(n+1) * c[:, n+1] for n = 0..3 (to machine precision).
-        With the old +TWO_PI/p sign this identity would be off by a sign."""
+        """Exact check of the tc row: the evaluators compute P(t - tc), so the tc
+        derivative is -P', i.e. dc[0, :, n] = -(n+1) * c[:, n+1] for n = 0..3 and
+        zero for n = 4 (the polynomial carries no fifth-order term). A row built by
+        differentiating the coefficients through Kepler's equation would instead be
+        the exact orbit's derivative, whose n = 4 entry is -5 c5 != 0."""
         orbit = request.getfixturevalue(orbit_fixture)
         cf, dcf = solve2d_d(0.0, **orbit)
         for n in range(4):
-            assert_allclose(dcf[0, :, n], -(n + 1) * cf[:, n + 1], rtol=1e-7, atol=1e-9)
+            assert_allclose(dcf[0, :, n], -(n + 1) * cf[:, n + 1], rtol=1e-12, atol=1e-12)
+        assert_allclose(dcf[0, :, 4], 0.0, atol=0.0)
 
     @pytest.mark.parametrize("time", [0.005, 0.01, 0.02, -0.02])
     def test_sep_d_and_pos_d_dtc_finite_difference(self, eccentric_orbit, time):
         """End-to-end: slot 0 of sep_d/pos_d matches a central difference of the
-        value w.r.t. the tc argument. Times are kept near the expansion point so the Taylor
-        truncation (the value model's own accuracy limit) stays below tolerance."""
+        value w.r.t. the tc argument. The tc row is the derivative of the polynomial
+        itself, so the agreement is at round-off level at any time."""
         c, dc = solve2d_d(0.0, **eccentric_orbit)
         p = eccentric_orbit["p"]
         tc, h = 0.0, 1e-6
@@ -353,13 +352,13 @@ class TestT0Derivative:
         _, dd = sep_d(time, tc, p, c, dc)
         dp, _ = sep_d(time, tc + h, p, c, dc)
         dm, _ = sep_d(time, tc - h, p, c, dc)
-        assert_allclose(dd[0], (dp - dm) / (2 * h), rtol=1e-5, atol=1e-6)
+        assert_allclose(dd[0], (dp - dm) / (2 * h), rtol=1e-8, atol=1e-9)
 
         _, _, dpx, dpy = pos_d(time, tc, p, c, dc)
         pxp, pyp, _, _ = pos_d(time, tc + h, p, c, dc)
         pxm, pym, _, _ = pos_d(time, tc - h, p, c, dc)
-        assert_allclose(dpx[0], (pxp - pxm) / (2 * h), rtol=1e-5, atol=1e-6)
-        assert_allclose(dpy[0], (pyp - pym) / (2 * h), rtol=1e-5, atol=1e-6)
+        assert_allclose(dpx[0], (pxp - pxm) / (2 * h), rtol=1e-8, atol=1e-9)
+        assert_allclose(dpy[0], (pyp - pym) / (2 * h), rtol=1e-8, atol=1e-9)
 
 
 if __name__ == "__main__":

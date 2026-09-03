@@ -141,7 +141,7 @@ from .backends.numba.orbit3dd import (
 
 # --- Dimension-agnostic primitives ------------------------------------
 from .backends.numba.expansion_points import create_expansion_points
-from .backends.numba.utils import tc_to_tp_gradient
+from .backends.numba.utils import tc_to_tp_gradient, tp_to_tc_gradient
 
 __all__ = [
     "bounding_box",
@@ -300,6 +300,7 @@ __all__ = [
     "t34",
     "t4",
     "tc_to_tp_gradient",
+    "tp_to_tc_gradient",
     "true_anomaly_o",
     "true_anomaly_od",
     "true_anomaly_ov",

@@ -401,6 +401,12 @@ For **single-expansion-point gradients**, swap
   ``(tc, p, a, i, e, w, lan)``.
 * Axes 1, 2 — spatial dimension and Taylor order, matching ``c``.
 
+The ``tc`` row is the derivative of the truncated polynomial the
+evaluators compute (``dc[0, :, n] = -(n + 1) c[:, n + 1]``), not of the
+exact orbit; the two differ by the fifth-order term the expansion drops.
+This keeps the gradient consistent with the returned value, which is
+what optimisers and samplers need; see :ref:`transit-centre-row`.
+
 Every gradient-returning evaluator
 (e.g. :func:`~meepmeep.backends.numba.point3dd.position.pos_d`,
 :func:`~meepmeep.backends.numba.point3dd.separation.sep_d`,

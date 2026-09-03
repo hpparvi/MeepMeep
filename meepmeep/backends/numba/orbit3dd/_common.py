@@ -74,7 +74,11 @@ def solve3d_orbit_d(ep_times, p, a, i, e, w, lan=0.0, npt=15):
         :func:`~meepmeep.backends.numba.orbit3d.solve3d_orbit`).
     dcoeffs : ndarray, shape (npt, 7, 3, 5)
         Parameter-derivative tensors at every expansion point. The second axis is
-        ordered ``(tc, p, a, i, e, w, lan)``.
+        ordered ``(tp, p, a, i, e, w, lan)``: the **periastron basis**, with the
+        shape derivatives taken holding the periastron time fixed, because the
+        expansion points sit at fixed phases from periastron. Use
+        :func:`~meepmeep.backends.numba.utils.tp_to_tc_gradient` for the
+        transit-centre basis.
 
     Notes
     -----
@@ -83,9 +87,14 @@ def solve3d_orbit_d(ep_times, p, a, i, e, w, lan=0.0, npt=15):
     """
     coeffs = zeros((npt, 3, 5))
     dcoeffs = zeros((npt, 7, 3, 5))
-    to = mean_anomaly_at_transit(e, w) / (2 * pi) * p
     for ix in range(npt - 1):
-        cf, dcf = solve3d_d(p * ep_times[ix] - to, p, a, i, e, w, lan)
+        # Expansion points sit at fixed phases from periastron, so the solver is
+        # anchored there: the rows are exact at fixed phase and in the periastron basis.
+        cf, dcf = solve3d_d(p * ep_times[ix], p, a, i, e, w, lan, True)
+        # The expansion time p * phase moves with the period, which shifts the
+        # polynomial argument; at the coefficient level that is phase times the
+        # timing row (exact for the polynomial the evaluators compute).
+        dcf[1] += ep_times[ix] * dcf[0]
         coeffs[ix, :, :] = cf
         dcoeffs[ix, :, :, :] = dcf
     coeffs[-1, :, :] = coeffs[0]

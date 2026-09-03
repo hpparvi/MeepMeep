@@ -28,6 +28,7 @@ from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.expansion_points import create_expansion_points
 from meepmeep.backends.numba.utils import (
+    tp_to_tc_gradient,
     TWO_PI,
     mean_anomaly_at_transit,
     eccentricity_vector,
@@ -675,10 +676,11 @@ class TestEVSignalOrbitalGradientRegression:
 
     Two conventions matter for the finite differences:
 
-    - The gradient basis is ``(tc, p, a, i, e, w, lan)`` with tc the transit
-      centre, even though the evaluators anchor at the periastron time: a
-      p/e/w perturbation at fixed tc moves the anchor via
-      ``tpa = tc - M0(e, w)/(2 pi) * p``, so ``tpa`` must be recomputed from
+    - The finite differences are taken in the transit-centre basis
+      ``(tc, p, a, i, e, w, lan)``, while the orbit-spanning solver returns the
+      periastron basis, so the test converts the coefficient derivatives with
+      ``tp_to_tc_gradient``. A p/e/w perturbation at fixed tc moves the anchor
+      via ``tpa = tc - M0(e, w)/(2 pi) * p``, so ``tpa`` must be recomputed from
       every perturbed parameter set.
     - The samples span several orbits, so the test also guards the epoch
       chain term ``epoch * d/dtc`` that the period column must include (the
@@ -691,6 +693,10 @@ class TestEVSignalOrbitalGradientRegression:
         p, e, i0 = orbit_case["p"], orbit_case["e"], orbit_case["i"]
         ep_times, _, dt, ep_table = create_expansion_points(NPT, max(e, 0.2), "ea")
         coeffs, dcoeffs = solve3d_orbit_d(ep_times, **orbit_case, npt=NPT)
+        # The orbit-spanning solver returns the periastron basis; the finite
+        # differences below hold tc fixed, so convert every expansion point.
+        for kn in range(NPT):
+            dcoeffs[kn] = tp_to_tc_gradient(dcoeffs[kn], p, e, orbit_case["w"])
         tpa0 = -mean_anomaly_at_transit(e, orbit_case["w"]) / TWO_PI * p
         times = tpa0 + np.linspace(0.02, 3.98, NTIMES) * p
 

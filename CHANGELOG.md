@@ -6,6 +6,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- The transit-centre (slot 0) row of the derivative tensors returned by
+  `solve2d_d`, `solve3d_d`, `solve3d_orbit_d` and the JAX `solve_xy_p5_d`
+  is now the derivative of the truncated Taylor polynomial the evaluators
+  compute, `dc[0, :, n] = -(n + 1) c[:, n + 1]` with a zero fourth-order
+  entry, instead of the derivative of the exact orbit obtained by
+  propagating `dM/dtc = -n` through Kepler's equation. The two differ by
+  the fifth-order term the expansion drops, `x^(5) tau^4 / 4!`: about
+  1e-5 relative at `tau = 0.07` d for a hot-Jupiter orbit, growing as
+  `tau^4`. The gradient is now the gradient of the value the evaluators
+  return, which is what gradient-based optimisers and samplers need, and
+  it agrees with finite differences of any `_d` evaluator with respect to
+  its `tc` argument to round-off at any time. The period column of the
+  absolute-time evaluators inherits the change through the period-folding
+  term. The OpenCL device functions consume the host-solved tensors and
+  follow automatically. See "Step 9 — the transit-centre row" in the
+  derivatives documentation.
+- The orbit-spanning solver `solve3d_orbit_d` now anchors the point solver at
+  periastron (new `from_periastron` argument of `solve2d_d` / `solve3d_d`),
+  where its expansion points actually sit, and returns the periastron basis
+  `(tp, p, a, i, e, w, lan)` natively. `Orbit` applies the new
+  `tp_to_tc_gradient` when bound with `tc` instead of `tc_to_tp_gradient`
+  when bound with `tp`. Previously the shape rows were differentiated at fixed
+  expansion time from the transit centre while the expansion points moved
+  with the periastron time, which left the `e`, `w` and `p` columns of an
+  `Orbit` gradient off by the same fifth-order term in both bases (about
+  1e-4 within 0.04 d of transit for a hot-Jupiter orbit). Finite differences
+  of any `Orbit` quantity, in either basis, now reproduce the analytic
+  gradient to round-off. `tc_to_tp_gradient` is kept for transit-centre
+  anchored blocks from the single-expansion-point solvers, for which it is
+  exact.
+
 ### Added
 - OpenCL backend (`meepmeep.backends.opencl`) shipping the evaluation
   surface of the Numba backend as OpenCL C *device functions* (no

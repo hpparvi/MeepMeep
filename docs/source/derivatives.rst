@@ -24,14 +24,16 @@ parameters
 
 where :math:`t_c` is the transit-centre time (time of inferior
 conjunction). The leading axis of every ``dc`` tensor follows this
-ordering. Note the sign: the orbit position depends on the elapsed
-time :math:`t_\mathrm{obs} - t_c`, so the :math:`t_c` partial is the
-negative of the partial w.r.t. the expansion point/expansion-time argument ``te``
-passed to the solver, :math:`\partial / \partial t_c = -\,\partial / \partial t_k`. This page documents how those derivatives are
-computed, the explicit formulas at each stage, and the practical
-regime in which they are accurate — useful when you are verifying the
-math, extending the backend with a new observable, or debugging a
-gradient mismatch.
+ordering. The :math:`t_c` row is special: the evaluators depend on
+:math:`t_c` only through the polynomial argument
+:math:`t_\mathrm{obs} - t_c`, so it is the derivative of the truncated
+polynomial itself, :math:`\partial c_n / \partial t_c = -(n+1)\, c_{n+1}`,
+rather than a derivative propagated through Kepler's equation; see
+:ref:`transit-centre-row` for why that distinction matters. This page
+documents how those derivatives are computed, the explicit formulas at
+each stage, and the practical regime in which they are accurate — useful
+when you are verifying the math, extending the backend with a new
+observable, or debugging a gradient mismatch.
 
 .. contents::
    :local:
@@ -162,18 +164,19 @@ argument, measured relative to the transit centre, with
 
    M(t_k; p, e, w) \;=\; \frac{2\pi\, t_k}{p} \;+\; M_\text{tr}(e, w) \pmod{2\pi},
 
-so, differentiating w.r.t. the parameter vector (slot 0 is the
-transit-centre time :math:`t_c`, with :math:`\partial M/\partial t_c =
--\,\partial M/\partial t_k`),
+so, differentiating w.r.t. the parameter vector,
 
 .. math::
 
-   \frac{\partial M}{\partial t_c} = -\frac{2\pi}{p}, \qquad
    \frac{\partial M}{\partial p} = -\frac{2\pi\, t_k}{p^2}, \qquad
    \frac{\partial M}{\partial e} = \frac{\partial M_\text{tr}}{\partial e}, \qquad
    \frac{\partial M}{\partial w} = \frac{\partial M_\text{tr}}{\partial w},
 
-with the other two entries (``a``, ``i``) zero.
+with the ``a`` and ``i`` entries zero. Slot 0, the transit-centre time,
+is *not* propagated from here (its entry is zero throughout Layer A):
+the transit centre enters the evaluators only through the polynomial
+argument, so its row is assembled from the coefficients at the end
+(:ref:`transit-centre-row`).
 
 
 Step 4 — eccentric anomaly via implicit differentiation
@@ -328,6 +331,54 @@ the dependence on :math:`(t_c, p, a, e)`. The output ``dcf`` is the
 tensor whose entries are exactly the right-hand side of this boxed
 identity.
 
+
+.. _transit-centre-row:
+
+Step 9 — the transit-centre row
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every evaluator computes a polynomial in the elapsed time,
+:math:`P(\tau) = \sum_{n=0}^{4} c_n \tau^n` with
+:math:`\tau = t_\mathrm{obs} - t_c - t_k`, so the transit centre enters
+only through the argument and
+
+.. math::
+
+   \frac{\partial P}{\partial t_c} = -P'(\tau)
+   \quad\Longrightarrow\quad
+   \frac{\partial c_n}{\partial t_c} = -(n+1)\, c_{n+1}
+   \ \ (n = 0, \dots, 3), \qquad
+   \frac{\partial c_4}{\partial t_c} = 0 .
+
+The solvers build the row from this identity rather than by propagating
+:math:`\partial M / \partial t_c = -2\pi/p` through Kepler's equation
+as they do for the other parameters. The two are not the same thing.
+Propagating through Kepler's equation differentiates the *exact* orbit
+and its fourth-order entry is :math:`-5\, c_5`, the fifth-order
+coefficient the expansion does not carry; evaluated in the polynomial
+it adds :math:`x^{(5)}\, \tau^4 / 4!` to the :math:`t_c` derivative,
+which is exact for the true orbit but is not the derivative of the value
+the evaluator returns. The two differ by about :math:`10^{-5}` relative
+at :math:`\tau \approx 0.07` d for a typical hot-Jupiter orbit
+(:math:`a = 6`, :math:`p = 3` d) and grow as :math:`\tau^4`, reaching
+the per-mille level at :math:`\tau \approx 0.3` d, where a single
+expansion point is stretched anyway.
+
+MeepMeep ships the derivative of the polynomial because the gradient is
+consumed by optimisers and samplers that need the gradient of the model
+*actually evaluated*: Hamiltonian Monte Carlo, for instance, relies on
+the gradient and the value belonging to the same function, and finite
+differences or automatic differentiation of the evaluator give this
+form. The accuracy of either form against the true orbit is set by the
+expansion's own truncation and is the same. The period column inherits
+the choice through the period-folding term ``dd[1] += epoch * dd[0]``
+of the absolute-time evaluators, so multi-epoch period gradients are
+consistent as well. The identity is exact, so the row can be checked to
+round-off: finite differences of ``sep_d`` or ``pos_d`` with respect to
+their ``tc`` argument agree with slot 0 to :math:`10^{-9}` at any time,
+not just near the expansion point. If you need the derivative of the
+true orbit with respect to time instead (a physical velocity), use the
+velocity evaluators.
 
 Layer B: evaluator propagation
 ------------------------------
@@ -556,30 +607,21 @@ Numerical regime and pitfalls
   same envelope the value-only evaluators inhabit.
 
 * **Slot-0 convention.** Slot 0 is the partial with respect to the
-  transit-centre time :math:`t_c`. Because the orbit depends on the
-  elapsed time :math:`t_\mathrm{obs} - t_c`, this equals the negative of
-  the partial w.r.t. the solver's expansion point/expansion-time argument ``te``:
-  :math:`\partial / \partial t_c = -\,\partial / \partial t_k`. The sign
-  is applied once at the source (``dma[0] = -2\pi/p`` in ``solve2d_d`` /
+  transit-centre time :math:`t_c`, taken of the truncated polynomial the
+  evaluators compute (:ref:`transit-centre-row`). It is built once at the
+  source (``dcf[0, :, n] = -(n + 1) cf[:, n + 1]`` in ``solve2d_d`` /
   ``solve3d_d``) and propagates linearly through every evaluator, so all
   ``_d`` / ``_od`` outputs report :math:`\partial / \partial t_c`
-  consistently.
+  consistently, and finite differences of any evaluator with respect to
+  its ``tc`` argument reproduce it to round-off.
 
 Transit-centre vs periastron parametrisation
 --------------------------------------------
 
-The solver's native gradient basis is the **transit-centre** parametrisation:
-slot 0 is :math:`\partial / \partial t_c` and the eccentricity, argument-of-
-periastron, and period derivatives are taken holding :math:`t_c` fixed.
-
-When an :class:`~meepmeep.orbit.Orbit` is bound with the time of periastron
-passage (``set_pars(tp=...)``), the gradients are instead returned in the
-**periastron** parametrisation :math:`(t_p, p, a, i, e, w, \lambda)`, with the
-shape derivatives taken holding :math:`t_p` fixed. The basis therefore follows
-whichever timing parameter you supply: ``tc`` keeps the transit-centre basis,
-``tp`` switches to the periastron basis.
-
-The two are related by the exact, parameter-dependent offset
+The two timing parametrisations, :math:`(t_c, p, a, i, e, w, \lambda)` with the
+shape derivatives taken holding the transit centre fixed and
+:math:`(t_p, p, a, i, e, w, \lambda)` holding the periastron time fixed, are
+related by the exact, parameter-dependent offset
 
 .. math::
 
@@ -598,13 +640,53 @@ of the timing row added to the :math:`p`, :math:`e`, and :math:`w` rows:
        + \frac{\partial f}{\partial t_c}\, \frac{\partial M_\mathrm{tr}}{\partial e}\, \frac{p}{2\pi}, \\
    \frac{\partial f}{\partial w}\Big|_{t_p} &=
        \frac{\partial f}{\partial w}\Big|_{t_c}
-       + \frac{\partial f}{\partial t_c}\, \frac{\partial M_\mathrm{tr}}{\partial w}\, \frac{p}{2\pi}.
+       + \frac{\partial f}{\partial t_c}\, \frac{\partial M_\mathrm{tr}}{\partial w}\, \frac{p}{2\pi},
 
-The :math:`a`, :math:`i`, and :math:`\lambda` rows are unchanged, and slot 0 is
-numerically identical in both bases (it equals :math:`\partial/\partial t_c =
-\partial/\partial t_p` when the other parameters are held fixed). This change of
-basis is applied once to the per-expansion-point coefficient derivatives by
-:func:`~meepmeep.numba3d.tc_to_tp_gradient`, so it propagates consistently to
-every derivative-returning quantity (radial velocity, position, separation,
-phase curves, ...). The relevant mean-anomaly-at-transit terms come from
+and the reverse transform subtracts the same multiples. The :math:`a`,
+:math:`i`, and :math:`\lambda` rows are unchanged, and slot 0 is numerically
+identical in both bases (it equals :math:`\partial/\partial t_c =
+\partial/\partial t_p` when the other parameters are held fixed). The
+transforms are :func:`~meepmeep.numba3d.tc_to_tp_gradient` and
+:func:`~meepmeep.numba3d.tp_to_tc_gradient`, with the mean-anomaly-at-transit
+terms from
 :func:`~meepmeep.backends.numba.utils.mean_anomaly_at_transit_with_derivatives`.
+
+**Which basis is native depends on where the expansion points are anchored**,
+and this is not a formality. A transform is exact for the truncated polynomial
+only if the timing parameter enters the evaluated model purely through the
+polynomial argument, so that its row is the polynomial's own derivative
+(:ref:`transit-centre-row`). If instead the timing parameter moves the
+expansion points relative to the orbit, the shape derivatives differentiated
+through Kepler's equation at fixed expansion time carry an implicit exact-orbit
+time shift, and the transform leaks the fifth-order term.
+
+* The single-expansion-point solvers
+  :func:`~meepmeep.backends.numba.point2dd.solve.solve2d_d` /
+  :func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` anchor the
+  expansion time ``te`` at the transit centre by default and return the
+  **transit-centre** basis, exact for a model whose ``te`` is held fixed from
+  :math:`t_c`. ``tc_to_tp_gradient`` converts such a block exactly. With
+  ``from_periastron=True`` they anchor ``te`` at periastron and return the
+  periastron basis instead.
+
+* The orbit-spanning solver
+  :func:`~meepmeep.backends.numba.orbit3dd.solve3d_orbit_d` places its
+  expansion points at fixed phases from periastron and therefore calls the
+  point solver with ``from_periastron=True``: its rows are natively the
+  **periastron** basis, exact at fixed phase, with the period row holding
+  the phase (not the expansion time) fixed and the solver adding
+  :math:`\phi_k\, \partial c/\partial t_p` for the shift of the expansion
+  time :math:`p\,\phi_k` with the period. Differentiating at fixed
+  expansion time from the transit centre there would leave the ``e``, ``w``
+  and ``p`` columns off by the fifth-order term (about :math:`10^{-4}` in a
+  0.04 d window around transit for a hot-Jupiter orbit), whichever basis is
+  reported.
+
+An :class:`~meepmeep.orbit.Orbit` therefore returns the periastron basis
+untouched when bound with ``set_pars(tp=...)`` and applies
+``tp_to_tc_gradient`` once to the per-expansion-point coefficient derivatives
+when bound with ``set_pars(tc=...)``, so the transit-centre basis propagates
+consistently to every derivative-returning quantity (radial velocity, position,
+separation, phase curves, ...). Either way the gradient is the exact gradient
+of the value the class returns, and central finite differences of any quantity
+with respect to any parameter, in either basis, reproduce it to round-off.

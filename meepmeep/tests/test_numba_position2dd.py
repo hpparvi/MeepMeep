@@ -71,10 +71,14 @@ class TestPos2dDLan:
         xm, ym = pos_c(time, cf_m)
         dpx_fd = (xp - xm) / (2 * h)
         dpy_fd = (yp - ym) / (2 * h)
-        # Slot 0 is d/dtc; the perturbation above is in the solver's expansion point-time
-        # argument te (d/dtk), and d/dtc = -d/dtk, so the slot-0 reference is negated.
+        # Slot 0 is the derivative of the polynomial w.r.t. tc, which enters only
+        # through the argument (t - tc): the reference is -dP/dt with the same
+        # coefficients, not a perturbation of the expansion time (that would be
+        # the exact orbit's derivative, off by the missing fifth-order term).
         if kidx == 0:
-            dpx_fd, dpy_fd = -dpx_fd, -dpy_fd
+            xp, yp = pos_c(time + h, cf)
+            xm, ym = pos_c(time - h, cf)
+            dpx_fd, dpy_fd = -(xp - xm) / (2 * h), -(yp - ym) / (2 * h)
 
         assert_allclose(dpx[kidx], dpx_fd, rtol=1e-5, atol=1e-7,
                         err_msg=f"dpx/d{PARAM_NAMES[kidx]} mismatch")
@@ -109,10 +113,9 @@ class TestSep2dDLan:
         d_p = sep_c(time, cf_p)
         d_m = sep_c(time, cf_m)
         dd_fd = (d_p - d_m) / (2 * h)
-        # Slot 0 is d/dtc; the perturbation above is in the solver's expansion point-time
-        # argument te (d/dtk), and d/dtc = -d/dtk, so the slot-0 reference is negated.
+        # Slot 0 is the derivative of the polynomial w.r.t. tc (see the position test).
         if kidx == 0:
-            dd_fd = -dd_fd
+            dd_fd = -(sep_c(time + h, cf) - sep_c(time - h, cf)) / (2 * h)
 
         assert_allclose(dd[kidx], dd_fd, rtol=1e-5, atol=1e-7,
                         err_msg=f"dsep/d{PARAM_NAMES[kidx]} mismatch")

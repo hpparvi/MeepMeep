@@ -23,7 +23,7 @@ from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 
 @njit(fastmath=True)
-def solve3d_d(te, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
+def solve3d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False) -> tuple[NDArray, NDArray]:
     """Calculate Taylor expansion coefficients and their parameter derivatives for the 3D position around a given expansion-point time relative to the transit centre.
 
     Parameters
@@ -46,6 +46,17 @@ def solve3d_d(te, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
         Longitude of the ascending node [rad]. A constant counterclockwise rotation
         of the sky-plane (x, y) coordinates about the line of sight; the line-of-sight
         (z) coordinate is unaffected. Defaults to 0.0.
+    from_periastron : bool, optional
+        Measure `te` from the periastron passage instead of the transit centre.
+        The mean anomaly at the expansion point then carries no transit offset,
+        and the derivative rows are the periastron-basis ones
+        ``(tp, p, a, i, e, w, lan)``, taken at fixed *phase* ``te / p`` from
+        periastron: neither the shape parameters nor the period move the
+        expansion point along the orbit. This is what the orbit-spanning solver
+        needs, whose expansion points sit at fixed periastron phases; it adds
+        the shift of the expansion time with the period itself. Defaults to
+        False (transit-centre anchoring, rows at fixed expansion time from the
+        transit centre).
 
     Returns
     -------
@@ -54,8 +65,11 @@ def solve3d_d(te, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
     dcf : ndarray (7, 3, 5)
         Parameter derivative coefficients. dcf[k] = d(cf)/d(theta_k)
         for theta = (tc, p, a, i, e, w, lan). Row 0 is the derivative with
-        respect to the transit-centre time tc (dM/dtc = -n); row 6 is the
-        derivative with respect to the longitude of the ascending node.
+        respect to the transit-centre time tc, taken of the truncated
+        polynomial the evaluators compute: dcf[0, :, n] = -(n + 1) cf[:, n + 1]
+        (zero for n = 4); it is the derivative with respect to the periastron
+        time tp instead when `from_periastron` is set. Row 6 is the derivative
+        with respect to the longitude of the ascending node.
     """
     # Parameter indices: 0=tc, 1=p, 2=a, 3=i, 4=e, 5=w, 6=lan
 
@@ -92,10 +106,14 @@ def solve3d_d(te, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
     # ================================================================
     # Step 2: Mean anomaly offset and its derivatives
     # ================================================================
-    offset, d_offset_de, d_offset_dw = mean_anomaly_at_transit_with_derivatives(e, w)
     doffset = zeros(6)
-    doffset[4] = d_offset_de
-    doffset[5] = d_offset_dw
+    if from_periastron:
+        # te is measured from periastron: M = 2 pi te / p, independent of e and w.
+        offset = 0.0
+    else:
+        offset, d_offset_de, d_offset_dw = mean_anomaly_at_transit_with_derivatives(e, w)
+        doffset[4] = d_offset_de
+        doffset[5] = d_offset_dw
 
     # ================================================================
     # Step 3: Mean anomaly and Kepler's equation
@@ -103,10 +121,16 @@ def solve3d_d(te, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
     ma = (TWO_PI * te / p + offset) % TWO_PI
 
     dma = zeros(6)
-    # Slot 0 is d/dtc (transit-centre time). The position depends on
-    # (t_obs - tc), so d/dtc = -d/dtk and dM/dtc = -n = -TWO_PI/p.
-    dma[0] = -TWO_PI / p
-    dma[1] = -TWO_PI * te / p**2
+    # Slot 0 (the transit-centre time tc) is not propagated through Kepler's
+    # equation: the polynomial depends on tc only through its argument
+    # (t_obs - tc), so its tc derivative is built from the coefficients
+    # themselves in the final step. Propagating dM/dtc = -n here would give
+    # the derivative of the exact orbit instead, which differs from that of
+    # the truncated polynomial by the missing fifth-order term.
+    dma[0] = 0.0
+    # At a fixed phase from periastron the mean anomaly does not depend on the
+    # period; the expansion point rides with the orbit when p changes.
+    dma[1] = 0.0 if from_periastron else -TWO_PI * te / p ** 2
     dma[4] = doffset[4]
     dma[5] = doffset[5]
 
@@ -357,5 +381,20 @@ def solve3d_d(te, p, a, i, e, w, lan: float = 0.0) -> tuple[NDArray, NDArray]:
             dy0 = dcf[k, 1, col]
             dcf[k, 0, col] = cO * dx0 - sO * dy0
             dcf[k, 1, col] = sO * dx0 + cO * dy0
+
+    # ================================================================
+    # Step 9: Transit-centre row
+    # ================================================================
+    # The evaluators compute P(t - tc) = sum_n c[:, n] (t - tc)^n, so
+    # dP/dtc = -P'(t - tc): the tc row is the derivative of the truncated
+    # polynomial, dc[0, :, n] = -(n + 1) c[:, n + 1], with a zero fourth-order
+    # entry. This makes the gradient consistent with the value the evaluators
+    # return (what optimisers and samplers need) rather than with the exact
+    # orbit, from which the two differ by the fifth-order term x^(5) tau^4 / 4!.
+    for col in range(4):
+        for row in range(3):
+            dcf[0, row, col] = -(col + 1) * cf[row, col + 1]
+    for row in range(3):
+        dcf[0, row, 4] = 0.0
 
     return cf, dcf

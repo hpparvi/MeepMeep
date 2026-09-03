@@ -331,9 +331,13 @@ def tc_to_tp_gradient(dc, p, e, w):
     """Reparametrise a transit-centre-basis gradient block into the periastron basis.
 
     Converts a gradient whose leading axis is ordered ``(tc, p, a, i, e, w, lan)``
-    (the transit-centre parametrisation produced by ``solve2d_d`` / ``solve3d_d``)
-    into the periastron parametrisation ``(tp, p, a, i, e, w, lan)``, in which the
-    shape derivatives are taken holding the time of periastron passage fixed.
+    (the transit-centre parametrisation produced by ``solve2d_d`` / ``solve3d_d``
+    with their default transit-centre anchoring, i.e. rows taken at fixed
+    expansion time from the transit centre) into the periastron parametrisation
+    ``(tp, p, a, i, e, w, lan)``, in which the shape derivatives are taken holding
+    the time of periastron passage fixed. It is exact for that anchoring; the
+    orbit-spanning solver anchors at periastron and returns the periastron basis
+    directly, so use :func:`tp_to_tc_gradient` on its output instead.
 
     The two conventions are related by ``tc = tp + M_tr(e, w) * p / (2 * pi)``, so
     the chain rule adds multiples of the timing row (index 0) to the p, e, and w
@@ -370,6 +374,52 @@ def tc_to_tp_gradient(dc, p, e, w):
     out[1] = dc[1] + dc[0] * (m_tr * c)
     out[4] = dc[4] + dc[0] * (dm_tr_de * p * c)
     out[5] = dc[5] + dc[0] * (dm_tr_dw * p * c)
+    return out
+
+
+def tp_to_tc_gradient(dc, p, e, w):
+    """Reparametrise a periastron-basis gradient block into the transit-centre basis.
+
+    The inverse of :func:`tc_to_tp_gradient`: converts a gradient whose leading
+    axis is ordered ``(tp, p, a, i, e, w, lan)`` (the periastron parametrisation
+    produced by ``solve3d_orbit_d``, or by ``solve2d_d`` / ``solve3d_d`` with
+    ``from_periastron=True``) into ``(tc, p, a, i, e, w, lan)``, in which the
+    shape derivatives are taken holding the transit centre fixed. Since
+    ``tp = tc - M_tr(e, w) * p / (2 * pi)``, the chain rule subtracts multiples
+    of the timing row (index 0) from the p, e, and w rows::
+
+        out[1] = dc[1] - dc[0] * (M_tr / (2 pi))
+        out[4] = dc[4] - dc[0] * (dM_tr/de * p / (2 pi))
+        out[5] = dc[5] - dc[0] * (dM_tr/dw * p / (2 pi))
+
+    Rows 0 (timing, now d/dtc), 2 (a), 3 (i), and 6 (lan) are unchanged. Both
+    transforms are exact for the truncated polynomial the evaluators compute,
+    because the timing row is that polynomial's own derivative and the timing
+    parameter enters the evaluators only through the polynomial argument.
+
+    Parameters
+    ----------
+    dc : ndarray
+        Gradient block with the parameter axis first, shape ``(7, ...)``.
+    p : float
+        Orbital period [days].
+    e : float
+        Eccentricity.
+    w : float
+        Argument of periastron [rad].
+
+    Returns
+    -------
+    ndarray
+        A new array of the same shape as ``dc``, in the transit-centre
+        parametrisation. The input is not modified.
+    """
+    m_tr, dm_tr_de, dm_tr_dw = mean_anomaly_at_transit_with_derivatives(e, w)
+    c = 1.0 / TWO_PI
+    out = dc.copy()
+    out[1] = dc[1] - dc[0] * (m_tr * c)
+    out[4] = dc[4] - dc[0] * (dm_tr_de * p * c)
+    out[5] = dc[5] - dc[0] * (dm_tr_dw * p * c)
     return out
 
 
