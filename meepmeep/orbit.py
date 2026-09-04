@@ -48,7 +48,8 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 
 from .backends.numba.expansion_points import create_expansion_points
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
-from .backends.numba.utils import mean_anomaly_at_transit, TWO_PI, eccentricity_vector, tp_to_tc_gradient
+from .backends.numba.utils import (mean_anomaly_at_transit, TWO_PI, eccentricity_vector,
+                                   tp_to_tc_gradient_orbit)
 from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
                                             true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
                                             lambert_phase_curve_o, emission_phase_curve_o, light_travel_time_o, )
@@ -358,8 +359,7 @@ class Orbit:
             # transit-centre basis; because every derivative-returning method reads
             # _dcoeffs, the new basis propagates to all of them.
             if self._timing == "tc":
-                for kn in range(self.npt):
-                    self._dcoeffs[kn] = tp_to_tc_gradient(self._dcoeffs[kn], p, e, w)
+                tp_to_tc_gradient_orbit(self._dcoeffs, p, e, w)
         else:
             self._coeffs = solve3d_orbit(self._ep_times, p, a, i, e, w, lan=lan, npt=self.npt)
 

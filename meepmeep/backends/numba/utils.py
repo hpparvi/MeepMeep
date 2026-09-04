@@ -377,6 +377,7 @@ def tc_to_tp_gradient(dc, p, e, w):
     return out
 
 
+@njit(fastmath=True)
 def tp_to_tc_gradient(dc, p, e, w):
     """Reparametrise a periastron-basis gradient block into the transit-centre basis.
 
@@ -421,6 +422,59 @@ def tp_to_tc_gradient(dc, p, e, w):
     out[4] = dc[4] - dc[0] * (dm_tr_de * p * c)
     out[5] = dc[5] - dc[0] * (dm_tr_dw * p * c)
     return out
+
+
+@njit(fastmath=True)
+def tp_to_tc_gradient_orbit(dcoeffs, p, e, w):
+    """Reparametrise every expansion point of an orbit gradient tensor, in place.
+
+    Whole-orbit counterpart of :func:`tp_to_tc_gradient`, applying the same
+    closed-form chain rule to each of the ``npt`` expansion-point blocks
+    produced by
+    :func:`~meepmeep.backends.numba.orbit3dd.solve3d_orbit_d`. Unlike the
+    single-block transform, this one **overwrites its argument** and returns
+    nothing.
+
+    Mutating in place is safe because the transform reads only the timing row
+    (index 0), which it never writes. The three chain-rule scale factors depend
+    only on ``(p, e, w)``, so they are computed once for the whole orbit rather
+    than once per expansion point.
+
+    This is the tc-bound branch of :meth:`~meepmeep.orbit.Orbit.set_pars`, which
+    is a per-likelihood-call hot path: looping over the expansion points in
+    Python instead costs one dispatch and two ``(7, D, 5)`` copies per expansion
+    point, which dominated ``set_pars`` outright.
+
+    Parameters
+    ----------
+    dcoeffs : ndarray, shape (npt, 7, D, 5)
+        Parameter-derivative tensors in the periastron basis
+        ``(tp, p, a, i, e, w, lan)``. Overwritten in place with the
+        transit-centre basis ``(tc, p, a, i, e, w, lan)``.
+    p : float
+        Orbital period [days].
+    e : float
+        Eccentricity.
+    w : float
+        Argument of periastron [rad].
+
+    See Also
+    --------
+    tp_to_tc_gradient : single-block transform that returns a new array.
+    tc_to_tp_gradient : the inverse reparametrisation.
+    """
+    m_tr, dm_tr_de, dm_tr_dw = mean_anomaly_at_transit_with_derivatives(e, w)
+    c = 1.0 / TWO_PI
+    kp = m_tr * c
+    ke = dm_tr_de * p * c
+    kw = dm_tr_dw * p * c
+    for kn in range(dcoeffs.shape[0]):
+        for row in range(dcoeffs.shape[2]):
+            for col in range(dcoeffs.shape[3]):
+                t0 = dcoeffs[kn, 0, row, col]
+                dcoeffs[kn, 1, row, col] -= t0 * kp
+                dcoeffs[kn, 4, row, col] -= t0 * ke
+                dcoeffs[kn, 5, row, col] -= t0 * kw
 
 
 @njit

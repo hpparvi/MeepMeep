@@ -15,6 +15,7 @@ from numpy.testing import assert_allclose
 from meepmeep.orbit import Orbit
 from meepmeep.backends.numba.utils import (
     tp_to_tc_gradient,
+    tp_to_tc_gradient_orbit,
     tc_to_tp_gradient,
     mean_anomaly_at_transit,
     mean_anomaly_at_transit_with_derivatives,
@@ -81,6 +82,54 @@ def test_numba3d_reexports_primitive():
     assert hasattr(n3, "tc_to_tp_gradient")
     assert "tp_to_tc_gradient" in n3.__all__
     assert hasattr(n3, "tp_to_tc_gradient")
+    assert "tp_to_tc_gradient_orbit" in n3.__all__
+    assert hasattr(n3, "tp_to_tc_gradient_orbit")
+
+
+def test_gradient_transforms_are_callable_from_njit():
+    """Both transforms must be jitted, not just importable.
+
+    `docs/llms.md` promises the low-level functions can be called from inside a
+    user `@njit` kernel. `tp_to_tc_gradient` was a plain NumPy function for a
+    while, which silently broke that for the tc direction only (its inverse was
+    jitted) and made Orbit.set_pars pay NumPy dispatch per expansion point.
+    Calling them from a jitted kernel is what pins the contract; importing them
+    is not.
+    """
+    from numba import njit
+
+    @njit
+    def roundtrip(dc, p, e, w):
+        return tp_to_tc_gradient(tc_to_tp_gradient(dc, p, e, w), p, e, w)
+
+    dc = np.random.default_rng(11).standard_normal((7, 3, 5))
+    assert_allclose(roundtrip(dc, 5.0, 0.3, 0.5), dc, rtol=1e-12, atol=1e-12)
+
+
+@pytest.mark.parametrize("npt", [5, 15, 25])
+@pytest.mark.parametrize("dim", [2, 3])
+def test_tp_to_tc_gradient_orbit_matches_per_expansion_point(npt, dim):
+    """The whole-orbit transform equals the per-block one applied npt times."""
+    rng = np.random.default_rng(npt * 10 + dim)
+    dcoeffs = rng.standard_normal((npt, 7, dim, 5))
+    p, e, w = 5.0, 0.3, 0.5
+
+    expected = np.stack([tp_to_tc_gradient(dcoeffs[k], p, e, w) for k in range(npt)])
+    got = dcoeffs.copy()
+    tp_to_tc_gradient_orbit(got, p, e, w)
+
+    assert_allclose(got, expected, rtol=1e-13, atol=1e-15)
+    # Rows the transform must leave alone: timing, a, i, lan.
+    for row in (0, 2, 3, 6):
+        assert_allclose(got[:, row], dcoeffs[:, row])
+
+
+def test_tp_to_tc_gradient_orbit_is_in_place():
+    """It overwrites its argument and returns nothing, unlike the per-block form."""
+    dcoeffs = np.random.default_rng(3).standard_normal((4, 7, 3, 5))
+    before = dcoeffs.copy()
+    assert tp_to_tc_gradient_orbit(dcoeffs, 5.0, 0.3, 0.5) is None
+    assert not np.array_equal(dcoeffs, before)
 
 
 def _times():

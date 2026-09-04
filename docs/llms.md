@@ -72,7 +72,12 @@ low-level variants) returns analytic gradients alongside values:
   `set_pars(tc=...)` and slot 0 is d/dtc with shape parameters taken at
   constant tc (the default). Bind `set_pars(tp=...)` and the gradient is
   returned in the periastron basis `(tp, p, a, i, e, w, lan)`. The
-  conversion utility is `numba3d.tc_to_tp_gradient`.
+  conversion utility is `numba3d.tc_to_tp_gradient`; its inverse is
+  `numba3d.tp_to_tc_gradient`. When working directly with
+  `solve3d_orbit_d` output (which is natively in the periastron basis),
+  convert the whole `(npt, 7, D, 5)` tensor in place with
+  `numba3d.tp_to_tc_gradient_orbit(dcoeffs, p, e, w)` rather than looping
+  over expansion points.
 - EPOCH FOLDING: every epoch-folding evaluator (the multi-expansion-point
   `Orbit`/`*_od` family and the direct single-expansion-point `X_d`
   variants) returns TOTAL period derivatives: the `-epoch*p` term in the

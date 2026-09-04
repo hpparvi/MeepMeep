@@ -684,7 +684,7 @@ time shift, and the transform leaks the fifth-order term.
 
 An :class:`~meepmeep.orbit.Orbit` therefore returns the periastron basis
 untouched when bound with ``set_pars(tp=...)`` and applies
-``tp_to_tc_gradient`` once to the per-expansion-point coefficient derivatives
+``tp_to_tc_gradient_orbit`` to the per-expansion-point coefficient derivatives
 when bound with ``set_pars(tc=...)``, so the transit-centre basis propagates
 consistently to every derivative-returning quantity (radial velocity, position,
 separation, phase curves, ...). Either way the gradient is the exact gradient
