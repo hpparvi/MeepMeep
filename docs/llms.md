@@ -270,9 +270,17 @@ program = cl.Program(ctx, src + my_kernel_src).build(options=build_options("doub
   `-cl-fast-relaxed-math` (breaks the ~1e-12 numba parity); in fp32
   builds subtract a float64 reference epoch from absolute times
   host-side (a float32 ulp at BJD ~2.4e6 is ~0.25 d).
-- The `solve*` coefficient solvers, Newton references, and
-  expansion-point placement stay host-side (numba/jax): solve on the
-  host, upload the arrays, evaluate on the device.
+- The `solve*` coefficient solvers are available on the device:
+  `solve2d`/`solve2d_d`/`solve3d`/`solve3d_d` in `solve2d.cl` /
+  `solve3d.cl`, writing their matrices through `__global` output
+  pointers. `solve_kernels.cl` (opt-in, the only file with `__kernel`
+  entry points) wraps them as `solve{2,3}d[_d]_batch`, one work item per
+  orbital parameter set. Solving on the device pays off for BATCHES of
+  parameter sets (population samplers, coefficients then never leaving
+  the device) and not for a single set per likelihood call, where the
+  kernel is launch-bound. Solve and evaluate are separate launches.
+- Newton references and expansion-point placement
+  (`create_expansion_points`, needs scipy) stay host-side.
 
 ## Pitfalls (the things agents get wrong)
 

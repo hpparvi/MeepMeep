@@ -16,11 +16,25 @@
 
 """OpenCL device-function source for the MeepMeep evaluators.
 
-This backend ships the numba backend's evaluation functionality as OpenCL C
-*device functions* (no ``__kernel`` entry points): packages using MeepMeep
-prepend the source returned by :func:`read_kernel_source` to their own kernel
-code and call the functions from their kernels. Context, queue, and program
-management are deliberately left to the caller.
+This backend ships the numba backend's evaluation functionality, and the
+Taylor coefficient solvers, as OpenCL C *device functions*: packages using
+MeepMeep prepend the source returned by :func:`read_kernel_source` to their
+own kernel code and call the functions from their kernels. Context, queue, and
+program management are deliberately left to the caller.
+
+Every file except ``solve_kernels.cl`` contains device functions only.
+``solve_kernels.cl`` is opt-in and holds the batched ``__kernel`` entry points
+for the solvers (one work item per orbital parameter set); request it by name
+to get launchable solvers, or omit it and drive the ``solve2d``/``solve3d``
+device functions from your own kernel.
+
+Solving on the device pays off for *batches* of parameter sets -- population
+samplers, where the coefficients then never leave the device -- and not for the
+single parameter set per likelihood call that ``Orbit`` and ``Expansion2D``
+issue: a solve kernel is launch-bound at these sizes, so solving one expansion
+costs about what solving a thousand does. Expansion-point placement
+(``create_expansion_points``, which needs scipy), the Newton reference solvers,
+and the contact-point bisection in ``util.py`` remain host-side.
 
 The device functions mirror the numba backend one-to-one (same names, same
 argument order, values first and gradient output buffers last), with these
@@ -36,6 +50,14 @@ C-imposed deviations, documented per file:
   (``*_v``/``*_vp``/``*_ov*``) have no OpenCL counterpart because the kernel
   NDRange supplies the loop over samples.
 - Optional arguments (``te``, ``lan``, ``timing_is_tc``) become mandatory.
+- The solvers return their matrices through ``__global`` output pointers
+  instead of returning them, and spell the inclination ``inc`` because ``i``
+  is the loop index. They keep the numba names unsuffixed (``solve2d``,
+  ``solve3d``): unlike the evaluators, those names already carry the
+  dimension.
+- The Kepler solver's convergence tolerance is precision-aware
+  (``MM_EA_TOL``): numba's literal ``1e-13`` is unreachable in float32, so a
+  verbatim port would run every fp32 work item to the 50-iteration cap.
 
 Conventions the calling kernel must follow:
 
@@ -58,17 +80,23 @@ __all__ = ['SOURCE_FILES', 'read_kernel_source', 'read_full_source', 'build_opti
 
 SOURCE_FILES: tuple[str, ...] = (
     'common.cl',
+    'solve2d.cl',
+    'solve3d.cl',
     'point2d.cl',
     'point2dd.cl',
     'point3d.cl',
     'point3dd.cl',
     'orbit3d.cl',
     'orbit3dd.cl',
+    'solve_kernels.cl',
 )
 """The shipped ``.cl`` files in a valid concatenation (dependency) order."""
 
 _DEPENDS: dict[str, tuple[str, ...]] = {
     'common.cl': (),
+    'solve2d.cl': ('common.cl',),
+    'solve3d.cl': ('common.cl',),
+    'solve_kernels.cl': ('common.cl', 'solve2d.cl', 'solve3d.cl'),
     'point2d.cl': ('common.cl',),
     'point2dd.cl': ('common.cl', 'point2d.cl'),
     'point3d.cl': ('common.cl',),

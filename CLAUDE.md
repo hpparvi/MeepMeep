@@ -184,10 +184,14 @@ meepmeep/
     │   ├── ea.py          # Eccentric anomaly with custom JVP for AD
     │   └── ts2d/
     │       └── positiond.py  # 2D position with JAX AD support
-    └── opencl/            # OpenCL backend: device functions only (no kernels)
+    └── opencl/            # OpenCL backend: device functions, plus opt-in solve kernels
         ├── source.py      # SOURCE_FILES, read_kernel_source, read_full_source,
         │                  # build_options (stdlib-only; imports without pyopencl)
-        ├── common.cl      # REAL machinery, constants, Horner + utils helpers
+        ├── common.cl      # REAL machinery, constants, Horner + utils helpers,
+        │                  # mm_mod_two_pi, ea_from_ma (MM_EA_TOL)
+        ├── solve2d.cl     # 2D coefficient solvers (solve2d, solve2d_d)
+        ├── solve3d.cl     # 3D coefficient solvers (solve3d, solve3d_d)
+        ├── solve_kernels.cl  # the ONLY __kernel file: solve{2,3}d[_d]_batch
         ├── point2d.cl     # 2D values ("2"-suffixed names: pos_c2, sep2, ...)
         ├── point2dd.cl    # 2D gradients (pos_cd2, sep_d2, ...)
         ├── point3d.cl     # 3D values ("3"-suffixed names: pos_c3, sep3, ...)
@@ -273,11 +277,21 @@ Standard Keplerian elements used throughout:
 
 ### OpenCL Backend
 
-`meepmeep/backends/opencl/` ships the Numba backend's *evaluation* surface as
-OpenCL C **device functions only** — no `__kernel` entry points. Downstream
-packages (e.g. pt3/PyTransit) prepend `read_kernel_source(...)` output to
-their own kernel code; context/queue/program management is deliberately left
-to them. Whether MeepMeep will ever ship full kernels is an open decision.
+`meepmeep/backends/opencl/` ships the Numba backend's *evaluation* surface,
+and the Taylor coefficient solvers, as OpenCL C **device functions**.
+Downstream packages (e.g. pt3/PyTransit) prepend `read_kernel_source(...)`
+output to their own kernel code; context/queue/program management is
+deliberately left to them.
+
+`solve_kernels.cl` is the **only** file containing `__kernel` entry points,
+and it is opt-in: request it by name for launchable batched solvers, or omit
+it and call the `solve2d`/`solve3d` device functions from your own kernel.
+Keeping it a separate file is what preserves "device functions only" for the
+rest of the backend. Solve and evaluation are separate kernel launches;
+fusing them was considered and deferred, because reading coefficients from
+`__local` would need an address-space variant of every evaluator (OpenCL C
+1.2 has no generic address space, and NVIDIA accepting one anyway is a
+portability trap its own device query does not advertise).
 
 Key conventions (documented in each `.cl` header and `source.py`):
 
@@ -310,10 +324,19 @@ Key conventions (documented in each `.cl` header and `source.py`):
   `__global` read kills the shared context) and clamps the bucket index.
   `ep_table` must be uploaded as int32 (`astype(np.int32)`); the numba
   backend builds it int64.
-- **Excluded (stay host-side)**: all `solve*`, `newton/`,
-  `expansion_points.py` (scipy), and the `util.py` contact-point bisection.
-  The intended flow is pt3's: solve coefficients on the host (jitted),
-  upload the flattened arrays, evaluate on device.
+- **Solvers on device**: `solve2d`/`solve2d_d`/`solve3d`/`solve3d_d` write
+  their matrices through `__global` output pointers (C cannot return them),
+  spell the inclination `inc` (`i` is the loop index), and take `lan` and
+  `from_periastron` as mandatory arguments. They keep the numba names
+  unsuffixed — unlike the evaluators, those already carry the dimension.
+  Worth it only for *batches* of parameter sets: a solve kernel is
+  launch-bound at these sizes, so one expansion costs about what a thousand
+  do. `MM_EA_TOL` makes the Kepler tolerance precision-aware, because
+  numba's literal `1e-13` is unreachable in fp32 and would pin every work
+  item at the 50-iteration cap.
+- **Still excluded (stay host-side)**: `newton/`, `expansion_points.py`
+  (scipy), and the `util.py` contact-point bisection. Expansion-point
+  placement in particular must still come from the host.
 - **`.cl` files ship as package data** via `[tool.setuptools.package-data]`
   (explicit globs are honoured despite `include-package-data = false`);
   `pyopencl` is the optional `opencl` dependency group, and nothing in the

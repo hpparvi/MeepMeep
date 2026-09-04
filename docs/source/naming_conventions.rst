@@ -275,6 +275,10 @@ C-imposed adjustments:
   ``rv_scale``, ``ep_ix``, ...) are unsuffixed.
 - Optional arguments (``te``, ``lan``, ``timing_is_tc``) are mandatory.
 
-The ``solve*`` coefficient solvers, Newton solvers, expansion-point
-placement, and the ``util`` contact-point helpers stay host-side; the
-OpenCL functions evaluate the coefficient arrays those produce.
+The ``solve*`` coefficient solvers are also available on the device, in
+``solve2d.cl`` and ``solve3d.cl``, keeping their numba names unsuffixed
+because those already carry the dimension. They write their matrices through
+``__global`` output pointers and spell the inclination ``inc``. The batched
+``__kernel`` wrappers live in the opt-in ``solve_kernels.cl``, the only
+shipped file that defines kernels. The Newton solvers, expansion-point
+placement, and the ``util`` contact-point helpers stay host-side.

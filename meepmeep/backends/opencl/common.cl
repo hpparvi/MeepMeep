@@ -98,3 +98,51 @@ inline REAL mean_anomaly_at_transit_with_derivatives(REAL ecc, REAL w,
     *dm_dw = de_off_dw * ((REAL)1.0 - ecc * ce);
     return m_at_transit;
 }
+
+
+/* Python/NumPy float `%` semantics: the result takes the sign of the divisor,
+   so it lands in [0, 2pi). C's fmod takes the sign of the dividend instead.
+   The numba solvers wrap the mean anomaly with the NumPy convention.
+
+   The distinction is unobservable through `ea_from_ma` alone, because
+   E - e sin(E) = M is strictly monotonic, so root(M + 2pi) = root(M) + 2pi
+   exactly and the solvers consume only sin(E) and cos(E). It is kept because
+   that stops being true the moment anything reads E itself. */
+inline REAL mm_mod_two_pi(REAL x) {
+    REAL r = fmod(x, TWO_PI_R);
+    return (r < (REAL)0.0) ? r + TWO_PI_R : r;
+}
+
+
+/* Kepler-solver convergence tolerance.
+
+   numba uses a literal 1e-13, which float32 cannot reach (eps ~ 1.2e-7): a
+   verbatim port would run every fp32 work item to the 50-iteration cap, for
+   roughly double the kernel time and no accuracy gain. Override with
+   -DMM_EA_TOL=<value> to pin a specific tolerance. */
+#ifndef MM_EA_TOL
+  #ifdef USE_FP64
+    #define MM_EA_TOL ((REAL)1e-13)
+  #else
+    #define MM_EA_TOL ((REAL)1e-6)
+  #endif
+#endif
+
+
+/* Solve Kepler's equation E - e sin(E) = M for the eccentric anomaly.
+
+   Port of `meepmeep.backends.numba.newton.newton.ea_from_ma`. The iteration
+   count is data-dependent, so within a warp every lane pays for the slowest
+   lane: a batch spanning a range of eccentricities costs more per parameter
+   set than one sharing a single eccentricity. */
+inline REAL ea_from_ma(REAL ma, REAL ecc) {
+    REAL ea = (ecc > (REAL)0.8) ? PI_R : ma;
+    for (int it = 0; it < 50; ++it) {
+        REAL f = ea - ecc * sin(ea) - ma;
+        REAL df = (REAL)1.0 - ecc * cos(ea);
+        REAL dea = -f / df;
+        ea += dea;
+        if (fabs(dea) < MM_EA_TOL) break;
+    }
+    return ea;
+}
