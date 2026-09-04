@@ -74,37 +74,38 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     # ================================================================
     # Step 1: Constants and their derivatives
     # ================================================================
+    # Every six-element parameter-derivative vector below is a row of a single
+    # scratch block. Numba heap-allocates each length-6 `zeros` through the NRT
+    # and does not stack-promote it, so declaring them separately spent roughly
+    # 60 per cent of this function on allocation. Row views are free, so naming
+    # them keeps the chain rule below reading as it would with separate arrays.
+    _d = zeros((34, 6))
+    dn, dmu, dsqe2, doffset, dma, dea = _d[0], _d[1], _d[2], _d[3], _d[4], _d[5]
+    dsea, dcea, dr, dxi, deta, dea_dot = _d[6], _d[7], _d[8], _d[9], _d[10], _d[11]
+    dv_xi, dv_eta, dv2, drv, dinv_r3, dinv_r5 = _d[12], _d[13], _d[14], _d[15], _d[16], _d[17]
+    dinv_r7, du, du_dot, drv2, du_ddot, da_xi = _d[18], _d[19], _d[20], _d[21], _d[22], _d[23]
+    da_eta, dj_xi, dj_eta, ds_coeff, ds_xi, ds_eta = _d[24], _d[25], _d[26], _d[27], _d[28], _d[29]
+    dm00, dm01, dm10, dm11 = _d[30], _d[31], _d[32], _d[33]
+
     n = TWO_PI / p
-    dn = zeros(6)
     dn[1] = -TWO_PI / p ** 2
 
     mu = n ** 2 * a ** 3
-    dmu = zeros(6)
     dmu[1] = 2.0 * n * dn[1] * a ** 3
     dmu[2] = 3.0 * n ** 2 * a ** 2
 
     sqe2 = sqrt(1.0 - e ** 2)
-    dsqe2 = zeros(6)
     dsqe2[4] = -e / sqe2
 
     ci = cos(i)
     si = sin(i)
-    dci = zeros(6)
-    dci[3] = -si
-    dsi = zeros(6)
-    dsi[3] = ci
 
     cw = cos(w)
     sw = sin(w)
-    dcw = zeros(6)
-    dcw[5] = -sw
-    dsw = zeros(6)
-    dsw[5] = cw
 
     # ================================================================
     # Step 2: Mean anomaly offset and its derivatives
     # ================================================================
-    doffset = zeros(6)
     if from_periastron:
         # te is measured from periastron: M = 2 pi te / p, independent of e and w.
         offset = 0.0
@@ -118,7 +119,6 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     # ================================================================
     ma = (TWO_PI * te / p + offset) % TWO_PI
 
-    dma = zeros(6)
     # Slot 0 (the transit-centre time tc) is not propagated through Kepler's
     # equation: the polynomial depends on tc only through its argument
     # (t_obs - tc), so its tc derivative is built from the coefficients
@@ -139,14 +139,11 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
 
     # Implicit differentiation: dE/dq = (dma/dq + sin(E)*de/dq) / (1 - e*cos(E))
     inv_denom = 1.0 / (1.0 - e * cea)
-    dea = zeros(6)
     for k in range(6):
         de_k = 1.0 if k == 4 else 0.0
         dea[k] = (dma[k] + sea * de_k) * inv_denom
 
     # Derivatives of sin(E), cos(E)
-    dsea = zeros(6)
-    dcea = zeros(6)
     for k in range(6):
         dsea[k] = cea * dea[k]
         dcea[k] = -sea * dea[k]
@@ -155,42 +152,36 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     # Step 4: Orbital plane position & velocity
     # ================================================================
     r_val = a * (1.0 - e * cea)
-    dr = zeros(6)
     for k in range(6):
         da_k = 1.0 if k == 2 else 0.0
         de_k = 1.0 if k == 4 else 0.0
         dr[k] = da_k * (1.0 - e * cea) + a * (-de_k * cea - e * dcea[k])
 
     xi = a * (cea - e)
-    dxi = zeros(6)
     for k in range(6):
         da_k = 1.0 if k == 2 else 0.0
         de_k = 1.0 if k == 4 else 0.0
         dxi[k] = da_k * (cea - e) + a * (dcea[k] - de_k)
 
     eta = a * sqe2 * sea
-    deta = zeros(6)
     for k in range(6):
         da_k = 1.0 if k == 2 else 0.0
         deta[k] = da_k * sqe2 * sea + a * dsqe2[k] * sea + a * sqe2 * dsea[k]
 
     # E_dot = n * a / r
     ea_dot = n * a / r_val
-    dea_dot = zeros(6)
     for k in range(6):
         da_k = 1.0 if k == 2 else 0.0
         dea_dot[k] = (dn[k] * a + n * da_k) / r_val - n * a * dr[k] / r_val ** 2
 
     # v_xi = -a * sin(E) * E_dot
     v_xi = -a * sea * ea_dot
-    dv_xi = zeros(6)
     for k in range(6):
         da_k = 1.0 if k == 2 else 0.0
         dv_xi[k] = -(da_k * sea * ea_dot + a * dsea[k] * ea_dot + a * sea * dea_dot[k])
 
     # v_eta = a * sqe2 * cos(E) * E_dot
     v_eta = a * sqe2 * cea * ea_dot
-    dv_eta = zeros(6)
     for k in range(6):
         da_k = 1.0 if k == 2 else 0.0
         dv_eta[k] = (da_k * sqe2 * cea * ea_dot + a * dsqe2[k] * cea * ea_dot + a * sqe2 * dcea[
@@ -202,12 +193,7 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     r2 = r_val ** 2
     v2 = v_xi ** 2 + v_eta ** 2
     rv = xi * v_xi + eta * v_eta
-
-    dr2 = zeros(6)
-    dv2 = zeros(6)
-    drv = zeros(6)
     for k in range(6):
-        dr2[k] = 2.0 * r_val * dr[k]
         dv2[k] = 2.0 * v_xi * dv_xi[k] + 2.0 * v_eta * dv_eta[k]
         drv[k] = dxi[k] * v_xi + xi * dv_xi[k] + deta[k] * v_eta + eta * dv_eta[k]
 
@@ -216,9 +202,6 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     inv_r7 = inv_r5 / r2
 
     # d(r^(-n))/dq = -n * r^(-n-1) * dr/dq = -n * r^(-n) * dr/dq / r
-    dinv_r3 = zeros(6)
-    dinv_r5 = zeros(6)
-    dinv_r7 = zeros(6)
     for k in range(6):
         dinv_r3[k] = -3.0 * inv_r3 * dr[k] / r_val
         dinv_r5[k] = -5.0 * inv_r5 * dr[k] / r_val
@@ -226,24 +209,20 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
 
     # u = -mu * inv_r3
     u = -mu * inv_r3
-    du = zeros(6)
     for k in range(6):
         du[k] = -dmu[k] * inv_r3 - mu * dinv_r3[k]
 
     # u_dot = 3 * mu * rv * inv_r5
     u_dot = 3.0 * mu * rv * inv_r5
-    du_dot = zeros(6)
     for k in range(6):
         du_dot[k] = 3.0 * (dmu[k] * rv * inv_r5 + mu * drv[k] * inv_r5 + mu * rv * dinv_r5[k])
 
     # u_ddot = 3*mu*(v2*inv_r5 - 5*rv^2*inv_r7) - 3*u^2
     rv2 = rv ** 2
-    drv2 = zeros(6)
     for k in range(6):
         drv2[k] = 2.0 * rv * drv[k]
 
     u_ddot = 3.0 * mu * (v2 * inv_r5 - 5.0 * rv2 * inv_r7) - 3.0 * u ** 2
-    du_ddot = zeros(6)
     for k in range(6):
         du_ddot[k] = (3.0 * (dmu[k] * (v2 * inv_r5 - 5.0 * rv2 * inv_r7) + mu * (
                     dv2[k] * inv_r5 + v2 * dinv_r5[k] - 5.0 * (drv2[k] * inv_r7 + rv2 * dinv_r7[k]))) - 6.0 * u * du[k])
@@ -251,8 +230,6 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     # Acceleration
     a_xi = u * xi
     a_eta = u * eta
-    da_xi = zeros(6)
-    da_eta = zeros(6)
     for k in range(6):
         da_xi[k] = du[k] * xi + u * dxi[k]
         da_eta[k] = du[k] * eta + u * deta[k]
@@ -260,22 +237,17 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     # Jerk
     j_xi = u_dot * xi + u * v_xi
     j_eta = u_dot * eta + u * v_eta
-    dj_xi = zeros(6)
-    dj_eta = zeros(6)
     for k in range(6):
         dj_xi[k] = du_dot[k] * xi + u_dot * dxi[k] + du[k] * v_xi + u * dv_xi[k]
         dj_eta[k] = du_dot[k] * eta + u_dot * deta[k] + du[k] * v_eta + u * dv_eta[k]
 
     # Snap
     s_coeff = u_ddot + u ** 2
-    ds_coeff = zeros(6)
     for k in range(6):
         ds_coeff[k] = du_ddot[k] + 2.0 * u * du[k]
 
     s_xi = s_coeff * xi + 2.0 * u_dot * v_xi
     s_eta = s_coeff * eta + 2.0 * u_dot * v_eta
-    ds_xi = zeros(6)
-    ds_eta = zeros(6)
     for k in range(6):
         ds_xi[k] = ds_coeff[k] * xi + s_coeff * dxi[k] + 2.0 * (du_dot[k] * v_xi + u_dot * dv_xi[k])
         ds_eta[k] = ds_coeff[k] * eta + s_coeff * deta[k] + 2.0 * (du_dot[k] * v_eta + u_dot * dv_eta[k])
@@ -288,10 +260,6 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     m10 = -sw * ci
     m11 = -cw * ci
 
-    dm00 = zeros(6)
-    dm01 = zeros(6)
-    dm10 = zeros(6)
-    dm11 = zeros(6)
     dm00[5] = sw
     dm01[5] = cw
     dm10[3] = sw * si
