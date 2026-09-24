@@ -23,6 +23,7 @@ from meepmeep.expansion2d import Expansion2D          # high-level, single expan
 from meepmeep.expansion3d import Expansion3D          # high-level, single expansion point, 3D
 import meepmeep.numba2d as mm2                         # low-level 2D primitives
 import meepmeep.numba3d as mm3                         # low-level 3D + multi-expansion-point + utils
+import meepmeep.jax2d, meepmeep.jax3d                  # optional JAX twins (pip install "meepmeep[jax]")
 ```
 
 The low-level functions are plain `@njit` functions / Numba overload
@@ -240,6 +241,46 @@ only for large time grids (same thresholds as `Orbit`/`Expansion2D`'s
 `parallel=True`). The scalar kernels remain private. The non-derivative 3D
 radial velocity (`rv_c`/`rv`) is scalar-inline only and has no single-expansion-point
 vector kernel.
+
+## JAX backend (optional; gradients by autodiff)
+
+`meepmeep.jax2d` / `meepmeep.jax3d` mirror `numba2d` / `numba3d`: same
+names, same argument order, element-wise (scalar or array times), fully
+traceable (`jit`, `vmap`, `grad`, GPU). Requires
+`jax.config.update("jax_enable_x64", True)` before any JAX call; the
+solvers raise otherwise.
+
+- ONLY VALUE FUNCTIONS EXIST. No `_d`/`_cd`/`_od`, no `solve*_d`, no
+  `_v`/`_vp`/`_ov*` kernels, no `tc_to_tp_gradient`. Differentiate a
+  function that calls the solver and then the evaluator; autodiff gives
+  the exact gradient of the evaluated polynomial (it matches the numba
+  `_od` kernels to round-off). The basis is whatever timing parameter
+  your function takes:
+
+```python
+from meepmeep.jax3d import create_expansion_points, solve3d_orbit, sep_o, mean_anomaly_at_transit
+ep_times, _, dt, ep_table = create_expansion_points(15, 0.3)   # keep the grid OUT of the grad
+def model(tc, p, a, i, e, w):
+    tpa = tc - mean_anomaly_at_transit(e, w) / (2 * jnp.pi) * p   # tc basis
+    return sep_o(times, tpa, p, dt, ep_table, ep_times, solve3d_orbit(ep_times, p, a, i, e, w))
+dz = jnp.stack(jax.jacfwd(model, argnums=range(6))(*theta), -1)  # (N, 6)
+```
+
+- `JaxOrbit.from_tc(tc, p, a, i, e, w, lan=0.0, grid=None)` / `from_tp`
+  is the pytree counterpart of `Orbit`; methods take `times` explicitly
+  (`orbit.projected_separation(times)`, `orbit.xyz(times)`, ...). Default
+  grid: placed for `stop_gradient(max(e, 0.2))`, no hysteresis.
+- `create_expansion_points` is closed-form: it runs under `jit` with a
+  traced `e` (`n_ep`, `quantity`, `tres` must be Python values).
+- `solve3d_orbit` has no `npt`; solvers accept an array of `te`.
+- Contact points / durations / `find_z_min` are differentiable
+  (implicit-function JVPs); numba has no gradients for them.
+- `eccentricity_vector(i, e, w, lan)`: pass the node the coefficients
+  were solved with (numba and JAX alike), or the true anomaly is off by
+  up to `lan`.
+- On CPU a jitted JAX model is about numba speed at 1e5 points and ~4x
+  slower at 1e3 (dispatch overhead); use it for JAX-native models,
+  `vmap` over parameter sets, or accelerators.
 
 ## OpenCL backend (device-function source for user kernels)
 

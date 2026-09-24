@@ -30,6 +30,7 @@ docs = [
     "sphinx-design>=0.6",
     "nbsphinx>=0.9",
     "numpydoc>=1.6",
+    "jax>=0.4.30",
 ]
 test = [
     "pytest",
@@ -37,6 +38,9 @@ test = [
 ]
 opencl = [
     "pyopencl",
+]
+jax = [
+    "jax>=0.4.30",
 ]
 
 [project.urls]

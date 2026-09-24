@@ -50,7 +50,7 @@ numpydoc_xref_param_type = True
 # than suppressing the resulting warnings after the fact).
 numpydoc_xref_ignore = {
     'shape', 'optional', 'default', 'of', 'or', 'type',
-    'N', 'npt', 'color', 'matplotlib',
+    'N', 'npt', 'n_ep', 'tres', 'color', 'matplotlib',
 }
 
 # Docstring validation is available via numpydoc_validation_checks (e.g.
@@ -86,6 +86,8 @@ nitpicky = True
 # ``numpydoc_xref_ignore`` so the refs are never generated in the first place.
 nitpick_ignore_regex = [
     (r'py:.*', r'numba\..*'),
+    (r'py:.*', r'jax\..*'),
+    (r'py:.*', r'Array$'),
     (r'py:.*', r'numpy\._typing.*'),
     (r'py:.*', r'numpy\..*_ScalarT$'),
     (r'py:.*', r'(NDArray|ndarray)$'),

@@ -11,7 +11,8 @@ For every supported quantity it can also return the partial derivatives
 with respect to the orbital parameters (and any other inputs), which feed
 directly into gradient-based optimisers and MCMC samplers. The gradients are
 computed analytically, without JAX or other automatic-differentiation tools;
-the code is pure Numba-jitted Python (a JAX backend is underway).
+the code is pure Numba-jitted Python. A JAX port of the evaluators, with
+gradients from autodiff instead, is available as an optional backend.
 
 MeepMeep's speed comes from the Taylor-series approach presented in
 `Parviainen and Korth (2020) <https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P/abstract>`_.
@@ -120,6 +121,12 @@ map the low-level Taylor-series backend they all use under the hood.
    naming_conventions
    derivatives
    api/low_level
+
+.. toctree::
+   :maxdepth: 2
+   :caption: JAX backend
+
+   jax_backend
 
 .. toctree::
    :maxdepth: 2

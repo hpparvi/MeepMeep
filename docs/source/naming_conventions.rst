@@ -251,6 +251,23 @@ So ``point3dd/position.py`` is read as "3D position evaluators, with derivatives
 and the ``orbit3dd/`` package as "orbit-spanning 3D dispatchers, with derivatives".
 
 
+JAX backend
+-----------
+
+The JAX backend (``meepmeep.jax2d`` / ``meepmeep.jax3d``, see
+:doc:`jax_backend`) keeps the Numba names and argument order for every value
+function: the stems, the ``_c`` centered suffix and the ``_o`` orbit-spanning
+suffix mean the same thing. What it drops is everything a gradient or a
+compiled loop needed. There are no ``_d`` / ``_cd`` / ``_od`` variants
+(differentiate with ``jax.grad`` / ``jax.jacfwd``), no ``_v`` / ``_vp`` /
+``_ov*`` kernels (every function is element-wise), and no ``_s`` / ``_w``
+internals. ``jax3d`` adds one new name, ``JaxOrbit``, the pytree counterpart
+of :class:`~meepmeep.orbit.Orbit`, and re-exports three Numba-named helpers
+that ``numba3d`` leaves in the backend (``mean_anomaly_at_transit``,
+``eccentricity_vector``, ``ea_from_ma``) because JAX models need them inside
+the differentiated function.
+
+
 .. _naming-opencl:
 
 OpenCL backend

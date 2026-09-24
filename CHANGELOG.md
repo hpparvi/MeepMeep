@@ -7,6 +7,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- JAX backend (`meepmeep.jax2d`, `meepmeep.jax3d`, implemented in
+  `meepmeep/backends/jax/`): the numba value surface ported to JAX with the
+  same names and argument order. It has the coefficient solvers, the
+  single-expansion-point `X_c`/`X` evaluators, the multi-expansion-point `X_o`
+  evaluators, contact points, durations and `find_z_min`, expansion-point
+  placement, and the Newton-Raphson references. Everything traces (`jit`,
+  `vmap`, `grad`). Gradients come from autodiff, and the test suites pin them
+  to the numba `_d`/`_od` kernels at round-off. There are no gradient, vector
+  or basis-transform variants. New: `JaxOrbit`, an immutable pytree counterpart
+  of `Orbit` built with `from_tc`/`from_tp`, with the gradient basis set by the
+  constructor. `create_expansion_points` places the `'ea'`/`'ta'` grids in
+  closed form, so it runs inside `jit` with a traced eccentricity. The contact
+  points and durations are differentiable through implicit-function JVPs.
+  Requires `jax_enable_x64`; install with the new `jax` extra.
+
 - C library (`c/`): the evaluators, coefficient solvers and multi-expansion-
   point routines as a plain C99 library, `libmeepmeep`, built with CMake
   independently of the Python package. It is a second compile target of the
@@ -47,6 +62,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `true_anomaly_o`/`_od` and `Orbit.true_anomaly` were wrong (by up to the
   node angle) whenever `lan != 0`. It takes an optional `lan`, and `Orbit`
   passes it.
+
+### Removed
+- The JAX prototype modules `meepmeep.backends.jax.ea` and
+  `meepmeep.backends.jax.ts2d` (`solve_xy_p5`, `solve_xy_p5_d`, `xy_t15_d`,
+  `pd_t15_d`), superseded by the JAX backend above.
 
 ## [1.1.0] - 2026-09-08
 

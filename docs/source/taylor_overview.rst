@@ -33,9 +33,9 @@ and durations all reduce to fast Horner-scheme polynomial evaluations.
 
 .. note::
 
-   The backend documented here is the **numba** implementation,
-   currently the only complete one. A JAX backend is partially
-   implemented and slated for future development.
+   The backend documented here is the **numba** implementation, the
+   reference one. The same value surface is available in JAX, with
+   gradients from autodiff; see :ref:`jax_backend`.
 
 .. contents::
    :local:

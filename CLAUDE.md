@@ -7,11 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 MeepMeep is a Python package for fast Keplerian orbit calculations optimized for exoplanet transit modeling. It uses 
 Taylor series expansions around expansion points to achieve high-performance orbit evaluations.
 
-The evaluators exist in three forms built from two source trees: the Numba backend (the
-reference, and what the Python API uses), and a set of `.cl` files under
-`backends/opencl/` that compile both as OpenCL C device functions and, through the
-CMake project in `c/`, as a standalone C99 library (`libmeepmeep`). The C library is not
-a Python extension; the wheel stays pure Python.
+The evaluators exist in four forms built from three source trees: the Numba backend (the
+reference, and what the Python API uses), a JAX port of its value surface under
+`backends/jax/` (gradients from autodiff instead of hand-derived kernels), and a set of
+`.cl` files under `backends/opencl/` that compile both as OpenCL C device functions and,
+through the CMake project in `c/`, as a standalone C99 library (`libmeepmeep`). The C
+library is not a Python extension; the wheel stays pure Python.
 
 Reference notebooks live in `notebooks/` and rendered docs source in `docs/`.
 
@@ -21,8 +22,9 @@ The whole `meepmeep` package is undergoing a major refactor to improve clarity a
 usability. **Breaking API changes are acceptable when justified by clarity or
 usability** — do not preserve backward compatibility for its own sake; choose the
 cleaner design and update every call site. The only stability contract is the public
-aggregator surface (`meepmeep.numba2d` / `meepmeep.numba3d`, via their `__all__`);
-everything under `backends/numba/` is implementation detail and may be restructured freely.
+aggregator surface (`meepmeep.numba2d` / `meepmeep.numba3d` and their JAX twins
+`meepmeep.jax2d` / `meepmeep.jax3d`, via their `__all__`); everything under `backends/`
+is implementation detail and may be restructured freely.
 
 ## Building and Testing
 
@@ -44,7 +46,8 @@ pytest meepmeep/tests/
 Tests compare Taylor series approximations against exact Newton-Raphson solutions. The
 OpenCL suites (`test_opencl_*.py`) skip without `pyopencl` and an OpenCL platform; the C
 library suite (`test_c_library.py`) compiles `c/` with the host compiler into a temp dir and
-skips without one, except for the header drift check, which always runs.
+skips without one, except for the header drift check, which always runs. The JAX suites
+(`test_jax_*.py`) skip without `jax`.
 
 **Build the C library** (independent of `pip`; see the "C library" section below):
 ```bash
@@ -131,6 +134,8 @@ meepmeep/
 │                          # Taylor evaluators, multi-expansion-point orbit-spanning
 │                          # routines, and dimension-agnostic primitives
 │                          # (expansion points, Newton solvers, orbital-mechanics utils).
+├── jax2d.py / jax3d.py    # Public JAX twins of numba2d / numba3d (backends/jax/),
+│                          # plus JaxOrbit and the model-building helpers.
 ├── version.py             # Reads version dynamically via importlib.metadata
 ├── tests/                 # ~25 test modules; conftest.py holds the shared
 │                          # fixtures (orbital params, tolerances). Most are
@@ -195,10 +200,17 @@ meepmeep/
     │   └── orbit3dd/        # Multi-expansion-point orbit-spanning gradient evaluators,
     │                        # mirroring orbit3d/ one module per quantity
     │                        # (the *_od / *_osd / *_ovd families).
-    ├── jax/               # JAX backend (automatic differentiation)
-    │   ├── ea.py          # Eccentric anomaly with custom JVP for AD
-    │   └── ts2d/
-    │       └── positiond.py  # 2D position with JAX AD support
+    ├── jax/               # JAX backend: the numba value surface, element-wise, with
+    │   │                  # gradients from autodiff (see "JAX Backend" below)
+    │   ├── _common.py     # require_x64, Horner rows, epoch fold, ep_lookup
+    │   ├── utils.py       # orbital-mechanics utilities (eccentricity_vector takes lan)
+    │   ├── newton.py      # ea_from_ma (while_loop + custom_jvp), exact references
+    │   ├── expansion_points.py  # closed-form placement, traceable in e
+    │   ├── solve.py       # solve2d, solve3d (batched in te), solve3d_orbit
+    │   ├── point2d.py / point3d.py  # single-expansion-point X_c / X evaluators
+    │   ├── util.py        # contact points, durations, find_z_min (implicit JVPs)
+    │   ├── orbit3d.py     # multi-expansion-point X_o evaluators, ep_ix
+    │   └── orbit.py       # JaxOrbit pytree (functional counterpart of Orbit)
     └── opencl/            # OpenCL backend: device functions, plus opt-in solve kernels.
         │                  # Every .cl file except solve_kernels.cl also compiles as
         │                  # C99 and is the source of the C library (see c/ below).
@@ -393,6 +405,57 @@ Key conventions (documented in each `.cl` header and `source.py`):
   argument. When a numba kernel changes, port the change and keep the
   structure aligned.
 
+### JAX Backend
+
+`meepmeep/backends/jax/` ports the Numba backend's *value* surface to JAX and
+is exposed through `meepmeep.jax2d` / `meepmeep.jax3d`, whose names and argument
+orders match `numba2d` / `numba3d` (`test_jax_aggregators.py` enforces both the
+name mirroring and that every numba value function has a port). `jax` is the
+optional `jax` dependency group; nothing outside `backends/jax/` and the two
+aggregators imports it.
+
+- **No gradient code.** There are no `_d`/`_cd`/`_od` variants, no `solve*_d`, and
+  no basis transforms: gradients are autodiff through `solve + evaluator`, and the
+  basis is whichever timing parameter the differentiated function takes (derive
+  `tpa` from `tc` inside it for the transit-centre basis). Because the evaluators
+  compute a polynomial whose coefficients the solver returns, autodiff gives the
+  exact derivative of the evaluated polynomial, i.e. what the numba kernels
+  compute analytically; the parity suites pin them together at round-off. Keep
+  the grid (`ep_times`, `ep_table`) out of the differentiated arguments.
+- **No vector/parallel kernels or dispatchers.** Every function is element-wise
+  (`c[..., row, col]` indexing), so scalars, arrays and `vmap` all work; the
+  multi-expansion-point path gathers `coeffs[ix]` per time.
+- **Double precision is mandatory**: `require_x64()` (in `_common.py`) runs at
+  trace time in the solvers and the fold/lookup helpers and raises otherwise.
+- **Iterations and autodiff.** Anything iterative runs in `lax.while_loop`
+  (not reverse-differentiable) wrapped in a `custom_jvp` whose rule uses the
+  implicit function theorem at the converged point: `ea_from_ma` (same start,
+  tolerance and cap as numba), the contact-point bisection, and `find_z_min`
+  (stationarity of the *squared* separation, finite at b = 0). The loops
+  replicate numba step by step, so values agree to round-off.
+- **NaN-safe branches.** A masked `jnp.where` branch still propagates NaN
+  cotangents, so singular ops are guarded: `lambert_kernel` has a `custom_jvp`
+  (dPhi/dcos(alpha) = (pi - alpha)/pi, finite at full phase) and
+  `true_anomaly_o` uses the double-`where` trick around `arccos`.
+- **Placement** (`expansion_points.py`) is closed-form (`t = (E - e sin E)/2pi`,
+  with E from the true anomaly for `'ta'`), so the grid is traceable in `e`; the
+  table uses numba's sequential rule via `lax.scan` and is int32. `JaxOrbit`
+  builds it for `stop_gradient(max(e, 0.2))` without numba's hysteresis.
+- **Deliberate deviations from numba** (each documented where it lives):
+  `true_anomaly_o` differentiates the eccentricity vector if the caller traces
+  it; `solve3d_orbit` has no `npt`; `JaxOrbit` takes times explicitly.
+- **Tests** (`test_jax_*.py`, helpers in `tests/jax_utils.py`, which enables x64)
+  skip without jax. They compare values with the numba dispatchers and
+  `jax.jacfwd` Jacobians with the numba `_d`/`_od` kernels over multi-epoch
+  times, in both timing bases. Two independent implementations of the same
+  gradients is what surfaced four numba bugs at once (a miscompiled vector
+  kernel, the periodic-image period row, the circular true-anomaly basis, the
+  node in the eccentricity vector); when JAX and numba disagree, check both
+  against finite differences before assuming the port is wrong.
+  Mutation-test new code (flip a sign, verify red), as for OpenCL.
+- When a numba kernel's *value* code changes, port the change to the matching
+  JAX function; gradient-only numba changes need nothing here.
+
 ### C library
 
 `c/` builds the shared `.cl` sources as a C99 library, `libmeepmeep`, with
@@ -446,6 +509,7 @@ To add a new quantity:
 4. Decorate with `@njit(fastmath=True)`
 5. If the new function is intended for public use, add its name — and the names of its public vector/parallel kernels (`X_v`/`X_vp`, or `X_ov`/`X_ovp`/`X_ovd`/`X_ovdp` for multi-expansion-point) — to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-expansion-point routines). The scalar (`_X_s`/`_X_os`/`_X_osd`), write-into (`_X_..._w`/`_X_ow`), and dual-decoration body (`_X_v_body`) kernels stay private and are not exported.
 6. If the quantity belongs in the OpenCL/C surface too, port the scalar kernel to the matching `.cl` file using `MM_INLINE`/`MM_GLOBAL`/`REAL` (no OpenCL-only builtins), give it a "Port of `meepmeep.numbaXd.X`" comment (the generated C header reuses it), regenerate the header with `python c/tools/generate_header.py`, add an OpenCL parity test with a test-only `__kernel` wrapper, and mutation-test it. The C suite then covers it through the same source text.
+7. Port the value evaluators (`X_c`/`X`, and `X_o` for multi-expansion-point) to the matching `backends/jax/` module as element-wise JAX functions with the same names and argument order, and export them from `meepmeep/jax2d.py`/`jax3d.py` (`test_jax_aggregators.py` fails on a numba value function without a JAX port). Add no gradient code: extend the `test_jax_*` parity suites so `jax.jacfwd` is checked against the new numba `_d`/`_od` kernel, and mutation-test the port.
 
 The single-expansion-point evaluators are organised into per-dimension packages:
 `point2d/`/`point2dd/` for 2D and `point3d/`/`point3dd/` for 3D, where the
