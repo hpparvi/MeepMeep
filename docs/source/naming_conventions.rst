@@ -251,6 +251,8 @@ So ``point3dd/position.py`` is read as "3D position evaluators, with derivatives
 and the ``orbit3dd/`` package as "orbit-spanning 3D dispatchers, with derivatives".
 
 
+.. _naming-opencl:
+
 OpenCL backend
 --------------
 
@@ -282,3 +284,16 @@ because those already carry the dimension. They write their matrices through
 ``__kernel`` wrappers live in the opt-in ``solve_kernels.cl``, the only
 shipped file that defines kernels. The Newton solvers, expansion-point
 placement, and the ``util`` contact-point helpers stay host-side.
+
+C library
+---------
+
+The C library (``c/``, see :doc:`c_library`) compiles the same ``.cl`` files
+as plain C99, so it uses exactly the OpenCL names above, unprefixed, with
+``double`` in place of ``REAL`` and plain pointers in place of ``__global``
+ones. The functions it adds on top mirror their numba twins by name:
+``create_expansion_points``, ``solve3d_orbit``, ``solve3d_orbit_d``,
+``tc_to_tp_gradient``, ``tp_to_tc_gradient`` and ``tp_to_tc_gradient_orbit``
+(the transforms work in place). ``mm_status_string`` and the ``MM_``-prefixed
+enumerations (``MM_OK``, ``MM_ERR_*``, ``MM_EP_*``, ``MM_NPAR``) are
+C-only.

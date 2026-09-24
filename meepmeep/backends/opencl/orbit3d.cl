@@ -29,11 +29,13 @@
    evaluation then yields NaN gracefully, matching numba); and fp rounding
    can put tc exactly at p, so the bucket is clamped to the table length
    tres = 1/dt. */
-inline int ep_lookup(REAL tc, REAL p, REAL dt, __global const int *ep_table) {
+MM_INLINE int ep_lookup(REAL tc, REAL p, REAL dt, MM_GLOBAL const int *ep_table) {
     if (isnan(tc))
         return 0;
     int nb = (int)((REAL)1.0 / dt + (REAL)0.5);
-    int b = clamp((int)floor(tc / (dt * p)), 0, nb - 1);
+    int b = (int)floor(tc / (dt * p));
+    if (b < 0) b = 0;
+    else if (b > nb - 1) b = nb - 1;
     return ep_table[b];
 }
 
@@ -41,7 +43,7 @@ inline int ep_lookup(REAL tc, REAL p, REAL dt, __global const int *ep_table) {
 /* Expansion-point index for an absolute time.
 
    Port of `backends.numba.orbit3d._common.ep_ix`. */
-inline int ep_ix(REAL t, REAL tpa, REAL p, REAL dt, __global const int *ep_table) {
+MM_INLINE int ep_ix(REAL t, REAL tpa, REAL p, REAL dt, MM_GLOBAL const int *ep_table) {
     REAL epoch = floor((t - tpa) / p);
     return ep_lookup(t - tpa - epoch * p, p, dt, ep_table);
 }
@@ -50,9 +52,9 @@ inline int ep_ix(REAL t, REAL tpa, REAL p, REAL dt, __global const int *ep_table
 /* Planet (x, y, z) position at any orbital phase.
 
    Port of `meepmeep.numba3d.pos_o`. */
-inline void pos_o(REAL t, REAL tpa, REAL p, REAL dt,
-                  __global const int *ep_table, __global const REAL *ep_times,
-                  __global const REAL *coeffs,
+MM_INLINE void pos_o(REAL t, REAL tpa, REAL p, REAL dt,
+                  MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                  MM_GLOBAL const REAL *coeffs,
                   REAL *px, REAL *py, REAL *pz) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -64,9 +66,9 @@ inline void pos_o(REAL t, REAL tpa, REAL p, REAL dt,
 /* Line-of-sight z coordinate at any orbital phase.
 
    Port of `meepmeep.numba3d.zpos_o`. */
-inline REAL zpos_o(REAL t, REAL tpa, REAL p, REAL dt,
-                   __global const int *ep_table, __global const REAL *ep_times,
-                   __global const REAL *coeffs) {
+MM_INLINE REAL zpos_o(REAL t, REAL tpa, REAL p, REAL dt,
+                   MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                   MM_GLOBAL const REAL *coeffs) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
     int ix = ep_lookup(tc, p, dt, ep_table);
@@ -77,9 +79,9 @@ inline REAL zpos_o(REAL t, REAL tpa, REAL p, REAL dt,
 /* Sky-projected planet-star separation at any orbital phase.
 
    Port of `meepmeep.numba3d.sep_o`. */
-inline REAL sep_o(REAL t, REAL tpa, REAL p, REAL dt,
-                  __global const int *ep_table, __global const REAL *ep_times,
-                  __global const REAL *coeffs) {
+MM_INLINE REAL sep_o(REAL t, REAL tpa, REAL p, REAL dt,
+                  MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                  MM_GLOBAL const REAL *coeffs) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
     int ix = ep_lookup(tc, p, dt, ep_table);
@@ -90,9 +92,9 @@ inline REAL sep_o(REAL t, REAL tpa, REAL p, REAL dt,
 /* Planet (vx, vy, vz) velocity at any orbital phase.
 
    Port of `meepmeep.numba3d.vel_o`. */
-inline void vel_o(REAL t, REAL tpa, REAL p, REAL dt,
-                  __global const int *ep_table, __global const REAL *ep_times,
-                  __global const REAL *coeffs,
+MM_INLINE void vel_o(REAL t, REAL tpa, REAL p, REAL dt,
+                  MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                  MM_GLOBAL const REAL *coeffs,
                   REAL *vx, REAL *vy, REAL *vz) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -104,9 +106,9 @@ inline void vel_o(REAL t, REAL tpa, REAL p, REAL dt,
 /* Line-of-sight velocity at any orbital phase.
 
    Port of `meepmeep.numba3d.zvel_o`. */
-inline REAL zvel_o(REAL t, REAL tpa, REAL p, REAL dt,
-                   __global const int *ep_table, __global const REAL *ep_times,
-                   __global const REAL *coeffs) {
+MM_INLINE REAL zvel_o(REAL t, REAL tpa, REAL p, REAL dt,
+                   MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                   MM_GLOBAL const REAL *coeffs) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
     int ix = ep_lookup(tc, p, dt, ep_table);
@@ -117,9 +119,9 @@ inline REAL zvel_o(REAL t, REAL tpa, REAL p, REAL dt,
 /* Stellar radial velocity at any orbital phase.
 
    Port of `meepmeep.numba3d.rv_o`. */
-inline REAL rv_o(REAL t, REAL k, REAL tpa, REAL p, REAL a, REAL i, REAL e,
-                 REAL dt, __global const int *ep_table,
-                 __global const REAL *ep_times, __global const REAL *coeffs) {
+MM_INLINE REAL rv_o(REAL t, REAL k, REAL tpa, REAL p, REAL a, REAL i, REAL e,
+                 REAL dt, MM_GLOBAL const int *ep_table,
+                 MM_GLOBAL const REAL *ep_times, MM_GLOBAL const REAL *coeffs) {
     REAL scale = k / (TWO_PI_R / p * (a * sin(i)) / sqrt((REAL)1.0 - e * e));
     return zvel_o(t, tpa, p, dt, ep_table, ep_times, coeffs) * scale;
 }
@@ -128,9 +130,9 @@ inline REAL rv_o(REAL t, REAL k, REAL tpa, REAL p, REAL a, REAL i, REAL e,
 /* Cosine of the star-planet-observer phase angle at any orbital phase.
 
    Port of `meepmeep.numba3d.cos_alpha_o`. */
-inline REAL cos_alpha_o(REAL t, REAL tpa, REAL p, REAL dt,
-                        __global const int *ep_table, __global const REAL *ep_times,
-                        __global const REAL *coeffs) {
+MM_INLINE REAL cos_alpha_o(REAL t, REAL tpa, REAL p, REAL dt,
+                        MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                        MM_GLOBAL const REAL *coeffs) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
     int ix = ep_lookup(tc, p, dt, ep_table);
@@ -143,10 +145,10 @@ inline REAL cos_alpha_o(REAL t, REAL tpa, REAL p, REAL dt,
    The numba original takes `v` as a 3-array; here it is three scalars
    (vx, vy, vz) so callers holding the vector in any address space can pass
    it without qualifier friction. Port of `meepmeep.numba3d.cos_v_p_angle_o`. */
-inline REAL cos_v_p_angle_o(REAL vx, REAL vy, REAL vz,
+MM_INLINE REAL cos_v_p_angle_o(REAL vx, REAL vy, REAL vz,
                             REAL t, REAL tpa, REAL p, REAL dt,
-                            __global const int *ep_table, __global const REAL *ep_times,
-                            __global const REAL *coeffs) {
+                            MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                            MM_GLOBAL const REAL *coeffs) {
     REAL inv_nv = (REAL)1.0 / sqrt(vx * vx + vy * vy + vz * vz);
     REAL x, y, z;
     pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs, &x, &y, &z);
@@ -161,10 +163,10 @@ inline REAL cos_v_p_angle_o(REAL vx, REAL vy, REAL vz,
    math matches that. The early-return clamps are ported exactly. `w` is
    kept for signature parity with the numba dispatcher. Port of
    `meepmeep.numba3d.true_anomaly_o`. */
-inline REAL true_anomaly_o(REAL t, REAL tpa, REAL p,
+MM_INLINE REAL true_anomaly_o(REAL t, REAL tpa, REAL p,
                            REAL ex, REAL ey, REAL ez, REAL w,
-                           REAL dt, __global const int *ep_table,
-                           __global const REAL *ep_times, __global const REAL *coeffs) {
+                           REAL dt, MM_GLOBAL const int *ep_table,
+                           MM_GLOBAL const REAL *ep_times, MM_GLOBAL const REAL *coeffs) {
     REAL nes = ex * ex + ey * ey + ez * ez;
 
     if (ex <= (REAL)-0.9999 && nes > (REAL)0.99) {
@@ -198,10 +200,10 @@ inline REAL true_anomaly_o(REAL t, REAL tpa, REAL p,
 /* Lambertian reflected-light phase curve at any orbital phase.
 
    Port of `meepmeep.numba3d.lambert_phase_curve_o`. */
-inline REAL lambert_phase_curve_o(REAL t, REAL ag, REAL k, REAL tpa, REAL p,
-                                  REAL dt, __global const int *ep_table,
-                                  __global const REAL *ep_times,
-                                  __global const REAL *coeffs) {
+MM_INLINE REAL lambert_phase_curve_o(REAL t, REAL ag, REAL k, REAL tpa, REAL p,
+                                  REAL dt, MM_GLOBAL const int *ep_table,
+                                  MM_GLOBAL const REAL *ep_times,
+                                  MM_GLOBAL const REAL *coeffs) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
     int ix = ep_lookup(tc, p, dt, ep_table);
@@ -212,10 +214,10 @@ inline REAL lambert_phase_curve_o(REAL t, REAL ag, REAL k, REAL tpa, REAL p,
 /* Ellipsoidal-variation signal at any orbital phase.
 
    Port of `meepmeep.numba3d.ev_signal_o`. */
-inline REAL ev_signal_o(REAL alpha, REAL mass_ratio, REAL inc,
+MM_INLINE REAL ev_signal_o(REAL alpha, REAL mass_ratio, REAL inc,
                         REAL t, REAL tpa, REAL p, REAL dt,
-                        __global const int *ep_table, __global const REAL *ep_times,
-                        __global const REAL *coeffs) {
+                        MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                        MM_GLOBAL const REAL *coeffs) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
     int ix = ep_lookup(tc, p, dt, ep_table);
@@ -226,11 +228,11 @@ inline REAL ev_signal_o(REAL alpha, REAL mass_ratio, REAL inc,
 /* Thermal-emission phase curve at any orbital phase.
 
    Port of `meepmeep.numba3d.emission_phase_curve_o`. */
-inline REAL emission_phase_curve_o(REAL t, REAL k, REAL fratio, REAL offset,
+MM_INLINE REAL emission_phase_curve_o(REAL t, REAL k, REAL fratio, REAL offset,
                                    REAL tpa, REAL p, REAL dt,
-                                   __global const int *ep_table,
-                                   __global const REAL *ep_times,
-                                   __global const REAL *coeffs) {
+                                   MM_GLOBAL const int *ep_table,
+                                   MM_GLOBAL const REAL *ep_times,
+                                   MM_GLOBAL const REAL *coeffs) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
     int ix = ep_lookup(tc, p, dt, ep_table);
@@ -241,10 +243,10 @@ inline REAL emission_phase_curve_o(REAL t, REAL k, REAL fratio, REAL offset,
 /* Three-dimensional star-planet distance at any orbital phase.
 
    Port of `meepmeep.numba3d.star_planet_distance_o`. */
-inline REAL star_planet_distance_o(REAL t, REAL tpa, REAL p, REAL dt,
-                                   __global const int *ep_table,
-                                   __global const REAL *ep_times,
-                                   __global const REAL *coeffs) {
+MM_INLINE REAL star_planet_distance_o(REAL t, REAL tpa, REAL p, REAL dt,
+                                   MM_GLOBAL const int *ep_table,
+                                   MM_GLOBAL const REAL *ep_times,
+                                   MM_GLOBAL const REAL *coeffs) {
     REAL x, y, z;
     pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs, &x, &y, &z);
     return sqrt(x * x + y * y + z * z);
@@ -258,11 +260,11 @@ inline REAL star_planet_distance_o(REAL t, REAL tpa, REAL p, REAL dt,
    transit-reference term z_tr = zpos_o(tpa + to, ...) host-side or into a
    pre-pass; this scalar port recomputes it per call, matching the numba
    scalar kernel. Port of `meepmeep.numba3d.light_travel_time_o`. */
-inline REAL light_travel_time_o(REAL t, REAL tpa, REAL p, REAL e, REAL w,
+MM_INLINE REAL light_travel_time_o(REAL t, REAL tpa, REAL p, REAL e, REAL w,
                                 REAL rstar, REAL dt,
-                                __global const int *ep_table,
-                                __global const REAL *ep_times,
-                                __global const REAL *coeffs) {
+                                MM_GLOBAL const int *ep_table,
+                                MM_GLOBAL const REAL *ep_times,
+                                MM_GLOBAL const REAL *coeffs) {
     REAL to = mean_anomaly_at_transit(e, w) / TWO_PI_R * p;
     REAL z_t = zpos_o(t, tpa, p, dt, ep_table, ep_times, coeffs);
     REAL z_tr = zpos_o(tpa + to, tpa, p, dt, ep_table, ep_times, coeffs);

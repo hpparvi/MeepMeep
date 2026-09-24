@@ -75,6 +75,21 @@ x, y, z, dx, dy, dz = o.xyz()           # gradients w.r.t. (tc, p, a, i, e, w, l
 | `meepmeep.Expansion2D` / `Expansion3D` | single-expansion-point, transit-window evaluators |
 | `meepmeep.numba2d` / `meepmeep.numba3d` | low-level `@njit` Taylor primitives |
 
+## C library
+
+The evaluators are also available as a plain C99 library built from the
+same sources as the OpenCL backend, with expansion-point placement and the
+orbit-wide solvers included so it stands on its own. It is built and
+installed independently of the Python package:
+
+```bash
+cmake -S c -B c/build
+cmake --build c/build
+cmake --install c/build --prefix "$HOME/.local"   # meepmeep.h + libmeepmeep
+```
+
+See `docs/source/c_library.rst` and `c/examples/transit.c`.
+
 ## Testing
 
 ```bash

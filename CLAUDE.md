@@ -7,6 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 MeepMeep is a Python package for fast Keplerian orbit calculations optimized for exoplanet transit modeling. It uses 
 Taylor series expansions around expansion points to achieve high-performance orbit evaluations.
 
+The evaluators exist in three forms built from two source trees: the Numba backend (the
+reference, and what the Python API uses), and a set of `.cl` files under
+`backends/opencl/` that compile both as OpenCL C device functions and, through the
+CMake project in `c/`, as a standalone C99 library (`libmeepmeep`). The C library is not
+a Python extension; the wheel stays pure Python.
+
 Reference notebooks live in `notebooks/` and rendered docs source in `docs/`.
 
 ## Project status: major refactor in progress
@@ -35,7 +41,16 @@ python -m build
 pytest meepmeep/tests/
 ```
 
-Tests compare Taylor series approximations against exact Newton-Raphson solutions.
+Tests compare Taylor series approximations against exact Newton-Raphson solutions. The
+OpenCL suites (`test_opencl_*.py`) skip without `pyopencl` and an OpenCL platform; the C
+library suite (`test_c_library.py`) compiles `c/` with the host compiler into a temp dir and
+skips without one, except for the header drift check, which always runs.
+
+**Build the C library** (independent of `pip`; see the "C library" section below):
+```bash
+cmake -S c -B c/build -DMEEPMEEP_BUILD_EXAMPLES=ON && cmake --build c/build
+python c/tools/generate_header.py     # after any signature change in a .cl file
+```
 
 **Measure coverage** (config in `.coveragerc`):
 ```bash
@@ -80,7 +95,7 @@ Sphinx sources live in `docs/source/`; build with:
 cd docs && make html      # output in docs/build/html/
 ```
 
-Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`). The authoritative reference for low-level function naming is `docs/source/naming_conventions.rst` — keep it and the "Adding New Taylor Series Functions" section of this file in sync. When renaming or removing public functions, also sweep the narrative docs (`taylor_overview.rst`, `derivatives.rst`, `orbit_overview.rst`): they embed function names *and* runnable quickstart examples that drift silently and are not caught by the build.
+Cross-references use Sphinx domain roles (`:class:`, `:mod:`, `:func:`, `:meth:`). The authoritative reference for low-level function naming is `docs/source/naming_conventions.rst` — keep it and the "Adding New Taylor Series Functions" section of this file in sync. When renaming or removing public functions, also sweep the narrative docs (`taylor_overview.rst`, `derivatives.rst`, `orbit_overview.rst`, and `c_library.rst` for anything ported to the `.cl` sources): they embed function names *and* runnable quickstart examples that drift silently and are not caught by the build. The C API is documented in `c/include/meepmeep.h` itself (the generated prototype block carries each function's `.cl` comment) plus `c_library.rst`; there is no autodoc for it.
 
 The build carries a residual backlog of ~110 Sphinx cross-reference warnings (the low-level `backends/numba/` modules are not autodoc'd, so `:func:`/`:mod:` links into them stay unresolved). These are known, not regressions — only chase *new* warnings beyond the baseline. `docs/source/api/generated/` is gitignored autosummary output, not tracked source — stale stubs there (e.g. for a removed function) are build artifacts, not doc bugs to fix.
 
@@ -184,11 +199,14 @@ meepmeep/
     │   ├── ea.py          # Eccentric anomaly with custom JVP for AD
     │   └── ts2d/
     │       └── positiond.py  # 2D position with JAX AD support
-    └── opencl/            # OpenCL backend: device functions, plus opt-in solve kernels
+    └── opencl/            # OpenCL backend: device functions, plus opt-in solve kernels.
+        │                  # Every .cl file except solve_kernels.cl also compiles as
+        │                  # C99 and is the source of the C library (see c/ below).
         ├── source.py      # SOURCE_FILES, read_kernel_source, read_full_source,
         │                  # build_options (stdlib-only; imports without pyopencl)
-        ├── common.cl      # REAL machinery, constants, Horner + utils helpers,
-        │                  # mm_mod_two_pi, ea_from_ma (MM_EA_TOL)
+        ├── common.cl      # dual-target macros (MM_GLOBAL, MM_INLINE, REAL),
+        │                  # constants, Horner + utils helpers, mm_mod_two_pi,
+        │                  # ea_from_ma (MM_EA_TOL)
         ├── solve2d.cl     # 2D coefficient solvers (solve2d, solve2d_d)
         ├── solve3d.cl     # 3D coefficient solvers (solve3d, solve3d_d)
         ├── solve_kernels.cl  # the ONLY __kernel file: solve{2,3}d[_d]_batch
@@ -198,6 +216,15 @@ meepmeep/
         ├── point3dd.cl    # 3D gradients (pos_cd3, sep_d3, ...)
         ├── orbit3d.cl     # multi-expansion-point values (+ ep_lookup/ep_ix)
         └── orbit3dd.cl    # multi-expansion-point gradients
+c/                         # C library (libmeepmeep), built with CMake independently
+│                          # of the Python package; not a Python extension
+├── CMakeLists.txt
+├── include/meepmeep.h     # public API; the prototype block is GENERATED
+├── tools/generate_header.py  # regenerates that block from the .cl sources
+├── src/meepmeep.c         # unity build of the shared .cl sources as C99
+├── src/expansion_points.c # create_expansion_points + brentq transcription
+├── src/orbit.c            # solve3d_orbit(_d), gradient basis transforms
+└── examples/transit.c
 ```
 
 The package version is resolved dynamically: `pyproject.toml` declares
@@ -281,7 +308,9 @@ Standard Keplerian elements used throughout:
 and the Taylor coefficient solvers, as OpenCL C **device functions**.
 Downstream packages (e.g. pt3/PyTransit) prepend `read_kernel_source(...)`
 output to their own kernel code; context/queue/program management is
-deliberately left to them.
+deliberately left to them. The same `.cl` files are also the C library's
+sources (see "C library" below), so every edit here lands in both targets:
+follow the "Dual target" bullet, and run the C suite as well as the OpenCL one.
 
 `solve_kernels.cl` is the **only** file containing `__kernel` entry points,
 and it is opt-in: request it by name for launchable batched solvers, or omit
@@ -325,7 +354,7 @@ Key conventions (documented in each `.cl` header and `source.py`):
   `ep_table` must be uploaded as int32 (`astype(np.int32)`); the numba
   backend builds it int64.
 - **Solvers on device**: `solve2d`/`solve2d_d`/`solve3d`/`solve3d_d` write
-  their matrices through `__global` output pointers (C cannot return them),
+  their matrices through `MM_GLOBAL` output pointers (C cannot return them),
   spell the inclination `inc` (`i` is the loop index), and take `lan` and
   `from_periastron` as mandatory arguments. They keep the numba names
   unsuffixed — unlike the evaluators, those already carry the dimension.
@@ -334,9 +363,19 @@ Key conventions (documented in each `.cl` header and `source.py`):
   do. `MM_EA_TOL` makes the Kepler tolerance precision-aware, because
   numba's literal `1e-13` is unreachable in fp32 and would pin every work
   item at the 50-iteration cap.
-- **Still excluded (stay host-side)**: `newton/`, `expansion_points.py`
+- **Still excluded from the device**: `newton/`, `expansion_points.py`
   (scipy), and the `util.py` contact-point bisection. Expansion-point
-  placement in particular must still come from the host.
+  placement must come from the host for OpenCL; the C library carries its
+  own C port of it (`c/src/expansion_points.c`), which is not device code.
+- **Dual target.** Every `.cl` file except `solve_kernels.cl` also compiles
+  as plain C99: the functions are written against `MM_GLOBAL` (`__global` /
+  empty), `MM_INLINE` (`inline` / empty) and `REAL` (`-DREAL=` / `double`),
+  defined at the top of `common.cl` by `__OPENCL_VERSION__`. Keep the shared
+  bodies free of OpenCL-only builtins (`clamp`, `get_global_id`, address-space
+  qualifiers, ...); only `solve_kernels.cl` may use them. Spell new
+  signatures with the macros, and after any signature change run
+  `python c/tools/generate_header.py` (the C test suite fails while the
+  header is stale).
 - **`.cl` files ship as package data** via `[tool.setuptools.package-data]`
   (explicit globs are honoured despite `include-package-data = false`);
   `pyopencl` is the optional `opencl` dependency group, and nothing in the
@@ -353,6 +392,41 @@ Key conventions (documented in each `.cl` header and `source.py`):
   numba `_s`/`_w` kernel — that correspondence is the primary correctness
   argument. When a numba kernel changes, port the change and keep the
   structure aligned.
+
+### C library
+
+`c/` builds the shared `.cl` sources as a C99 library, `libmeepmeep`, with
+CMake (`cmake -S c -B c/build && cmake --build c/build`). It lives in this
+repository so the numba, OpenCL and C targets version and test together, but
+it is deliberately *not* a Python extension: the wheel stays pure Python and
+nothing in `meepmeep/` imports it. Precision is fixed to double.
+
+- `c/src/meepmeep.c` includes the public header first and then the `.cl`
+  files in `SOURCE_FILES` order, so a `.cl` signature that drifts from its
+  prototype is a compile error. The prototype block of
+  `c/include/meepmeep.h` is generated (`python c/tools/generate_header.py`);
+  the hand-written part above the markers holds the constants, status codes
+  and the C-only functions.
+- C-only functions (`c/src/expansion_points.c`, `c/src/orbit.c`) are the
+  host-side pieces a self-contained library needs and mirror their numba
+  twins by name: `create_expansion_points` (returns an `mm_status` code;
+  the `'ea'`/`'ta'` roots come from a transcription of scipy's `brentq`
+  with its default tolerances, so the placements agree to ~1e-12 in phase),
+  `solve3d_orbit`, `solve3d_orbit_d`, and the gradient basis transforms,
+  which work *in place* where numba returns a copy. When a numba twin
+  changes, port the change here as well.
+- Symbols are unprefixed (they are the OpenCL names); only the C-only
+  enumerations carry `MM_`.
+- Tests: `meepmeep/tests/test_c_library.py` always checks the header is
+  current and, when a C compiler is on `PATH`, builds the library with
+  `cc -shared` into a temp dir and compares the C-only functions plus a
+  sample of the shared ones against numba through `ctypes`. The full
+  evaluator surface is covered by the OpenCL parity suites, which exercise
+  the same source text. Gradient comparisons need a signal-scaled `atol`:
+  analytically-zero slots (the `lan` slot of a separation gradient) come out
+  as +-1e-13 roundoff whose sign depends on fastmath contraction.
+- Never build with `-ffast-math`, for the same reason as
+  `-cl-fast-relaxed-math` above.
 
 ### Adding New Taylor Series Functions
 
@@ -371,6 +445,7 @@ To add a new quantity:
 3. If derivatives are needed, add `_d`/`_cd` variants in the corresponding derivative module (`point2dd/<quantity>.py` for single-expansion-point 2D, `point3dd/<quantity>.py` for 3D)
 4. Decorate with `@njit(fastmath=True)`
 5. If the new function is intended for public use, add its name — and the names of its public vector/parallel kernels (`X_v`/`X_vp`, or `X_ov`/`X_ovp`/`X_ovd`/`X_ovdp` for multi-expansion-point) — to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-expansion-point routines). The scalar (`_X_s`/`_X_os`/`_X_osd`), write-into (`_X_..._w`/`_X_ow`), and dual-decoration body (`_X_v_body`) kernels stay private and are not exported.
+6. If the quantity belongs in the OpenCL/C surface too, port the scalar kernel to the matching `.cl` file using `MM_INLINE`/`MM_GLOBAL`/`REAL` (no OpenCL-only builtins), give it a "Port of `meepmeep.numbaXd.X`" comment (the generated C header reuses it), regenerate the header with `python c/tools/generate_header.py`, add an OpenCL parity test with a test-only `__kernel` wrapper, and mutation-test it. The C suite then covers it through the same source text.
 
 The single-expansion-point evaluators are organised into per-dimension packages:
 `point2d/`/`point2dd/` for 2D and `point3d/`/`point3dd/` for 3D, where the

@@ -4,6 +4,30 @@ All notable changes to MeepMeep are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- C library (`c/`): the evaluators, coefficient solvers and multi-expansion-
+  point routines as a plain C99 library, `libmeepmeep`, built with CMake
+  independently of the Python package. It is a second compile target of the
+  `.cl` sources shared with the OpenCL backend, plus C ports of the pieces a
+  self-contained library needs: `create_expansion_points` (with a
+  transcription of scipy's `brentq` for the anomaly-uniform strategies),
+  `solve3d_orbit`, `solve3d_orbit_d`, and the in-place gradient basis
+  transforms `tc_to_tp_gradient`, `tp_to_tc_gradient` and
+  `tp_to_tc_gradient_orbit`. Precision is fixed to double. The public
+  header's prototype block is generated from the shared sources
+  (`c/tools/generate_header.py`) and `tests/test_c_library.py` guards it
+  against drift and checks the library against numba through `ctypes`.
+
+### Changed
+- The OpenCL sources are now written against `MM_GLOBAL`, `MM_INLINE` and
+  `REAL` macros defined at the top of `common.cl`, so the same files compile
+  as OpenCL C and as C99. On the device they expand to `__global` and
+  `inline` as before; kernels built from `read_kernel_source` are unaffected.
+  The one OpenCL-only builtin in the shared code (`clamp` in `ep_lookup`)
+  was replaced by explicit branches.
+
 ## [1.1.0] - 2026-09-08
 
 ### Changed

@@ -17,7 +17,7 @@
  *
  *  Deviations from the numba twins, all forced by C:
  *
- *  - Results are written through __global output pointers rather than
+ *  - Results are written through MM_GLOBAL output pointers rather than
  *    returned: `cf` is the flattened (2, 5) matrix (10 REALs) and `dcf` the
  *    flattened (7, 2, 5) derivative tensor (70 REALs), in the array layout
  *    documented in common.cl. Both must be distinct, non-overlapping.
@@ -37,8 +37,8 @@
 
    Writes the 10 contiguous elements of the flattened (2, 5) matrix into `cf`:
    row 0 is x, row 1 is y. Port of `meepmeep.numba2d.solve2d`. */
-inline void solve2d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
-                    __global REAL *cf) {
+MM_INLINE void solve2d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
+                    MM_GLOBAL REAL *cf) {
     /* Constants */
     REAL n = TWO_PI_R / p;
     REAL mu = n * n * a * a * a;   /* [R_star^3 / day^2] */
@@ -129,9 +129,9 @@ inline void solve2d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
    derivative tensor into `dcf`. With `from_periastron` set, `te` is measured
    from periastron and the rows are the periastron-basis ones
    (tp, p, a, i, e, w, lan). Port of `meepmeep.numba2d.solve2d_d`. */
-inline void solve2d_d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
+MM_INLINE void solve2d_d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
                       int from_periastron,
-                      __global REAL *cf, __global REAL *dcf) {
+                      MM_GLOBAL REAL *cf, MM_GLOBAL REAL *dcf) {
     /* Parameter indices: 0=tc, 1=p, 2=a, 3=i, 4=e, 5=w, 6=lan. The working
        vectors are 6 long; the lan row is built analytically at the end.
        The numba twin holds these as rows of one scratch block for the same

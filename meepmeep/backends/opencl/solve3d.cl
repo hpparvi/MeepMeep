@@ -23,8 +23,8 @@
    time `te` relative to the transit centre.
 
    Port of `meepmeep.numba3d.solve3d`. */
-inline void solve3d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
-                    __global REAL *cf) {
+MM_INLINE void solve3d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
+                    MM_GLOBAL REAL *cf) {
     /* Constants */
     REAL n = TWO_PI_R / p;
     REAL mu = n * n * a * a * a;   /* [R_star^3 / day^2] */
@@ -127,9 +127,9 @@ inline void solve3d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
    Port of `meepmeep.numba3d.solve3d_d`. With `from_periastron` set, `te` is
    measured from periastron and the rows are the periastron-basis ones
    (tp, p, a, i, e, w, lan). */
-inline void solve3d_d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
+MM_INLINE void solve3d_d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL lan,
                       int from_periastron,
-                      __global REAL *cf, __global REAL *dcf) {
+                      MM_GLOBAL REAL *cf, MM_GLOBAL REAL *dcf) {
     /* Parameter indices: 0=tc, 1=p, 2=a, 3=i, 4=e, 5=w, 6=lan. */
     REAL dn[6], dmu[6], dsqe2[6], doffset[6], dma[6], dea[6], dsea[6], dcea[6];
     REAL dr[6], dxi[6], deta[6], dea_dot[6], dv_xi[6], dv_eta[6];

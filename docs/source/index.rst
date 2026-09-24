@@ -122,6 +122,12 @@ map the low-level Taylor-series backend they all use under the hood.
    api/low_level
 
 .. toctree::
+   :maxdepth: 2
+   :caption: C library
+
+   c_library
+
+.. toctree::
    :maxdepth: 1
    :caption: Project
 

@@ -22,7 +22,14 @@ MeepMeep prepend the source returned by :func:`read_kernel_source` to their
 own kernel code and call the functions from their kernels. Context, queue, and
 program management are deliberately left to the caller.
 
-Every file except ``solve_kernels.cl`` contains device functions only.
+Every file except ``solve_kernels.cl`` contains device functions only, and
+every such file is also valid C99: the functions are written against the
+``MM_GLOBAL`` / ``MM_INLINE`` / ``REAL`` macros defined at the top of
+``common.cl``, which expand to ``__global`` / ``inline`` / the ``-DREAL=``
+type on the device and to nothing / nothing / ``double`` under a C compiler.
+The C library in the repository's ``c/`` directory builds the same files
+that way; nothing here depends on it.
+
 ``solve_kernels.cl`` is opt-in and holds the batched ``__kernel`` entry points
 for the solvers (one work item per orbital parameter set); request it by name
 to get launchable solvers, or omit it and drive the ``solve2d``/``solve3d``

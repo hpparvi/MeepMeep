@@ -285,6 +285,20 @@ program = cl.Program(ctx, src + my_kernel_src).build(options=build_options("doub
 - Newton references and expansion-point placement
   (`create_expansion_points`, needs scipy) stay host-side.
 
+## C library (same sources, plain C99, no Python)
+
+`c/` in the repository builds the `.cl` files above as `libmeepmeep` with
+CMake (`cmake -S c -B c/build && cmake --build c/build`); it is NOT a
+Python extension and `pip install meepmeep` does not build it. Same
+function names and layouts as the OpenCL backend with `double` for `REAL`
+and plain pointers for `__global`. It adds what a self-contained library
+needs: `create_expansion_points(n_ep, e, MM_EP_EA, tres, ep_times,
+change_times, &dt, ep_table)` returning an `mm_status` code,
+`solve3d_orbit(_d)`, and in-place `tc_to_tp_gradient` /
+`tp_to_tc_gradient` / `tp_to_tc_gradient_orbit`. Pipeline and conventions:
+`c/include/meepmeep.h`, `c/examples/transit.c`, `docs/source/c_library.rst`.
+Never build it with `-ffast-math`.
+
 ## Pitfalls (the things agents get wrong)
 
 1. `k` MEANS TWO THINGS: planet-to-star radius ratio in transit-geometry

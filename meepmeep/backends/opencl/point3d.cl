@@ -20,7 +20,7 @@
 /* Planet (x, y, z) position at an expansion-point-centred time.
 
    Port of `meepmeep.numba3d.pos_c`. */
-inline void pos_c3(REAL t, __global const REAL *c, REAL *px, REAL *py, REAL *pz) {
+MM_INLINE void pos_c3(REAL t, MM_GLOBAL const REAL *c, REAL *px, REAL *py, REAL *pz) {
     *px = taylor5(t, c);
     *py = taylor5(t, c + 5);
     *pz = taylor5(t, c + 10);
@@ -30,7 +30,7 @@ inline void pos_c3(REAL t, __global const REAL *c, REAL *px, REAL *py, REAL *pz)
 /* Planet (x, y, z) position at an absolute time.
 
    Port of `meepmeep.numba3d.pos`. */
-inline void pos3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te,
+MM_INLINE void pos3(REAL t, REAL tc, REAL p, MM_GLOBAL const REAL *c, REAL te,
                  REAL *px, REAL *py, REAL *pz) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     pos_c3(t - (tc + te + epoch * p), c, px, py, pz);
@@ -40,7 +40,7 @@ inline void pos3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te,
 /* Line-of-sight z coordinate at a centred time.
 
    Port of `meepmeep.numba3d.zpos_c`. */
-inline REAL zpos_c3(REAL t, __global const REAL *c) {
+MM_INLINE REAL zpos_c3(REAL t, MM_GLOBAL const REAL *c) {
     return taylor5(t, c + 10);
 }
 
@@ -48,7 +48,7 @@ inline REAL zpos_c3(REAL t, __global const REAL *c) {
 /* Line-of-sight z coordinate at an absolute time.
 
    Port of `meepmeep.numba3d.zpos`. */
-inline REAL zpos3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te) {
+MM_INLINE REAL zpos3(REAL t, REAL tc, REAL p, MM_GLOBAL const REAL *c, REAL te) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     return zpos_c3(t - (tc + te + epoch * p), c);
 }
@@ -57,7 +57,7 @@ inline REAL zpos3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te) {
 /* Sky-projected planet-star separation at a centred time.
 
    Port of `meepmeep.numba3d.sep_c`. */
-inline REAL sep_c3(REAL t, __global const REAL *c) {
+MM_INLINE REAL sep_c3(REAL t, MM_GLOBAL const REAL *c) {
     REAL px = taylor5(t, c);
     REAL py = taylor5(t, c + 5);
     return sqrt(px * px + py * py);
@@ -67,7 +67,7 @@ inline REAL sep_c3(REAL t, __global const REAL *c) {
 /* Sky-projected planet-star separation at an absolute time.
 
    Port of `meepmeep.numba3d.sep`. */
-inline REAL sep3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te) {
+MM_INLINE REAL sep3(REAL t, REAL tc, REAL p, MM_GLOBAL const REAL *c, REAL te) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     return sep_c3(t - (tc + te + epoch * p), c);
 }
@@ -76,7 +76,7 @@ inline REAL sep3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te) {
 /* Planet (vx, vy, vz) velocity at a centred time.
 
    Port of `meepmeep.numba3d.vel_c`. */
-inline void vel_c3(REAL t, __global const REAL *c, REAL *vx, REAL *vy, REAL *vz) {
+MM_INLINE void vel_c3(REAL t, MM_GLOBAL const REAL *c, REAL *vx, REAL *vy, REAL *vz) {
     *vx = taylor5_dot(t, c);
     *vy = taylor5_dot(t, c + 5);
     *vz = taylor5_dot(t, c + 10);
@@ -86,7 +86,7 @@ inline void vel_c3(REAL t, __global const REAL *c, REAL *vx, REAL *vy, REAL *vz)
 /* Planet (vx, vy, vz) velocity at an absolute time.
 
    Port of `meepmeep.numba3d.vel`. */
-inline void vel3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te,
+MM_INLINE void vel3(REAL t, REAL tc, REAL p, MM_GLOBAL const REAL *c, REAL te,
                  REAL *vx, REAL *vy, REAL *vz) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     vel_c3(t - (tc + te + epoch * p), c, vx, vy, vz);
@@ -96,7 +96,7 @@ inline void vel3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te,
 /* Line-of-sight velocity at a centred time.
 
    Port of `meepmeep.numba3d.zvel_c`. */
-inline REAL zvel_c3(REAL t, __global const REAL *c) {
+MM_INLINE REAL zvel_c3(REAL t, MM_GLOBAL const REAL *c) {
     return taylor5_dot(t, c + 10);
 }
 
@@ -104,7 +104,7 @@ inline REAL zvel_c3(REAL t, __global const REAL *c) {
 /* Line-of-sight velocity at an absolute time.
 
    Port of `meepmeep.numba3d.zvel`. */
-inline REAL zvel3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te) {
+MM_INLINE REAL zvel3(REAL t, REAL tc, REAL p, MM_GLOBAL const REAL *c, REAL te) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     return zvel_c3(t - (tc + te + epoch * p), c);
 }
@@ -116,8 +116,8 @@ inline REAL zvel3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te) {
    inherits. The numba original is compiled without fastmath for RV
    precision; OpenCL strict math (no -cl-fast-relaxed-math) matches that.
    Port of `meepmeep.numba3d.rv_c`. */
-inline REAL rv_c3(REAL t, REAL k, REAL p, REAL a, REAL i, REAL e,
-                  __global const REAL *c) {
+MM_INLINE REAL rv_c3(REAL t, REAL k, REAL p, REAL a, REAL i, REAL e,
+                  MM_GLOBAL const REAL *c) {
     REAL n = TWO_PI_R / p * (a * sin(i)) / sqrt((REAL)1.0 - e * e);
     return zvel_c3(t, c) / n * k;
 }
@@ -126,8 +126,8 @@ inline REAL rv_c3(REAL t, REAL k, REAL p, REAL a, REAL i, REAL e,
 /* Stellar radial velocity at an absolute time.
 
    Port of `meepmeep.numba3d.rv`. */
-inline REAL rv3(REAL t, REAL k, REAL tc, REAL p, REAL a, REAL i, REAL e,
-                __global const REAL *c, REAL te) {
+MM_INLINE REAL rv3(REAL t, REAL k, REAL tc, REAL p, REAL a, REAL i, REAL e,
+                MM_GLOBAL const REAL *c, REAL te) {
     REAL n = TWO_PI_R / p * (a * sin(i)) / sqrt((REAL)1.0 - e * e);
     return zvel3(t, tc, p, c, te) / n * k;
 }
@@ -136,7 +136,7 @@ inline REAL rv3(REAL t, REAL k, REAL tc, REAL p, REAL a, REAL i, REAL e,
 /* Cosine of the star-planet-observer phase angle at a centred time.
 
    Port of `meepmeep.numba3d.cos_alpha_c`. */
-inline REAL cos_alpha_c3(REAL t, __global const REAL *c) {
+MM_INLINE REAL cos_alpha_c3(REAL t, MM_GLOBAL const REAL *c) {
     REAL px, py, pz;
     pos_c3(t, c, &px, &py, &pz);
     return -pz / sqrt(px * px + py * py + pz * pz);
@@ -146,7 +146,7 @@ inline REAL cos_alpha_c3(REAL t, __global const REAL *c) {
 /* Cosine of the phase angle at an absolute time.
 
    Port of `meepmeep.numba3d.cos_alpha`. */
-inline REAL cos_alpha3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te) {
+MM_INLINE REAL cos_alpha3(REAL t, REAL tc, REAL p, MM_GLOBAL const REAL *c, REAL te) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     return cos_alpha_c3(t - (tc + te + epoch * p), c);
 }
@@ -159,7 +159,7 @@ inline REAL cos_alpha3(REAL t, REAL tc, REAL p, __global const REAL *c, REAL te)
    into `alpha` as a by-product. `cos_alpha` is clamped to [-1, 1] so a
    Taylor-rounding overshoot cannot produce a NaN from acos. Port of the
    numba helper `_lambert_kernel`. */
-inline REAL lambert_kernel(REAL cos_alpha, REAL *alpha) {
+MM_INLINE REAL lambert_kernel(REAL cos_alpha, REAL *alpha) {
     if (cos_alpha > (REAL)1.0)
         cos_alpha = (REAL)1.0;
     else if (cos_alpha < (REAL)-1.0)
@@ -174,8 +174,8 @@ inline REAL lambert_kernel(REAL cos_alpha, REAL *alpha) {
 
    `ag` is the geometric albedo and `k` the radius ratio. Port of
    `meepmeep.numba3d.lambert_phase_curve_c`. */
-inline REAL lambert_phase_curve_c3(REAL t, REAL ag, REAL k,
-                                   __global const REAL *c) {
+MM_INLINE REAL lambert_phase_curve_c3(REAL t, REAL ag, REAL k,
+                                   MM_GLOBAL const REAL *c) {
     REAL px, py, pz, alpha;
     pos_c3(t, c, &px, &py, &pz);
     REAL r2 = px * px + py * py + pz * pz;
@@ -187,8 +187,8 @@ inline REAL lambert_phase_curve_c3(REAL t, REAL ag, REAL k,
 /* Lambertian reflected-light phase curve at an absolute time.
 
    Port of `meepmeep.numba3d.lambert_phase_curve`. */
-inline REAL lambert_phase_curve3(REAL t, REAL ag, REAL k, REAL tc, REAL p,
-                                 __global const REAL *c, REAL te) {
+MM_INLINE REAL lambert_phase_curve3(REAL t, REAL ag, REAL k, REAL tc, REAL p,
+                                 MM_GLOBAL const REAL *c, REAL te) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     return lambert_phase_curve_c3(t - (tc + te + epoch * p), ag, k, c);
 }
@@ -199,8 +199,8 @@ inline REAL lambert_phase_curve3(REAL t, REAL ag, REAL k, REAL tc, REAL p,
    `alpha` is the EV amplitude coefficient, `mass_ratio` the planet-star
    mass ratio, and `inc` the inclination. Port of
    `meepmeep.numba3d.ev_signal_c`. */
-inline REAL ev_signal_c3(REAL t, REAL alpha, REAL mass_ratio, REAL inc,
-                         __global const REAL *c) {
+MM_INLINE REAL ev_signal_c3(REAL t, REAL alpha, REAL mass_ratio, REAL inc,
+                         MM_GLOBAL const REAL *c) {
     REAL sin_inc = sin(inc);
     REAL pre = -alpha * mass_ratio * sin_inc * sin_inc;
     REAL px, py, pz;
@@ -215,8 +215,8 @@ inline REAL ev_signal_c3(REAL t, REAL alpha, REAL mass_ratio, REAL inc,
 /* Ellipsoidal-variation signal at an absolute time.
 
    Port of `meepmeep.numba3d.ev_signal`. */
-inline REAL ev_signal3(REAL t, REAL alpha, REAL mass_ratio, REAL inc,
-                       REAL tc, REAL p, __global const REAL *c, REAL te) {
+MM_INLINE REAL ev_signal3(REAL t, REAL alpha, REAL mass_ratio, REAL inc,
+                       REAL tc, REAL p, MM_GLOBAL const REAL *c, REAL te) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     return ev_signal_c3(t - (tc + te + epoch * p), alpha, mass_ratio, inc, c);
 }
@@ -228,8 +228,8 @@ inline REAL ev_signal3(REAL t, REAL alpha, REAL mass_ratio, REAL inc,
    the hot-spot offset [radians]. The orbital angular-momentum vector
    (w = r x v) orients the offset in the orbital plane. Port of
    `meepmeep.numba3d.emission_phase_curve_c`. */
-inline REAL emission_phase_curve_c3(REAL t, REAL k, REAL fratio, REAL offset,
-                                    __global const REAL *c) {
+MM_INLINE REAL emission_phase_curve_c3(REAL t, REAL k, REAL fratio, REAL offset,
+                                    MM_GLOBAL const REAL *c) {
     REAL x, y, z, vx, vy, vz;
     pos_c3(t, c, &x, &y, &z);
     vel_c3(t, c, &vx, &vy, &vz);
@@ -249,8 +249,8 @@ inline REAL emission_phase_curve_c3(REAL t, REAL k, REAL fratio, REAL offset,
 /* Thermal-emission phase curve at an absolute time.
 
    Port of `meepmeep.numba3d.emission_phase_curve`. */
-inline REAL emission_phase_curve3(REAL t, REAL k, REAL fratio, REAL offset,
-                                  REAL tc, REAL p, __global const REAL *c, REAL te) {
+MM_INLINE REAL emission_phase_curve3(REAL t, REAL k, REAL fratio, REAL offset,
+                                  REAL tc, REAL p, MM_GLOBAL const REAL *c, REAL te) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     return emission_phase_curve_c3(t - (tc + te + epoch * p), k, fratio, offset, c);
 }

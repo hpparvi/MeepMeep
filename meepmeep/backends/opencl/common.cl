@@ -1,10 +1,25 @@
 /*  MeepMeep: fast orbit calculations for exoplanet modelling
  *  Copyright (C) 2022-2026 Hannu Parviainen
  *
- *  Shared device code for the MeepMeep OpenCL backend.
+ *  Shared code for the MeepMeep OpenCL backend and the C library.
  *
- *  `REAL` is set to `double` or `float` by a -DREAL= build option, and
- *  USE_FP64 is defined alongside -DREAL=double (see
+ *  Dual target. Every `.cl` file except `solve_kernels.cl` is written to
+ *  compile both as OpenCL C (device functions prepended to a user kernel)
+ *  and as plain C99 (the unity build in `c/src/meepmeep.c`). The two
+ *  targets differ only through the macros defined at the top of this file:
+ *
+ *      MM_GLOBAL   `__global` on the device, empty in C
+ *      MM_INLINE   `inline` on the device, empty in C (so the functions get
+ *                  external linkage and become the C library's symbols)
+ *      REAL        the floating-point type; `double` or `float` on the
+ *                  device via a -DREAL= build option, always `double` in C
+ *
+ *  Keep the function bodies free of OpenCL-only builtins (`clamp`,
+ *  `get_global_id`, address-space qualifiers, ...); only `solve_kernels.cl`
+ *  may use them.
+ *
+ *  On the device, `REAL` is set to `double` or `float` by a -DREAL= build
+ *  option, and USE_FP64 is defined alongside -DREAL=double (see
  *  `meepmeep.backends.opencl.build_options`). Every floating-point literal is
  *  cast to REAL so the single-precision build does not silently promote.
  *
@@ -29,8 +44,24 @@
  *  float32.
  */
 
-#ifdef USE_FP64
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+#ifdef __OPENCL_VERSION__
+  /* OpenCL C: device functions inlined into the user's kernel. */
+  #define MM_GLOBAL __global
+  #define MM_INLINE inline
+  #ifdef USE_FP64
+    #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+  #endif
+#else
+  /* Plain C99: the C library build. Fixed double precision. */
+  #include <math.h>
+  #ifndef REAL
+    #define REAL double
+  #endif
+  #ifndef USE_FP64
+    #define USE_FP64
+  #endif
+  #define MM_GLOBAL
+  #define MM_INLINE
 #endif
 
 #define PI_R ((REAL)3.14159265358979323846)
@@ -51,7 +82,7 @@
    `cf` points at five contiguous coefficients ordered [position, velocity,
    acceleration/2, jerk/6, snap/24] (pre-scaled by the factorial, so this is
    a plain polynomial evaluation). One row of a solve2d/solve3d matrix. */
-inline REAL taylor5(REAL t, __global const REAL *cf) {
+MM_INLINE REAL taylor5(REAL t, MM_GLOBAL const REAL *cf) {
     return cf[0] + t * (cf[1] + t * (cf[2] + t * (cf[3] + t * cf[4])));
 }
 
@@ -59,7 +90,7 @@ inline REAL taylor5(REAL t, __global const REAL *cf) {
 /* Time derivative of `taylor5` over the same coefficient row.
 
    Mirrors the Horner form of `backends.numba.point3d.velocity._vel_c_s`. */
-inline REAL taylor5_dot(REAL t, __global const REAL *cf) {
+MM_INLINE REAL taylor5_dot(REAL t, MM_GLOBAL const REAL *cf) {
     return cf[1] + t * ((REAL)2.0 * cf[2] + t * ((REAL)3.0 * cf[3] + t * (REAL)4.0 * cf[4]));
 }
 
@@ -67,7 +98,7 @@ inline REAL taylor5_dot(REAL t, __global const REAL *cf) {
 /* Mean anomaly at the moment of primary transit.
 
    Port of `backends.numba.utils.mean_anomaly_at_transit`. */
-inline REAL mean_anomaly_at_transit(REAL ecc, REAL w) {
+MM_INLINE REAL mean_anomaly_at_transit(REAL ecc, REAL w) {
     REAL m = atan2(sqrt((REAL)1.0 - ecc * ecc) * sin(HALF_PI_R - w),
                    ecc + cos(HALF_PI_R - w));
     m -= ecc * sin(m);
@@ -80,7 +111,7 @@ inline REAL mean_anomaly_at_transit(REAL ecc, REAL w) {
    The value is returned; the derivatives are written into `dm_de` and
    `dm_dw`. Port of
    `backends.numba.utils.mean_anomaly_at_transit_with_derivatives`. */
-inline REAL mean_anomaly_at_transit_with_derivatives(REAL ecc, REAL w,
+MM_INLINE REAL mean_anomaly_at_transit_with_derivatives(REAL ecc, REAL w,
                                                      REAL *dm_de, REAL *dm_dw) {
     REAL sqe2 = sqrt((REAL)1.0 - ecc * ecc);
     REAL cw = cos(w);
@@ -108,7 +139,7 @@ inline REAL mean_anomaly_at_transit_with_derivatives(REAL ecc, REAL w,
    E - e sin(E) = M is strictly monotonic, so root(M + 2pi) = root(M) + 2pi
    exactly and the solvers consume only sin(E) and cos(E). It is kept because
    that stops being true the moment anything reads E itself. */
-inline REAL mm_mod_two_pi(REAL x) {
+MM_INLINE REAL mm_mod_two_pi(REAL x) {
     REAL r = fmod(x, TWO_PI_R);
     return (r < (REAL)0.0) ? r + TWO_PI_R : r;
 }
@@ -135,7 +166,7 @@ inline REAL mm_mod_two_pi(REAL x) {
    count is data-dependent, so within a warp every lane pays for the slowest
    lane: a batch spanning a range of eccentricities costs more per parameter
    set than one sharing a single eccentricity. */
-inline REAL ea_from_ma(REAL ma, REAL ecc) {
+MM_INLINE REAL ea_from_ma(REAL ma, REAL ecc) {
     REAL ea = (ecc > (REAL)0.8) ? PI_R : ma;
     for (int it = 0; it < 50; ++it) {
         REAL f = ea - ecc * sin(ea) - ma;

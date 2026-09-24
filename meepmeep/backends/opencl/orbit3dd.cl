@@ -22,9 +22,9 @@
 /* Position and its (tc, p, a, i, e, w, lan) derivatives at any phase.
 
    Port of `meepmeep.numba3d.pos_od`. */
-inline void pos_od(REAL t, REAL tpa, REAL p, REAL dt,
-                   __global const int *ep_table, __global const REAL *ep_times,
-                   __global const REAL *coeffs, __global const REAL *dcoeffs,
+MM_INLINE void pos_od(REAL t, REAL tpa, REAL p, REAL dt,
+                   MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                   MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                    REAL *px, REAL *py, REAL *pz,
                    REAL *dpx, REAL *dpy, REAL *dpz) {
     REAL epoch = floor((t - tpa) / p);
@@ -41,9 +41,9 @@ inline void pos_od(REAL t, REAL tpa, REAL p, REAL dt,
 /* Line-of-sight z and derivatives at any phase.
 
    Port of `meepmeep.numba3d.zpos_od`. */
-inline REAL zpos_od(REAL t, REAL tpa, REAL p, REAL dt,
-                    __global const int *ep_table, __global const REAL *ep_times,
-                    __global const REAL *coeffs, __global const REAL *dcoeffs,
+MM_INLINE REAL zpos_od(REAL t, REAL tpa, REAL p, REAL dt,
+                    MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                    MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                     REAL *dz) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -57,9 +57,9 @@ inline REAL zpos_od(REAL t, REAL tpa, REAL p, REAL dt,
 /* Sky-projected separation and derivatives at any phase.
 
    Port of `meepmeep.numba3d.sep_od`. */
-inline REAL sep_od(REAL t, REAL tpa, REAL p, REAL dt,
-                   __global const int *ep_table, __global const REAL *ep_times,
-                   __global const REAL *coeffs, __global const REAL *dcoeffs,
+MM_INLINE REAL sep_od(REAL t, REAL tpa, REAL p, REAL dt,
+                   MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                   MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                    REAL *dd) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -73,9 +73,9 @@ inline REAL sep_od(REAL t, REAL tpa, REAL p, REAL dt,
 /* Velocity and derivatives at any phase.
 
    Port of `meepmeep.numba3d.vel_od`. */
-inline void vel_od(REAL t, REAL tpa, REAL p, REAL dt,
-                   __global const int *ep_table, __global const REAL *ep_times,
-                   __global const REAL *coeffs, __global const REAL *dcoeffs,
+MM_INLINE void vel_od(REAL t, REAL tpa, REAL p, REAL dt,
+                   MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                   MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                    REAL *vx, REAL *vy, REAL *vz,
                    REAL *dvx, REAL *dvy, REAL *dvz) {
     REAL epoch = floor((t - tpa) / p);
@@ -92,9 +92,9 @@ inline void vel_od(REAL t, REAL tpa, REAL p, REAL dt,
 /* Line-of-sight velocity and derivatives at any phase.
 
    Port of `meepmeep.numba3d.zvel_od`. */
-inline REAL zvel_od(REAL t, REAL tpa, REAL p, REAL dt,
-                    __global const int *ep_table, __global const REAL *ep_times,
-                    __global const REAL *coeffs, __global const REAL *dcoeffs,
+MM_INLINE REAL zvel_od(REAL t, REAL tpa, REAL p, REAL dt,
+                    MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                    MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                     REAL *dvz) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -109,10 +109,10 @@ inline REAL zvel_od(REAL t, REAL tpa, REAL p, REAL dt,
 
    drv: REAL[8], ordered (tc, p, a, i, e, w, lan, k); slot 7 is
    d(rv)/dk = rv/k, zero when k is zero. Port of `meepmeep.numba3d.rv_od`. */
-inline REAL rv_od(REAL t, REAL k, REAL tpa, REAL p, REAL a, REAL i, REAL e,
-                  REAL dt, __global const int *ep_table,
-                  __global const REAL *ep_times,
-                  __global const REAL *coeffs, __global const REAL *dcoeffs,
+MM_INLINE REAL rv_od(REAL t, REAL k, REAL tpa, REAL p, REAL a, REAL i, REAL e,
+                  REAL dt, MM_GLOBAL const int *ep_table,
+                  MM_GLOBAL const REAL *ep_times,
+                  MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                   REAL *drv) {
     REAL dsp, dsa, dsi, dse;
     REAL s = rv_scale(k, p, a, i, e, &dsp, &dsa, &dsi, &dse);
@@ -130,9 +130,9 @@ inline REAL rv_od(REAL t, REAL k, REAL tpa, REAL p, REAL a, REAL i, REAL e,
 /* Phase-angle cosine and derivatives at any phase.
 
    Port of `meepmeep.numba3d.cos_alpha_od`. */
-inline REAL cos_alpha_od(REAL t, REAL tpa, REAL p, REAL dt,
-                         __global const int *ep_table, __global const REAL *ep_times,
-                         __global const REAL *coeffs, __global const REAL *dcoeffs,
+MM_INLINE REAL cos_alpha_od(REAL t, REAL tpa, REAL p, REAL dt,
+                         MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                         MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                          REAL *dca) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -148,10 +148,10 @@ inline REAL cos_alpha_od(REAL t, REAL tpa, REAL p, REAL dt,
    The numba original takes `v` as a 3-array; here it is three scalars
    (see cos_v_p_angle_o in orbit3d.cl). Port of
    `meepmeep.numba3d.cos_v_p_angle_od`. */
-inline REAL cos_v_p_angle_od(REAL vx, REAL vy, REAL vz,
+MM_INLINE REAL cos_v_p_angle_od(REAL vx, REAL vy, REAL vz,
                              REAL t, REAL tpa, REAL p, REAL dt,
-                             __global const int *ep_table, __global const REAL *ep_times,
-                             __global const REAL *coeffs, __global const REAL *dcoeffs,
+                             MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                             MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                              REAL *dcs) {
     REAL inv_nv = (REAL)1.0 / sqrt(vx * vx + vy * vy + vz * vz);
     REAL x, y, z, dx[7], dy[7], dz[7];
@@ -179,11 +179,11 @@ inline REAL cos_v_p_angle_od(REAL vx, REAL vy, REAL vz,
    early-return paths (circular fast path leaves slots 2..6 zero; the edp
    clamps leave all slots zero) rely on it - the numba original allocates
    with zeros(7). Port of `meepmeep.numba3d.true_anomaly_od`. */
-inline REAL true_anomaly_od(REAL t, REAL tpa, REAL p,
+MM_INLINE REAL true_anomaly_od(REAL t, REAL tpa, REAL p,
                             REAL ex, REAL ey, REAL ez, REAL w,
-                            REAL dt, __global const int *ep_table,
-                            __global const REAL *ep_times,
-                            __global const REAL *coeffs, __global const REAL *dcoeffs,
+                            REAL dt, MM_GLOBAL const int *ep_table,
+                            MM_GLOBAL const REAL *ep_times,
+                            MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                             REAL *df) {
     for (int m = 0; m < MM_NPAR; m++)
         df[m] = (REAL)0.0;
@@ -239,11 +239,11 @@ inline REAL true_anomaly_od(REAL t, REAL tpa, REAL p,
 /* Lambertian phase curve and derivatives at any phase.
 
    dflux: REAL[9]. Port of `meepmeep.numba3d.lambert_phase_curve_od`. */
-inline REAL lambert_phase_curve_od(REAL t, REAL ag, REAL k, REAL tpa, REAL p,
-                                   REAL dt, __global const int *ep_table,
-                                   __global const REAL *ep_times,
-                                   __global const REAL *coeffs,
-                                   __global const REAL *dcoeffs,
+MM_INLINE REAL lambert_phase_curve_od(REAL t, REAL ag, REAL k, REAL tpa, REAL p,
+                                   REAL dt, MM_GLOBAL const int *ep_table,
+                                   MM_GLOBAL const REAL *ep_times,
+                                   MM_GLOBAL const REAL *coeffs,
+                                   MM_GLOBAL const REAL *dcoeffs,
                                    REAL *dflux) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -258,10 +258,10 @@ inline REAL lambert_phase_curve_od(REAL t, REAL ag, REAL k, REAL tpa, REAL p,
 /* Ellipsoidal-variation signal and derivatives at any phase.
 
    dout: REAL[9]. Port of `meepmeep.numba3d.ev_signal_od`. */
-inline REAL ev_signal_od(REAL alpha, REAL mass_ratio, REAL inc,
+MM_INLINE REAL ev_signal_od(REAL alpha, REAL mass_ratio, REAL inc,
                          REAL t, REAL tpa, REAL p, REAL dt,
-                         __global const int *ep_table, __global const REAL *ep_times,
-                         __global const REAL *coeffs, __global const REAL *dcoeffs,
+                         MM_GLOBAL const int *ep_table, MM_GLOBAL const REAL *ep_times,
+                         MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
                          REAL *dout) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -276,12 +276,12 @@ inline REAL ev_signal_od(REAL alpha, REAL mass_ratio, REAL inc,
 /* Thermal-emission phase curve and derivatives at any phase.
 
    dout: REAL[10]. Port of `meepmeep.numba3d.emission_phase_curve_od`. */
-inline REAL emission_phase_curve_od(REAL t, REAL k, REAL fratio, REAL offset,
+MM_INLINE REAL emission_phase_curve_od(REAL t, REAL k, REAL fratio, REAL offset,
                                     REAL tpa, REAL p, REAL dt,
-                                    __global const int *ep_table,
-                                    __global const REAL *ep_times,
-                                    __global const REAL *coeffs,
-                                    __global const REAL *dcoeffs,
+                                    MM_GLOBAL const int *ep_table,
+                                    MM_GLOBAL const REAL *ep_times,
+                                    MM_GLOBAL const REAL *coeffs,
+                                    MM_GLOBAL const REAL *dcoeffs,
                                     REAL *dout) {
     REAL epoch = floor((t - tpa) / p);
     REAL tc = t - tpa - epoch * p;
@@ -296,11 +296,11 @@ inline REAL emission_phase_curve_od(REAL t, REAL k, REAL fratio, REAL offset,
 /* Three-dimensional star-planet distance and derivatives at any phase.
 
    Port of `meepmeep.numba3d.star_planet_distance_od`. */
-inline REAL star_planet_distance_od(REAL t, REAL tpa, REAL p, REAL dt,
-                                    __global const int *ep_table,
-                                    __global const REAL *ep_times,
-                                    __global const REAL *coeffs,
-                                    __global const REAL *dcoeffs,
+MM_INLINE REAL star_planet_distance_od(REAL t, REAL tpa, REAL p, REAL dt,
+                                    MM_GLOBAL const int *ep_table,
+                                    MM_GLOBAL const REAL *ep_times,
+                                    MM_GLOBAL const REAL *coeffs,
+                                    MM_GLOBAL const REAL *dcoeffs,
                                     REAL *dr) {
     REAL x, y, z, dx[7], dy[7], dz[7];
     pos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, &x, &y, &z, dx, dy, dz);
@@ -322,11 +322,11 @@ inline REAL star_planet_distance_od(REAL t, REAL tpa, REAL p, REAL dt,
    (timing_is_tc = 0, a tc_to_tp_gradient-converted dcoeffs) the p, e,
    and w slots join through t_o = M_tr(e, w) p / (2 pi). dz_tr: REAL[7].
    Port of the numba helper `_ltt_transit_z_and_d`. */
-inline REAL ltt_transit_z_and_d(REAL tpa, REAL p, REAL e, REAL w, REAL dt,
-                                __global const int *ep_table,
-                                __global const REAL *ep_times,
-                                __global const REAL *coeffs,
-                                __global const REAL *dcoeffs,
+MM_INLINE REAL ltt_transit_z_and_d(REAL tpa, REAL p, REAL e, REAL w, REAL dt,
+                                MM_GLOBAL const int *ep_table,
+                                MM_GLOBAL const REAL *ep_times,
+                                MM_GLOBAL const REAL *coeffs,
+                                MM_GLOBAL const REAL *dcoeffs,
                                 int timing_is_tc, REAL *dz_tr) {
     REAL dm_tr_de, dm_tr_dw;
     REAL m_tr = mean_anomaly_at_transit_with_derivatives(e, w, &dm_tr_de, &dm_tr_dw);
@@ -357,12 +357,12 @@ inline REAL ltt_transit_z_and_d(REAL tpa, REAL p, REAL e, REAL w, REAL dt,
    ltt_transit_z_and_d host-side or into a pre-pass, as the numba vector
    kernels do - that is why the helper is public. Port of
    `meepmeep.numba3d.light_travel_time_od`. */
-inline REAL light_travel_time_od(REAL t, REAL tpa, REAL p, REAL e, REAL w,
+MM_INLINE REAL light_travel_time_od(REAL t, REAL tpa, REAL p, REAL e, REAL w,
                                  REAL rstar, REAL dt,
-                                 __global const int *ep_table,
-                                 __global const REAL *ep_times,
-                                 __global const REAL *coeffs,
-                                 __global const REAL *dcoeffs,
+                                 MM_GLOBAL const int *ep_table,
+                                 MM_GLOBAL const REAL *ep_times,
+                                 MM_GLOBAL const REAL *coeffs,
+                                 MM_GLOBAL const REAL *dcoeffs,
                                  int timing_is_tc, REAL *dltt) {
     REAL dz_t[7], dz_tr[7];
     REAL z_t = zpos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dz_t);

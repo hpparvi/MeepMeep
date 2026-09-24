@@ -18,11 +18,11 @@
 /* Position and its (tc, p, a, i, e, w, lan) derivatives at a centred time.
 
    Port of `meepmeep.numba2d.pos_cd`. */
-inline void pos_cd2(REAL t, __global const REAL *c, __global const REAL *dc,
+MM_INLINE void pos_cd2(REAL t, MM_GLOBAL const REAL *c, MM_GLOBAL const REAL *dc,
                     REAL *px, REAL *py, REAL *dpx, REAL *dpy) {
     pos_c2(t, c, px, py);
     for (int m = 0; m < MM_NPAR; m++) {
-        __global const REAL *r = dc + 10 * m;
+        MM_GLOBAL const REAL *r = dc + 10 * m;
         dpx[m] = taylor5(t, r);
         dpy[m] = taylor5(t, r + 5);
     }
@@ -35,8 +35,8 @@ inline void pos_cd2(REAL t, __global const REAL *c, __global const REAL *dc,
    chain term: the folded time depends on p via -epoch*p, so the total
    period derivative (slot 1) gains epoch times the timing derivative
    (slot 0). Port of `meepmeep.numba2d.pos_d`. */
-inline void pos_d2(REAL t, REAL tc, REAL p,
-                   __global const REAL *c, __global const REAL *dc, REAL te,
+MM_INLINE void pos_d2(REAL t, REAL tc, REAL p,
+                   MM_GLOBAL const REAL *c, MM_GLOBAL const REAL *dc, REAL te,
                    REAL *px, REAL *py, REAL *dpx, REAL *dpy) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     pos_cd2(t - (tc + te + epoch * p), c, dc, px, py, dpx, dpy);
@@ -51,13 +51,13 @@ inline void pos_d2(REAL t, REAL tc, REAL p,
    dd/dtheta = (px*dpx + py*dpy) / d, singular only at an exact centre
    crossing (d = 0), as in the numba original. Port of
    `meepmeep.numba2d.sep_cd`. */
-inline REAL sep_cd2(REAL t, __global const REAL *c, __global const REAL *dc,
+MM_INLINE REAL sep_cd2(REAL t, MM_GLOBAL const REAL *c, MM_GLOBAL const REAL *dc,
                     REAL *dd) {
     REAL px, py;
     pos_c2(t, c, &px, &py);
     REAL d = sqrt(px * px + py * py);
     for (int m = 0; m < MM_NPAR; m++) {
-        __global const REAL *r = dc + 10 * m;
+        MM_GLOBAL const REAL *r = dc + 10 * m;
         REAL dpx = taylor5(t, r);
         REAL dpy = taylor5(t, r + 5);
         dd[m] = (px * dpx + py * dpy) / d;
@@ -69,8 +69,8 @@ inline REAL sep_cd2(REAL t, __global const REAL *c, __global const REAL *dc,
 /* Separation and derivatives at an absolute time.
 
    Port of `meepmeep.numba2d.sep_d`. */
-inline REAL sep_d2(REAL t, REAL tc, REAL p,
-                   __global const REAL *c, __global const REAL *dc, REAL te,
+MM_INLINE REAL sep_d2(REAL t, REAL tc, REAL p,
+                   MM_GLOBAL const REAL *c, MM_GLOBAL const REAL *dc, REAL te,
                    REAL *dd) {
     REAL epoch = floor((t - tc - te + (REAL)0.5 * p) / p);
     REAL d = sep_cd2(t - (tc + te + epoch * p), c, dc, dd);

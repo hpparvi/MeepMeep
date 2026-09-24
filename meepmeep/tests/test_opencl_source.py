@@ -12,8 +12,8 @@ from meepmeep.backends.opencl import SOURCE_FILES, read_kernel_source, read_full
 class TestReader:
     def test_single_file_pulls_dependencies(self):
         src = read_kernel_source('point2d.cl')
-        assert 'inline REAL taylor5' in src  # from common.cl
-        assert 'inline REAL sep_c2' in src
+        assert 'MM_INLINE REAL taylor5' in src  # from common.cl
+        assert 'MM_INLINE REAL sep_c2' in src
 
     def test_common_alone(self):
         src = read_kernel_source('common.cl')
@@ -24,12 +24,12 @@ class TestReader:
         once = read_kernel_source('point2d.cl')
         twice = read_kernel_source('point2d.cl', 'common.cl', 'point2d.cl')
         assert once == twice
-        assert twice.count('inline REAL taylor5(') == 1
+        assert twice.count('MM_INLINE REAL taylor5(') == 1
 
     def test_concatenation_order(self):
         src = read_full_source()
         # common.cl must precede every user of taylor5.
-        assert src.index('inline REAL taylor5(') < src.index('inline void pos_c2(')
+        assert src.index('MM_INLINE REAL taylor5(') < src.index('MM_INLINE void pos_c2(')
 
     def test_full_source_covers_all_files(self):
         src = read_full_source()
