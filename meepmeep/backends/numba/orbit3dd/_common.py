@@ -43,7 +43,9 @@ def solve3d_orbit_d(ep_times, p, a, i, e, w, lan=0.0, npt=15):
     :func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` once per
     interior expansion point and stacks the resulting ``(3, 5)`` and ``(6, 3, 5)``
     matrices into per-orbit arrays. The last slot is the periodic image of
-    the first and is copied rather than recomputed.
+    the first and is copied rather than recomputed, except for its period
+    row, which gains the timing row once more because the image sits one
+    full phase later.
 
     Parameters
     ----------
@@ -99,4 +101,8 @@ def solve3d_orbit_d(ep_times, p, a, i, e, w, lan=0.0, npt=15):
         dcoeffs[ix, :, :, :] = dcf
     coeffs[-1, :, :] = coeffs[0]
     dcoeffs[-1, :, :, :] = dcoeffs[0]
+    # The periodic image sits at phase ep_times[-1] (= ep_times[0] + 1), not at
+    # slot 0's phase, so its period row takes the phase-times-timing-row term
+    # for its own phase.
+    dcoeffs[-1, 1] += (ep_times[-1] - ep_times[0]) * dcoeffs[0, 0]
     return coeffs, dcoeffs

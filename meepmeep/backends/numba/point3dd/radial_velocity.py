@@ -48,7 +48,7 @@ def _rv_cd_w(time, s, dsp, dsa, dsi, dse, c, dc, drv, dvz):
     once and reuse it. The scale factor ``s`` and its derivatives come
     from :func:`_rv_scale`.
     """
-    vz = _zvel_cd_w(time, c, dc, dvz)
+    vz = _zvel_cd_w(time, c, dc, dvz, 0.0)
     rv_val = s * vz
     for j in range(7):
         drv[j] = s * dvz[j]

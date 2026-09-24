@@ -220,7 +220,7 @@ class TestUnderlyingParity:
 
     def test_true_anomaly(self, orbit_deriv):
         o = orbit_deriv
-        ev = eccentricity_vector(o._i, o._e, o._w)
+        ev = eccentricity_vector(o._i, o._e, o._w, o._lan)
         _, df = o.true_anomaly()
         _, df_r = true_anomaly_od(
             o.times, o._tp, o._p, ev[0], ev[1], ev[2], o._w,

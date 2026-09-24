@@ -129,7 +129,9 @@ void solve3d_orbit(const double *ep_times, int npt, double p, double a,
 
    As solve3d_orbit, plus dcoeffs receives the npt * 105 doubles of the
    flattened (npt, 7, 3, 5) derivative stack in the PERIASTRON basis
-   (tp, p, a, i, e, w, lan). */
+   (tp, p, a, i, e, w, lan). The last slot is copied from the first except
+   for its period row, which gains the timing row once more because the
+   periodic image sits one full phase later. */
 void solve3d_orbit_d(const double *ep_times, int npt, double p, double a,
                      double inc, double e, double w, double lan,
                      double *coeffs, double *dcoeffs);
@@ -787,13 +789,15 @@ double cos_v_p_angle_od(double vx, double vy, double vz, double t, double tpa,
    Strict math (the numba original deliberately drops fastmath: the acos
    argument sits near +-1 and the 1/sqrt(1 - edp^2) gradient denominator
    is near-singular). The gradient buffer is zeroed on entry because the
-   early-return paths (circular fast path leaves slots 2..6 zero; the edp
-   clamps leave all slots zero) rely on it - the numba original allocates
-   with zeros(7). Port of `meepmeep.numba3d.true_anomaly_od`. */
+   early-return paths (the circular fast path leaves the a, i and lan slots
+   zero; the edp clamps leave all slots zero) rely on it - the numba original
+   allocates with zeros(7). `timing_is_tc` states the basis of dcoeffs; only
+   the circular fast path, which does not read dcoeffs, uses it (see
+   `_circular_w` in the numba module). Port of `meepmeep.numba3d.true_anomaly_od`. */
 double true_anomaly_od(double t, double tpa, double p, double ex, double ey,
                        double ez, double w, double dt, const int *ep_table,
                        const double *ep_times, const double *coeffs,
-                       const double *dcoeffs, double *df);
+                       const double *dcoeffs, int timing_is_tc, double *df);
 
 /* Lambertian phase curve and derivatives at any phase.
 
@@ -833,9 +837,9 @@ double star_planet_distance_od(double t, double tpa, double p, double dt,
    The total derivative of z(t_transit(theta); theta) combines the
    fixed-time gradient with v_z(t_transit) * dt_transit/dtheta, where
    dt_transit/dtheta depends on the bound timing basis: with the transit
-   centre bound (timing_is_tc = 1, the native solve3d_orbit_d basis) only
-   the timing slot is non-zero; with the periastron time bound
-   (timing_is_tc = 0, a tc_to_tp_gradient-converted dcoeffs) the p, e,
+   centre bound (timing_is_tc = 1, dcoeffs after tp_to_tc_gradient_orbit)
+   only the timing slot is non-zero; with the periastron time bound
+   (timing_is_tc = 0, the native solve3d_orbit_d basis) the p, e,
    and w slots join through t_o = M_tr(e, w) p / (2 pi). dz_tr: REAL[7].
    Port of the numba helper `_ltt_transit_z_and_d`. */
 double ltt_transit_z_and_d(double tpa, double p, double e, double w, double dt,

@@ -35,9 +35,8 @@ def _zvel_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dvz):
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    vz = _zvel_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dvz)
-    # Period-folding chain term (see position._pos_ow).
-    dvz[1] += epoch * dvz[0]
+    # The write kernel adds the period-folding chain term (see position._pos_ow).
+    vz = _zvel_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dvz, epoch)
     return vz
 
 

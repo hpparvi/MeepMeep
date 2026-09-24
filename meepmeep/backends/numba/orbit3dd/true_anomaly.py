@@ -23,8 +23,10 @@ the two singular configurations ``edp = ±1`` (planet on the apsidal line).
 At those ep_times the analytic derivative diverges; we set it to zero so
 downstream gradient-based fits don't get a NaN. The circular fast path
 (``ex ≤ -0.9999`` sentinel from ``eccentricity_vector``) collapses true
-anomaly to mean anomaly: ``f = 2π(t - tpa)/p`` ⇒ analytic derivatives are
-trivial in (tc, p) and zero in the rest.
+anomaly to mean anomaly: ``f = 2π(t - tpa)/p``. Its gradient does not come
+from ``dcoeffs``, so the caller states the basis with ``timing_is_tc``: in
+the periastron basis only the timing and period slots are non-zero, in the
+transit-centre basis ``tpa`` moves with ``p``, ``e`` and ``w`` as well.
 """
 
 from numba import njit, prange, types, get_num_threads, get_thread_id
@@ -32,25 +34,51 @@ from numba.extending import overload
 from numpy import zeros, pi, floor, sqrt, arccos, ndarray
 
 from ..point3dd.position import pos_cd, _pos_cd_w
+from ..utils import mean_anomaly_at_transit_with_derivatives
 from ._common import _is_1d_array
 
 
+@njit(inline='always')
+def _circular_w(t, tpa, p, w, timing_is_tc, df):
+    """Circular-orbit fast path: the true anomaly is the mean anomaly.
+
+    Returns ``f = 2 pi (t - tpa) / p`` folded into one period and writes its
+    gradient into the caller's zeroed ``(7,)`` row ``df``. In the periastron
+    basis only the timing and period slots are non-zero. In the
+    transit-centre basis ``tpa = tc - M_tr(e, w) p / (2 pi)`` moves with
+    ``p``, ``e`` and ``w`` too, which adds ``-df[0] * dtpa/dtheta`` to those
+    slots (the ``tp_to_tc_gradient`` transform). The sentinel stands for
+    ``e ~ 0``, so ``M_tr`` and its derivatives are taken at ``e = 0``. The
+    row is only written, never read back, so the inlined vector loops avoid
+    the numba 0.61 miscompilation described in
+    :func:`~meepmeep.backends.numba.point3dd.zposition._zpos_cd_w`.
+    """
+    twopi = 2.0 * pi
+    tau = t - tpa
+    epoch = floor(tau / p)
+    tau_red = tau - epoch * p
+    d0 = -twopi / p
+    # Period slot, including the period-folding chain term (see position._pos_ow).
+    d1 = -twopi * tau_red / (p * p) + epoch * d0
+    df[0] = d0
+    if timing_is_tc:
+        m_tr, dm_tr_de, dm_tr_dw = mean_anomaly_at_transit_with_derivatives(0.0, w)
+        df[1] = d1 - d0 * m_tr / twopi
+        df[4] = -d0 * dm_tr_de * p / twopi
+        df[5] = -d0 * dm_tr_dw * p / twopi
+    else:
+        df[1] = d1
+    return twopi * tau_red / p
+
+
 @njit
-def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     """Scalar kernel for :func:`true_anomaly_od`. See that function for documentation."""
     df = zeros(7)
     nes = ex * ex + ey * ey + ez * ez
 
     if ex <= -0.9999 and nes > 0.99:
-        twopi = 2.0 * pi
-        tau = t - tpa
-        epoch = floor(tau / p)
-        tau_red = tau - epoch * p
-        f = twopi * tau_red / p
-        df[0] = -twopi / p
-        df[1] = -twopi * tau_red / (p * p)
-        # Period-folding chain term (see position._pos_ow).
-        df[1] += epoch * df[0]
+        f = _circular_w(t, tpa, p, w, timing_is_tc, df)
         return f, df
 
     epoch = floor((t - tpa) / p)
@@ -93,29 +121,16 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, 
 
 
 @njit
-def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     """Vector kernel for :func:`true_anomaly_od`. See that function for documentation."""
     n = times.size
     f = zeros(n)
     df = zeros((n, 7))
     nes = ex * ex + ey * ey + ez * ez
 
-    # Circular-orbit fast path: f = 2π·(t - tpa) / p.
-    # Slot 0 is d/dtc (transit-centre time). The orbit depends on (t - tc),
-    # so df/dtc = -2π/p, matching solve3d_d's slot-0 convention used by the
-    # eccentric branch below.
-    # df/dp = -2π·(t - tpa) / p^2.
     if ex <= -0.9999 and nes > 0.99:
-        twopi = 2.0 * pi
         for j in range(n):
-            tau = times[j] - tpa
-            # Reduce to one period for the value (mean_anomaly does this in base).
-            epoch = floor(tau / p)
-            tau_red = tau - epoch * p
-            f[j] = twopi * tau_red / p
-            df[j, 0] = -twopi / p
-            df[j, 1] = -twopi * tau_red / (p * p)
-            df[j, 1] += epoch * df[j, 0]
+            f[j] = _circular_w(times[j], tpa, p, w, timing_is_tc, df[j])
         return f, df
 
     dx = zeros(7)
@@ -168,7 +183,7 @@ def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeff
 
 
 @njit(parallel=True)
-def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     """Parallel (prange) twin of :func:`true_anomaly_ovd`.
 
     Mirrors the serial vector body (rather than looping the scalar kernel)
@@ -183,15 +198,8 @@ def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coef
     nes = ex * ex + ey * ey + ez * ez
 
     if ex <= -0.9999 and nes > 0.99:
-        twopi = 2.0 * pi
         for j in prange(n):
-            tau = times[j] - tpa
-            epoch = floor(tau / p)
-            tau_red = tau - epoch * p
-            f[j] = twopi * tau_red / p
-            df[j, 0] = -twopi / p
-            df[j, 1] = -twopi * tau_red / (p * p)
-            df[j, 1] += epoch * df[j, 0]
+            f[j] = _circular_w(times[j], tpa, p, w, timing_is_tc, df[j])
         return f, df
 
     nt = get_num_threads()
@@ -235,7 +243,7 @@ def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coef
     return f, df
 
 
-def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     """True anomaly and its orbital-parameter derivatives.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -261,12 +269,18 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
         :func:`~meepmeep.backends.numba.utils.eccentricity_vector` for
         near-circular orbits and triggers the closed-form fast path.
     w : float
-        Argument of periastron [radians]. Kept for signature parity with
-        the base function; currently unused inside this routine because
-        the eccentricity vector is passed explicitly.
+        Argument of periastron [radians]. Used only by the circular fast path,
+        whose transit-centre-basis gradient depends on it through the
+        mean anomaly at transit.
     dt, ep_table, ep_times, coeffs, dcoeffs :
         Multi-expansion-point dispatch arrays from :func:`solve3d_orbit_d` /
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
+    timing_is_tc : bool, optional
+        State the basis of ``dcoeffs``: True (default) for the transit-centre
+        basis (after ``tp_to_tc_gradient_orbit``), False for the periastron
+        basis ``solve3d_orbit_d`` returns. The eccentric path inherits the
+        basis from ``dcoeffs``; the circular fast path, which does not read
+        ``dcoeffs``, needs to be told.
 
     Returns
     -------
@@ -285,21 +299,22 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
     At the singular configurations ``edp = +/-1`` (``edp`` = cosine of the
     angle between position and eccentricity vector) the analytic gradient
     diverges and is replaced by zero. The circular-orbit fast path uses
-    the mean-anomaly identity :math:`f = 2\\pi(t - t_\\mathrm{pa}) / p`.
+    the mean-anomaly identity :math:`f = 2\\pi(t - t_\\mathrm{pa}) / p`, with
+    the mean anomaly at transit taken at ``e = 0`` in its basis transform.
     """
     if isinstance(t, ndarray):
-        return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
-    return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
+        return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
+    return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
 
 
 @overload(true_anomaly_od)
-def _true_anomaly_od_overload(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
+def _true_anomaly_od_overload(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     if _is_1d_array(t):
-        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
+        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+            return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs):
-            return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs)
+        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+            return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
         return impl
     return None

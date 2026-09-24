@@ -25,15 +25,25 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
-def _zpos_cd_w(time, c, dc, dpz):
+def _zpos_cd_w(time, c, dc, dpz, epoch):
     """Write-into kernel shared by the scalar and vector evaluators.
 
     Writes the seven-parameter gradient into the caller-provided ``(7,)``
     buffer ``dpz`` and returns the z position, so the hot vector loops
     reuse preallocated rows instead of allocating per sample.
+    ``epoch`` is the period-folding count of a direct evaluator (0.0 for a
+    centered one): the period slot gains ``epoch`` times the timing slot,
+    the chain term of the folded time ``-epoch * p``. It is added from a
+    register instead of being read back from the buffer by the caller:
+    numba 0.61 miscompiles the serial vector loop when a row written here is
+    read back in the same iteration, dropping the term for arrays of eight
+    or more samples.
     """
     pz = c[2, 0] + time * (c[2, 1] + time * (c[2, 2] + time * (c[2, 3] + time * c[2, 4])))
-    for k in range(7):
+    d0 = dc[0, 2, 0] + time * (dc[0, 2, 1] + time * (dc[0, 2, 2] + time * (dc[0, 2, 3] + time * dc[0, 2, 4])))
+    dpz[0] = d0
+    dpz[1] = dc[1, 2, 0] + time * (dc[1, 2, 1] + time * (dc[1, 2, 2] + time * (dc[1, 2, 3] + time * dc[1, 2, 4]))) + epoch * d0
+    for k in range(2, 7):
         dpz[k] = dc[k, 2, 0] + time * (dc[k, 2, 1] + time * (dc[k, 2, 2] + time * (dc[k, 2, 3] + time * dc[k, 2, 4])))
     return pz
 
@@ -42,7 +52,7 @@ def _zpos_cd_w(time, c, dc, dpz):
 def _zpos_cd_s(time, c, dc):
     """Scalar kernel for :func:`zpos_cd`. See that function for documentation."""
     dpz = zeros(7)
-    pz = _zpos_cd_w(time, c, dc, dpz)
+    pz = _zpos_cd_w(time, c, dc, dpz, 0.0)
     return pz, dpz
 
 
@@ -58,7 +68,7 @@ def _zpos_cd_v_body(time, c, dc):
     pz = zeros(n)
     dpz = zeros((n, 7))
     for j in prange(n):
-        pz[j] = _zpos_cd_w(time[j], c, dc, dpz[j])
+        pz[j] = _zpos_cd_w(time[j], c, dc, dpz[j], 0.0)
     return pz, dpz
 
 
@@ -123,10 +133,9 @@ def _zpos_cd_overload(time, c, dc):
 def _zpos_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`zpos_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    pz, dpz = _zpos_cd_s(time - (tc + te + epoch * p), c, dc)
-    # Period-folding chain term: the folded time depends on p via -epoch*p,
-    # so the total period derivative gains epoch times the timing column.
-    dpz[1] += epoch * dpz[0]
+    dpz = zeros(7)
+    # The write kernel adds the period-folding chain term (epoch times the timing slot).
+    pz = _zpos_cd_w(time - (tc + te + epoch * p), c, dc, dpz, epoch)
     return pz, dpz
 
 
@@ -143,8 +152,7 @@ def _zpos_d_v_body(time, tc, p, c, dc, te):
     dpz = zeros((n, 7))
     for j in prange(n):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
-        pz[j] = _zpos_cd_w(time[j] - (tc + te + epoch * p), c, dc, dpz[j])
-        dpz[j, 1] += epoch * dpz[j, 0]
+        pz[j] = _zpos_cd_w(time[j] - (tc + te + epoch * p), c, dc, dpz[j], epoch)
     return pz, dpz
 
 

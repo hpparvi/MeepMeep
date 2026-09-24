@@ -35,9 +35,8 @@ def _zpos_ow(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dz):
     epoch = floor((t - tpa) / p)
     tc = t - tpa - epoch * p
     ix = ep_table[int(floor(tc / (dt * p)))]
-    z = _zpos_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dz)
-    # Period-folding chain term (see position._pos_ow).
-    dz[1] += epoch * dz[0]
+    # The write kernel adds the period-folding chain term (see position._pos_ow).
+    z = _zpos_cd_w(tc - ep_times[ix] * p, coeffs[ix], dcoeffs[ix], dz, epoch)
     return z
 
 

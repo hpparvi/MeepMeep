@@ -66,9 +66,9 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs, 
     dt, ep_table, ep_times, coeffs, dcoeffs :
         Multi-expansion-point dispatch arrays.
     timing_is_tc : bool
-        True when ``dcoeffs`` is in the transit-centre basis (the native
-        ``solve3d_orbit_d`` output), False for the periastron basis
-        (``tc_to_tp_gradient``-converted).
+        True when ``dcoeffs`` is in the transit-centre basis (after
+        ``tp_to_tc_gradient_orbit``), False for the periastron basis (the
+        native ``solve3d_orbit_d`` output).
 
     Returns
     -------
@@ -208,8 +208,8 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs,
     which includes the chain rule through the transit time using
     ``vz(t_transit)``; that chain depends on the bound timing basis, so
     ``timing_is_tc`` must state which basis ``dcoeffs`` is in (True for the
-    native transit-centre basis of ``solve3d_orbit_d``, False after a
-    ``tc_to_tp_gradient`` conversion to the periastron basis).
+    transit-centre basis after ``tp_to_tc_gradient_orbit``, False for the
+    periastron basis ``solve3d_orbit_d`` returns).
 
     Parameters
     ----------

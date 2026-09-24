@@ -505,6 +505,20 @@ scalar and vector callers, `fastmath` contraction can differ between the two
 contexts by an ulp; scalar-vs-vector parity tests need a tiny `atol` (~1e-14
 relative to signal scale), not `atol=0`.
 
+**Don't read back a row a `_w` kernel just wrote.** numba 0.61 miscompiles
+the serial vector loop of `dX[j] = ...; dX[j, 1] += epoch * dX[j, 0]` in
+some kernels: LLVM vectorises the loop from about eight samples and the
+period chain term is lost (scalar path, `_vp` twins and
+`NUMBA_DISABLE_JIT=1` all stay correct). It hit `zpos_d_v`/`zvel_d_v`, whose
+write kernels `_zpos_cd_w`/`_zvel_cd_w` now take the `epoch` and write the
+term from a register (centered callers pass `0.0`). The other 52 read-back
+sites compile correctly today; `test_numba_vector_epoch_parity.py` runs
+every gradient vector kernel on a multi-epoch grid of 24 samples against
+the scalar path to catch a recurrence. New kernels should write chain terms
+from locals instead of reading the row back, and their tests need
+multi-epoch grids of at least 16 samples: epoch-0 or few-sample grids
+cannot see a missing chain term.
+
 **Parallel twins (`X_vp` / `X_ovp` / `X_ovdp`, public).** Every vector kernel —
 single-expansion-point (`X_v` -> `X_vp`) and multi-expansion-point (`X_ov` -> `X_ovp`,
 `X_ovd` -> `X_ovdp`) — has a `prange` twin living in the same quantity module,

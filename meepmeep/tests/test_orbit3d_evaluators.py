@@ -281,5 +281,42 @@ class TestContracts:
             assert np.all((f >= 0.0) & (f < 2 * np.pi + 1e-9))
 
 
+
+class TestTrueAnomalyWithNode:
+    """The longitude of the ascending node rotates the sky-plane positions, so the
+    eccentricity vector the true anomaly is measured against must rotate with them."""
+
+    PARS = dict(p=5.0, a=15.0, i=1.45, e=0.3, w=0.5)
+
+    @pytest.mark.parametrize("lan", [0.0, 0.7, -2.1])
+    def test_true_anomaly_o_matches_newton(self, lan):
+        pars = self.PARS
+        ep_times, _, dt, ep_table = create_expansion_points(25, pars["e"], "ea")
+        coeffs = solve3d_orbit(ep_times, **pars, lan=lan, npt=25)
+        tpa = -mean_anomaly_at_transit(pars["e"], pars["w"]) / TWO_PI * pars["p"]
+        times = np.linspace(-0.3, 1.7, 301) * pars["p"]
+        ev = eccentricity_vector(pars["i"], pars["e"], pars["w"], lan)
+        f = true_anomaly_o(times, tpa, pars["p"], ev[0], ev[1], ev[2], pars["w"], dt, ep_table, ep_times, coeffs)
+        f_exact = ta_newton_v(times, 0.0, pars["p"], pars["e"], pars["w"])
+        assert np.abs(np.angle(np.exp(1j * (f - f_exact)))).max() < 1e-4
+
+    @pytest.mark.parametrize("lan", [0.7, -2.1])
+    def test_orbit_true_anomaly_matches_exact(self, lan):
+        o = Orbit(npt=25)
+        o.set_pars(tc=0.0, **self.PARS, lan=lan)
+        o.set_data(np.linspace(-0.3, 1.7, 301) * self.PARS["p"])
+        d = np.angle(np.exp(1j * (o.true_anomaly() - o.true_anomaly(exact=True))))
+        assert np.abs(d).max() < 1e-4
+
+    def test_eccentricity_vector_rotation(self):
+        i, e, w, lan = 1.3, 0.4, 0.8, 0.6
+        ex0, ey0, ez0 = eccentricity_vector(i, e, w)
+        ex, ey, ez = eccentricity_vector(i, e, w, lan)
+        assert_allclose([ex, ey, ez], [np.cos(lan) * ex0 - np.sin(lan) * ey0,
+                                       np.sin(lan) * ex0 + np.cos(lan) * ey0, ez0], atol=1e-15)
+        # The circular sentinel is not rotated.
+        assert_allclose(eccentricity_vector(i, 0.0, w, lan), [-1.0, 0.0, 0.0], atol=0)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

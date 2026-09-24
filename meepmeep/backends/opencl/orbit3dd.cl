@@ -176,29 +176,42 @@ MM_INLINE REAL cos_v_p_angle_od(REAL vx, REAL vy, REAL vz,
    Strict math (the numba original deliberately drops fastmath: the acos
    argument sits near +-1 and the 1/sqrt(1 - edp^2) gradient denominator
    is near-singular). The gradient buffer is zeroed on entry because the
-   early-return paths (circular fast path leaves slots 2..6 zero; the edp
-   clamps leave all slots zero) rely on it - the numba original allocates
-   with zeros(7). Port of `meepmeep.numba3d.true_anomaly_od`. */
+   early-return paths (the circular fast path leaves the a, i and lan slots
+   zero; the edp clamps leave all slots zero) rely on it - the numba original
+   allocates with zeros(7). `timing_is_tc` states the basis of dcoeffs; only
+   the circular fast path, which does not read dcoeffs, uses it (see
+   `_circular_w` in the numba module). Port of `meepmeep.numba3d.true_anomaly_od`. */
 MM_INLINE REAL true_anomaly_od(REAL t, REAL tpa, REAL p,
                             REAL ex, REAL ey, REAL ez, REAL w,
                             REAL dt, MM_GLOBAL const int *ep_table,
                             MM_GLOBAL const REAL *ep_times,
                             MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
-                            REAL *df) {
+                            int timing_is_tc, REAL *df) {
     for (int m = 0; m < MM_NPAR; m++)
         df[m] = (REAL)0.0;
     REAL nes = ex * ex + ey * ey + ez * ez;
 
     if (ex <= (REAL)-0.9999 && nes > (REAL)0.99) {
-        /* Circular-orbit fast path: f = 2 pi (t - tpa) / p folded. */
+        /* Circular-orbit fast path: f = 2 pi (t - tpa) / p folded. In the
+           transit-centre basis tpa = tc - M_tr(e, w) p / (2 pi) moves with
+           p, e and w too; the sentinel stands for e ~ 0, so M_tr is taken
+           at e = 0. */
         REAL tau = t - tpa;
         REAL epoch = floor(tau / p);
         REAL tau_red = tau - epoch * p;
-        REAL f = TWO_PI_R * tau_red / p;
-        df[0] = -TWO_PI_R / p;
-        df[1] = -TWO_PI_R * tau_red / (p * p);
-        df[1] += epoch * df[0];
-        return f;
+        REAL d0 = -TWO_PI_R / p;
+        REAL d1 = -TWO_PI_R * tau_red / (p * p) + epoch * d0;
+        df[0] = d0;
+        if (timing_is_tc) {
+            REAL dm_tr_de, dm_tr_dw;
+            REAL m_tr = mean_anomaly_at_transit_with_derivatives((REAL)0.0, w, &dm_tr_de, &dm_tr_dw);
+            df[1] = d1 - d0 * m_tr / TWO_PI_R;
+            df[4] = -d0 * dm_tr_de * p / TWO_PI_R;
+            df[5] = -d0 * dm_tr_dw * p / TWO_PI_R;
+        } else {
+            df[1] = d1;
+        }
+        return TWO_PI_R * tau_red / p;
     }
 
     REAL epoch = floor((t - tpa) / p);
@@ -317,9 +330,9 @@ MM_INLINE REAL star_planet_distance_od(REAL t, REAL tpa, REAL p, REAL dt,
    The total derivative of z(t_transit(theta); theta) combines the
    fixed-time gradient with v_z(t_transit) * dt_transit/dtheta, where
    dt_transit/dtheta depends on the bound timing basis: with the transit
-   centre bound (timing_is_tc = 1, the native solve3d_orbit_d basis) only
-   the timing slot is non-zero; with the periastron time bound
-   (timing_is_tc = 0, a tc_to_tp_gradient-converted dcoeffs) the p, e,
+   centre bound (timing_is_tc = 1, dcoeffs after tp_to_tc_gradient_orbit)
+   only the timing slot is non-zero; with the periastron time bound
+   (timing_is_tc = 0, the native solve3d_orbit_d basis) the p, e,
    and w slots join through t_o = M_tr(e, w) p / (2 pi). dz_tr: REAL[7].
    Port of the numba helper `_ltt_transit_z_and_d`. */
 MM_INLINE REAL ltt_transit_z_and_d(REAL tpa, REAL p, REAL e, REAL w, REAL dt,

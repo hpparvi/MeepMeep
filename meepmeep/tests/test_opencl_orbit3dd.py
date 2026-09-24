@@ -65,7 +65,10 @@ SCALAR_GRAD_KERNELS = {
         'cos_v_p_angle_od(vx, vy, vz, t[i], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, g)',
         ('vx', 'vy', 'vz', 'tpa', 'p', 'dt'), 7),
     'true_anomaly_od': (
-        'true_anomaly_od(t[i], tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, g)',
+        'true_anomaly_od(t[i], tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, 1, g)',
+        ('tpa', 'p', 'ex', 'ey', 'ez', 'w', 'dt'), 7),
+    'true_anomaly_od_tp': (
+        'true_anomaly_od(t[i], tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, 0, g)',
         ('tpa', 'p', 'ex', 'ey', 'ez', 'w', 'dt'), 7),
     'lambert_phase_curve_od': (
         'lambert_phase_curve_od(t[i], ag, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, g)',
@@ -222,7 +225,9 @@ NUMBA_REF = {
     'cos_v_p_angle_od': lambda t, s, x: cos_v_p_angle_od(
         np.array(V_FIXED), t, x['tpa'], x['p'], *s),
     'true_anomaly_od': lambda t, s, x: true_anomaly_od(
-        t, x['tpa'], x['p'], x['ex'], x['ey'], x['ez'], x['w'], *s),
+        t, x['tpa'], x['p'], x['ex'], x['ey'], x['ez'], x['w'], *s, True),
+    'true_anomaly_od_tp': lambda t, s, x: true_anomaly_od(
+        t, x['tpa'], x['p'], x['ex'], x['ey'], x['ez'], x['w'], *s, False),
     'lambert_phase_curve_od': lambda t, s, x: lambert_phase_curve_od(
         t, x['ag'], x['k'], x['tpa'], x['p'], *s),
     'ev_signal_od': lambda t, s, x: ev_signal_od(
@@ -307,17 +312,22 @@ class TestLightTravelTime:
 
 
 class TestTrueAnomalyBranches:
-    def test_circular_fast_path(self, program, test_orbital_params):
-        pars = test_orbital_params['circular']
+    @pytest.mark.parametrize('name, timing_is_tc', [('true_anomaly_od', True),
+                                                    ('true_anomaly_od_tp', False)])
+    def test_circular_fast_path(self, program, test_orbital_params, name, timing_is_tc):
+        """The fast path's gradient depends on the declared basis (w = 0.7 so the
+        transit-centre e and w slots are non-zero)."""
+        pars = dict(test_orbital_params['circular'], w=0.7)
         orbit = (pars['p'], pars['a'], pars['i'], pars['e'], pars['w'])
         times, tpa, dt, ep_table, ep_times, coeffs, dcoeffs = setup_orbit(orbit)
         x = extra_pars(orbit, tpa, dt)
         x.update(ex=-1.0, ey=0.0, ez=0.0)
-        v_cl, g_cl = run_grad(program, 'true_anomaly_od', times,
-                              scalar_values('true_anomaly_od', x),
+        v_cl, g_cl = run_grad(program, name, times,
+                              scalar_values(name, x),
                               ep_table, ep_times, coeffs, dcoeffs, 7)
         v_nb, g_nb = true_anomaly_od(times, tpa, pars['p'], -1.0, 0.0, 0.0,
                                      pars['w'], dt, ep_table, ep_times,
-                                     coeffs, dcoeffs)
+                                     coeffs, dcoeffs, timing_is_tc)
+        assert np.any(g_nb[:, 5] != 0.0) == timing_is_tc
         np.testing.assert_allclose(v_cl, v_nb, rtol=RTOL, atol=ATOL)
         np.testing.assert_allclose(g_cl, g_nb, rtol=RTOL, atol=ATOL)

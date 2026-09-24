@@ -41,6 +41,12 @@ void solve3d_orbit_d(const double *ep_times, int npt, double p, double a,
     }
     memcpy(coeffs + 15 * (npt - 1), coeffs, 15 * sizeof(double));
     memcpy(dcoeffs + 105 * (npt - 1), dcoeffs, 105 * sizeof(double));
+    /* The periodic image sits at phase ep_times[npt - 1] (= ep_times[0] + 1),
+       not at slot 0's phase, so its period row takes the phase-times-timing-row
+       term for its own phase. */
+    double *dimg = dcoeffs + 105 * (npt - 1);
+    for (int j = 0; j < 15; ++j)
+        dimg[15 + j] += (ep_times[npt - 1] - ep_times[0]) * dimg[j];
 }
 
 

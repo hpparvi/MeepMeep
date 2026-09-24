@@ -28,6 +28,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The one OpenCL-only builtin in the shared code (`clamp` in `ep_lookup`)
   was replaced by explicit branches.
 
+### Fixed
+- `zpos_d` and `zvel_d` (and so `Expansion3D` in derivative mode) returned a
+  wrong period derivative for arrays of eight or more times spanning several
+  epochs: numba 0.61 miscompiled their serial vector kernels and dropped the
+  period-folding chain term. The scalar path and the `_vp` twins were
+  correct. `_zpos_cd_w`/`_zvel_cd_w` now add the term themselves.
+- `solve3d_orbit_d` (numba and C) copied slot 0 into the periodic-image slot
+  without the extra `1 * dcf[0]` its phase of 1 adds to the period row, so
+  every orbit gradient (`*_od`, `Orbit(derivatives=True)`) had a period
+  derivative off by one timing row for times just before periastron.
+- `true_anomaly_od` ignored the basis of `dcoeffs` on its circular fast path
+  and always returned periastron-basis gradients. It takes a trailing
+  `timing_is_tc` (default True, as in `light_travel_time_od`); `Orbit` passes
+  its basis. The OpenCL/C `true_anomaly_od` takes it as a mandatory
+  argument before the output buffer.
+- `eccentricity_vector` ignored the longitude of the ascending node, so
+  `true_anomaly_o`/`_od` and `Orbit.true_anomaly` were wrong (by up to the
+  node angle) whenever `lan != 0`. It takes an optional `lan`, and `Orbit`
+  passes it.
+
 ## [1.1.0] - 2026-09-08
 
 ### Changed

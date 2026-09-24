@@ -27,8 +27,21 @@ def eccentric_orbit():
 def setup(eccentric_orbit):
     """(c, dc, times, p) for an eccentric orbit with a non-zero lan."""
     c, dc = solve3d_d(0.0, **eccentric_orbit, lan=0.7)
-    times = np.linspace(-0.02, 0.02, 9)
+    times = np.linspace(-0.02, 0.02, 16)
     return c, dc, times, eccentric_orbit["p"]
+
+
+@pytest.fixture
+def setup_d(setup):
+    """As ``setup``, with the times spread over epochs -7..8 for the direct evaluators.
+
+    The period chain term (``d/dp += epoch * d/dtc``) vanishes at epoch 0, and
+    the serial vector kernels are only auto-vectorised for eight or more
+    samples, so a near-transit grid of a few points cannot catch a vector
+    kernel that drops the term.
+    """
+    c, dc, times, p = setup
+    return c, dc, times + p * np.arange(-7, 9), p
 
 
 # --- helpers ---------------------------------------------------------------
@@ -60,8 +73,8 @@ class TestPos:
             assert_allclose(dys[n], dy, rtol=1e-12)
             assert_allclose(dzs[n], dz, rtol=1e-12)
 
-    def test_pos_d_array_matches_scalar_loop(self, setup):
-        c, dc, times, p = setup
+    def test_pos_d_array_matches_scalar_loop(self, setup_d):
+        c, dc, times, p = setup_d
         xs, ys, zs, dxs, dys, dzs = pos_d(times, 0.0, p, c, dc)
         _check_vector_quantities((xs, ys, zs), times.size)
         _check_gradients((dxs, dys, dzs), times.size)
@@ -90,8 +103,8 @@ class TestSep:
             assert_allclose(d[n], d_n, rtol=1e-12)
             assert_allclose(dd[n], dd_n, rtol=1e-12)
 
-    def test_sep_d_array_matches_scalar_loop(self, setup):
-        c, dc, times, p = setup
+    def test_sep_d_array_matches_scalar_loop(self, setup_d):
+        c, dc, times, p = setup_d
         d, dd = sep_d(times, 0.0, p, c, dc)
         assert d.shape == (times.size,)
         assert dd.shape == (times.size, 7)
@@ -120,8 +133,8 @@ class TestZpos:
             assert_allclose(pz[n], pz_n, rtol=1e-12)
             assert_allclose(dpz[n], dpz_n, rtol=1e-12)
 
-    def test_zpos_d_array_matches_scalar_loop(self, setup):
-        c, dc, times, p = setup
+    def test_zpos_d_array_matches_scalar_loop(self, setup_d):
+        c, dc, times, p = setup_d
         pz, dpz = zpos_d(times, 0.0, p, c, dc)
         assert pz.shape == (times.size,)
         assert dpz.shape == (times.size, 7)
@@ -145,8 +158,8 @@ class TestVel:
             assert_allclose(dvx[n], dvx_n, rtol=1e-12)
             assert_allclose(dvz[n], dvz_n, rtol=1e-12)
 
-    def test_vel_d_array_matches_scalar_loop(self, setup):
-        c, dc, times, p = setup
+    def test_vel_d_array_matches_scalar_loop(self, setup_d):
+        c, dc, times, p = setup_d
         vx, vy, vz, dvx, dvy, dvz = vel_d(times, 0.0, p, c, dc)
         _check_vector_quantities((vx, vy, vz), times.size)
         _check_gradients((dvx, dvy, dvz), times.size)
@@ -176,8 +189,8 @@ class TestZvel:
             assert_allclose(vz[n], vz_n, rtol=1e-12)
             assert_allclose(dvz[n], dvz_n, rtol=1e-12)
 
-    def test_zvel_d_array_matches_scalar_loop(self, setup):
-        c, dc, times, p = setup
+    def test_zvel_d_array_matches_scalar_loop(self, setup_d):
+        c, dc, times, p = setup_d
         vz, dvz = zvel_d(times, 0.0, p, c, dc)
         assert vz.shape == (times.size,)
         assert dvz.shape == (times.size, 7)
@@ -206,8 +219,8 @@ class TestRv:
             # nearly cancel to zero; real gradients here are O(1)-O(100).
             assert_allclose(drv[n], drv_n, rtol=1e-12, atol=1e-14)
 
-    def test_rv_d_array_matches_scalar_loop(self, setup, eccentric_orbit):
-        c, dc, times, p = setup
+    def test_rv_d_array_matches_scalar_loop(self, setup_d, eccentric_orbit):
+        c, dc, times, p = setup_d
         a, i, e = eccentric_orbit["a"], eccentric_orbit["i"], eccentric_orbit["e"]
         rv, drv = rv_d(times, self.K, 0.0, p, a, i, e, c, dc)
         assert rv.shape == (times.size,)

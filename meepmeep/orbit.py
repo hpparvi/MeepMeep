@@ -408,11 +408,11 @@ class Orbit:
                                       "reference does not provide parameter derivatives.")
         if exact:
             return ta_newton_v(self.times, self._tc, self._p, self._e, self._w)
-        ev = eccentricity_vector(self._i, self._e, self._w)
+        ev = eccentricity_vector(self._i, self._e, self._w, self._lan)
         if self._derivatives:
             fn = self._select(true_anomaly_od, true_anomaly_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
             return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
-                      self._ep_table, self._ep_times, self._coeffs, self._dcoeffs, )
+                      self._ep_table, self._ep_times, self._coeffs, self._dcoeffs, self._timing == "tc")
         fn = self._select(true_anomaly_o, true_anomaly_ovp, self.times, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._ep_table,
                   self._ep_times, self._coeffs, )

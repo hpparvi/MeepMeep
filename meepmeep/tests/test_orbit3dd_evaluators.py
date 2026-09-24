@@ -35,7 +35,9 @@ from meepmeep.backends.numba.utils import (
     eclipse_time_offset,
 )
 from meepmeep.backends.numba.newton.newton import eclipse_light_travel_time
+from meepmeep.orbit import Orbit
 from meepmeep.backends.numba.orbit3d import (
+    solve3d_orbit,
     pos_o,
     zpos_o,
     vel_o,
@@ -737,6 +739,108 @@ class TestEVSignalOrbitalGradientRegression:
             assert ok.mean() >= 0.95, (
                 f"slot {slot} ({key}): only {ok.mean():.0%} of points within "
                 f"tolerance; max violation {err[~ok].max():.3e}")
+
+class TestPeriodicImageSegment:
+    """Times just before periastron are served by the last expansion point, the
+    periodic image of the first one. It sits at phase ``ep_times[-1] = 1``, so its
+    period derivative carries ``1 * dcf[0]`` more than slot 0's, which sits at phase 0.
+    Finite differences of the values must agree with the gradients there."""
+
+    PARS = dict(p=5.0, a=15.0, i=1.55, e=0.3, w=0.5, lan=0.2)
+
+    def _times(self, tpa, dt, ep_table):
+        p = self.PARS["p"]
+        times = tpa + p * np.array([0.99, 2.985, -0.004, 0.5])
+        ix = [ep_table[int(np.floor(((t - tpa) % p) / (dt * p)))] for t in times]
+        assert ix[:3] == [NPT - 1] * 3 and ix[3] != NPT - 1
+        return times
+
+    def test_solve3d_orbit_d_image_slot(self):
+        pars = self.PARS
+        ep_times, _, _, _ = create_expansion_points(NPT, pars["e"], "ea")
+        _, dcoeffs = solve3d_orbit_d(ep_times, **pars, npt=NPT)
+        assert_allclose(dcoeffs[-1, 0], dcoeffs[0, 0], rtol=0, atol=0)
+        assert_allclose(dcoeffs[-1, 1], dcoeffs[0, 1] + (ep_times[-1] - ep_times[0]) * dcoeffs[0, 0],
+                        rtol=1e-15, atol=0)
+
+    def test_period_gradient_matches_finite_difference(self):
+        pars = self.PARS
+        p = pars["p"]
+        ep_times, _, dt, ep_table = create_expansion_points(NPT, pars["e"], "ea")
+        tpa = -0.2
+        times = self._times(tpa, dt, ep_table)
+        coeffs, dcoeffs = solve3d_orbit_d(ep_times, **pars, npt=NPT)
+        _, dd = sep_od(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
+
+        def sep_at(pp):
+            c = solve3d_orbit(ep_times, pp, pars["a"], pars["i"], pars["e"], pars["w"], pars["lan"], npt=NPT)
+            return sep_o(times, tpa, pp, dt, ep_table, ep_times, c)
+
+        h = 1e-6
+        assert_allclose(dd[:, 1], (sep_at(p + h) - sep_at(p - h)) / (2 * h), rtol=1e-6)
+
+    @pytest.mark.parametrize("timing", ["tc", "tp"])
+    def test_orbit_class_period_gradient(self, timing):
+        pars = {k: v for k, v in self.PARS.items()}
+        p = pars.pop("p")
+
+        def values(pp, times):
+            o = Orbit(npt=NPT)
+            o.set_pars(**{timing: 0.3}, p=pp, **pars)
+            return o.xyz(times)[1]
+
+        o = Orbit(npt=NPT, derivatives=True)
+        o.set_pars(**{timing: 0.3}, p=p, **pars)
+        times = self._times(o._tp, o._dt, o._ep_table)
+        dy = o.xyz(times)[4]
+        h = 1e-6
+        assert_allclose(dy[:, 1], (values(p + h, times) - values(p - h, times)) / (2 * h), rtol=1e-6)
+
+
+class TestCircularTrueAnomalyBasis:
+    """The circular fast path of ``true_anomaly_od`` does not read ``dcoeffs``, so it
+    must be told the basis; in the transit-centre basis ``tp`` moves with p, e and w."""
+
+    PARS = dict(p=3.0, a=10.0, i=1.5, e=0.0, w=0.4, lan=0.3)
+    TIMES = np.array([0.35, 1.9, -2.2, 4.1])
+
+    @pytest.mark.parametrize("timing", ["tc", "tp"])
+    def test_orbit_gradient_matches_finite_difference(self, timing):
+        names = ["t0", "p", "a", "i", "e", "w", "lan"]
+        base = dict(t0=0.2, **self.PARS)
+
+        def f(**kw):
+            kw = dict(kw)
+            o = Orbit(npt=NPT)
+            o.set_pars(**{timing: kw.pop("t0")}, **kw)
+            o.set_data(self.TIMES)
+            return o.true_anomaly()
+
+        o = Orbit(npt=NPT, derivatives=True)
+        kw = dict(base)
+        o.set_pars(**{timing: kw.pop("t0")}, **kw)
+        o.set_data(self.TIMES)
+        _, df = o.true_anomaly()
+        h = 1e-6
+        for k, name in enumerate(names):
+            up, dn = dict(base), dict(base)
+            up[name] += h
+            dn[name] -= h
+            assert_allclose(df[:, k], (f(**up) - f(**dn)) / (2 * h), rtol=1e-6, atol=1e-8, err_msg=name)
+
+    def test_low_level_flag(self):
+        pars = self.PARS
+        ep_times, _, dt, ep_table = create_expansion_points(NPT, 0.2, "ea")
+        coeffs, dcoeffs = solve3d_orbit_d(ep_times, **pars, npt=NPT)
+        ev = eccentricity_vector(pars["i"], pars["e"], pars["w"], pars["lan"])
+        args = (self.TIMES, -0.1, pars["p"], ev[0], ev[1], ev[2], pars["w"], dt, ep_table, ep_times, coeffs, dcoeffs)
+        _, df_tp = true_anomaly_od(*args, False)
+        _, df_tc = true_anomaly_od(*args, True)
+        assert_allclose(df_tp[:, 2:], 0.0, atol=0)
+        m_tr = mean_anomaly_at_transit(0.0, pars["w"])
+        assert_allclose(df_tc[:, 1], df_tp[:, 1] - df_tp[:, 0] * m_tr / TWO_PI, rtol=1e-14)
+        assert_allclose(df_tc[:, 5], -df_tp[:, 0] * (-1.0) * pars["p"] / TWO_PI, rtol=1e-14)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

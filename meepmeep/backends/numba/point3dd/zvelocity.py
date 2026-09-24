@@ -25,15 +25,25 @@ from ._common import _is_1d_array
 
 
 @njit(fastmath=True, inline='always')
-def _zvel_cd_w(time, c, dc, dvz):
+def _zvel_cd_w(time, c, dc, dvz, epoch):
     """Write-into kernel shared by the scalar and vector evaluators.
 
     Writes the seven-parameter gradient into the caller-provided ``(7,)``
     buffer ``dvz`` and returns the z velocity, so the hot vector loops
     reuse preallocated rows instead of allocating per sample.
+    ``epoch`` is the period-folding count of a direct evaluator (0.0 for a
+    centered one): the period slot gains ``epoch`` times the timing slot,
+    the chain term of the folded time ``-epoch * p``. It is added from a
+    register instead of being read back from the buffer by the caller:
+    numba 0.61 miscompiles the serial vector loop when a row written here is
+    read back in the same iteration, dropping the term for arrays of eight
+    or more samples.
     """
     vz = c[2, 1] + time * (2.0 * c[2, 2] + time * (3.0 * c[2, 3] + time * 4.0 * c[2, 4]))
-    for k in range(7):
+    d0 = dc[0, 2, 1] + time * (2.0 * dc[0, 2, 2] + time * (3.0 * dc[0, 2, 3] + time * 4.0 * dc[0, 2, 4]))
+    dvz[0] = d0
+    dvz[1] = dc[1, 2, 1] + time * (2.0 * dc[1, 2, 2] + time * (3.0 * dc[1, 2, 3] + time * 4.0 * dc[1, 2, 4])) + epoch * d0
+    for k in range(2, 7):
         dvz[k] = dc[k, 2, 1] + time * (2.0 * dc[k, 2, 2] + time * (3.0 * dc[k, 2, 3] + time * 4.0 * dc[k, 2, 4]))
     return vz
 
@@ -42,7 +52,7 @@ def _zvel_cd_w(time, c, dc, dvz):
 def _zvel_cd_s(time, c, dc):
     """Scalar kernel for :func:`zvel_cd`. See that function for documentation."""
     dvz = zeros(7)
-    vz = _zvel_cd_w(time, c, dc, dvz)
+    vz = _zvel_cd_w(time, c, dc, dvz, 0.0)
     return vz, dvz
 
 
@@ -58,7 +68,7 @@ def _zvel_cd_v_body(time, c, dc):
     vz = zeros(n)
     dvz = zeros((n, 7))
     for j in prange(n):
-        vz[j] = _zvel_cd_w(time[j], c, dc, dvz[j])
+        vz[j] = _zvel_cd_w(time[j], c, dc, dvz[j], 0.0)
     return vz, dvz
 
 
@@ -124,10 +134,9 @@ def _zvel_cd_overload(time, c, dc):
 def _zvel_d_s(time, tc, p, c, dc, te):
     """Scalar kernel for :func:`zvel_d`. See that function for documentation."""
     epoch = floor((time - tc - te + 0.5 * p) / p)
-    vz, dvz = _zvel_cd_s(time - (tc + te + epoch * p), c, dc)
-    # Period-folding chain term: the folded time depends on p via -epoch*p,
-    # so the total period derivative gains epoch times the timing column.
-    dvz[1] += epoch * dvz[0]
+    dvz = zeros(7)
+    # The write kernel adds the period-folding chain term (epoch times the timing slot).
+    vz = _zvel_cd_w(time - (tc + te + epoch * p), c, dc, dvz, epoch)
     return vz, dvz
 
 
@@ -144,8 +153,7 @@ def _zvel_d_v_body(time, tc, p, c, dc, te):
     dvz = zeros((n, 7))
     for j in prange(n):
         epoch = floor((time[j] - tc - te + 0.5 * p) / p)
-        vz[j] = _zvel_cd_w(time[j] - (tc + te + epoch * p), c, dc, dvz[j])
-        dvz[j, 1] += epoch * dvz[j, 0]
+        vz[j] = _zvel_cd_w(time[j] - (tc + te + epoch * p), c, dc, dvz[j], epoch)
     return vz, dvz
 
 

@@ -24,13 +24,14 @@ TWO_PI = 2.0*pi
 
 
 @njit(fastmath=True)
-def eccentricity_vector(i, e, w):
+def eccentricity_vector(i, e, w, lan=0.0):
     """
     Compute the 3D eccentricity vector in the observer's coordinate system.
 
     The eccentricity vector points toward periastron with a magnitude equal
     to the eccentricity. This function rotates that vector from the orbital
-    plane into the observer's frame based on the inclination.
+    plane into the observer's frame based on the inclination and the
+    longitude of the ascending node.
 
     Parameters
     ----------
@@ -42,6 +43,11 @@ def eccentricity_vector(i, e, w):
     w : float
         Argument of periastron in radians. Defines the orientation of the
         ellipse within the orbital plane.
+    lan : float, optional
+        Longitude of the ascending node in radians. Rotates (ex, ey) about the
+        line of sight exactly as the coefficient solvers rotate the sky-plane
+        positions; pass the same value the coefficients were solved with.
+        Defaults to 0.0.
 
     Returns
     -------
@@ -53,19 +59,24 @@ def eccentricity_vector(i, e, w):
     Notes
     -----
     The coordinate system is defined such that the z-axis points along the
-    line of sight toward the observer. The components are calculated as:
+    line of sight toward the observer. Before the node rotation the
+    components are:
 
     * ex = -e * cos(w)
     * ey = -e * sin(w) * cos(i)
     * ez =  e * sin(w) * sin(i)
+
+    and (ex, ey) are then rotated counterclockwise by ``lan``.
     """
     if e > 1e-5:
         ci = cos(i)
         si = sin(i)
-        ex = -e*cos(w)
-        ey = -e*sin(w)*ci
-        ez =  e*sin(w)*si
-        return array([ex, ey, ez])
+        ex0 = -e*cos(w)
+        ey0 = -e*sin(w)*ci
+        ez = e*sin(w)*si
+        c_o = cos(lan)
+        s_o = sin(lan)
+        return array([c_o*ex0 - s_o*ey0, s_o*ex0 + c_o*ey0, ez])
     else:
         return array([-1.0, 0.0, 0.0])
 
