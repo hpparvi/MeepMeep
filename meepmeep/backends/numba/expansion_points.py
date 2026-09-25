@@ -18,7 +18,7 @@
 
 
 from numba import njit
-from numpy import pi, linspace, zeros
+from numpy import pi, linspace, zeros, arange, arctan2, sqrt, sin, cos, concatenate, diff, searchsorted, ceil
 from scipy.optimize import root_scalar
 
 from .newton.newton import ea_newton_s, ta_newton_s
@@ -70,7 +70,71 @@ def true_anomaly(t, e):
     return f
 
 
-def create_expansion_points(n_ep: int, e: float, quantity: str = 'ea', tres: int = 200):
+# The time-to-expansion-point table is sized so that its bins are TABLE_BINS_PER_REGION
+# times narrower than the narrowest expansion-point region, and never has fewer
+# than TABLE_MIN_SIZE bins. The size is computed for max(e, TABLE_SIZING_E), so it
+# does not depend on e below that: the JAX backend needs a static table shape and
+# can then match these tables bin for bin even when e is traced. TABLE_MAX_SIZE
+# caps the table (8 MB of int64) for extreme eccentricities.
+TABLE_MIN_SIZE = 200
+TABLE_BINS_PER_REGION = 8
+TABLE_SIZING_E = 0.9
+TABLE_MAX_SIZE = 2 ** 20
+
+
+def _phase_from_anomaly(v, e, quantity):
+    """Phase from periastron at which the eccentric ('ea') or true ('ta') anomaly equals ``v``.
+
+    The closed-form inverse of the anomalies the root finder in
+    :func:`create_expansion_points` solves for.
+    """
+    if quantity == 'ta':
+        v = 2.0 * arctan2(sqrt(1.0 - e) * sin(0.5 * v), sqrt(1.0 + e) * cos(0.5 * v))
+    return (v - e * sin(v)) / (2.0 * pi)
+
+
+def expansion_table_size(n_ep: int, e: float, quantity: str = 'ea') -> int:
+    """Default number of time-to-expansion-point table bins for a placement.
+
+    Parameters
+    ----------
+    n_ep : int
+        Number of expansion points, including the periodic-image slot.
+    e : float
+        Orbital eccentricity the grid is placed for.
+    quantity : {'mm', 'ea', 'ta'}, optional
+        Placement strategy. Defaults to ``'ea'``.
+
+    Returns
+    -------
+    tres : int
+        ``max(200, ceil(8 / w))``, where ``w`` is the narrowest
+        expansion-point region, in phase, of the placement for
+        ``max(e, 0.9)``, capped at 2**20 bins. The size is therefore the
+        same for every eccentricity up to 0.9.
+
+    Notes
+    -----
+    Each bin of the table maps to one expansion point, so the bins must be
+    narrower than the regions they resolve. Near periastron at high
+    eccentricity the ``'ea'`` and ``'ta'`` regions shrink to a fraction of a
+    percent of the period; eight bins per narrowest region keep the
+    table's contribution to the error below the Taylor truncation error.
+    """
+    if quantity == 'mm':
+        w_min = 0.5 / (n_ep - 1)
+    else:
+        es = max(e, TABLE_SIZING_E)
+        half = n_ep // 2
+        lower = _phase_from_anomaly((arange(half) + 0.5) * 2.0 * pi / n_ep, es, quantity)
+        widths = diff(concatenate(([0.0], lower, 1.0 - lower[::-1], [1.0])))
+        w_min = widths.min()
+    # The relative margin absorbs round-off between this closed form and the
+    # placed grid, so the bins stay narrow enough for the actual regions too.
+    return min(TABLE_MAX_SIZE, max(TABLE_MIN_SIZE, int(ceil(TABLE_BINS_PER_REGION / w_min * (1.0 + 1e-9)))))
+
+
+def create_expansion_points(n_ep: int, e: float, quantity: str = 'ea', tres: int | None = None):
     """Place expansion points along one orbital period and build the time-to-expansion-point table.
 
     An *expansion point* is a point along the orbit that serves as the
@@ -97,7 +161,8 @@ def create_expansion_points(n_ep: int, e: float, quantity: str = 'ea', tres: int
         (default), ``'ta'`` in true anomaly.
     tres : int, optional
         Resolution of the time-to-expansion-point lookup table (number of
-        bins per period).
+        bins per period). Defaults to :func:`~meepmeep.numba3d.expansion_table_size`, which keeps the
+        bins eight times narrower than the narrowest expansion-point region.
 
     Returns
     -------
@@ -113,8 +178,8 @@ def create_expansion_points(n_ep: int, e: float, quantity: str = 'ea', tres: int
         Width of a single time-to-expansion-point table bin, ``1 / tres``.
     ep_table : NDArray of int
         Time-to-expansion-point table mapping each of the ``tres`` time bins
-        within one folded period to the index of the expansion point that
-        should evaluate it.
+        within one folded period to the index of the expansion point whose
+        region contains the bin's centre.
 
     Notes
     -----
@@ -166,16 +231,11 @@ def create_expansion_points(n_ep: int, e: float, quantity: str = 'ea', tres: int
             t0 = change_times[i]
         change_times[n_ep // 2:] = 1 - change_times[n_ep // 2 - 1::-1]
 
-    # Create the time-to-expansion-point table
+    # Time-to-expansion-point table: each bin maps to the expansion point whose
+    # region contains the bin's centre.
+    if tres is None:
+        tres = expansion_table_size(n_ep, e, quantity)
     dt = 1 / tres
-    ep_table = zeros(tres, int)
-    ik = 0
-    for i in range(tres):
-        if i*dt > change_times[ik]:
-            ik += 1
-        if ik >= n_ep-1:
-            ep_table[i:] = ik
-            break
-        ep_table[i] = ik
+    ep_table = searchsorted(change_times, (arange(tres) + 0.5) * dt, side='left')
 
     return ep_times, change_times, dt, ep_table

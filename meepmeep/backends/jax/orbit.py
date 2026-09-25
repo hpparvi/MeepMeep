@@ -97,7 +97,7 @@ class JaxOrbit:
 
     @classmethod
     def from_tc(cls, tc, p, a, i, e, w, lan=0.0, *, npt: int = 15, ep_placement: str = 'ea',
-                tres: int = 200, grid=None):
+                tres: int | None = None, grid=None):
         """Build an orbit anchored at the transit centre.
 
         Parameters
@@ -121,7 +121,9 @@ class JaxOrbit:
         ep_placement : {'ea', 'ta', 'mm'}, optional
             Expansion-point placement strategy. Static.
         tres : int, optional
-            Time-to-expansion-point table resolution. Static.
+            Time-to-expansion-point table resolution. Static. Defaults to the
+            numba default size (sized for ``e = 0.9`` when ``e`` is traced;
+            pass it explicitly under ``jit`` for ``e`` above 0.9).
         grid : tuple, optional
             A precomputed ``(ep_times, change_times, dt, ep_table)`` grid, for
             example from the numba ``create_expansion_points``. By default the
@@ -133,7 +135,7 @@ class JaxOrbit:
 
     @classmethod
     def from_tp(cls, tp, p, a, i, e, w, lan=0.0, *, npt: int = 15, ep_placement: str = 'ea',
-                tres: int = 200, grid=None):
+                tres: int | None = None, grid=None):
         """Build an orbit anchored at the periastron passage ``tp`` [days].
 
         See ``from_tc`` for the other arguments.

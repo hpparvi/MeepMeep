@@ -140,7 +140,7 @@ from .backends.numba.orbit3dd import (
 )
 
 # --- Dimension-agnostic primitives ------------------------------------
-from .backends.numba.expansion_points import create_expansion_points
+from .backends.numba.expansion_points import create_expansion_points, expansion_table_size
 from .backends.numba.utils import (tc_to_tp_gradient, tp_to_tc_gradient,
                                    tp_to_tc_gradient_orbit,
                                    eccentricity_vector, eccentricity_vector_d)
@@ -211,6 +211,7 @@ __all__ = [
     "ev_signal_ovp",
     "ev_signal_v",
     "ev_signal_vp",
+    "expansion_table_size",
     "find_contact_point",
     "find_z_min",
     "lambert_phase_curve",

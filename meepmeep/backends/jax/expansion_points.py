@@ -26,16 +26,28 @@ mapped to time, and that map is closed-form, ``t = (E - e sin E) / 2 pi``
 can be built inside ``jit`` from a traced ``e``, and it agrees with the
 numba grid to the ``brentq`` tolerance (~1e-12 in phase).
 
-The time-to-expansion-point table is built with the same sequential rule
-as numba (the bucket index advances by at most one per bin), so the two
-tables are identical, including numba's behaviour when adjacent boundaries
-fall within one bin of each other.
+The time-to-expansion-point table follows the numba rule, each bin mapped
+to the expansion point whose region contains its centre, and the numba
+default size. The size must be static here, so it is computed on the host:
+from ``e`` when ``e`` is concrete, and for ``e = 0.9`` when it is traced.
+The numba size does not depend on ``e`` up to 0.9, so the two tables are
+identical bin for bin in every case except a traced ``e`` above 0.9.
 """
 
+import math
+
+import jax
 import jax.numpy as jnp
-from jax import lax
+import numpy as np
 
 from ._common import TWO_PI
+
+# Mirrors meepmeep.backends.numba.expansion_points: bins eight times narrower than
+# the narrowest region of the placement for max(e, 0.9), between 200 and 2**20.
+TABLE_MIN_SIZE = 200
+TABLE_BINS_PER_REGION = 8
+TABLE_SIZING_E = 0.9
+TABLE_MAX_SIZE = 2 ** 20
 
 
 def _time_from_anomaly(v, e, quantity):
@@ -45,7 +57,32 @@ def _time_from_anomaly(v, e, quantity):
     return (v - e * jnp.sin(v)) / TWO_PI
 
 
-def create_expansion_points(n_ep: int, e, quantity: str = 'ea', tres: int = 200):
+def expansion_table_size(n_ep: int, e, quantity: str = 'ea') -> int:
+    """Default time-to-expansion-point table size, as a static Python int.
+
+    Port of ``meepmeep.backends.numba.expansion_points.expansion_table_size``.
+    A traced ``e`` cannot size a static table, so it is sized for ``e = 0.9``,
+    which is the numba size for every ``e`` up to 0.9.
+    """
+    if quantity == 'mm':
+        w_min = 0.5 / (n_ep - 1)
+    else:
+        try:
+            e_sizing = max(float(e), TABLE_SIZING_E)
+        except (TypeError, jax.errors.ConcretizationTypeError):
+            e_sizing = TABLE_SIZING_E
+        half = n_ep // 2
+        v = (np.arange(half) + 0.5) * 2.0 * np.pi / n_ep
+        if quantity == 'ta':
+            v = 2.0 * np.arctan2(np.sqrt(1.0 - e_sizing) * np.sin(0.5 * v),
+                                 np.sqrt(1.0 + e_sizing) * np.cos(0.5 * v))
+        lower = (v - e_sizing * np.sin(v)) / (2.0 * np.pi)
+        w_min = np.diff(np.concatenate(([0.0], lower, 1.0 - lower[::-1], [1.0]))).min()
+    n = math.ceil(TABLE_BINS_PER_REGION / w_min * (1.0 + 1e-9))
+    return min(TABLE_MAX_SIZE, max(TABLE_MIN_SIZE, n))
+
+
+def create_expansion_points(n_ep: int, e, quantity: str = 'ea', tres: int | None = None):
     """Place expansion points along one orbital period and build the time-to-expansion-point table.
 
     Parameters
@@ -60,6 +97,9 @@ def create_expansion_points(n_ep: int, e, quantity: str = 'ea', tres: int = 200)
         (default), or true anomaly. Static.
     tres : int, optional
         Number of time-to-expansion-point table bins per period. Static.
+        Defaults to :func:`expansion_table_size`, the numba default: eight
+        bins per narrowest expansion-point region, sized for ``e = 0.9``
+        when ``e`` is traced.
 
     Returns
     -------
@@ -70,7 +110,8 @@ def create_expansion_points(n_ep: int, e, quantity: str = 'ea', tres: int = 200)
     dt : float
         Table bin width, ``1 / tres``.
     ep_table : NDArray of int, shape (tres,)
-        Expansion-point index per table bin (int32).
+        Index of the expansion point whose region contains each bin's
+        centre (int32).
 
     Raises
     ------
@@ -103,12 +144,9 @@ def create_expansion_points(n_ep: int, e, quantity: str = 'ea', tres: int = 200)
         lower_ct = _time_from_anomaly((jnp.arange(half) + 0.5) * ep_sep, e, quantity)
         change_times = jnp.concatenate([lower_ct, 1.0 - lower_ct[::-1]])
 
+    if tres is None:
+        tres = expansion_table_size(n_ep, e, quantity)
     dt = 1.0 / tres
-
-    def step(ik, i):
-        advance = (ik < n_ep - 1) & (i * dt > change_times[jnp.minimum(ik, n_ep - 2)])
-        ik = ik + advance.astype(jnp.int32)
-        return ik, ik
-
-    _, ep_table = lax.scan(step, jnp.int32(0), jnp.arange(tres))
+    centres = (jnp.arange(tres) + 0.5) * dt
+    ep_table = jnp.searchsorted(change_times, centres, side='left').astype(jnp.int32)
     return ep_times, change_times, dt, ep_table

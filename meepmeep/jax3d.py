@@ -59,7 +59,7 @@ from .backends.jax.orbit3d import (
     star_planet_distance_o, cos_v_p_angle_o, lambert_phase_curve_o,
     ev_signal_o, emission_phase_curve_o, light_travel_time_o, true_anomaly_o,
 )
-from .backends.jax.expansion_points import create_expansion_points
+from .backends.jax.expansion_points import create_expansion_points, expansion_table_size
 from .backends.jax.newton import ea_from_ma
 from .backends.jax.utils import mean_anomaly_at_transit, eccentricity_vector
 from .backends.jax.orbit import JaxOrbit
@@ -81,6 +81,7 @@ __all__ = [
     "ev_signal",
     "ev_signal_c",
     "ev_signal_o",
+    "expansion_table_size",
     "find_contact_point",
     "find_z_min",
     "lambert_phase_curve",

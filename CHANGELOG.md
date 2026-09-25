@@ -44,6 +44,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   was replaced by explicit branches.
 
 ### Fixed
+- Whole-orbit evaluation lost accuracy at high eccentricity because the
+  time-to-expansion-point table was too coarse: its 200 bins were wider than
+  the expansion-point regions near periastron, so parts of a bin were
+  evaluated from an expansion point far away on the local orbital timescale,
+  and the table-building loop advanced by at most one expansion point per
+  bin. At e = 0.9 the error stalled at ~0.1 R_star whatever `npt` was; at
+  e = 0.7 it was 5-25x larger than the Taylor truncation error.
+  `create_expansion_points` (numba, JAX and C) now maps each bin to the region
+  containing its centre, and its default `tres=None` sizes the table at eight
+  bins per narrowest region of the placement for `max(e, 0.9)` (at least 200,
+  at most 2**20); `expansion_table_size` (numba, JAX, and C, where it sizes
+  the caller's `ep_table`) returns that size. With it the error converges
+  with `npt` again (e = 0.9, npt = 35: 2e-4 R_star). The larger tables cost
+  nothing measurable in evaluation. `JaxOrbit` defaults to the same size.
 - `zpos_d` and `zvel_d` (and so `Expansion3D` in derivative mode) returned a
   wrong period derivative for arrays of eight or more times spanning several
   epochs: numba 0.61 miscompiled their serial vector kernels and dropped the

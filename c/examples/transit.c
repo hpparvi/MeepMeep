@@ -12,19 +12,27 @@
 #include "meepmeep.h"
 
 #define NPT 15
-#define TRES 200
 
 int main(void) {
     /* Orbital parameters: tc, p [d], a [R_star], i [rad], e, w [rad], lan. */
     const double tc = 0.0, p = 3.5, a = 12.0, inc = 1.55, e = 0.15, w = 0.8, lan = 0.0;
     const double two_pi = 6.28318530717958647693;
 
+    /* Size the time-to-expansion-point table for the placement, then build it. */
+    int tres;
+    int status = expansion_table_size(NPT, e, MM_EP_EA, &tres);
+    if (status != MM_OK) {
+        fprintf(stderr, "expansion_table_size: %s\n", mm_status_string(status));
+        return EXIT_FAILURE;
+    }
     double ep_times[NPT], change_times[NPT - 1], dt;
-    int ep_table[TRES];
-    int status = create_expansion_points(NPT, e, MM_EP_EA, TRES,
-                                         ep_times, change_times, &dt, ep_table);
+    int *ep_table = malloc(tres * sizeof(int));
+    if (ep_table == NULL) return EXIT_FAILURE;
+    status = create_expansion_points(NPT, e, MM_EP_EA, tres,
+                                     ep_times, change_times, &dt, ep_table);
     if (status != MM_OK) {
         fprintf(stderr, "create_expansion_points: %s\n", mm_status_string(status));
+        free(ep_table);
         return EXIT_FAILURE;
     }
 
@@ -42,5 +50,6 @@ int main(void) {
         double z = sep_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dz);
         printf("%10.4f %12.6f %12.6f %12.6f\n", t, z, dz[0], dz[2]);
     }
+    free(ep_table);
     return EXIT_SUCCESS;
 }

@@ -26,9 +26,11 @@
  *
  *  Pipeline for a full-orbit model:
  *
+ *      int tres;
+ *      expansion_table_size(NPT, e, MM_EP_EA, &tres);
  *      double ep_times[NPT], change_times[NPT - 1], dt;
- *      int ep_table[TRES];
- *      create_expansion_points(NPT, e, MM_EP_EA, TRES,
+ *      int *ep_table = malloc(tres * sizeof(int));
+ *      create_expansion_points(NPT, e, MM_EP_EA, tres,
  *                              ep_times, change_times, &dt, ep_table);
  *      double coeffs[NPT * 15];
  *      solve3d_orbit(ep_times, NPT, p, a, inc, e, w, lan, coeffs);
@@ -105,13 +107,24 @@ const char *mm_status_string(int status);
    Writes ep_times[n_ep] (expansion-point phases in [0, 1]; the last slot is
    the periodic image of the first), change_times[n_ep - 1] (the phases at
    which dispatch switches to the next expansion point), *dt = 1 / tres, and
-   ep_table[tres] (the expansion-point index of each phase bin). The 'ea' and
-   'ta' strategies solve for the phases with a Brent root finder matching
-   scipy's brentq tolerances (xtol 2e-12). Returns MM_OK or an mm_status
-   error; the outputs are unspecified on error. */
+   ep_table[tres] (the index of the expansion point whose region contains
+   each phase bin's centre). The 'ea' and 'ta' strategies solve for the
+   phases with a Brent root finder matching scipy's brentq tolerances (xtol
+   2e-12). Size the table with expansion_table_size: a table too coarse to
+   resolve the regions near periastron limits the accuracy at high
+   eccentricity. Returns MM_OK or an mm_status error; the outputs are
+   unspecified on error. */
 int create_expansion_points(int n_ep, double e, int quantity, int tres,
                             double *ep_times, double *change_times,
                             double *dt, int *ep_table);
+
+/* Recommended number of time-to-expansion-point table bins for a placement:
+   eight bins per narrowest expansion-point region of the placement for
+   max(e, 0.9), between 200 and 2^20. Writes it to *tres, the value the
+   Python side uses by default. Port of
+   `meepmeep.backends.numba.expansion_points.expansion_table_size`. Returns
+   MM_OK or an mm_status error. */
+int expansion_table_size(int n_ep, double e, int quantity, int *tres);
 
 
 /* Taylor coefficients at every expansion point of one orbit. Port of

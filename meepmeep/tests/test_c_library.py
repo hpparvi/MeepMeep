@@ -34,6 +34,7 @@ from meepmeep.numba3d import (solve3d, solve3d_d, solve3d_orbit, solve3d_orbit_d
                               sep, pos, zpos, sep_d, sep_o, sep_od, pos_od, ep_ix,
                               true_anomaly_od)
 from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit, eccentricity_vector_d
+from meepmeep.backends.numba.expansion_points import expansion_table_size
 
 ROOT = Path(__file__).resolve().parents[2]
 C_DIR = ROOT / 'c'
@@ -76,6 +77,7 @@ def _find_compiler():
 
 D = ctypes.c_double
 I = ctypes.c_int
+IP = ctypes.POINTER(ctypes.c_int)
 DP = ctypes.POINTER(ctypes.c_double)
 d_in = ndpointer(dtype=np.float64, flags='C')
 d_out = ndpointer(dtype=np.float64, flags='C,W')
@@ -88,6 +90,7 @@ def _bind(lib):
     sig = {
         'mm_status_string': ([I], ctypes.c_char_p),
         'create_expansion_points': ([I, D, I, I, d_out, d_out, DP, i_out], I),
+        'expansion_table_size': ([I, D, I, IP], I),
         'solve2d': ([D] * 7 + [d_out], None),
         'solve2d_d': ([D] * 7 + [I, d_out, d_out], None),
         'solve3d': ([D] * 7 + [d_out], None),
@@ -231,6 +234,35 @@ def test_create_expansion_points_matches_numba(lib, quantity, e, n_ep):
     np.testing.assert_allclose(change_times, r_ct, rtol=0, atol=1e-11)
     assert dt == r_dt
     np.testing.assert_array_equal(ep_table, r_table)
+
+
+@pytest.mark.parametrize('quantity', ['mm', 'ea', 'ta'])
+@pytest.mark.parametrize('e', [0.0, 0.3, 0.9, 0.97, 0.9999])
+@pytest.mark.parametrize('n_ep', [3, 15, 35])
+def test_expansion_table_size_matches_numba(lib, quantity, e, n_ep):
+    tres = ctypes.c_int()
+    assert lib.expansion_table_size(n_ep, e, QUANTITY[quantity], ctypes.byref(tres)) == MM_OK
+    assert tres.value == expansion_table_size(n_ep, e, quantity)
+
+
+@pytest.mark.parametrize('quantity', ['ea', 'ta'])
+@pytest.mark.parametrize('e', [0.5, 0.9])
+def test_default_sized_table_matches_numba(lib, quantity, e):
+    """The table a C caller sizes with expansion_table_size is numba's default table."""
+    tres = ctypes.c_int()
+    lib.expansion_table_size(35, e, QUANTITY[quantity], ctypes.byref(tres))
+    status, _, _, dt, ep_table = c_expansion_points(lib, 35, e, quantity, tres.value)
+    assert status == MM_OK
+    _, _, r_dt, r_table = create_expansion_points(35, e, quantity)
+    assert dt == r_dt
+    np.testing.assert_array_equal(ep_table, r_table)
+
+
+@pytest.mark.parametrize('n_ep, e, quantity, expected', [
+    (14, 0.3, 'ea', MM_ERR_N_EP), (15, 1.0, 'ea', MM_ERR_ECCENTRICITY), (15, 0.3, 'xx', MM_ERR_QUANTITY)])
+def test_expansion_table_size_rejects_bad_input(lib, n_ep, e, quantity, expected):
+    tres = ctypes.c_int()
+    assert lib.expansion_table_size(n_ep, e, QUANTITY.get(quantity, 99), ctypes.byref(tres)) == expected
 
 
 def test_create_expansion_points_periodic_image_contract(lib):
