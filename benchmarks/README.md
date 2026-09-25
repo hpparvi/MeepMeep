@@ -99,7 +99,7 @@ study out to N=100,000:
 ## fp32 vs fp64
 
 On this consumer card fp64 costs **6.7x** on the solve kernel and **9x** on the
-shipped `sep_cd2` evaluator (0.55 vs 0.06 ns/point) -- well short of the 64x
+shipped `sep_cd2` evaluator (0.55 vs 0.06 ns/point), well short of the 64x
 FLOP-rate ratio, because the kernel is bound by transcendentals, memory traffic
 and occupancy rather than raw fp64 ALU. On a datacenter card (1/2 rate) the gap
 would largely close.
@@ -115,7 +115,7 @@ roughly doubles). Warp divergence itself is mild.
 
 ## Register pressure: a non-issue
 
-`PRIVATE_MEM_SIZE` is **40 bytes** for the fp64 gradient kernel -- essentially
+`PRIVATE_MEM_SIZE` is **40 bytes** for the fp64 gradient kernel: essentially
 no spilling, despite ~2.5 kB of declared private data. NVVM scalarises the ~39
 private derivative vectors into registers and dead-codes the structural zeros.
 The macro-based column fill matters here: an array of pointers for
@@ -139,8 +139,8 @@ the solve dominates every one of those pipelines. Even at M=10000 the
 single-core solve is 2.4x the entire fp32 evaluation. Moving the solve to the
 device (37.7 us) removes it as a bottleneck.
 
-For N=1 -- one parameter set per likelihood call, the ordinary `Orbit` and
-`Expansion2D` use -- the solve is 1.6 us and irrelevant either way.
+For N=1 (one parameter set per likelihood call, the ordinary `Orbit` and
+`Expansion2D` use), the solve is 1.6 us and irrelevant either way.
 
 ## The CPU baseline is not the CPU's ceiling
 
@@ -155,7 +155,7 @@ heap-allocates every one; it does not stack-promote `np.zeros`:
 | as scalars | ~0 |
 
 **59% of the numba gradient solver is allocation, not arithmetic**, and ~630
-ns/call is recoverable by a purely local change to one function -- a ~2.1x CPU
+ns/call is recoverable by a purely local change to one function, a ~2.1x CPU
 speedup with no GPU involved.
 
 ## Outcome
@@ -163,7 +163,7 @@ speedup with no GPU involved.
 Recommendation 1 was implemented (`point2dd/solve.py`, `point3dd/solve.py`):
 the ~40 separate `zeros(6)` scratch vectors became one `zeros((n, 6))` block
 with named row views, and five vectors that were written but never read
-(`dci`, `dsi`, `dcw`, `dsw`, `dr2` -- the rotation-matrix rows are
+(`dci`, `dsi`, `dcw`, `dsw`, `dr2`; the rotation-matrix rows are
 hand-differentiated from `si`/`ci`/`sw`/`cw` directly) were deleted.
 `solve2d_d` 1166 -> 689 ns, `solve3d_d` 1274 -> 730 ns (**1.7x**), bit-identical
 with fastmath disabled and within 1.8e-15 with it on.
@@ -172,7 +172,7 @@ That work also turned up a **larger** win, since done. 88 per cent of
 `Orbit.set_pars(tc=..., derivatives=True)` was the Python-level loop calling
 `tp_to_tc_gradient` once per expansion point (94.3 of 107.4 us at npt=15). Root
 cause: `tp_to_tc_gradient` was missing the `@njit(fastmath=True)` its inverse
-`tc_to_tp_gradient` carries, so it ran as plain NumPy -- roughly fifteen small
+`tc_to_tp_gradient` carries, so it ran as plain NumPy: roughly fifteen small
 array operations per expansion point. Restoring the decorator took `set_pars`
 to 37.2 us; replacing the Python loop with a new in-place whole-orbit transform
 `tp_to_tc_gradient_orbit` took it to 13.5 us (**7.9x**; 8.4x at npt=25). The
@@ -180,8 +180,8 @@ tc-basis reparametrisation is now free relative to the tp path.
 
 Recommendation 2 was then implemented in the shipped backend: `solve2d.cl`,
 `solve3d.cl` (device functions) and the opt-in `solve_kernels.cl` (the only
-shipped file with `__kernel` entry points). Recommendation 3 -- fusing the
-solve into the evaluation kernel -- was deliberately deferred: it would need
+shipped file with `__kernel` entry points). Recommendation 3 (fusing the
+solve into the evaluation kernel) was deliberately deferred: it would need
 an address-space variant of every evaluator, because OpenCL C 1.2 has no
 generic address space and this machine's device does not advertise
 `__opencl_c_generic_address_space` even though NVIDIA's compiler accepts one.
@@ -198,10 +198,10 @@ Shipped `solve3d_d`, end to end with coefficients resident on device [us]:
 
 ## Recommendation
 
-1. ~~**Do the allocation fix first.**~~ *(done -- see Outcome above)* ~2.1x on `solve2d_d` (and very likely
+1. ~~**Do the allocation fix first.**~~ *(done; see Outcome above)* ~2.1x on `solve2d_d` (and very likely
    `solve3d_d` / `solve3d_orbit_d`, which have the same structure), local to
    one function, no new backend surface, benefits every existing user.
-2. **A GPU solve is justified only for the population-sampler case** -- many
+2. **A GPU solve is justified only for the population-sampler case**: many
    parameter sets per likelihood call (emcee/DE walkers), evaluated on-device.
    There it is a real 9-37x on a component that currently dominates the
    pipeline. It is worthless for the single-parameter-set case.
@@ -220,7 +220,7 @@ Shipped `solve3d_d`, end to end with coefficients resident on device [us]:
 Single device, single host. NVIDIA's OpenCL launch latency (~13 us) is high
 relative to CUDA and dominates these measurements. Only the 2D solver was
 ported; `solve3d_orbit` does npt (~15) expansions per parameter set, which
-multiplies the arithmetic without changing the fixed launch cost -- so the
+multiplies the arithmetic without changing the fixed launch cost, so the
 GPU's advantage there would be larger than measured here.
 
 ## Also here: the JAX-vs-numba evaluation benchmark
