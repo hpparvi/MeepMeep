@@ -86,17 +86,17 @@ def sep_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time at which to evaluate the separation and gradient.
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
     -------
-    d : float or ndarray
-        Sky-projected separation [stellar radii]. Arrays of shape (N,)
+    d : float or NDArray
+        Sky-projected separation [R_star]. Arrays of shape (N,)
         for an array ``t``.
-    dd : ndarray
+    dd : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
         scalar ``t``, (N, 7) for an array ``t``.
     """

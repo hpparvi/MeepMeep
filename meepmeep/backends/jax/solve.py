@@ -115,7 +115,7 @@ def solve2d(te, p, a, i, e, w, lan=0.0):
 
     Parameters
     ----------
-    te : float or ndarray
+    te : float or NDArray
         Expansion-point time relative to the transit centre [days]; an array
         gives one coefficient matrix per element.
     p : float
@@ -133,7 +133,7 @@ def solve2d(te, p, a, i, e, w, lan=0.0):
 
     Returns
     -------
-    ndarray, shape ``te.shape + (2, 5)``
+    cf : NDArray, shape ``te.shape + (2, 5)``
         Coefficients pre-scaled by the factorial of the Taylor order.
     """
     return _solve(te, p, a, i, e, w, lan, 2)
@@ -144,7 +144,7 @@ def solve3d(te, p, a, i, e, w, lan=0.0):
 
     Parameters
     ----------
-    te : float or ndarray
+    te : float or NDArray
         Expansion-point time relative to the transit centre [days]; an array
         gives one coefficient matrix per element.
     p : float
@@ -164,7 +164,7 @@ def solve3d(te, p, a, i, e, w, lan=0.0):
 
     Returns
     -------
-    ndarray, shape ``te.shape + (3, 5)``
+    cf : NDArray, shape ``te.shape + (3, 5)``
         Rows x, y, z; columns position through snap, pre-scaled by the
         factorial of the Taylor order.
     """
@@ -176,7 +176,7 @@ def solve3d_orbit(ep_times, p, a, i, e, w, lan=0.0):
 
     Parameters
     ----------
-    ep_times : ndarray, shape (npt,)
+    ep_times : NDArray, shape (npt,)
         Normalised expansion-point phases from periastron, with
         ``ep_times[-1] == ep_times[0] + 1`` (the periodic image), as built by
         :func:`~meepmeep.jax3d.create_expansion_points`.
@@ -185,7 +185,7 @@ def solve3d_orbit(ep_times, p, a, i, e, w, lan=0.0):
 
     Returns
     -------
-    coeffs : ndarray, shape (npt, 3, 5)
+    coeffs : NDArray, shape (npt, 3, 5)
         Coefficient matrix per expansion point. The last slot is a copy of
         the first.
 

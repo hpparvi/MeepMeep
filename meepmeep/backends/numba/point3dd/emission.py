@@ -149,8 +149,7 @@ def emission_phase_curve_cd_vp(time, k, fratio, offset, c, dc):
 
 def emission_phase_curve_cd(time: float | NDArray, k: float, fratio: float, offset: float,
                             c: NDArray, dc: NDArray):
-    """
-    Evaluate the cosine emission phase-curve flux and its parameter derivatives at an expansion-point-centered time.
+    """Evaluate the cosine emission phase-curve flux and its parameter derivatives at an expansion-point-centered time.
 
     Derivative-returning counterpart of `emission.emission_phase_curve_c`:
     forms :math:`F = k^2 f_\\mathrm{ratio} (1 + \\cos\\delta\\,c_z +
@@ -164,7 +163,7 @@ def emission_phase_curve_cd(time: float | NDArray, k: float, fratio: float, offs
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
@@ -181,7 +180,7 @@ def emission_phase_curve_cd(time: float | NDArray, k: float, fratio: float, offs
 
     Returns
     -------
-    flux : float or ndarray
+    flux : float or NDArray
         Emitted planet-to-star flux ratio. Shape (N,) for an array `time`.
     dflux : NDArray
         Partial derivatives of `flux` with respect to
@@ -266,8 +265,7 @@ def emission_phase_curve_d_vp(time, k, fratio, offset, tc, p, c, dc, te):
 
 def emission_phase_curve_d(time: float | NDArray, k: float, fratio: float, offset: float,
                            tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the cosine emission phase-curve flux and its parameter derivatives at an absolute time.
+    """Evaluate the cosine emission phase-curve flux and its parameter derivatives at an absolute time.
 
     Direct counterpart of `emission_phase_curve_cd`: epoch-folds the absolute
     time `time` around the expansion point and delegates to
@@ -279,7 +277,7 @@ def emission_phase_curve_d(time: float | NDArray, k: float, fratio: float, offse
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Absolute observation time(s) in the same units as `tc` and `p`.
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
@@ -305,7 +303,7 @@ def emission_phase_curve_d(time: float | NDArray, k: float, fratio: float, offse
 
     Returns
     -------
-    flux : float or ndarray
+    flux : float or NDArray
         Emitted planet-to-star flux ratio. Shape (N,) for an array `time`.
     dflux : NDArray
         Partial derivatives of `flux` with respect to

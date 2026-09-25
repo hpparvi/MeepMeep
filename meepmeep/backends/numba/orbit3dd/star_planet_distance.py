@@ -96,17 +96,17 @@ def star_planet_distance_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the separation and gradient.
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`_pos_osd`.
 
     Returns
     -------
-    r : float or ndarray
-        3D star-planet distance [stellar radii]. Arrays of shape (N,) for an
+    r : float or NDArray
+        3D star-planet distance [R_star]. Arrays of shape (N,) for an
         array ``t``.
-    dr : ndarray
+    dr : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
         ``t``, (N, 7) for an array ``t``.
     """

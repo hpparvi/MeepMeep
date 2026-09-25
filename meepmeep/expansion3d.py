@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""High-level single-expansion-point 3D Taylor orbit (:class:`Expansion3D`)."""
+
 
 from numpy import ndarray
 
@@ -96,13 +98,13 @@ class Expansion3D:
         a : float
             Scaled semi-major axis [R_star].
         i : float
-            Inclination [rad].
+            Inclination [radians].
         e : float
             Eccentricity.
         w : float
-            Argument of periastron [rad].
+            Argument of periastron [radians].
         lan : float, optional
-            Longitude of the ascending node [rad], a constant rotation of the
+            Longitude of the ascending node [radians], a constant rotation of the
             sky plane about the line of sight. Defaults to 0.0.
         te : float, optional
             Expansion-point time [days], measured relative to the transit
@@ -147,13 +149,13 @@ class Expansion3D:
         a : float
             Scaled semi-major axis [R_star].
         i : float
-            Inclination [rad].
+            Inclination [radians].
         e : float
             Eccentricity.
         w : float
-            Argument of periastron [rad].
+            Argument of periastron [radians].
         lan : float, optional
-            Longitude of the ascending node [rad]. A constant rotation of the
+            Longitude of the ascending node [radians]. A constant rotation of the
             sky-plane (x, y) coordinates about the line of sight (the
             line-of-sight z is unaffected). Defaults to 0.0. In derivative mode
             the gradient w.r.t. ``lan`` is the seventh orbital-parameter column.
@@ -188,7 +190,7 @@ class Expansion3D:
 
         Parameters
         ----------
-        times : ndarray, shape (N,)
+        times : NDArray, shape (N,)
             Absolute observation times [days] at which the evaluation methods
             (:meth:`position`, :meth:`projected_separation`, ...) evaluate the
             orbit.
@@ -214,14 +216,12 @@ class Expansion3D:
 
         Returns
         -------
-        tuple
-            ``(xs, ys, zs)`` if the instance was created with
-            ``derivatives=False``; ``(xs, ys, zs, dxs, dys, dzs)`` otherwise,
-            where the gradients are shape ``(N, 7)`` arrays of partial
-            derivatives with respect to ``(tc, p, a, i, e, w, lan)``. ``xs``,
-            ``ys`` are the sky-plane coordinates and ``zs`` the line-of-sight
-            depth (positive toward the observer); all in units of the stellar
-            radius.
+        xs, ys, zs : NDArray, shape (N,)
+            Sky-plane coordinates ``xs``, ``ys`` and the line-of-sight depth ``zs``
+            (positive toward the observer) per time [R_star].
+        dxs, dys, dzs : NDArray, shape (N, 7)
+            Only returned if ``derivatives=True``: partial derivatives of the
+            coordinates with respect to ``(tc, p, a, i, e, w, lan)``.
         """
         if self._derivatives:
             fn = self._select(pos_d, pos_d_vp, self._PARALLEL_NMIN_GRAD)
@@ -234,11 +234,11 @@ class Expansion3D:
 
         Returns
         -------
-        zs : ndarray, shape (N,)
+        zs : NDArray, shape (N,)
             Line-of-sight depth per time (positive toward the observer), in
             units of the stellar radius. Returned alone if
             ``derivatives=False``.
-        dzs : ndarray, shape (N, 7)
+        dzs : NDArray, shape (N, 7)
             Only returned if ``derivatives=True``: partial derivatives of
             ``zs`` with respect to ``(tc, p, a, i, e, w, lan)``.
         """
@@ -256,10 +256,10 @@ class Expansion3D:
 
         Returns
         -------
-        d : ndarray, shape (N,)
+        d : NDArray, shape (N,)
             Projected separation per time, returned alone if
             ``derivatives=False``.
-        dd : ndarray, shape (N, 7)
+        dd : NDArray, shape (N, 7)
             Only returned if ``derivatives=True``: partial derivatives of ``d``
             with respect to ``(tc, p, a, i, e, w, lan)``.
         """
@@ -274,11 +274,11 @@ class Expansion3D:
 
         Returns
         -------
-        tuple
-            ``(vxs, vys, vzs)`` if ``derivatives=False``; otherwise
-            ``(vxs, vys, vzs, dvxs, dvys, dvzs)`` with shape-``(N, 7)``
-            gradients with respect to ``(tc, p, a, i, e, w, lan)``. Velocities
-            are in units of stellar radii per day.
+        vxs, vys, vzs : NDArray, shape (N,)
+            Velocity components per time [R_star / day].
+        dvxs, dvys, dvzs : NDArray, shape (N, 7)
+            Only returned if ``derivatives=True``: partial derivatives of the
+            velocity components with respect to ``(tc, p, a, i, e, w, lan)``.
         """
         if self._derivatives:
             fn = self._select(vel_d, vel_d_vp, self._PARALLEL_NMIN_GRAD)
@@ -291,10 +291,10 @@ class Expansion3D:
 
         Returns
         -------
-        vz : ndarray, shape (N,)
-            Line-of-sight velocity per time, in units of stellar radii per day.
+        vz : NDArray, shape (N,)
+            Line-of-sight velocity per time [R_star / day].
             Returned alone if ``derivatives=False``.
-        dvz : ndarray, shape (N, 7)
+        dvz : NDArray, shape (N, 7)
             Only returned if ``derivatives=True``: partial derivatives of
             ``vz`` with respect to ``(tc, p, a, i, e, w, lan)``.
         """
@@ -313,10 +313,10 @@ class Expansion3D:
 
         Returns
         -------
-        ca : ndarray, shape (N,)
+        ca : NDArray, shape (N,)
             Cosine of the phase angle per time, in :math:`[-1, 1]`. Returned
             alone if ``derivatives=False``.
-        dca : ndarray, shape (N, 7)
+        dca : NDArray, shape (N, 7)
             Only returned if ``derivatives=True``: partial derivatives of
             ``ca`` with respect to ``(tc, p, a, i, e, w, lan)``.
         """
@@ -344,10 +344,10 @@ class Expansion3D:
 
         Returns
         -------
-        rvs : ndarray, shape (N,)
+        rvs : NDArray, shape (N,)
             Radial velocity per time, in the units of ``k``. Returned alone if
             ``derivatives=False``.
-        drvs : ndarray, shape (N, 7)
+        drvs : NDArray, shape (N, 7)
             Only returned if ``derivatives=True``: partial derivatives of
             ``rvs`` with respect to ``(tc, p, a, i, e, w, lan)``.
 
@@ -375,10 +375,10 @@ class Expansion3D:
 
         Returns
         -------
-        flux : ndarray, shape (N,)
+        flux : NDArray, shape (N,)
             Reflected planet-to-star flux ratio per time. Returned alone if
             ``derivatives=False``.
-        dflux : ndarray, shape (N, 9)
+        dflux : NDArray, shape (N, 9)
             Only returned if ``derivatives=True``: partial derivatives of
             ``flux`` with respect to ``(tc, p, a, i, e, w, lan, ag, k)``.
         """
@@ -404,10 +404,10 @@ class Expansion3D:
 
         Returns
         -------
-        ev : ndarray, shape (N,)
+        ev : NDArray, shape (N,)
             Relative flux variation per time. Returned alone if
             ``derivatives=False``.
-        dev : ndarray, shape (N, 9)
+        dev : NDArray, shape (N, 9)
             Only returned if ``derivatives=True``: partial derivatives of
             ``ev`` with respect to ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)``.
         """
@@ -434,10 +434,10 @@ class Expansion3D:
 
         Returns
         -------
-        flux : ndarray, shape (N,)
+        flux : NDArray, shape (N,)
             Emitted planet-to-star flux ratio per time. Returned alone if
             ``derivatives=False``.
-        dflux : ndarray, shape (N, 10)
+        dflux : NDArray, shape (N, 10)
             Only returned if ``derivatives=True``: partial derivatives of
             ``flux`` with respect to
             ``(tc, p, a, i, e, w, lan, k, fratio, offset)``.
@@ -466,7 +466,7 @@ class Expansion3D:
 
         Returns
         -------
-        float
+        duration : float
             The requested transit duration [days].
         """
         durations = {14: t14, 23: t23, 12: t12, 34: t34}
@@ -486,7 +486,7 @@ class Expansion3D:
 
         Returns
         -------
-        float
+        t_contact : float
             Absolute time of the requested contact point.
         """
         return self._ep_time + find_contact_point(k, point, self._coeffs)
@@ -501,8 +501,10 @@ class Expansion3D:
 
         Returns
         -------
-        tuple
-            ``(T1, T4)`` absolute contact times [days].
+        t1 : float
+            Absolute time of first contact [days].
+        t4 : float
+            Absolute time of fourth contact [days].
         """
         bt1, bt4 = bounding_box(k, self._coeffs)
         return self._ep_time + bt1, self._ep_time + bt4
@@ -522,8 +524,7 @@ class Expansion3D:
         t_min : float
             Absolute time of minimum projected separation [days].
         z_min : float
-            Projected separation at the minimum, in units of the stellar
-            radius.
+            Projected separation at the minimum [R_star].
         """
         t_min, z_min = find_z_min(guess, self._coeffs)
         return self._ep_time + t_min, z_min

@@ -65,14 +65,14 @@ def zvel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the z-velocity.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`pos_o`.
 
     Returns
     -------
-    vz : float or ndarray
+    vz : float or NDArray
         Line-of-sight velocity [:math:`R_\\star/\\mathrm{day}`].
         Arrays of shape (N,) for an array ``t``.
     """

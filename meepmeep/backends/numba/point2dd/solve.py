@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Taylor coefficient solver with parameter derivatives for the single-expansion-point 2D evaluators."""
+
 from numba import njit
 from numpy import zeros, sqrt, cos, sin
 
@@ -23,7 +25,7 @@ from ..utils import mean_anomaly_at_transit_with_derivatives, TWO_PI
 
 @njit(fastmath=True)
 def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False):
-    """Calculate Taylor expansion coefficients and their parameter derivatives around a given expansion-point time relative to the transit centre.
+    """Calculate the (x, y) Taylor coefficients and their parameter derivatives around an expansion point.
 
     Parameters
     ----------
@@ -36,13 +38,13 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
     a : float
         Semi-major axis of the orbit [R_star].
     i : float
-        Inclination of the orbit [rad].
+        Inclination of the orbit [radians].
     e : float
         Eccentricity of the orbit.
     w : float
-        Argument of periastron [rad].
+        Argument of periastron [radians].
     lan : float, optional
-        Longitude of the ascending node [rad]. A constant counterclockwise rotation
+        Longitude of the ascending node [radians]. A constant counterclockwise rotation
         of the sky-plane (x, y) coordinates about the line of sight. Defaults to 0.0.
     from_periastron : bool, optional
         Measure `te` from the periastron passage instead of the transit centre.
@@ -58,9 +60,9 @@ def solve2d_d(te, p, a, i, e, w, lan: float = 0.0, from_periastron: bool = False
 
     Returns
     -------
-    cf : ndarray (2, 5)
+    cf : NDArray, shape (2, 5)
         Position Taylor coefficients (identical to solve2d output).
-    dcf : ndarray (7, 2, 5)
+    dcf : NDArray, shape (7, 2, 5)
         Parameter derivative coefficients. dcf[k] = d(cf)/d(theta_k)
         for theta = (tc, p, a, i, e, w, lan). Row 0 is the derivative with
         respect to the transit-centre time tc, taken of the truncated

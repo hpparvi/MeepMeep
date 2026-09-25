@@ -78,8 +78,7 @@ vel_cd_vp = njit(fastmath=True, parallel=True)(_vel_cd_v_body)
 
 
 def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
-    """
-    Evaluate the (vx, vy, vz) velocity and its orbital-parameter derivatives at an expansion-point-centered time.
+    """Evaluate the (vx, vy, vz) velocity and its orbital-parameter derivatives at an expansion-point-centered time.
 
     Centered velocity companion to `position.pos_cd`. The velocity
     components are obtained by analytically differentiating the
@@ -95,7 +94,7 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Rows index
@@ -110,13 +109,13 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Returns
     -------
-    vx : float or ndarray
+    vx : float or NDArray
         Sky-plane x velocity in stellar radii per unit time. Shape (N,)
         for an array `time`.
-    vy : float or ndarray
+    vy : float or NDArray
         Sky-plane y velocity in stellar radii per unit time. Shape (N,)
         for an array `time`.
-    vz : float or ndarray
+    vz : float or NDArray
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer. Shape (N,)
         for an array `time`.
@@ -199,8 +198,7 @@ vel_d_vp = njit(fastmath=True, parallel=True)(_vel_d_v_body)
 
 
 def vel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the (vx, vy, vz) velocity and its parameter derivatives at an absolute time.
+    """Evaluate the (vx, vy, vz) velocity and its parameter derivatives at an absolute time.
 
     Direct counterpart of the centered `vel_cd`: it accepts an absolute
     observation time `time`, folds it back into a single orbital epoch
@@ -243,13 +241,13 @@ def vel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 
     Returns
     -------
-    vx : float or ndarray
+    vx : float or NDArray
         Sky-plane x velocity in stellar radii per unit time. Shape (N,)
         for an array `time`.
-    vy : float or ndarray
+    vy : float or NDArray
         Sky-plane y velocity in stellar radii per unit time. Shape (N,)
         for an array `time`.
-    vz : float or ndarray
+    vz : float or NDArray
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer. Shape (N,)
         for an array `time`.

@@ -77,8 +77,7 @@ zvel_cd_vp = njit(fastmath=True, parallel=True)(_zvel_cd_v_body)
 
 
 def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
-    """
-    Evaluate the line-of-sight velocity and its parameter derivatives at an expansion-point-centered time.
+    """Evaluate the line-of-sight velocity and its parameter derivatives at an expansion-point-centered time.
 
     Centered companion to `velocity.zvel_c` that additionally
     returns the partial derivatives of the line-of-sight velocity
@@ -92,7 +91,7 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`. Only row 2
@@ -104,7 +103,7 @@ def zvel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Returns
     -------
-    vz : float or ndarray
+    vz : float or NDArray
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer. Shape (N,)
         for an array `time`.
@@ -162,8 +161,7 @@ zvel_d_vp = njit(fastmath=True, parallel=True)(_zvel_d_v_body)
 
 
 def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the line-of-sight velocity and its parameter derivatives at an absolute time.
+    """Evaluate the line-of-sight velocity and its parameter derivatives at an absolute time.
 
     Direct counterpart of `zvel_cd`: epoch-folds the absolute time
     `time` around the expansion point and delegates to
@@ -175,7 +173,7 @@ def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Absolute observation time(s) in the same units as `tc` and `p`.
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
@@ -195,7 +193,7 @@ def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
 
     Returns
     -------
-    vz : float or ndarray
+    vz : float or NDArray
         Line-of-sight z velocity in stellar radii per unit time.
         Positive values indicate motion toward the observer. Shape (N,)
         for an array `time`.

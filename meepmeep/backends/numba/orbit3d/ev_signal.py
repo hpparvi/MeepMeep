@@ -79,14 +79,14 @@ def ev_signal_o(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coeff
         Planet-to-star mass ratio :math:`M_p / M_\\star`.
     inc : float
         Orbital inclination [radians].
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the signal.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`_pos_os`.
 
     Returns
     -------
-    ev : float or ndarray
+    ev : float or NDArray
         Relative flux variation due to ellipsoidal distortion. Arrays of
         shape (N,) for an array time argument.
 

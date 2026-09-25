@@ -60,20 +60,20 @@ def sep_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     scalar (:func:`_sep_os`) or vector (:func:`sep_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
-    Returns :math:`\\sqrt{x^2 + y^2}` in units of the stellar radius -
+    Returns :math:`\\sqrt{x^2 + y^2}` [R_star] -
     the quantity transit light-curve models consume directly.
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the separation.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`pos_o`.
 
     Returns
     -------
-    sep : float or ndarray
-        Sky-projected separation [stellar radii], always non-negative.
+    sep : float or NDArray
+        Sky-projected separation [R_star], always non-negative.
         Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):

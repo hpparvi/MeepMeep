@@ -78,8 +78,7 @@ sep_cd_vp = njit(fastmath=True, parallel=True)(_sep_cd_v_body)
 
 
 def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
-    """
-    Evaluate the projected planet-star separation and its parameter derivatives at an expansion-point-centered time.
+    """Evaluate the projected planet-star separation and its parameter derivatives at an expansion-point-centered time.
 
     Computes the sky-plane position via `pos_cd` and reduces it to the
     Euclidean distance `d = sqrt(px^2 + py^2)`, propagating the parameter
@@ -91,7 +90,7 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     c : NDArray
         A (2, 5) Taylor coefficient matrix produced by `solve2d`.
@@ -101,8 +100,8 @@ def sep_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Returns
     -------
-    d : float or ndarray
-        Projected planet-star center distance in units of stellar radii.
+    d : float or NDArray
+        Projected separation [R_star].
         Shape (N,) for an array `time`.
     dd : NDArray
         Partial derivatives of `d` with respect to `(tc, p, a, i, e, w, lan)`.
@@ -168,8 +167,7 @@ sep_d_vp = njit(fastmath=True, parallel=True)(_sep_d_v_body)
 
 
 def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the projected planet-star distance and its parameter derivatives at an absolute time.
+    """Evaluate the projected separation and its parameter derivatives at an absolute time.
 
     Direct counterpart of `sep_cd`: epoch-folds the absolute time `time`
     around the expansion point `te` and delegates to `sep_cd`.
@@ -180,7 +178,7 @@ def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Absolute observation time(s) in the same units as `tc` and `p`.
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
@@ -199,8 +197,8 @@ def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 
     Returns
     -------
-    d : float or ndarray
-        Projected planet-star center distance in units of stellar radii.
+    d : float or NDArray
+        Projected separation [R_star].
         Shape (N,) for an array `time`.
     dd : NDArray
         Partial derivatives of `d` with respect to `(tc, p, a, i, e, w, lan)`.

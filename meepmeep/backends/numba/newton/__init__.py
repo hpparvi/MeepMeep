@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Exact Newton-Raphson Kepler solvers, the reference the Taylor evaluators are validated against."""
+
 
 from .newton import (
     ea_newton_s, ea_newton_v,

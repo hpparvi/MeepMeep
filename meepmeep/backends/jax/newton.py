@@ -63,14 +63,14 @@ def ea_from_ma(ma, ecc):
 
     Parameters
     ----------
-    ma : float or ndarray
+    ma : float or NDArray
         Mean anomaly [radians].
-    ecc : float or ndarray
+    ecc : float or NDArray
         Eccentricity, broadcastable against ``ma``.
 
     Returns
     -------
-    ea : float or ndarray
+    ea : float or NDArray
         Eccentric anomaly [radians].
 
     Notes
@@ -151,7 +151,7 @@ def eclipse_light_travel_time(p, a, i, e, w, rstar):
 
     Returns
     -------
-    float
+    dt : float
         The eclipse is observed this much later than a zero-light-travel-time
         model predicts [days].
     """

@@ -90,12 +90,12 @@ def find_contact_point(k, point, c):
         Contact point: 1 and 4 are the outer contacts (projected separation
         ``1 + k``), 2 and 3 the inner contacts (``1 - k``), and 12 the
         ingress midpoint (separation 1). Must be a Python int.
-    c : ndarray, shape (2, 5) or (3, 5)
+    c : NDArray, shape (2, 5) or (3, 5)
         Taylor coefficients expanded near the transit centre.
 
     Returns
     -------
-    float
+    t_contact : float
         Contact time relative to the expansion point [days], found by
         bisection to a 1e-6 day bracket.
 
@@ -195,7 +195,7 @@ def find_z_min(tc, c):
     tc : float
         Initial guess, relative to the expansion point [days]. The search
         brackets ``tc +- 0.01`` days.
-    c : ndarray, shape (2, 5) or (3, 5)
+    c : NDArray, shape (2, 5) or (3, 5)
         Taylor coefficients.
 
     Returns

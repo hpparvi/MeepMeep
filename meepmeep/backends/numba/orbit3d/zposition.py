@@ -65,15 +65,15 @@ def zpos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the z-coordinate.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`pos_o`.
 
     Returns
     -------
-    z : float or ndarray
-        Line-of-sight planet coordinate [stellar radii], positive toward
+    z : float or NDArray
+        Line-of-sight planet coordinate [R_star], positive toward
         the observer. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):

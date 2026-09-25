@@ -111,16 +111,16 @@ def cos_alpha_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time at which to evaluate the phase-angle cosine and gradient.
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
     -------
-    ca : float or ndarray
+    ca : float or NDArray
         Cosine of the phase angle. Arrays of shape (N,) for an array ``t``.
-    dca : ndarray
+    dca : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
         scalar ``t``, (N, 7) for an array ``t``.
     """

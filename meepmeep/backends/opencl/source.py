@@ -130,7 +130,7 @@ def read_kernel_source(*names: str) -> str:
 
     Returns
     -------
-    str
+    source : str
         The concatenated OpenCL C source.
     """
     unknown = [name for name in names if name not in _DEPENDS]
@@ -174,7 +174,7 @@ def build_options(precision: str = 'double') -> str:
 
     Returns
     -------
-    str
+    options : str
         The option string to pass to ``pyopencl.Program.build``.
     """
     if precision == 'double':

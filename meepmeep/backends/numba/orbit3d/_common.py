@@ -44,7 +44,7 @@ def solve3d_orbit(ep_times, p, a, i, e, w, lan=0.0, npt=15):
 
     Parameters
     ----------
-    ep_times : ndarray, shape (npt,)
+    ep_times : NDArray, shape (npt,)
         Normalised expansion-point phases in ``[0, 1]``, with ``ep_times[-1]``
         equal to ``ep_times[0] + 1``. Built by
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
@@ -66,7 +66,7 @@ def solve3d_orbit(ep_times, p, a, i, e, w, lan=0.0, npt=15):
 
     Returns
     -------
-    coeffs : ndarray, shape (npt, 3, 5)
+    coeffs : NDArray, shape (npt, 3, 5)
         Taylor coefficient matrices at every expansion point. Each ``coeffs[ix]`` is a
         ``(3, 5)`` matrix in the layout produced by ``solve3d`` (rows: x, y,
         z; columns: position, velocity, acceleration, jerk, snap; pre-scaled
@@ -106,7 +106,7 @@ def ep_ix(t, tpa, p, dt, ep_table) -> int:
         Orbital period [days].
     dt : float
         Width of one ``ep_table`` bucket in fraction of the period.
-    ep_table : ndarray of int
+    ep_table : NDArray of int
         Time-to-expansion-point lookup table built by
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
 

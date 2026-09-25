@@ -49,7 +49,7 @@ def solve3d_orbit_d(ep_times, p, a, i, e, w, lan=0.0, npt=15):
 
     Parameters
     ----------
-    ep_times : ndarray, shape (npt,)
+    ep_times : NDArray, shape (npt,)
         Normalised expansion-point phases in ``[0, 1]``, with ``ep_times[-1]``
         equal to ``ep_times[0] + 1``. Built by
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
@@ -71,10 +71,10 @@ def solve3d_orbit_d(ep_times, p, a, i, e, w, lan=0.0, npt=15):
 
     Returns
     -------
-    coeffs : ndarray, shape (npt, 3, 5)
+    coeffs : NDArray, shape (npt, 3, 5)
         Taylor coefficient matrices at every expansion point (same layout as in
         :func:`~meepmeep.backends.numba.orbit3d.solve3d_orbit`).
-    dcoeffs : ndarray, shape (npt, 7, 3, 5)
+    dcoeffs : NDArray, shape (npt, 7, 3, 5)
         Parameter-derivative tensors at every expansion point. The second axis is
         ordered ``(tp, p, a, i, e, w, lan)``: the **periastron basis**, with the
         shape derivatives taken holding the periastron time fixed, because the

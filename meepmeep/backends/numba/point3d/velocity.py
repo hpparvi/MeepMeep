@@ -55,8 +55,7 @@ vel_c_vp = njit(fastmath=True, parallel=True)(_vel_c_v_body)
 
 
 def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray, float | NDArray]:
-    """
-    Evaluate the planet's (vx, vy, vz) velocity at an expansion-point-centered time.
+    """Evaluate the planet's (vx, vy, vz) velocity at an expansion-point-centered time.
 
     Centered velocity companion to `position.pos_c`. Each velocity
     component is obtained by analytically differentiating the
@@ -148,8 +147,7 @@ vel_vp = njit(fastmath=True, parallel=True)(_vel_v_body)
 
 def vel(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> tuple[
     float | NDArray, float | NDArray, float | NDArray]:
-    """
-    Evaluate the planet's (vx, vy, vz) velocity at an absolute time using a 3D Taylor expansion.
+    """Evaluate the planet's (vx, vy, vz) velocity at an absolute time using a 3D Taylor expansion.
 
     Direct counterpart of the centered `vel_c`: it accepts an absolute
     observation time `time`, folds it back into a single orbital epoch

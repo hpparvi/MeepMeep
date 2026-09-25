@@ -126,7 +126,7 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the true anomaly.
     tpa : float
         Periastron time.
@@ -142,13 +142,13 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
         the gradient variant (``true_anomaly_od``); currently unused
         because the eccentricity vector is passed explicitly and the
         circular-orbit fast path needs only ``tpa`` and ``p``.
-    dt, ep_table, ep_times, coeffs :
+    dt, ep_table, ep_times, coeffs
         Multi-expansion-point dispatch arrays from :func:`solve3d_orbit` /
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
 
     Returns
     -------
-    f : float or ndarray
+    f : float or NDArray
         True anomaly at each input time [radians], in :math:`[0, 2\\pi)`. Arrays of shape (N,) for an array ``t``.
 
     Notes

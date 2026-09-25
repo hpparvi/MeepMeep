@@ -106,8 +106,7 @@ def cos_alpha_cd_vp(time, c, dc):
 
 
 def cos_alpha_cd(time: float | NDArray, c: NDArray, dc: NDArray):
-    """
-    Evaluate the cosine of the orbital phase angle and its parameter derivatives at an expansion-point-centered time.
+    """Evaluate the cosine of the orbital phase angle and its parameter derivatives at an expansion-point-centered time.
 
     Derivative-returning counterpart of `cos_phase_angle.cos_alpha_c`: forms
     the phase-angle cosine `cos alpha = -z / sqrt(x^2 + y^2 + z^2)` from the
@@ -122,7 +121,7 @@ def cos_alpha_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     c : NDArray
         A (3, 5) Taylor coefficient matrix produced by `solve3d`.
@@ -132,7 +131,7 @@ def cos_alpha_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Returns
     -------
-    ca : float or ndarray
+    ca : float or NDArray
         Cosine of the phase angle, in [-1, 1]. Shape (N,) for an array `time`.
     dca : NDArray
         Partial derivatives of `ca` with respect to `(tc, p, a, i, e, w, lan)`.
@@ -213,8 +212,7 @@ def cos_alpha_d_vp(time, tc, p, c, dc, te):
 
 
 def cos_alpha_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the cosine of the orbital phase angle and its parameter derivatives at an absolute time.
+    """Evaluate the cosine of the orbital phase angle and its parameter derivatives at an absolute time.
 
     Direct counterpart of `cos_alpha_cd`: epoch-folds the absolute time
     `time` around the expansion point and delegates to `cos_alpha_cd`.
@@ -225,7 +223,7 @@ def cos_alpha_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDAr
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Absolute observation time(s) in the same units as `tc` and `p`.
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
@@ -244,7 +242,7 @@ def cos_alpha_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDAr
 
     Returns
     -------
-    ca : float or ndarray
+    ca : float or NDArray
         Cosine of the phase angle, in [-1, 1]. Shape (N,) for an array `time`.
     dca : NDArray
         Partial derivatives of `ca` with respect to `(tc, p, a, i, e, w, lan)`.

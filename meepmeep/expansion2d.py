@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""High-level single-expansion-point 2D Taylor orbit (:class:`Expansion2D`)."""
+
 
 from numpy import ndarray
 
@@ -71,13 +73,13 @@ class Expansion2D:
         a : float
             Scaled semi-major axis [R_star].
         i : float
-            Inclination [rad].
+            Inclination [radians].
         e : float
             Eccentricity.
         w : float
-            Argument of periastron [rad].
+            Argument of periastron [radians].
         lan : float, optional
-            Longitude of the ascending node [rad], a constant rotation of the
+            Longitude of the ascending node [radians], a constant rotation of the
             sky plane about the line of sight. Defaults to 0.0.
         te : float, optional
             Expansion-point time [days], measured relative to the transit centre (time of
@@ -122,13 +124,13 @@ class Expansion2D:
         a : float
             Scaled semi-major axis [R_star].
         i : float
-            Inclination [rad].
+            Inclination [radians].
         e : float
             Eccentricity.
         w : float
-            Argument of periastron [rad].
+            Argument of periastron [radians].
         lan : float, optional
-            Longitude of the ascending node [rad]. A constant rotation of the
+            Longitude of the ascending node [radians]. A constant rotation of the
             sky-plane (x, y) coordinates about the line of sight. Defaults to
             0.0. In derivative mode the gradient w.r.t. ``lan`` is the seventh
             orbital-parameter column.
@@ -174,7 +176,7 @@ class Expansion2D:
 
         Parameters
         ----------
-        times : ndarray, shape (N,)
+        times : NDArray, shape (N,)
             Absolute observation times [days] at which :meth:`position` and
             :meth:`projected_separation` evaluate the orbit.
         """
@@ -185,12 +187,11 @@ class Expansion2D:
 
         Returns
         -------
-        tuple
-            ``(xs, ys)`` if the instance was created with
-            ``derivatives=False``; ``(xs, ys, dxs, dys)`` otherwise, where
-            ``dxs`` and ``dys`` are shape ``(N, 7)`` arrays of partial
-            derivatives with respect to ``(tc, p, a, i, e, w, lan)``. All
-            positions are in units of the stellar radius.
+        xs, ys : NDArray, shape (N,)
+            Sky-plane coordinates per time [R_star].
+        dxs, dys : NDArray, shape (N, 7)
+            Only returned if ``derivatives=True``: partial derivatives of ``xs``
+            and ``ys`` with respect to ``(tc, p, a, i, e, w, lan)``.
         """
         if self._derivatives:
             fn = self._select(pos_d, pos_d_vp, self._PARALLEL_NMIN_GRAD)
@@ -206,10 +207,10 @@ class Expansion2D:
 
         Returns
         -------
-        d : ndarray, shape (N,)
+        d : NDArray, shape (N,)
             Projected separation per time, returned alone if
             ``derivatives=False``.
-        dd : ndarray, shape (N, 7)
+        dd : NDArray, shape (N, 7)
             Only returned if ``derivatives=True``: partial derivatives of ``d``
             with respect to ``(tc, p, a, i, e, w, lan)``.
         """
@@ -234,7 +235,7 @@ class Expansion2D:
 
         Returns
         -------
-        float
+        duration : float
             The requested transit duration [days].
         """
         durations = {14: t14, 23: t23, 12: t12, 34: t34}
@@ -254,7 +255,7 @@ class Expansion2D:
 
         Returns
         -------
-        float
+        t_contact : float
             Absolute time of the requested contact point.
         """
         return self._ep_time + find_contact_point(k, point, self._coeffs)
@@ -269,8 +270,10 @@ class Expansion2D:
 
         Returns
         -------
-        tuple
-            ``(T1, T4)`` absolute contact times [days].
+        t1 : float
+            Absolute time of first contact [days].
+        t4 : float
+            Absolute time of fourth contact [days].
         """
         bt1, bt4 = bounding_box(k, self._coeffs)
         return self._ep_time + bt1, self._ep_time + bt4
@@ -289,8 +292,7 @@ class Expansion2D:
         t_min : float
             Absolute time of minimum projected separation [days].
         z_min : float
-            Projected separation at the minimum, in units of the stellar
-            radius.
+            Projected separation at the minimum [R_star].
         """
         t_min, z_min = find_z_min(guess, self._coeffs)
         return self._ep_time + t_min, z_min

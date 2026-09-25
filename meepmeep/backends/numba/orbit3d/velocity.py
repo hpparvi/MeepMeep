@@ -62,14 +62,14 @@ def vel_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the velocity.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`pos_o`.
 
     Returns
     -------
-    vx, vy, vz : float or ndarray
+    vx, vy, vz : float or NDArray
         Velocity components in :math:`R_\\star/\\mathrm{day}`. ``vx``,
         ``vy`` are the sky-plane components; ``vz`` is the line-of-sight
         component (positive toward the observer). Arrays of shape (N,) for

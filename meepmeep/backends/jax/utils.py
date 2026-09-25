@@ -46,7 +46,7 @@ def eccentricity_vector(i, e, w, lan=0.0):
 
     Returns
     -------
-    ev : ndarray, shape (3,)
+    ev : NDArray, shape (3,)
         ``(ex, ey, ez)``. Near-circular orbits (``e <= 1e-5``) return the
         sentinel ``(-1, 0, 0)``, which the true-anomaly evaluator
         recognises and replaces with the mean anomaly.

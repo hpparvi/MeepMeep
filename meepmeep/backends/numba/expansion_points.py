@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Expansion-point placement and the time-to-expansion-point lookup table."""
+
 
 from numba import njit
 from numpy import pi, linspace, zeros
@@ -24,10 +26,44 @@ from .newton.newton import ea_newton_s, ta_newton_s
 
 @njit
 def eccentric_anomaly(t, e):
+    """Eccentric anomaly at a normalised time since periastron.
+
+    Placement helper for :func:`~meepmeep.numba3d.create_expansion_points`, not part of the
+    public API.
+
+    Parameters
+    ----------
+    t : float
+        Time since periastron passage as a fraction of the orbital period.
+    e : float
+        Orbital eccentricity.
+
+    Returns
+    -------
+    ea : float
+        Eccentric anomaly [radians].
+    """
     return ea_newton_s(t, 0.0, 1.0, e, 0.5*pi)
 
 @njit
 def true_anomaly(t, e):
+    """True anomaly at a normalised time since periastron, wrapped into ``[0, 2 pi)``.
+
+    Placement helper for :func:`~meepmeep.numba3d.create_expansion_points`, not part of the
+    public API.
+
+    Parameters
+    ----------
+    t : float
+        Time since periastron passage as a fraction of the orbital period.
+    e : float
+        Orbital eccentricity.
+
+    Returns
+    -------
+    f : float
+        True anomaly [radians] in ``[0, 2 pi)``.
+    """
     f = ta_newton_s(t, 0.0, 1.0, e, 0.5*pi)
     if f < 0.0:
         f += 2*pi
@@ -65,17 +101,17 @@ def create_expansion_points(n_ep: int, e: float, quantity: str = 'ea', tres: int
 
     Returns
     -------
-    ep_times : ndarray
+    ep_times : NDArray
         Times of the expansion points (expansion centers), as fractions of
         the orbital period in ``[0, 1]``.
-    change_times : ndarray
+    change_times : NDArray
         Boundary times at which the time-to-expansion-point dispatch
         switches from one expansion point to the next, i.e. the edges of
         each expansion point's region of validity (one fewer than
         ``ep_times``).
     dt : float
         Width of a single time-to-expansion-point table bin, ``1 / tres``.
-    ep_table : ndarray of int
+    ep_table : NDArray of int
         Time-to-expansion-point table mapping each of the ``tres`` time bins
         within one folded period to the index of the expansion point that
         should evaluate it.

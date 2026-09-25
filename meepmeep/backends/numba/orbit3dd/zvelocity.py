@@ -83,17 +83,17 @@ def zvel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time at which to evaluate the z-velocity and gradient.
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
     -------
-    vz : float or ndarray
+    vz : float or NDArray
         Line-of-sight velocity [:math:`R_\\star/\\mathrm{day}`]. Arrays of
         shape (N,) for an array ``t``.
-    dvz : ndarray
+    dvz : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
         scalar ``t``, (N, 7) for an array ``t``.
     """

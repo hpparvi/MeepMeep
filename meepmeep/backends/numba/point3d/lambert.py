@@ -100,8 +100,7 @@ lambert_phase_curve_c_vp = njit(fastmath=True, parallel=True)(_lambert_phase_cur
 
 
 def lambert_phase_curve_c(time: float | NDArray, ag: float, k: float, c: NDArray) -> float | NDArray:
-    """
-    Evaluate the Lambertian phase-curve flux contribution at an expansion-point-centered time.
+    """Evaluate the Lambertian phase-curve flux contribution at an expansion-point-centered time.
 
     Centered counterpart of `lambert_phase_curve`: assumes `time` has
     already been shifted to be relative to the expansion point. Evaluates
@@ -184,8 +183,7 @@ lambert_phase_curve_vp = njit(fastmath=True, parallel=True)(_lambert_phase_curve
 
 def lambert_phase_curve(time: float | NDArray, ag: float, k: float, tc: float, p: float,
                         c: NDArray, te: float = 0.0) -> float | NDArray:
-    """
-    Evaluate the Lambertian phase-curve flux contribution at an absolute time.
+    """Evaluate the Lambertian phase-curve flux contribution at an absolute time.
 
     Folds the absolute observation time back to an expansion-point-centered offset
     and delegates to the centered kernel. Evaluates

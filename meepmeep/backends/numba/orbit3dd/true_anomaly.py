@@ -19,11 +19,11 @@
 The geometric definition uses the angle between the planet position vector
 and the eccentricity vector. Differentiating that (with the prograde sign
 correction from the mean anomaly) gives a well-defined gradient everywhere except at
-the two singular configurations ``edp = ±1`` (planet on the apsidal line).
+the two singular configurations ``edp = +-1`` (planet on the apsidal line).
 At those ep_times the analytic derivative diverges; we set it to zero so
 downstream gradient-based fits don't get a NaN. The circular fast path
-(``ex ≤ -0.9999`` sentinel from ``eccentricity_vector``) collapses true
-anomaly to mean anomaly: ``f = 2π(t - tpa)/p``. Its gradient does not come
+(``ex <= -0.9999`` sentinel from ``eccentricity_vector``) collapses true
+anomaly to mean anomaly: ``f = 2 pi (t - tpa)/p``. Its gradient does not come
 from ``dcoeffs``, so the caller states the basis with ``timing_is_tc``: in
 the periastron basis only the timing and period slots are non-zero, in the
 transit-centre basis ``tpa`` moves with ``p``, ``e`` and ``w`` as well.
@@ -163,13 +163,13 @@ def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeff
             sign = 1.0 if tc < 0.5 * p else -1.0
             base = arccos(edp)
             f[j] = base if sign > 0.0 else 2.0 * pi - base
-            # d(arccos(edp))/dθ = -dedp/sqrt(1 - edp^2)
+            # d(arccos(edp))/dtheta = -dedp/sqrt(1 - edp^2)
             denom = sqrt(1.0 - edp * edp)
             inv_r2 = 1.0 / r2
             for k in range(7):
-                # edp = (x·e)/(r·|e|). Treat |e| (and ex,ey,ez) as constants
-                # for this routine — they're inputs. d(edp)/dθ_k
-                # = (dx·e)/(r·|e|) - (x·e)·(x·dx)/(r^3·|e|)
+                # edp = dot(x, e)/(r |e|). Treat |e| (and ex,ey,ez) as constants
+                # for this routine - they're inputs. d(edp)/dtheta_k
+                # = dot(dx, e)/(r |e|) - dot(x, e) dot(x, dx)/(r^3 |e|)
                 xdote = x * ex + y * ey + z * ez
                 dxdote = dx[k] * ex + dy[k] * ey + dz[k] * ez
                 xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
@@ -257,7 +257,7 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the true anomaly and gradient.
     tpa : float
         Periastron time anchoring the expansion-point grid (see :func:`_pos_osd`).
@@ -272,7 +272,7 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
         Argument of periastron [radians]. Used only by the circular fast path,
         whose transit-centre-basis gradient depends on it through the
         mean anomaly at transit.
-    dt, ep_table, ep_times, coeffs, dcoeffs :
+    dt, ep_table, ep_times, coeffs, dcoeffs
         Multi-expansion-point dispatch arrays from :func:`solve3d_orbit_d` /
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
     timing_is_tc : bool, optional
@@ -284,10 +284,10 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
 
     Returns
     -------
-    f : float or ndarray
+    f : float or NDArray
         True anomaly [radians], in :math:`[0, 2\\pi)`. Arrays of shape (N,)
         for an array ``t``.
-    df : ndarray
+    df : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
         ``t``, (N, 7) for an array ``t``. The ``ex, ey, ez, w`` inputs are
         treated as known constants - they are functions of the orbital

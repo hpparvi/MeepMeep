@@ -52,13 +52,13 @@ def pos(time, tc, p, c, te=0.0):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time [days].
     tc : float
         Transit-centre time [days].
     p : float
         Orbital period [days].
-    c : ndarray, shape (3, 5)
+    c : NDArray, shape (3, 5)
         Coefficients from :func:`~meepmeep.jax3d.solve3d`.
     te : float, optional
         Expansion-point offset from the transit centre, the same value given
@@ -174,18 +174,18 @@ def lambert_phase_curve_c(time, ag, k, c):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time relative to the expansion point [days].
     ag : float
         Geometric albedo.
     k : float
         Planet-star radius ratio.
-    c : ndarray, shape (3, 5)
+    c : NDArray, shape (3, 5)
         Taylor coefficients.
 
     Returns
     -------
-    float or ndarray
+    flux : float or NDArray
         Planet-star flux ratio ``k^2 ag / r^2 * Phi(alpha)``, with ``r`` the
         star-planet distance in stellar radii.
     """
@@ -204,7 +204,7 @@ def ev_signal_c(time, alpha, mass_ratio, inc, c):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time relative to the expansion point [days].
     alpha : float
         Ellipsoidal-variation amplitude coefficient.
@@ -212,12 +212,12 @@ def ev_signal_c(time, alpha, mass_ratio, inc, c):
         Planet-star mass ratio.
     inc : float
         Inclination [radians].
-    c : ndarray, shape (3, 5)
+    c : NDArray, shape (3, 5)
         Taylor coefficients.
 
     Returns
     -------
-    float or ndarray
+    ev : float or NDArray
         ``-alpha q sin^2(inc) (2 (z/d)^2 - 1) / d^3``, with ``d`` the 3D
         star-planet distance in stellar radii.
     """
@@ -240,7 +240,7 @@ def emission_phase_curve_c(time, k, fratio, offset, c):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time relative to the expansion point [days].
     k : float
         Planet-star radius ratio.
@@ -248,12 +248,12 @@ def emission_phase_curve_c(time, k, fratio, offset, c):
         Day-side surface brightness ratio.
     offset : float
         Hotspot offset [radians], positive eastward.
-    c : ndarray, shape (3, 5)
+    c : NDArray, shape (3, 5)
         Taylor coefficients.
 
     Returns
     -------
-    float or ndarray
+    flux : float or NDArray
         ``k^2 fratio / 2 * (1 + cos(offset) cz + sin(offset) s)``, where
         ``cz = -z / d`` is the cosine of the phase angle and
         ``s = -(n_x y - n_y x) / d`` the signed in-plane component, with

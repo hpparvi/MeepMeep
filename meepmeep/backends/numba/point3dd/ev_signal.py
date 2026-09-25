@@ -139,8 +139,7 @@ def ev_signal_cd_vp(time, alpha, mass_ratio, inc, c, dc):
 
 def ev_signal_cd(time: float | NDArray, alpha: float, mass_ratio: float, inc: float,
                  c: NDArray, dc: NDArray):
-    """
-    Evaluate the ellipsoidal-variation signal and its parameter derivatives at an expansion-point-centered time.
+    """Evaluate the ellipsoidal-variation signal and its parameter derivatives at an expansion-point-centered time.
 
     Derivative-returning counterpart of `ev_signal.ev_signal_c`: forms
     :math:`S = -\\alpha\\,q\\,\\sin^2 i\\,(2 c_z^2 - 1)/d^3` and propagates the
@@ -153,7 +152,7 @@ def ev_signal_cd(time: float | NDArray, alpha: float, mass_ratio: float, inc: fl
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     alpha : float
         Gravity-darkening coefficient (Lillo-Box et al. 2014, Eq. 7).
@@ -172,7 +171,7 @@ def ev_signal_cd(time: float | NDArray, alpha: float, mass_ratio: float, inc: fl
 
     Returns
     -------
-    out : float or ndarray
+    out : float or NDArray
         Ellipsoidal variation signal. Shape (N,) for an array `time`.
     dout : NDArray
         Partial derivatives of `out` with respect to
@@ -250,8 +249,7 @@ def ev_signal_d_vp(time, alpha, mass_ratio, inc, tc, p, c, dc, te):
 
 def ev_signal_d(time: float | NDArray, alpha: float, mass_ratio: float, inc: float,
                 tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the ellipsoidal-variation signal and its parameter derivatives at an absolute time.
+    """Evaluate the ellipsoidal-variation signal and its parameter derivatives at an absolute time.
 
     Direct counterpart of `ev_signal_cd`: epoch-folds the absolute time
     `time` around the expansion point and delegates to `ev_signal_cd`.
@@ -262,7 +260,7 @@ def ev_signal_d(time: float | NDArray, alpha: float, mass_ratio: float, inc: flo
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Absolute observation time(s) in the same units as `tc` and `p`.
     alpha : float
         Gravity-darkening coefficient (Lillo-Box et al. 2014, Eq. 7).
@@ -290,7 +288,7 @@ def ev_signal_d(time: float | NDArray, alpha: float, mass_ratio: float, inc: flo
 
     Returns
     -------
-    out : float or ndarray
+    out : float or NDArray
         Ellipsoidal variation signal. Shape (N,) for an array `time`.
     dout : NDArray
         Partial derivatives of `out` with respect to

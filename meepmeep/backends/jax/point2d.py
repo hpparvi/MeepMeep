@@ -38,13 +38,13 @@ def pos(time, tc, p, c, te=0.0):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time [days].
     tc : float
         Transit-centre time [days].
     p : float
         Orbital period [days].
-    c : ndarray, shape (2, 5)
+    c : NDArray, shape (2, 5)
         Coefficients from :func:`~meepmeep.jax2d.solve2d`.
     te : float, optional
         Expansion-point offset from the transit centre, the same value given

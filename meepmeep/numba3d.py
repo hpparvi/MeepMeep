@@ -25,7 +25,7 @@ Numba-jitted primitives. It bundles three layers in one flat namespace:
   ``util``) and their parameter-derivative counterparts in the
   ``point3dd`` package.
 * Multi-expansion-point orbit-spanning evaluators from
-  ``meepmeep.backends.numba.orbit3d`` and ``orbit3dd`` — exposed
+  ``meepmeep.backends.numba.orbit3d`` and ``orbit3dd`` - exposed
   as unified ``*_o`` (forward) and ``*_od`` (with gradients)
   dispatchers that accept either a scalar time or a 1-D float64 array
   of times and route at compile time to the appropriate

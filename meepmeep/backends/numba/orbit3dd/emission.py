@@ -123,7 +123,7 @@ def emission_phase_curve_od(t, k, fratio, offset, tpa, p, dt, ep_table, ep_times
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the flux contribution and gradient.
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
@@ -132,15 +132,15 @@ def emission_phase_curve_od(t, k, fratio, offset, tpa, p, dt, ep_table, ep_times
         scaling).
     offset : float
         Hotspot offset [radians].
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`_pos_osd`.
 
     Returns
     -------
-    flux : float or ndarray
+    flux : float or NDArray
         Emitted planet-to-star flux ratio. Arrays of shape (N,) for an array
         time argument.
-    dflux : ndarray
+    dflux : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan, k, fratio, offset)``. Shape
         (10,) for a scalar time, (N, 10) for an array time.
     """

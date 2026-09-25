@@ -73,8 +73,7 @@ pos_cd_vp = njit(fastmath=True, parallel=True)(_pos_cd_v_body)
 
 
 def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
-    """
-    Evaluate the (x, y) position and its orbital-parameter derivatives at an expansion-point-centered time.
+    """Evaluate the (x, y) position and its orbital-parameter derivatives at an expansion-point-centered time.
 
     Centered companion to `position.pos_c` that additionally returns the
     partial derivatives of the sky-plane position with respect to each of
@@ -88,7 +87,7 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     c : NDArray
         A (2, 5) coefficient matrix produced by `solve2d`. Rows index the
@@ -102,11 +101,11 @@ def pos_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Returns
     -------
-    px : float or ndarray
-        Sky-plane x position in units of stellar radii. Shape (N,) for an
+    px : float or NDArray
+        Sky-plane x position [R_star]. Shape (N,) for an
         array `time`.
-    py : float or ndarray
-        Sky-plane y position in units of stellar radii. Shape (N,) for an
+    py : float or NDArray
+        Sky-plane y position [R_star]. Shape (N,) for an
         array `time`.
     dpx : NDArray
         Partial derivatives of `px` with respect to `(tc, p, a, i, e, w, lan)`.
@@ -172,8 +171,7 @@ pos_d_vp = njit(fastmath=True, parallel=True)(_pos_d_v_body)
 
 
 def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the (x, y) position and its orbital-parameter derivatives at an absolute time.
+    """Evaluate the (x, y) position and its orbital-parameter derivatives at an absolute time.
 
     Direct counterpart of `pos_cd`: accepts an absolute observation time
     `time`, folds it back into a single orbital epoch around the expansion
@@ -185,7 +183,7 @@ def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Absolute observation time(s) in the same units as `tc` and `p`.
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
@@ -204,11 +202,11 @@ def pos_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 
     Returns
     -------
-    px : float or ndarray
-        Sky-plane x position in units of stellar radii. Shape (N,) for an
+    px : float or NDArray
+        Sky-plane x position [R_star]. Shape (N,) for an
         array `time`.
-    py : float or ndarray
-        Sky-plane y position in units of stellar radii. Shape (N,) for an
+    py : float or NDArray
+        Sky-plane y position [R_star]. Shape (N,) for an
         array `time`.
     dpx : NDArray
         Partial derivatives of `px` w.r.t. `(tc, p, a, i, e, w, lan)`.

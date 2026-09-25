@@ -75,7 +75,7 @@ def emission_phase_curve_o(t, k, fratio, offset, tpa, p, dt, ep_table, ep_times,
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the flux contribution.
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
@@ -84,12 +84,12 @@ def emission_phase_curve_o(t, k, fratio, offset, tpa, p, dt, ep_table, ep_times,
         scaling); the peak-to-peak swing is :math:`k^2 f_\\mathrm{ratio}`.
     offset : float
         Hotspot offset [radians].
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`_pos_os`.
 
     Returns
     -------
-    flux : float or ndarray
+    flux : float or NDArray
         Emitted planet-to-star flux ratio. Arrays of shape (N,) for an array
         time argument.
     """

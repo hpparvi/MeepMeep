@@ -25,8 +25,7 @@ from .zvelocity import zvel_c, zvel
 
 @njit(inline='always')
 def rv_c(time: float | NDArray, k: float, p: float, a: float, i: float, e: float, c: NDArray) -> float | NDArray:
-    """
-    Evaluate the stellar radial velocity induced by the planet at an expansion-point-centered time.
+    """Evaluate the stellar radial velocity induced by the planet at an expansion-point-centered time.
 
     Converts the planet's centered line-of-sight velocity into the
     physical radial velocity of the host star, scaled by the
@@ -44,7 +43,7 @@ def rv_c(time: float | NDArray, k: float, p: float, a: float, i: float, e: float
     p : float
         Orbital period.
     a : float
-        Scaled semi-major axis in units of stellar radii.
+        Scaled semi-major axis [R_star].
     i : float
         Orbital inclination in radians.
     e : float
@@ -76,8 +75,7 @@ def rv_c(time: float | NDArray, k: float, p: float, a: float, i: float, e: float
 @njit(inline='always')
 def rv(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float, e: float, c: NDArray,
        te: float = 0.0) -> float | NDArray:
-    """
-    Evaluate the stellar radial velocity induced by the planet at an absolute time.
+    """Evaluate the stellar radial velocity induced by the planet at an absolute time.
 
     Direct counterpart of `rv_c`: epoch-folds the absolute time via
     `zvel` and applies the same Perryman (2018) Eq. 2.23 conversion
@@ -97,7 +95,7 @@ def rv(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float,
     p : float
         Orbital period.
     a : float
-        Scaled semi-major axis in units of stellar radii.
+        Scaled semi-major axis [R_star].
     i : float
         Orbital inclination in radians.
     e : float

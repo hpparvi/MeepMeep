@@ -14,6 +14,15 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""MeepMeep: fast Keplerian orbits for exoplanet modelling.
+
+The top-level package exports the high-level classes (:class:`Orbit`,
+:class:`Expansion2D`, :class:`Expansion3D`) and
+:func:`eclipse_light_travel_time`. The low-level Taylor primitives live in
+:mod:`meepmeep.numba2d` / :mod:`meepmeep.numba3d` and their JAX twins
+:mod:`meepmeep.jax2d` / :mod:`meepmeep.jax3d`.
+"""
+
 
 from .version import __version__
 from .orbit import Orbit

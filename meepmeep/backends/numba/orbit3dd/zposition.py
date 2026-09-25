@@ -82,17 +82,17 @@ def zpos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time at which to evaluate the z-coordinate and gradient.
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
     -------
-    pz : float or ndarray
-        Line-of-sight planet coordinate [stellar radii]. Arrays of shape
+    pz : float or NDArray
+        Line-of-sight planet coordinate [R_star]. Arrays of shape
         (N,) for an array ``t``.
-    dpz : ndarray
+    dpz : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
         scalar ``t``, (N, 7) for an array ``t``.
     """

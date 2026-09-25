@@ -92,7 +92,7 @@ def light_travel_time_o(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the correction.
     tpa : float
         Time of periastron passage.
@@ -104,12 +104,12 @@ def light_travel_time_o(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs):
         Argument of periastron [radians].
     rstar : float
         Stellar radius [R_sun].
-    dt, ep_table, ep_times, coeffs :
+    dt, ep_table, ep_times, coeffs
         Multi-expansion-point dispatch arrays from ``solve3d_orbit`` / ``create_expansion_points``.
 
     Returns
     -------
-    ltt : float or ndarray
+    ltt : float or NDArray
         Light travel time correction [days]. Arrays of shape (N,) for an
         array time argument.
     """

@@ -104,8 +104,7 @@ def rv_cd_vp(time, k, p, a, i, e, c, dc):
 
 def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: float,
           c: NDArray, dc: NDArray):
-    """
-    Evaluate the stellar radial velocity and its parameter derivatives at an expansion-point-centered time.
+    """Evaluate the stellar radial velocity and its parameter derivatives at an expansion-point-centered time.
 
     Converts the planet's centered line-of-sight velocity into the
     physical radial velocity of the host star, scaled by the
@@ -119,7 +118,7 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     k : float
         Radial-velocity semi-amplitude of the star, in physical
@@ -128,7 +127,7 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
     p : float
         Orbital period.
     a : float
-        Scaled semi-major axis in units of stellar radii.
+        Scaled semi-major axis [R_star].
     i : float
         Orbital inclination in radians.
     e : float
@@ -143,7 +142,7 @@ def rv_cd(time: float | NDArray, k: float, p: float, a: float, i: float, e: floa
 
     Returns
     -------
-    rv : float or ndarray
+    rv : float or NDArray
         Stellar radial velocity in the same units as `k`. Positive
         when the planet is moving toward the observer. Shape (N,) for an
         array `time`.
@@ -227,8 +226,7 @@ def rv_d_vp(time, k, tc, p, a, i, e, c, dc, te):
 
 def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: float, e: float,
          c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the stellar radial velocity and its parameter derivatives at an absolute time.
+    """Evaluate the stellar radial velocity and its parameter derivatives at an absolute time.
 
     Direct counterpart of `rv_cd`: epoch-folds the absolute time
     `time` around the expansion point and delegates to `rv_cd`.
@@ -239,7 +237,7 @@ def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: floa
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Absolute observation time(s) in the same units as `tc` and `p`.
     k : float
         Radial-velocity semi-amplitude of the star, in physical
@@ -248,14 +246,10 @@ def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: floa
     tc : float
         Transit-centre time (time of inferior conjunction), on the same
         time axis as `time`.
-    te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
-        was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
-        transit centre.
     p : float
         Orbital period.
     a : float
-        Scaled semi-major axis in units of stellar radii.
+        Scaled semi-major axis [R_star].
     i : float
         Orbital inclination in radians.
     e : float
@@ -265,10 +259,14 @@ def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: floa
     dc : NDArray
         A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`.
+    te : float, optional
+        Expansion-point offset from the transit centre [days] - the same value that
+        was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
+        transit centre.
 
     Returns
     -------
-    rv : float or ndarray
+    rv : float or NDArray
         Stellar radial velocity in the same units as `k`. Shape (N,) for
         an array `time`.
     drv : NDArray

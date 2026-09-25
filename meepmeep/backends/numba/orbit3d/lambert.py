@@ -77,18 +77,18 @@ def lambert_phase_curve_o(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the flux contribution.
     ag : float
         Geometric albedo.
     k : float
         Planet-to-star radius ratio :math:`R_p/R_\\star`.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`_pos_os`.
 
     Returns
     -------
-    flux : float or ndarray
+    flux : float or NDArray
         Reflected planet-to-star flux ratio. Arrays of shape (N,) for an
         array time argument.
     """

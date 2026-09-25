@@ -95,7 +95,7 @@ def pos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time at which to evaluate the position and gradient.
     tpa : float
         Periastron time anchoring the expansion-point grid. Note the convention
@@ -107,22 +107,22 @@ def pos_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
         Orbital period [days].
     dt : float
         ``ep_table`` bucket width in fraction of the period.
-    ep_table : ndarray of int
+    ep_table : NDArray of int
         Time-to-expansion-point lookup table.
-    ep_times : ndarray, shape (npt,)
+    ep_times : NDArray, shape (npt,)
         Normalised expansion-point phases in ``[0, 1]``.
-    coeffs : ndarray, shape (npt, 3, 5)
+    coeffs : NDArray, shape (npt, 3, 5)
         Per-expansion-point Taylor coefficient matrices from :func:`solve3d_orbit_d`.
-    dcoeffs : ndarray, shape (npt, 7, 3, 5)
+    dcoeffs : NDArray, shape (npt, 7, 3, 5)
         Per-expansion-point derivative-coefficient tensors from
         :func:`solve3d_orbit_d`.
 
     Returns
     -------
-    px, py, pz : float or ndarray
-        Sky-frame position components in units of the stellar radius.
+    px, py, pz : float or NDArray
+        Sky-frame position components [R_star].
         Arrays of shape (N,) for an array ``t``.
-    dpx, dpy, dpz : ndarray
+    dpx, dpy, dpz : NDArray
         Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
         scalar ``t``, (N, 7) for an array ``t``.
     """

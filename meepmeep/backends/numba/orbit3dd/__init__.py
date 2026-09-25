@@ -23,8 +23,8 @@ extra physical inputs the routine takes (appended to the orbital block in
 argument order).
 
 Coefficient layout:
-- ``coeffs`` : ``(npt, 3, 5)`` — Taylor coefficients, as in ``orbit3d``.
-- ``dcoeffs`` : ``(npt, 7, 3, 5)`` — derivatives of the Taylor coefficients
+- ``coeffs`` : ``(npt, 3, 5)`` - Taylor coefficients, as in ``orbit3d``.
+- ``dcoeffs`` : ``(npt, 7, 3, 5)`` - derivatives of the Taylor coefficients
   w.r.t. the 6 orbital parameters, produced by ``solve3d_orbit_d``.
 
 Vector evaluators (``*_ovd``) return per-coordinate derivative arrays of

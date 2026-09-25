@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Orbital-mechanics utilities: anomaly conversions, transit geometry, and gradient basis transforms."""
+
 from numba import njit
 from numpy import pi, arctan2, sqrt, sin, cos, arccos, mod, copysign, sign, array, arcsin
 from numpy.typing import NDArray
@@ -25,8 +27,7 @@ TWO_PI = 2.0*pi
 
 @njit(fastmath=True)
 def eccentricity_vector(i, e, w, lan=0.0):
-    """
-    Compute the 3D eccentricity vector in the observer's coordinate system.
+    """Compute the 3D eccentricity vector in the observer's coordinate system.
 
     The eccentricity vector points toward periastron with a magnitude equal
     to the eccentricity. This function rotates that vector from the orbital
@@ -83,8 +84,7 @@ def eccentricity_vector(i, e, w, lan=0.0):
 
 @njit
 def eclipse_time_offset(p, i, e, w):
-    """
-        Calculate the time offset of the secondary eclipse relative to the primary transit.
+    """Calculate the time offset of the secondary eclipse relative to the primary transit.
 
         For eccentric orbits, the secondary eclipse does not occur at exactly 0.5 phase.
         This function computes the exact time offset using Keplerian dynamics,
@@ -126,8 +126,7 @@ def eclipse_time_offset(p, i, e, w):
 
 @njit(fastmath=True)
 def transit_distance_factor(e, w):
-    """
-    Calculate the dimensionless distance factor at the time of primary transit.
+    """Calculate the dimensionless distance factor at the time of primary transit.
 
     This represents the ratio of the planet-star separation at transit (r_tr)
     to the semi-major axis (a), specifically (r_tr / a). It accounts for
@@ -161,8 +160,7 @@ def transit_distance_factor(e, w):
 
 @njit
 def i_from_baew(b, a, e, w):
-    """
-    Compute the orbital inclination from the impact parameter and orbital elements.
+    """Compute the orbital inclination from the impact parameter and orbital elements.
 
     This function inverts the standard relation for the impact parameter 'b'
     to find the required inclination 'i'. It accounts for the non-circular
@@ -171,8 +169,8 @@ def i_from_baew(b, a, e, w):
     Parameters
     ----------
     b : float
-        Impact parameter. The projected distance between the
-        planet and star centers at the moment of transit, in units of the
+        Impact parameter. The sky-projected separation between the
+        centers of the star and planet at the moment of transit, in units of the
         stellar radius.
     a : float
         Scaled semi-major axis (a/R_star). The semi-major axis expressed
@@ -201,11 +199,10 @@ def i_from_baew(b, a, e, w):
 
 @njit(fastmath=True)
 def as_from_rhop(rho, period):
-    r"""
-    Compute the scaled semi-major axis (a/R_star) from stellar density and orbital period.
+    r"""Compute the scaled semi-major axis (a/R_star) from stellar density and orbital period.
 
     This calculation is derived from Kepler's Third Law, assuming the planet's
-    mass is negligible compared to the stellar mass ($M_p \ll M_*$). It relates
+    mass is negligible compared to the stellar mass (:math:`M_p \ll M_*`). It relates
     the geometry of the orbit directly to the physical properties of the star.
 
     Parameters
@@ -224,19 +221,19 @@ def as_from_rhop(rho, period):
     Notes
     -----
     The relationship is based on the following form of Kepler's Third Law:
-    $$ \frac{a}{R_star} = \left( \frac{G \cdot \rho \cdot P^2}{3\pi} \right)^{1/3} $$
+
+    .. math:: \frac{a}{R_\star} = \left( \frac{G \rho P^2}{3\pi} \right)^{1/3}
 
     The constant 86400.0 converts days to seconds, and 1e3 is used to
     convert the density from g/cm^3 to the kg/m^3 required for SI units
-    if $G$ is in $m^3 kg^{-1} s^{-2}$.
+    if :math:`G` is in :math:`\mathrm{m^3\,kg^{-1}\,s^{-2}}`.
     """
     return (G/(3*pi))**(1/3) * ((period * 86400.0)**2 * 1e3 * rho)**(1 / 3)
 
 
 @njit
 def ta_from_ea(e, ecc):
-    r"""
-    Convert Eccentric Anomaly to True Anomaly.
+    r"""Convert Eccentric Anomaly to True Anomaly.
 
     This function calculates the position of the body along its orbit (True
     Anomaly) given its position relative to the auxiliary circle (Eccentric
@@ -257,8 +254,12 @@ def ta_from_ea(e, ecc):
     Notes
     -----
     The relationship is derived from the geometry of the ellipse:
-    $$ \cos(f) = \frac{\cos(E) - e}{1 - e \cos(E)} $$
-    $$ \sin(f) = \frac{\sqrt{1 - e^2} \sin(E)}{1 - e \cos(E)} $$
+
+    .. math::
+
+        \cos(f) = \frac{\cos(E) - e}{1 - e \cos(E)}, \qquad
+        \sin(f) = \frac{\sqrt{1 - e^2} \sin(E)}{1 - e \cos(E)}
+
     Using arctan2 ensures the True Anomaly is placed in the correct quadrant.
     """
     sta = sqrt(1.0 - ecc ** 2) * sin(e) / (1.0 - ecc * cos(e))
@@ -268,8 +269,7 @@ def ta_from_ea(e, ecc):
 
 @njit
 def mean_anomaly_at_transit(ecc, w):
-    r"""
-    Compute the Mean Anomaly at the moment of primary transit.
+    r"""Compute the Mean Anomaly at the moment of primary transit.
 
     For an eccentric orbit, the transit center does not occur at a Mean
     Anomaly of zero. This function calculates the angular time-offset required
@@ -277,8 +277,8 @@ def mean_anomaly_at_transit(ecc, w):
 
     Parameters
     ----------
-    e : float
-        Orbital eccentricity (0 <= e < 1).
+    ecc : float
+        Orbital eccentricity (0 <= ecc < 1).
     w : float
         Argument of periastron in radians.
 
@@ -292,7 +292,8 @@ def mean_anomaly_at_transit(ecc, w):
     The function first finds the Eccentric Anomaly (E) by relating the
     geometry of the transit (where true anomaly f = pi/2 - w) to the
     eccentricity vector. It then solves Kepler's Equation:
-    $$ M = E - e \sin(E) $$
+
+    .. math:: M = E - e \sin(E)
     """
     m_at_transit = arctan2(sqrt(1.0 - ecc ** 2) * sin(HALF_PI - w), ecc + cos(HALF_PI - w))
     m_at_transit -= ecc * sin(m_at_transit)
@@ -301,8 +302,7 @@ def mean_anomaly_at_transit(ecc, w):
 
 @njit(fastmath=True)
 def mean_anomaly_at_transit_with_derivatives(ecc, w):
-    """
-    Compute the Mean Anomaly at transit and its derivatives w.r.t. e and w.
+    """Compute the Mean Anomaly at transit and its derivatives w.r.t. e and w.
 
     Parameters
     ----------
@@ -362,7 +362,7 @@ def tc_to_tp_gradient(dc, p, e, w):
 
     Parameters
     ----------
-    dc : ndarray
+    dc : NDArray
         Gradient block with the parameter axis first, shape ``(7, ...)``. The
         trailing dimensions are arbitrary (e.g. ``(7, 3, 5)`` for a single 3D
         expansion point or ``(7, 2, 5)`` for a 2D expansion point).
@@ -371,11 +371,11 @@ def tc_to_tp_gradient(dc, p, e, w):
     e : float
         Eccentricity.
     w : float
-        Argument of periastron [rad].
+        Argument of periastron [radians].
 
     Returns
     -------
-    ndarray
+    dc_tp : NDArray
         A new array of the same shape as ``dc``, in the periastron
         parametrisation. The input is not modified.
     """
@@ -411,18 +411,18 @@ def tp_to_tc_gradient(dc, p, e, w):
 
     Parameters
     ----------
-    dc : ndarray
+    dc : NDArray
         Gradient block with the parameter axis first, shape ``(7, ...)``.
     p : float
         Orbital period [days].
     e : float
         Eccentricity.
     w : float
-        Argument of periastron [rad].
+        Argument of periastron [radians].
 
     Returns
     -------
-    ndarray
+    dc_tc : NDArray
         A new array of the same shape as ``dc``, in the transit-centre
         parametrisation. The input is not modified.
     """
@@ -458,7 +458,7 @@ def tp_to_tc_gradient_orbit(dcoeffs, p, e, w):
 
     Parameters
     ----------
-    dcoeffs : ndarray, shape (npt, 7, D, 5)
+    dcoeffs : NDArray, shape (npt, 7, D, 5)
         Parameter-derivative tensors in the periastron basis
         ``(tp, p, a, i, e, w, lan)``. Overwritten in place with the
         transit-centre basis ``(tc, p, a, i, e, w, lan)``.
@@ -467,7 +467,7 @@ def tp_to_tc_gradient_orbit(dcoeffs, p, e, w):
     e : float
         Eccentricity.
     w : float
-        Argument of periastron [rad].
+        Argument of periastron [radians].
 
     See Also
     --------
@@ -490,8 +490,7 @@ def tp_to_tc_gradient_orbit(dcoeffs, p, e, w):
 
 @njit
 def mean_anomaly(t, tc, p, e, w):
-    """
-    Calculate the Mean Anomaly at time t, bounded between [0, 2pi].
+    """Calculate the Mean Anomaly at time t, bounded between [0, 2pi].
 
     Parameters
     ----------
@@ -517,8 +516,7 @@ def mean_anomaly(t, tc, p, e, w):
 
 @njit(fastmath=True)
 def mean_anomaly_with_derivatives(t, tc, p, ecc, w):
-    """
-    Calculate the Mean Anomaly and its partial derivatives w.r.t. tc, p, e, and w.
+    """Calculate the Mean Anomaly and its partial derivatives w.r.t. tc, p, e, and w.
 
     Parameters
     ----------
@@ -559,8 +557,7 @@ def mean_anomaly_with_derivatives(t, tc, p, ecc, w):
 
 @njit
 def z_from_ta(f, a, i, e, w):
-    """
-    Compute the sky-projected separation.
+    """Compute the sky-projected separation.
 
     Parameters
     ----------
@@ -589,8 +586,7 @@ def z_from_ta(f, a, i, e, w):
 
 @njit
 def impact_parameter(a, i):
-    """
-    Calculate the impact parameter for a circular orbit.
+    """Calculate the impact parameter for a circular orbit.
 
     Parameters
     ----------
@@ -602,15 +598,14 @@ def impact_parameter(a, i):
     Returns
     -------
     b : float
-        Impact parameter (separation at transit center) in units of R_star.
+        Impact parameter (separation at transit center) [R_star].
     """
     return a * cos(i)
 
 
 @njit
 def impact_parameter_ec(a, i, e, w, tr_sign):
-    """
-    Calculate the impact parameter for an eccentric orbit.
+    """Calculate the impact parameter for an eccentric orbit.
 
     Parameters
     ----------
@@ -628,14 +623,13 @@ def impact_parameter_ec(a, i, e, w, tr_sign):
     Returns
     -------
     b : float
-        Impact parameter in units of R_star, corrected for eccentricity.
+        Impact parameter [R_star], corrected for eccentricity.
     """
     return a * cos(i) * ((1.-e**2) / (1.+tr_sign*e*sin(w)))
 
 @njit
 def d_from_pkaiews(p, k, a, i, e, w, tr_sign, kind=14):
-    """
-    Calculate the transit/eclipse duration (T14 or T23).
+    """Calculate the transit/eclipse duration (T14 or T23).
 
     Parameters
     ----------

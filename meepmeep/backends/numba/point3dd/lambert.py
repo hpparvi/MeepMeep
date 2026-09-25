@@ -162,8 +162,7 @@ def lambert_phase_curve_cd_vp(time, ag, k, c, dc):
 
 
 def lambert_phase_curve_cd(time: float | NDArray, ag: float, k: float, c: NDArray, dc: NDArray):
-    """
-    Evaluate the Lambertian phase-curve flux and its parameter derivatives at an expansion-point-centered time.
+    """Evaluate the Lambertian phase-curve flux and its parameter derivatives at an expansion-point-centered time.
 
     Derivative-returning counterpart of `lambert.lambert_phase_curve_c`:
     forms the flux :math:`F = (k/r)^2\\, A_g\\, f(\\alpha)` and propagates
@@ -177,7 +176,7 @@ def lambert_phase_curve_cd(time: float | NDArray, ag: float, k: float, c: NDArra
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Time(s) relative to the Taylor series expansion point.
     ag : float
         Geometric albedo.
@@ -191,7 +190,7 @@ def lambert_phase_curve_cd(time: float | NDArray, ag: float, k: float, c: NDArra
 
     Returns
     -------
-    flux : float or ndarray
+    flux : float or NDArray
         Reflected planet-to-star flux ratio. Shape (N,) for an array `time`.
     dflux : NDArray
         Partial derivatives of `flux` with respect to
@@ -276,8 +275,7 @@ def lambert_phase_curve_d_vp(time, ag, k, tc, p, c, dc, te):
 
 def lambert_phase_curve_d(time: float | NDArray, ag: float, k: float, tc: float, p: float,
                           c: NDArray, dc: NDArray, te: float = 0.0):
-    """
-    Evaluate the Lambertian phase-curve flux and its parameter derivatives at an absolute time.
+    """Evaluate the Lambertian phase-curve flux and its parameter derivatives at an absolute time.
 
     Direct counterpart of `lambert_phase_curve_cd`: epoch-folds the absolute
     time `time` around the expansion point and delegates to
@@ -289,7 +287,7 @@ def lambert_phase_curve_d(time: float | NDArray, ag: float, k: float, tc: float,
 
     Parameters
     ----------
-    time : float or ndarray
+    time : float or NDArray
         Absolute observation time(s) in the same units as `tc` and `p`.
     ag : float
         Geometric albedo.
@@ -312,7 +310,7 @@ def lambert_phase_curve_d(time: float | NDArray, ag: float, k: float, tc: float,
 
     Returns
     -------
-    flux : float or ndarray
+    flux : float or NDArray
         Reflected planet-to-star flux ratio. Shape (N,) for an array `time`.
     dflux : NDArray
         Partial derivatives of `flux` with respect to

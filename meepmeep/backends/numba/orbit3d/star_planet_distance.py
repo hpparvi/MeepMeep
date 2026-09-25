@@ -65,15 +65,15 @@ def star_planet_distance_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the separation.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`_pos_os`.
 
     Returns
     -------
-    r : float or ndarray
-        3D star-planet separation [stellar radii]. Arrays of shape (N,) for an array ``t``.
+    r : float or NDArray
+        3D star-planet separation [R_star]. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):
         return star_planet_distance_ov(t, tpa, p, dt, ep_table, ep_times, coeffs)

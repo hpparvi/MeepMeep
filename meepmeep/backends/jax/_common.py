@@ -74,7 +74,7 @@ def ep_lookup(t, tpa, p, dt, ep_table, ep_times):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) [days].
     tpa : float
         Periastron time anchoring the expansion-point grid [days].
@@ -82,18 +82,18 @@ def ep_lookup(t, tpa, p, dt, ep_table, ep_times):
         Orbital period [days].
     dt : float
         Width of one ``ep_table`` bucket in fraction of the period.
-    ep_table : ndarray of int
+    ep_table : NDArray of int
         Time-to-expansion-point lookup table.
-    ep_times : ndarray
+    ep_times : NDArray
         Normalised expansion-point phases.
 
     Returns
     -------
-    tf : float or ndarray
+    tf : float or NDArray
         Time since the most recent periastron passage, in ``[0, p)``.
-    tcc : float or ndarray
+    tcc : float or NDArray
         Time relative to the selected expansion point.
-    ix : int or ndarray of int
+    ix : int or NDArray of int
         Expansion-point index per time.
 
     Notes

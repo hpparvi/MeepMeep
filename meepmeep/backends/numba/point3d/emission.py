@@ -79,8 +79,7 @@ emission_phase_curve_c_vp = njit(fastmath=True, parallel=True)(_emission_phase_c
 
 def emission_phase_curve_c(time: float | NDArray, k: float, fratio: float, offset: float,
                            c: NDArray) -> float | NDArray:
-    """
-    Evaluate the cosine emission phase-curve flux at an expansion-point-centered time.
+    """Evaluate the cosine emission phase-curve flux at an expansion-point-centered time.
 
     Centered counterpart of `emission_phase_curve`: assumes `time` has
     already been shifted to be relative to the expansion point. Returns the
@@ -166,8 +165,7 @@ emission_phase_curve_vp = njit(fastmath=True, parallel=True)(_emission_phase_cur
 
 def emission_phase_curve(time: float | NDArray, k: float, fratio: float, offset: float,
                          tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
-    """
-    Evaluate the cosine emission phase-curve flux at an absolute time.
+    """Evaluate the cosine emission phase-curve flux at an absolute time.
 
     Folds the absolute observation time back to an expansion-point-centered offset
     and delegates to the centered kernel. Returns the planet-to-star flux

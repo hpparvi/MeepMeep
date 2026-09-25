@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Transit geometry from a single 3D expansion: contact points, bounding box, durations, and minimum separation."""
+
 from numba import njit
 from numpy import sqrt
 from numpy.typing import NDArray
@@ -27,18 +29,17 @@ def find_contact_point(k: float, point: int, c: NDArray):
 
     Parameters
     ----------
-    k
+    k : float
         Radius ratio.
-    point
+    point : int
         Contact point, can be 1, 2, 3, or 4.
-    c
-        A 3x5 coefficient matrix.
+    c : NDArray, shape (3, 5)
+        Taylor coefficient matrix from :func:`solve3d`.
 
     Returns
     -------
-    float
-        The calculated contact point time.
-
+    t_contact : float
+        Time of the contact point relative to the expansion point [days].
     """
     if point == 1 or point == 2 or point == 12:
         s = -1.0
@@ -83,15 +84,17 @@ def bounding_box(k: float, coeffs: NDArray):
 
     Parameters
     ----------
-    k
+    k : float
         Radius ratio.
-    coeffs
-        A 3x5 coefficient matrix.
+    coeffs : NDArray, shape (3, 5)
+        Taylor coefficient matrix from :func:`solve3d`.
 
     Returns
     -------
-    tuple
-        A tuple containing the T1 and T4 times.
+    t1 : float
+        Time of first contact relative to the expansion point [days].
+    t4 : float
+        Time of fourth contact relative to the expansion point [days].
     """
     t1 = find_contact_point(k, 1, coeffs)
     t4 = find_contact_point(k, 4, coeffs)
@@ -111,7 +114,7 @@ def t14(k: float, c: NDArray) -> float:
 
     Returns
     -------
-    float
+    t14 : float
         Duration between first and fourth contact.
     """
     t1 = find_contact_point(k, 1, c)
@@ -132,7 +135,7 @@ def t23(k: float, c: NDArray) -> float:
 
     Returns
     -------
-    float
+    t23 : float
         Duration between second and third contact.
     """
     t2 = find_contact_point(k, 2, c)
@@ -153,7 +156,7 @@ def t12(k: float, c: NDArray) -> float:
 
     Returns
     -------
-    float
+    t12 : float
         Duration between first and second contact.
     """
     t1 = find_contact_point(k, 1, c)
@@ -174,7 +177,7 @@ def t34(k: float, c: NDArray) -> float:
 
     Returns
     -------
-    float
+    t34 : float
         Duration between third and fourth contact.
     """
     t3 = find_contact_point(k, 3, c)
@@ -195,7 +198,7 @@ def t1(k: float, c: NDArray) -> float:
 
     Returns
     -------
-    float
+    t1 : float
         Time of first contact.
     """
     return find_contact_point(k, 1, c)
@@ -214,7 +217,7 @@ def t4(k: float, c: NDArray) -> float:
 
     Returns
     -------
-    float
+    t4 : float
         Time of fourth contact.
     """
     return find_contact_point(k, 4, c)
@@ -222,7 +225,7 @@ def t4(k: float, c: NDArray) -> float:
 
 @njit
 def find_z_min(tc: float, c: NDArray):
-    """Locate the local minimum of the projected planet-star distance.
+    """Locate the local minimum of the projected separation.
 
     Uses golden-section search in a tight window around an initial guess.
     Operates in the centered coordinate system of `c` (times are offsets
@@ -238,7 +241,7 @@ def find_z_min(tc: float, c: NDArray):
     Returns
     -------
     t_min : float
-        Time of minimum projected distance.
+        Time of minimum projected separation.
     z_min : float
         Projected distance at the minimum.
     """

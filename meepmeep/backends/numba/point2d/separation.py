@@ -52,8 +52,7 @@ sep_c_vp = njit(fastmath=True, parallel=True)(_sep_c_v_body)
 
 
 def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
-    """
-    Evaluate the sky-projected planet-star separation in the units of stellar radii at an expansion-point-centered time.
+    """Evaluate the sky-projected separation [R_star] at an expansion-point-centered time.
 
     Centered counterpart of `sep`: assumes `time` has already been shifted
     to be relative to the expansion point, evaluates the 2D position, and
@@ -73,7 +72,7 @@ def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     Returns
     -------
     d : float or NDArray
-        Projected planet-star center distance in units of stellar radii.
+        Projected separation [R_star].
     """
     if isinstance(time, ndarray):
         return sep_c_v(time, c)
@@ -121,8 +120,7 @@ sep_vp = njit(fastmath=True, parallel=True)(_sep_v_body)
 
 
 def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
-    """
-    Evaluate the projected planet-star separation at an absolute time.
+    """Evaluate the projected planet-star separation at an absolute time.
 
     Computes the sky-plane (x, y) position and returns the Euclidean
     distance `sqrt(x^2 + y^2)`. This is the quantity most commonly used
@@ -153,7 +151,7 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
     Returns
     -------
     d : float or NDArray
-        Projected planet-star center distance in units of stellar radii.
+        Projected separation [R_star].
         Always non-negative; the sign of the line-of-sight depth (transit
         vs. eclipse) is not encoded here.
     """

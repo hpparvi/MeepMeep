@@ -67,7 +67,7 @@ def rv_o(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the radial velocity.
     k : float
         Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
@@ -81,13 +81,13 @@ def rv_o(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs):
         Inclination [radians].
     e : float
         Eccentricity.
-    dt, ep_table, ep_times, coeffs :
+    dt, ep_table, ep_times, coeffs
         Multi-expansion-point dispatch arrays from :func:`solve3d_orbit` /
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
 
     Returns
     -------
-    rv : float or ndarray
+    rv : float or NDArray
         Radial velocity [m s\\ :sup:`-1`]. Arrays of shape (N,) for an array ``t``.
     """
     if isinstance(t, ndarray):

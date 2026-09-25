@@ -22,7 +22,7 @@ arbitrary times by looking up the appropriate expansion point via ``ep_table`` a
 delegating to the single-expansion-point evaluators in ``position3d``/``velocity3d``.
 
 Coefficient layout: ``coeffs`` is an ``(npt, 3, 5)`` array as produced by
-``solve3d_orbit`` — ``coeffs[ix]`` is the ``(3, 5)`` matrix consumed by
+``solve3d_orbit``; ``coeffs[ix]`` is the ``(3, 5)`` matrix consumed by
 ``pos_c``, ``vel_c``, ``zvel_c``, ``sep_c``, and ``zpos_c``.
 
 Each physical quantity lives in its own module, holding that quantity's

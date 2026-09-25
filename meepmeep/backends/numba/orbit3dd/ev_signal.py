@@ -126,17 +126,17 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coef
     inc : float
         Orbital inclination [radians]. The same quantity as the ``i`` axis
         of the gradient; its full derivative lands in slot 3.
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the signal and gradient.
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`_pos_osd`.
 
     Returns
     -------
-    out : float or ndarray
+    out : float or NDArray
         Ellipsoidal variation signal. Arrays of shape (N,) for an array time
         argument.
-    dout : ndarray
+    dout : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)``.
         Shape (9,) for a scalar time, (N, 9) for an array time.
     """

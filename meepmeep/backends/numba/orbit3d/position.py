@@ -62,7 +62,7 @@ def pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the position.
     tpa : float
         Periastron time anchoring the expansion-point grid.
@@ -70,17 +70,17 @@ def pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
         Orbital period [days].
     dt : float
         ``ep_table`` bucket width in fraction of the period.
-    ep_table : ndarray of int
+    ep_table : NDArray of int
         Time-to-expansion-point lookup table.
-    ep_times : ndarray, shape (npt,)
+    ep_times : NDArray, shape (npt,)
         Normalised expansion-point phases in ``[0, 1]``.
-    coeffs : ndarray, shape (npt, 3, 5)
+    coeffs : NDArray, shape (npt, 3, 5)
         Per-expansion-point Taylor coefficient matrices from :func:`solve3d_orbit`.
 
     Returns
     -------
-    x, y, z : float or ndarray
-        Planet position in units of the stellar radius. ``x``, ``y`` are
+    x, y, z : float or NDArray
+        Planet position [R_star]. ``x``, ``y`` are
         the sky-plane coordinates; ``z`` is the line-of-sight depth
         (positive toward the observer). Arrays of shape (N,) for an array ``t``.
     """

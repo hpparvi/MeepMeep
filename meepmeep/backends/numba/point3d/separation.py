@@ -58,8 +58,7 @@ sep_c_vp = njit(fastmath=True, parallel=True)(_sep_c_v_body)
 
 
 def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
-    """
-    Evaluate the sky-projected planet-star separation in units of stellar radii at an expansion-point-centered time.
+    """Evaluate the sky-projected planet-star separation [R_star] at an expansion-point-centered time.
 
     Centered counterpart of `sep`: assumes `time` has already been
     shifted to be relative to the expansion point. Only the x and y
@@ -81,7 +80,7 @@ def sep_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     Returns
     -------
     d : float or NDArray
-        Sky-projected planet-star separation in units of stellar radii.
+        Sky-projected planet-star separation [R_star].
         Always non-negative.
 
     Notes
@@ -136,8 +135,7 @@ sep_vp = njit(fastmath=True, parallel=True)(_sep_v_body)
 
 
 def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
-    """
-    Evaluate the sky-projected planet-star separation at an absolute time.
+    """Evaluate the sky-projected planet-star separation at an absolute time.
 
     Folds the absolute observation time back to an expansion-point-centered offset
     and delegates to the centered kernel. This is the quantity most
@@ -168,7 +166,7 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
     Returns
     -------
     d : float or NDArray
-        Sky-projected planet-star separation in units of stellar radii.
+        Sky-projected planet-star separation [R_star].
         Always non-negative; the sign of the line-of-sight depth
         (transit vs. eclipse) is not encoded here. Use `zpos` or `zpos_c`
         if the transit/eclipse branch is needed.

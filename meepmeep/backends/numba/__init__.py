@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Numba backend: the reference implementation behind :mod:`meepmeep.numba2d` and :mod:`meepmeep.numba3d`."""
+
 from . import utils, newton, expansion_points
 
 __all__ = ['utils', 'newton', 'expansion_points']

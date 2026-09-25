@@ -79,8 +79,8 @@ class Orbit:
     gradient-based optimiser or HMC sampler wants.
 
     Workflow:
-    ``Orbit(npt, ep_placement, derivatives) → set_pars(tc=..., p=..., a=...,
-    i=..., e=..., w=...) → set_data(times) → call any observable``. Pass
+    ``Orbit(npt, ep_placement, derivatives) -> set_pars(tc=..., p=..., a=...,
+    i=..., e=..., w=...) -> set_data(times) -> call any observable``. Pass
     ``tp=...`` instead of ``tc=...`` to anchor the orbit at periastron
     passage instead of transit center.
 
@@ -139,7 +139,7 @@ class Orbit:
     ----------
     npt : int
         Number of expansion points, set at construction.
-    times : ndarray or None
+    times : NDArray or None
         Time grid bound via :meth:`set_data`. ``None`` until set.
     _tc : float
         Transit-center time, set by :meth:`set_pars` (directly if you
@@ -157,12 +157,12 @@ class Orbit:
         derivative mode it selects the gradient basis: ``"tc"`` triggers a
         reparametrisation of ``_dcoeffs`` from the native periastron basis
         into the transit-centre basis.
-    _coeffs : ndarray, shape (npt, 3, 5)
+    _coeffs : NDArray, shape (npt, 3, 5)
         Taylor coefficient matrices at every expansion point, built in :meth:`set_pars`.
-    _dcoeffs : ndarray, shape (npt, 7, 3, 5) or None
+    _dcoeffs : NDArray, shape (npt, 7, 3, 5) or None
         Parameter-derivative coefficient tensors at every expansion point. ``None``
         unless the instance was constructed with ``derivatives=True``.
-    _ep_times : ndarray, shape (npt,)
+    _ep_times : NDArray, shape (npt,)
         Normalised expansion-point phases in ``[0, 1]`` from
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`. Built at
         construction for ``e = _EP_GRID_E_FLOOR`` and rebuilt by
@@ -175,7 +175,7 @@ class Orbit:
         ``max(e, _EP_GRID_E_FLOOR)`` at the last rebuild.
     _dt : float
         Width of one ``_ep_table`` bucket in fraction of the period.
-    _ep_table : ndarray of int
+    _ep_table : NDArray of int
         Time-to-expansion-point lookup table.
 
     Notes
@@ -257,7 +257,7 @@ class Orbit:
 
         Parameters
         ----------
-        times : ndarray, shape (N,)
+        times : NDArray, shape (N,)
             Times at which to evaluate the orbit [days].
         """
         self.times = times
@@ -372,7 +372,7 @@ class Orbit:
 
         Returns
         -------
-        m : ndarray, shape (N,)
+        m : NDArray, shape (N,)
             Mean anomaly per time in radians, in :math:`[0, 2\\pi)`.
         """
         offset = mean_anomaly_at_transit(self._e, self._w)
@@ -383,17 +383,18 @@ class Orbit:
 
         Parameters
         ----------
-        exact : bool, default False
+        exact : bool, optional
             If ``True``, use the Newton-Raphson reference solver
             (:func:`~meepmeep.backends.numba.newton.newton.ta_newton_v`)
             instead of the Taylor backend. The exact path is meant for
             validation; it does not support parameter derivatives.
+            Defaults to ``False``.
 
         Returns
         -------
-        f : ndarray, shape (N,)
+        f : NDArray, shape (N,)
             True anomaly per time in radians, in :math:`[0, 2\\pi)`.
-        df : ndarray, shape (N, 7)
+        df : NDArray, shape (N, 7)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True`` (and ``exact`` is ``False``).
 
@@ -404,7 +405,7 @@ class Orbit:
             Newton-Raphson reference does not produce parameter gradients.
         """
         if exact and self._derivatives:
-            raise NotImplementedError("exact=True is incompatible with derivatives — Newton-Raphson "
+            raise NotImplementedError("exact=True is incompatible with derivatives: Newton-Raphson "
                                       "reference does not provide parameter derivatives.")
         if exact:
             return ta_newton_v(self.times, self._tc, self._p, self._e, self._w)
@@ -422,17 +423,17 @@ class Orbit:
 
         Parameters
         ----------
-        times : ndarray or None
+        times : NDArray or None
             Times at which to evaluate the position. If ``None``, uses the
             grid bound via :meth:`set_data`.
 
         Returns
         -------
-        xs, ys, zs : ndarray, shape (N,)
-            Position components in units of the stellar radius. ``xs``,
+        xs, ys, zs : NDArray, shape (N,)
+            Position components [R_star]. ``xs``,
             ``ys`` are the sky-plane coordinates; ``zs`` is the
             line-of-sight depth (positive toward the observer).
-        dxs, dys, dzs : ndarray, shape (N, 7)
+        dxs, dys, dzs : NDArray, shape (N, 7)
             Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
@@ -464,9 +465,9 @@ class Orbit:
 
         Returns
         -------
-        vxs, vys, vzs : ndarray, shape (N,)
+        vxs, vys, vzs : NDArray, shape (N,)
             Velocity components in :math:`R_\\star/\\mathrm{day}`.
-        dvxs, dvys, dvzs : ndarray, shape (N, 7)
+        dvxs, dvys, dvzs : NDArray, shape (N, 7)
             Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
@@ -486,9 +487,9 @@ class Orbit:
 
         Returns
         -------
-        ca : ndarray, shape (N,)
+        ca : NDArray, shape (N,)
             Cosine of the phase angle per time, in :math:`[-1, 1]`.
-        dca : ndarray, shape (N, 7)
+        dca : NDArray, shape (N, 7)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
@@ -521,10 +522,10 @@ class Orbit:
 
         Returns
         -------
-        ph : ndarray, shape (N,)
+        ph : NDArray, shape (N,)
             Phase angle per time in radians, in :math:`[0, \\pi]`. Zero at
             superior conjunction, :math:`\\pi` at inferior conjunction.
-        dph : ndarray, shape (N, 7)
+        dph : NDArray, shape (N, 7)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True``.
 
@@ -556,9 +557,9 @@ class Orbit:
 
         Returns
         -------
-        th : ndarray, shape (N,)
+        th : NDArray, shape (N,)
             Supplement angle per time in radians, in :math:`[0, \\pi]`.
-        dth : ndarray, shape (N, 7)
+        dth : NDArray, shape (N, 7)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True``.
 
@@ -571,7 +572,7 @@ class Orbit:
             ca, dca = self.cos_phase()
             ca_c = clip(ca, -1.0 + 1e-15, 1.0 - 1e-15)
             th = arccos(-ca_c)
-            # d(arccos(-c))/dθ = +dc/dθ / sqrt(1 - c²)
+            # d(arccos(-c))/dtheta = +dc/dtheta / sqrt(1 - c^2)
             inv_s = 1.0 / sqrt(1.0 - ca_c * ca_c)
             dth = inv_s[:, None] * dca
             return th, dth
@@ -586,15 +587,15 @@ class Orbit:
 
         Parameters
         ----------
-        times : ndarray or None
+        times : NDArray or None
             Times at which to evaluate the separation. If ``None``, uses
             the grid bound via :meth:`set_data`.
 
         Returns
         -------
-        r : ndarray, shape (N,)
+        r : NDArray, shape (N,)
             3D star-planet separation per time, in stellar radii.
-        dr : ndarray, shape (N, 7)
+        dr : NDArray, shape (N, 7)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True``.
         """
@@ -621,9 +622,9 @@ class Orbit:
 
         Returns
         -------
-        ltt : ndarray, shape (N,)
+        ltt : NDArray, shape (N,)
             Light travel time correction per time [days].
-        dltt : ndarray, shape (N, 7)
+        dltt : NDArray, shape (N, 7)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Only returned when
             ``self._derivatives`` is ``True``. The derivative w.r.t.
             ``rstar`` is intentionally *not* returned (per package spec).
@@ -651,9 +652,9 @@ class Orbit:
 
         Returns
         -------
-        rvs : ndarray, shape (N,)
+        rvs : NDArray, shape (N,)
             Radial velocity per time [m s\\ :sup:`-1`].
-        drvs : ndarray, shape (N, 8)
+        drvs : NDArray, shape (N, 8)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan, k)``. Only returned
             when ``self._derivatives`` is ``True``.
         """
@@ -681,15 +682,15 @@ class Orbit:
             Planet-to-star radius ratio :math:`R_p/R_\\star`.
         ag : float
             Geometric albedo.
-        times : ndarray or None
+        times : NDArray or None
             Times at which to evaluate the flux. If ``None``, uses the
             grid bound via :meth:`set_data`.
 
         Returns
         -------
-        flux : ndarray, shape (N,)
+        flux : NDArray, shape (N,)
             Reflected planet-to-star flux ratio per time.
-        dflux : ndarray, shape (N, 9)
+        dflux : NDArray, shape (N, 9)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan, ag, k)``. Only
             returned when ``self._derivatives`` is ``True``.
         """
@@ -723,15 +724,15 @@ class Orbit:
             :math:`k^2 f_\\mathrm{ratio}`.
         offset : float
             Hotspot offset [radians].
-        times : ndarray or None
+        times : NDArray or None
             Times at which to evaluate the flux. If ``None``, uses the
             grid bound via :meth:`set_data`.
 
         Returns
         -------
-        flux : ndarray, shape (N,)
+        flux : NDArray, shape (N,)
             Emitted planet-to-star flux ratio per time.
-        dflux : ndarray, shape (N, 10)
+        dflux : NDArray, shape (N, 10)
             Gradient w.r.t. ``(tc, p, a, i, e, w, lan, k, fratio, offset)``.
             Only returned when ``self._derivatives`` is ``True``.
         """
@@ -758,15 +759,15 @@ class Orbit:
             Gravity-darkening coefficient.
         mass_ratio : float
             Planet-to-star mass ratio :math:`M_p/M_\\star`.
-        times : ndarray or None
+        times : NDArray or None
             Times at which to evaluate the signal. If ``None``, uses the
             grid bound via :meth:`set_data`.
 
         Returns
         -------
-        ev : ndarray, shape (N,)
+        ev : NDArray, shape (N,)
             Relative flux variation due to ellipsoidal distortion.
-        dev : ndarray, shape (N, 9)
+        dev : NDArray, shape (N, 9)
             Gradient w.r.t.
             ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)``. Only
             returned when ``self._derivatives`` is ``True``.
@@ -788,30 +789,27 @@ class Orbit:
         the planet drawn at the first expansion point, the orbit traced over one full
         period, and arrows along the X-Z trace indicating the direction of
         motion. Temporarily rebinds ``self.times`` to a dense grid of
-        ``npt`` samples for the plot and restores it on exit.
+        ``npt`` samples for the plot and restores it on exit. The figure is
+        rendered in place; the ``Figure`` / ``Axes`` handles are not returned.
 
         Parameters
         ----------
-        figsize : tuple or None
-            Matplotlib figure size; passed to ``subplots``.
-        show_exact : bool, default False
+        figsize : tuple, optional
+            Matplotlib figure size; passed to ``subplots``. Defaults to
+            ``None`` (Matplotlib's default size).
+        show_exact : bool, optional
             If ``True``, overlay the Newton-Raphson reference trajectory
             (``xyz_newton_v``) as a black dashed line in each panel.
-        sr : float, default 1.0
-            Stellar radius drawn at the origin [stellar radii]. Used only
-            for the cosmetic stellar disc.
-        pr : float, default 0.5
-            Planet-marker radius [stellar radii]. Cosmetic only.
-        pc : matplotlib color, default ``"k"``
-            Planet-marker face colour.
-        npt : int, default 1000
-            Number of samples used to draw the orbit trace.
-
-        Returns
-        -------
-        None
-            The figure is rendered in-place; the function does not return
-            the ``Figure`` / ``Axes`` handles.
+            Defaults to ``False``.
+        sr : float, optional
+            Stellar radius drawn at the origin [R_star]. Used only
+            for the cosmetic stellar disc. Defaults to 1.0.
+        pr : float, optional
+            Planet-marker radius [R_star]. Cosmetic only. Defaults to 0.5.
+        pc : matplotlib color, optional
+            Planet-marker face colour. Defaults to ``"k"``.
+        npt : int, optional
+            Number of samples used to draw the orbit trace. Defaults to 1000.
         """
         tcur = self.times
         self.set_data(linspace(0, self._p, npt))

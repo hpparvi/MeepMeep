@@ -53,8 +53,7 @@ pos_c_vp = njit(fastmath=True, parallel=True)(_pos_c_v_body)
 
 
 def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | NDArray]:
-    """
-    Evaluate the planet's sky-plane (x, y) position at an expansion-point-centered time.
+    """Evaluate the planet's sky-plane (x, y) position at an expansion-point-centered time.
 
     This is the "centered" variant of `pos`: it assumes the caller has
     already subtracted the expansion time `te` (and any epoch offset) so
@@ -80,9 +79,9 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     Returns
     -------
     px : float or NDArray
-        Sky-plane x position in units of stellar radii.
+        Sky-plane x position [R_star].
     py : float or NDArray
-        Sky-plane y position in units of stellar radii.
+        Sky-plane y position [R_star].
 
     Notes
     -----
@@ -137,8 +136,7 @@ pos_vp = njit(fastmath=True, parallel=True)(_pos_v_body)
 
 
 def pos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0):
-    """
-    Evaluate the planet's sky-plane (x, y) position at an absolute time using a 2D Taylor expansion.
+    """Evaluate the planet's sky-plane (x, y) position at an absolute time using a 2D Taylor expansion.
 
     This is the "direct" variant of the 2D position evaluator: it accepts an
     absolute observation time, folds it back into a single orbital epoch
@@ -174,9 +172,9 @@ def pos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
     Returns
     -------
     px : float or NDArray
-        Sky-plane x position(s) in units of stellar radii.
+        Sky-plane x position(s) [R_star].
     py : float or NDArray
-        Sky-plane y position(s) in units of stellar radii.
+        Sky-plane y position(s) [R_star].
 
     Notes
     -----

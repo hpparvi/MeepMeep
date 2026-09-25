@@ -90,17 +90,17 @@ def vel_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time at which to evaluate the velocity and gradient.
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`~meepmeep.backends.numba.orbit3dd.position.pos_od`.
 
     Returns
     -------
-    vx, vy, vz : float or ndarray
+    vx, vy, vz : float or NDArray
         Velocity components in :math:`R_\\star/\\mathrm{day}`. Arrays of
         shape (N,) for an array ``t``.
-    dvx, dvy, dvz : ndarray
+    dvx, dvy, dvz : NDArray
         Gradients w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a
         scalar ``t``, (N, 7) for an array ``t``.
     """

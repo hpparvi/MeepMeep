@@ -58,7 +58,7 @@ def ep_ix(t, tpa, p, dt, ep_table):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) [days].
     tpa : float
         Periastron time anchoring the grid [days].
@@ -66,12 +66,12 @@ def ep_ix(t, tpa, p, dt, ep_table):
         Orbital period [days].
     dt : float
         Table bin width in fraction of the period.
-    ep_table : ndarray of int
+    ep_table : NDArray of int
         Time-to-expansion-point table.
 
     Returns
     -------
-    int or ndarray of int
+    ix : int or NDArray of int
         Index into ``coeffs`` / ``ep_times``.
     """
     t = jnp.asarray(t, dtype=float)
@@ -91,7 +91,7 @@ def pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) [days].
     tpa : float
         Periastron time anchoring the expansion-point grid [days]. Related to
@@ -100,16 +100,16 @@ def pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
         Orbital period [days].
     dt : float
         Table bin width in fraction of the period.
-    ep_table : ndarray of int
+    ep_table : NDArray of int
         Time-to-expansion-point table.
-    ep_times : ndarray, shape (npt,)
+    ep_times : NDArray, shape (npt,)
         Expansion-point phases from periastron.
-    coeffs : ndarray, shape (npt, 3, 5)
+    coeffs : NDArray, shape (npt, 3, 5)
         Coefficients from :func:`~meepmeep.jax3d.solve3d_orbit`.
 
     Returns
     -------
-    x, y, z : float or ndarray
+    x, y, z : float or NDArray
         Position components, shaped like ``t``.
     """
     return pos_c(*_local(t, tpa, p, dt, ep_table, ep_times, coeffs))
@@ -200,7 +200,7 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) [days].
     tpa, p : float
         Periastron time and period [days].

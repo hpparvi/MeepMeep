@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Taylor coefficient solver for the single-expansion-point 3D evaluators."""
+
 from numba import njit
 from numpy import ndarray, sqrt, cos, sin, zeros, pi
 from numpy.typing import NDArray
@@ -24,7 +26,7 @@ from ..utils import mean_anomaly_at_transit, TWO_PI
 
 @njit(fastmath=True)
 def solve3d(te: float, p: float, a: float, i: float, e: float, w: float, lan: float = 0.0) -> NDArray:
-    """ Calculate the Taylor expansion for the (x, y, z) position around a given expansion-point time relative to the transit centre.
+    """Calculate the Taylor coefficients of the (x, y, z) position around an expansion point.
 
     Parameters
     ----------
@@ -37,19 +39,19 @@ def solve3d(te: float, p: float, a: float, i: float, e: float, w: float, lan: fl
     a : float
         Semi-major axis of the orbit [R_star].
     i : float
-        Inclination of the orbit [rad].
+        Inclination of the orbit [radians].
     e : float
         Eccentricity of the orbit.
     w : float
-        Argument of periastron [rad].
+        Argument of periastron [radians].
     lan : float, optional
-        Longitude of the ascending node [rad]. A constant counterclockwise rotation
+        Longitude of the ascending node [radians]. A constant counterclockwise rotation
         of the sky-plane (x, y) coordinates about the line of sight; the line-of-sight
         (z) coordinate is unaffected. Defaults to 0.0.
 
     Returns
     -------
-    ndarray
+    cf : NDArray, shape (3, 5)
         A 3x5 coefficient matrix where each element is a pre-scaled coefficient for Taylor series expansion.
         Pre-scaling means that the coefficients are divided by 1, 1, 2, 6, and 24 to improve numerical speed.
     """

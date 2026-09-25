@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Exact Newton-Raphson Kepler solvers for anomalies, positions, and radial velocities."""
+
 from numba import njit
 from numpy import cos, sin, zeros, pi
 from numpy.typing import NDArray
@@ -197,9 +199,9 @@ def xy_newton_v(time, tc, p, a, i, e, w):
     Returns
     -------
     x : NDArray
-        Sky-plane x coordinate in units of stellar radii.
+        Sky-plane x coordinate [R_star].
     y : NDArray
-        Sky-plane y coordinate in units of stellar radii.
+        Sky-plane y coordinate [R_star].
 
     Notes
     -----
@@ -243,11 +245,11 @@ def xyz_newton_v(time, tc, p, a, i, e, w):
     Returns
     -------
     x : NDArray
-        Sky-plane x coordinate in units of stellar radii.
+        Sky-plane x coordinate [R_star].
     y : NDArray
-        Sky-plane y coordinate in units of stellar radii.
+        Sky-plane y coordinate [R_star].
     z : NDArray
-        Line-of-sight coordinate in units of stellar radii; positive
+        Line-of-sight coordinate [R_star]; positive
         toward the observer (transit side), negative on the far side
         of the orbit (eclipse side).
     """
@@ -283,7 +285,7 @@ def z_newton_s(time, tc, p, a, i, e, w):
     Returns
     -------
     z : float
-        Projected planet-star separation in units of stellar radii.
+        Projected planet-star separation [R_star].
         Positive during transit (planet in front of the star),
         negative during secondary eclipse (planet behind the star).
     """

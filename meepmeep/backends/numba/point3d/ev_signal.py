@@ -66,8 +66,7 @@ ev_signal_c_vp = njit(fastmath=True, parallel=True)(_ev_signal_c_v_body)
 
 def ev_signal_c(time: float | NDArray, alpha: float, mass_ratio: float, inc: float,
                 c: NDArray) -> float | NDArray:
-    """
-    Evaluate the ellipsoidal-variation signal at an expansion-point-centered time.
+    """Evaluate the ellipsoidal-variation signal at an expansion-point-centered time.
 
     Centered counterpart of `ev_signal`: assumes `time` has already been
     shifted to be relative to the expansion point. Returns the relative
@@ -153,8 +152,7 @@ ev_signal_vp = njit(fastmath=True, parallel=True)(_ev_signal_v_body)
 
 def ev_signal(time: float | NDArray, alpha: float, mass_ratio: float, inc: float,
               tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
-    """
-    Evaluate the ellipsoidal-variation signal at an absolute time.
+    """Evaluate the ellipsoidal-variation signal at an absolute time.
 
     Folds the absolute observation time back to an expansion-point-centered offset
     and delegates to the centered kernel. Returns the relative flux

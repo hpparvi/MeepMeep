@@ -68,14 +68,14 @@ def cos_alpha_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the phase angle.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`pos_o`.
 
     Returns
     -------
-    cos_alpha : float or ndarray
+    cos_alpha : float or NDArray
         Cosine of the phase angle, in :math:`[-1, 1]`.
         Arrays of shape (N,) for an array ``t``.
     """

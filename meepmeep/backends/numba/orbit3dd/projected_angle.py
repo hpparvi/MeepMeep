@@ -64,7 +64,7 @@ def cos_v_p_angle_ovd(v, times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
         inv_r3 = inv_r / r2
         dot = x * v[0] + y * v[1] + z * v[2]
         cs[j] = dot * inv_nv * inv_r
-        # d/dθ[(x·v)/(|x|·|v|)] = ((dx·v)/|x| - (x·v)·(x·dx)/|x|^3) / |v|
+        # d/dtheta[dot(x, v)/(|x| |v|)] = (dot(dx, v)/|x| - dot(x, v) dot(x, dx)/|x|^3) / |v|
         for k in range(7):
             ddot = dx[k] * v[0] + dy[k] * v[1] + dz[k] * v[2]
             xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
@@ -114,19 +114,19 @@ def cos_v_p_angle_od(v, t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    v : ndarray, shape (3,)
+    v : NDArray, shape (3,)
         Fixed reference vector. Need not be unit-norm; the cosine is
         normalised internally.
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the cosine and gradient.
-    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs
         See :func:`_pos_osd`.
 
     Returns
     -------
-    cs : float or ndarray
+    cs : float or NDArray
         Cosine of the angle. Arrays of shape (N,) for an array ``t``.
-    dcs : ndarray
+    dcs : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
         ``t``, (N, 7) for an array ``t``.
     """

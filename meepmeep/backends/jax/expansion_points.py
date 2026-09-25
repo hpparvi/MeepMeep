@@ -63,13 +63,13 @@ def create_expansion_points(n_ep: int, e, quantity: str = 'ea', tres: int = 200)
 
     Returns
     -------
-    ep_times : ndarray, shape (n_ep,)
+    ep_times : NDArray, shape (n_ep,)
         Expansion-point phases from periastron in ``[0, 1]``.
-    change_times : ndarray, shape (n_ep - 1,)
+    change_times : NDArray, shape (n_ep - 1,)
         Phases at which the dispatch switches to the next expansion point.
     dt : float
         Table bin width, ``1 / tres``.
-    ep_table : ndarray of int, shape (tres,)
+    ep_table : NDArray of int, shape (tres,)
         Expansion-point index per table bin (int32).
 
     Raises

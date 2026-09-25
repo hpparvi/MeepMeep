@@ -51,8 +51,8 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs, 
     (``dt_transit/dtc = 1``); with the periastron time bound,
     ``t_transit = tp + t_o`` with
     :math:`t_o = M_\\mathrm{tr}(e, w) \\cdot p / (2\\pi)`, so the timing
-    slot is joined by ``dto/dp = M_tr / (2π)``,
-    ``dto/de = (dM_tr/de) · p / (2π)``, and ``dto/dw = (dM_tr/dw) · p / (2π)``.
+    slot is joined by ``dto/dp = M_tr / (2 pi)``,
+    ``dto/de = (dM_tr/de) p / (2 pi)``, and ``dto/dw = (dM_tr/dw) p / (2 pi)``.
     Either way the timing slot of the total cancels to zero: the z
     coordinate at the transit event does not depend on when the transit
     happens.
@@ -63,7 +63,7 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs, 
         Periastron time anchoring the expansion-point grid (see :func:`_pos_osd`).
     p, e, w : float
         Orbital period [days], eccentricity, argument of periastron [radians].
-    dt, ep_table, ep_times, coeffs, dcoeffs :
+    dt, ep_table, ep_times, coeffs, dcoeffs
         Multi-expansion-point dispatch arrays.
     timing_is_tc : bool
         True when ``dcoeffs`` is in the transit-centre basis (after
@@ -74,7 +74,7 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs, 
     -------
     z_tr : float
         Line-of-sight planet coordinate at transit time.
-    dz_tr_total : ndarray, shape (7,)
+    dz_tr_total : NDArray, shape (7,)
         Full total derivative of ``z(t_transit)`` w.r.t. the bound basis
         ``(tc, p, a, i, e, w, lan)`` or ``(tp, p, a, i, e, w, lan)``.
     """
@@ -83,12 +83,12 @@ def _ltt_transit_z_and_d(tpa, p, e, w, dt, ep_table, ep_times, coeffs, dcoeffs, 
     to = m_tr / two_pi * p
     t_transit = tpa + to
 
-    # Evaluate z and its (∂z/∂θ)|_{t=t_transit}.
+    # Evaluate z and its (dz/dtheta)|_{t=t_transit}.
     z_tr, dz_tr_partial = _zpos_osd(t_transit, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)
-    # Velocity at transit (for the dt_transit/dθ chain term).
+    # Velocity at transit (for the dt_transit/dtheta chain term).
     vz_tr = _zvel_os(t_transit, tpa, p, dt, ep_table, ep_times, coeffs)
 
-    # dt_transit/dθ in the bound timing basis.
+    # dt_transit/dtheta in the bound timing basis.
     dttr = zeros(7)
     dttr[0] = 1.0
     if not timing_is_tc:
@@ -113,8 +113,8 @@ def _zvel_os(t, tpa, p, dt, ep_table, ep_times, coeffs):
     ----------
     t : float
         Time at which to evaluate the z-velocity.
-    tpa, p, dt, ep_table, ep_times, coeffs :
-        See :func:`_pos_osd` (no ``dcoeffs`` — this is a value-only helper).
+    tpa, p, dt, ep_table, ep_times, coeffs
+        See :func:`_pos_osd` (no ``dcoeffs``; this is a value-only helper).
 
     Returns
     -------
@@ -213,7 +213,7 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs,
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the correction and gradient.
     tpa : float
         Periastron time anchoring the expansion-point grid (see :func:`_pos_osd`).
@@ -225,7 +225,7 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs,
         Argument of periastron [radians].
     rstar : float
         Stellar radius [R_sun].
-    dt, ep_table, ep_times, coeffs, dcoeffs :
+    dt, ep_table, ep_times, coeffs, dcoeffs
         Multi-expansion-point dispatch arrays.
     timing_is_tc : bool, optional
         Timing basis of ``dcoeffs``: True (default) for the transit-centre
@@ -233,10 +233,10 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs,
 
     Returns
     -------
-    ltt : float or ndarray
+    ltt : float or NDArray
         Light travel time correction [days]. Arrays of shape (N,) for an array
         time argument.
-    dltt : ndarray
+    dltt : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
         time, (N, 7) for an array time.
     """

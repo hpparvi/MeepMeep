@@ -66,17 +66,17 @@ def cos_v_p_angle_o(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     Parameters
     ----------
-    v : ndarray, shape (3,)
+    v : NDArray, shape (3,)
         Reference vector. Need not be unit-norm; the cosine is computed
         from the dot product divided by the product of the norms.
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the angle.
-    tpa, p, dt, ep_table, ep_times, coeffs :
+    tpa, p, dt, ep_table, ep_times, coeffs
         See :func:`_pos_os`.
 
     Returns
     -------
-    cos_theta : float or ndarray
+    cos_theta : float or NDArray
         Cosine of the angle between the planet position vector and
         ``v``, in :math:`[-1, 1]`. Arrays of shape (N,) for an array ``t``.
     """

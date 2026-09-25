@@ -50,8 +50,7 @@ zpos_c_vp = njit(fastmath=True, parallel=True)(_zpos_c_v_body)
 
 
 def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
-    """
-    Evaluate the planet's line-of-sight z position at an expansion-point-centered time.
+    """Evaluate the planet's line-of-sight z position at an expansion-point-centered time.
 
     Centered counterpart of `zpos`: evaluates only the z-direction Taylor
     polynomial (row 2 of `c`), skipping the x and y rows. This is the
@@ -74,7 +73,7 @@ def zpos_c(time: float | NDArray, c: NDArray) -> float | NDArray:
     Returns
     -------
     pz : float or NDArray
-        Line-of-sight z position in units of stellar radii. Positive
+        Line-of-sight z position [R_star]. Positive
         values point toward the observer; negative values point away.
     """
     if isinstance(time, ndarray):
@@ -123,8 +122,7 @@ zpos_vp = njit(fastmath=True, parallel=True)(_zpos_v_body)
 
 
 def zpos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
-    """
-    Evaluate the planet's line-of-sight z position at an absolute time.
+    """Evaluate the planet's line-of-sight z position at an absolute time.
 
     Folds the absolute observation time back to an expansion-point-centered offset
     and delegates to the centered kernel.
@@ -152,7 +150,7 @@ def zpos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0
     Returns
     -------
     pz : float or NDArray
-        Line-of-sight z position in units of stellar radii. Positive
+        Line-of-sight z position [R_star]. Positive
         values point toward the observer; negative values point away.
         The sign distinguishes the transit (positive z) and eclipse
         (negative z) branches of the orbit.

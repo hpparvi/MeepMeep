@@ -50,8 +50,7 @@ zvel_c_vp = njit(fastmath=True, parallel=True)(_zvel_c_v_body)
 
 
 def zvel_c(time: float | NDArray, c: NDArray) -> float | NDArray:
-    """
-    Evaluate the planet's line-of-sight velocity component at an expansion-point-centered time.
+    """Evaluate the planet's line-of-sight velocity component at an expansion-point-centered time.
 
     Centered counterpart of `zvel`. Only the z-direction coefficients
     (row 2 of `c`) are read, making this the cheapest velocity
@@ -127,8 +126,7 @@ zvel_vp = njit(fastmath=True, parallel=True)(_zvel_v_body)
 
 
 def zvel(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0) -> float | NDArray:
-    """
-    Evaluate the planet's line-of-sight velocity component at an absolute time.
+    """Evaluate the planet's line-of-sight velocity component at an absolute time.
 
     Direct counterpart of `zvel_c`: accepts an absolute observation
     time `time`, folds it back into a single orbital epoch around the

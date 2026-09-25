@@ -101,7 +101,7 @@ def rv_od(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
 
     Parameters
     ----------
-    t : float or ndarray
+    t : float or NDArray
         Time(s) at which to evaluate the radial velocity and gradient.
     k : float
         Radial-velocity semi-amplitude [m s\\ :sup:`-1`].
@@ -115,15 +115,15 @@ def rv_od(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
         Inclination [radians].
     e : float
         Eccentricity.
-    dt, ep_table, ep_times, coeffs, dcoeffs :
+    dt, ep_table, ep_times, coeffs, dcoeffs
         Multi-expansion-point dispatch arrays.
 
     Returns
     -------
-    rv : float or ndarray
+    rv : float or NDArray
         Radial velocity [m s\\ :sup:`-1`]. Arrays of shape (N,) for an array
         ``t``.
-    drv : ndarray
+    drv : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan, k)``. Shape (8,) for a
         scalar ``t``, (N, 8) for an array ``t``.
     """

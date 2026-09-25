@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Package version, read from the installed distribution metadata."""
+
 
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
