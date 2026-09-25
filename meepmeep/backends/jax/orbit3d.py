@@ -218,10 +218,11 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     Notes
     -----
     The true anomaly is the angle between the position and the eccentricity
-    vector. The numba ``true_anomaly_od`` treats ``(ex, ey, ez)`` as
-    constants; here the gradient follows wherever the eccentricity vector
-    came from. Compute it from traced ``(i, e, w)`` for the full derivative,
-    or pass it through ``jax.lax.stop_gradient`` to reproduce numba. The
+    vector. The gradient follows wherever the eccentricity vector came from:
+    compute it from traced ``(i, e, w, lan)`` for the full derivative (what
+    numba's ``true_anomaly_od`` gives with ``dev`` from
+    ``eccentricity_vector_d``), or pass it through ``jax.lax.stop_gradient``
+    to hold it constant (numba with ``dev = 0``). The
     ``arccos`` is guarded, so exactly aligned positions (``f = 0`` or
     ``pi``) give a zero gradient instead of NaN.
     """

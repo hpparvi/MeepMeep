@@ -16,6 +16,7 @@ from meepmeep.backends.numba.utils import (
     TWO_PI,
     mean_anomaly_at_transit,
     eccentricity_vector,
+    eccentricity_vector_d,
 )
 from meepmeep.backends.numba.orbit3d import (
     solve3d_orbit,
@@ -298,11 +299,11 @@ class TestGradientParity:
     def test_true_anomaly(self, orbit_case):
         ts, tpa, dt, pkt, pts, c, dc = _setup_d(orbit_case)
         p = orbit_case["p"]
-        ex, ey, ez = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
-        fs, dfs = true_anomaly_ovd(ts, tpa, p, ex, ey, ez, orbit_case["w"],
+        (ex, ey, ez), dev = eccentricity_vector_d(orbit_case["i"], orbit_case["e"], orbit_case["w"], 0.4)
+        fs, dfs = true_anomaly_ovd(ts, tpa, p, ex, ey, ez, orbit_case["w"], dev,
                                     dt, pkt, pts, c, dc)
         for j, t in enumerate(ts):
-            f, df = _true_anomaly_osd(float(t), tpa, p, ex, ey, ez, orbit_case["w"],
+            f, df = _true_anomaly_osd(float(t), tpa, p, ex, ey, ez, orbit_case["w"], dev,
                                       dt, pkt, pts, c, dc)
             assert_allclose(f, fs[j], rtol=1e-12, atol=1e-12)
             assert_allclose(df, dfs[j], rtol=1e-12, atol=1e-12)

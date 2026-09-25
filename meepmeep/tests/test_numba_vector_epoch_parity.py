@@ -16,7 +16,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from meepmeep import numba2d, numba3d
-from meepmeep.backends.numba.utils import eccentricity_vector, mean_anomaly_at_transit
+from meepmeep.backends.numba.utils import eccentricity_vector, eccentricity_vector_d, mean_anomaly_at_transit
 
 P, A, I, E, W, LAN = 5.0, 15.0, 1.55, 0.3, 0.5, 0.7
 TC, TE = 0.4, 0.05
@@ -31,6 +31,7 @@ EP_TIMES, _, DT, EP_TABLE = numba3d.create_expansion_points(15, E, 'ea')
 COEFFS, DCOEFFS = numba3d.solve3d_orbit_d(EP_TIMES, P, A, I, E, W, LAN)
 TPA = TC - mean_anomaly_at_transit(E, W) / (2 * np.pi) * P
 EV = tuple(eccentricity_vector(I, E, W, LAN))
+DEV = eccentricity_vector_d(I, E, W, LAN)[1]
 V = np.array([0.3, -1.2, 0.7])
 
 # name: (dispatcher, serial vector kernel, parallel kernel, call(fn, t))
@@ -65,7 +66,7 @@ ORBIT["emission"] = (numba3d.emission_phase_curve_od, numba3d.emission_phase_cur
 ORBIT["light_travel_time"] = (numba3d.light_travel_time_od, numba3d.light_travel_time_ovd,
                               numba3d.light_travel_time_ovdp, lambda f, t: f(t, TPA, P, E, W, 0.9, *GRID, True))
 ORBIT["true_anomaly"] = (numba3d.true_anomaly_od, numba3d.true_anomaly_ovd, numba3d.true_anomaly_ovdp,
-                         lambda f, t: f(t, TPA, P, *EV, W, *GRID))
+                         lambda f, t: f(t, TPA, P, *EV, W, DEV, *GRID))
 ORBIT["cos_v_p_angle"] = (numba3d.cos_v_p_angle_od, numba3d.cos_v_p_angle_ovd, numba3d.cos_v_p_angle_ovdp,
                           lambda f, t: f(V, t, TPA, P, *GRID))
 

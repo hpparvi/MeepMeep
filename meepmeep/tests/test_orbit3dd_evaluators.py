@@ -32,6 +32,7 @@ from meepmeep.backends.numba.utils import (
     TWO_PI,
     mean_anomaly_at_transit,
     eccentricity_vector,
+    eccentricity_vector_d,
     eclipse_time_offset,
 )
 from meepmeep.backends.numba.newton.newton import eclipse_light_travel_time
@@ -223,8 +224,9 @@ class TestValueParity:
         ev = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
         f_b = true_anomaly_o(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
                               orbit_case["w"], dt, pkt, pts, c)
+        dev = eccentricity_vector_d(orbit_case["i"], orbit_case["e"], orbit_case["w"])[1]
         f, df = true_anomaly_od(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
-                                   orbit_case["w"], dt, pkt, pts, c, dc)
+                                   orbit_case["w"], dev, dt, pkt, pts, c, dc)
         # Compare via cos/sin to be invariant to wrap-around.
         assert_allclose(np.cos(f), np.cos(f_b), atol=1e-10)
         assert_allclose(np.sin(f), np.sin(f_b), atol=1e-10)
@@ -239,8 +241,9 @@ class TestValueParity:
         ev = eccentricity_vector(orbit_case["i"], orbit_case["e"], orbit_case["w"])
         f_b = true_anomaly_o(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
                              orbit_case["w"], dt, pkt, pts, c)
+        dev = eccentricity_vector_d(orbit_case["i"], orbit_case["e"], orbit_case["w"])[1]
         f, df = true_anomaly_od(times, tc, orbit_case["p"], ev[0], ev[1], ev[2],
-                                orbit_case["w"], dt, pkt, pts, c, dc)
+                                orbit_case["w"], dev, dt, pkt, pts, c, dc)
         assert_allclose(f, f_b, rtol=0, atol=1e-12)
         assert df.shape == (NTIMES, 7)
         assert np.all(np.isfinite(df))
@@ -255,8 +258,9 @@ class TestValueParity:
         pars["e"] = 2e-5
         times, tc, dt, pkt, pts, c, dc = _setup(pars)
         ev = eccentricity_vector(pars["i"], pars["e"], pars["w"])
+        dev = eccentricity_vector_d(pars["i"], pars["e"], pars["w"])[1]
         f, df = true_anomaly_od(times, tc, pars["p"], ev[0], ev[1], ev[2],
-                                pars["w"], dt, pkt, pts, c, dc)
+                                pars["w"], dev, dt, pkt, pts, c, dc)
         f_nr = ta_newton_v(times, 0.0, pars["p"], pars["e"], pars["w"])
         assert_allclose(np.cos(f), np.cos(f_nr), atol=1e-3)
         assert_allclose(np.sin(f), np.sin(f_nr), atol=1e-3)
@@ -833,7 +837,9 @@ class TestCircularTrueAnomalyBasis:
         ep_times, _, dt, ep_table = create_expansion_points(NPT, 0.2, "ea")
         coeffs, dcoeffs = solve3d_orbit_d(ep_times, **pars, npt=NPT)
         ev = eccentricity_vector(pars["i"], pars["e"], pars["w"], pars["lan"])
-        args = (self.TIMES, -0.1, pars["p"], ev[0], ev[1], ev[2], pars["w"], dt, ep_table, ep_times, coeffs, dcoeffs)
+        dev = eccentricity_vector_d(pars["i"], pars["e"], pars["w"], pars["lan"])[1]
+        args = (self.TIMES, -0.1, pars["p"], ev[0], ev[1], ev[2], pars["w"], dev, dt, ep_table, ep_times, coeffs,
+                dcoeffs)
         _, df_tp = true_anomaly_od(*args, False)
         _, df_tc = true_anomaly_od(*args, True)
         assert_allclose(df_tp[:, 2:], 0.0, atol=0)

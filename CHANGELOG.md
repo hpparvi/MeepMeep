@@ -64,6 +64,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   passes it.
 
 ### Removed
+- `Orbit(derivatives=True).true_anomaly()` returned wrong `w` and `lan`
+  gradients for eccentric orbits (the `w` slot off by O(1), a non-zero `lan`
+  slot where the true anomaly does not depend on the node). `true_anomaly_od`
+  held the eccentricity vector constant, but the vector turns with `w` and
+  `lan`. **Breaking:** `true_anomaly_od` and its `_ovd`/`_ovdp` kernels (numba,
+  OpenCL and C) take the Jacobian of the eccentricity vector, `dev` of shape
+  `(3, 7)`, after `w`; pass zeros for the old constant-vector behaviour. The
+  new `eccentricity_vector_d` (numba, OpenCL and C) returns the vector and its
+  Jacobian, and `numba3d` now exports it together with `eccentricity_vector`.
 - The JAX prototype modules `meepmeep.backends.jax.ea` and
   `meepmeep.backends.jax.ts2d` (`solve_xy_p5`, `solve_xy_p5_d`, `xy_t15_d`,
   `pd_t15_d`), superseded by the JAX backend above.

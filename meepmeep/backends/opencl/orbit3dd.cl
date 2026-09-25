@@ -178,11 +178,14 @@ MM_INLINE REAL cos_v_p_angle_od(REAL vx, REAL vy, REAL vz,
    is near-singular). The gradient buffer is zeroed on entry because the
    early-return paths (the circular fast path leaves the a, i and lan slots
    zero; the edp clamps leave all slots zero) rely on it - the numba original
-   allocates with zeros(7). `timing_is_tc` states the basis of dcoeffs; only
+   allocates with zeros(7). `dev` (3 x 7, row-major) is the Jacobian of the
+   eccentricity vector from `eccentricity_vector_d`; zeros hold the vector
+   constant. It lives in private memory like `df`, so a kernel can compute it
+   on the device. `timing_is_tc` states the basis of dcoeffs; only
    the circular fast path, which does not read dcoeffs, uses it (see
    `_circular_w` in the numba module). Port of `meepmeep.numba3d.true_anomaly_od`. */
 MM_INLINE REAL true_anomaly_od(REAL t, REAL tpa, REAL p,
-                            REAL ex, REAL ey, REAL ez, REAL w,
+                            REAL ex, REAL ey, REAL ez, REAL w, const REAL *dev,
                             REAL dt, MM_GLOBAL const int *ep_table,
                             MM_GLOBAL const REAL *ep_times,
                             MM_GLOBAL const REAL *coeffs, MM_GLOBAL const REAL *dcoeffs,
@@ -240,7 +243,10 @@ MM_INLINE REAL true_anomaly_od(REAL t, REAL tpa, REAL p,
     for (int m = 0; m < MM_NPAR; m++) {
         REAL dxdote = dx[m] * ex + dy[m] * ey + dz[m] * ez;
         REAL xdotdx = x * dx[m] + y * dy[m] + z * dz[m];
-        REAL dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes);
+        REAL xdotdev = x * dev[m] + y * dev[MM_NPAR + m] + z * dev[2 * MM_NPAR + m];
+        REAL edotdev = ex * dev[m] + ey * dev[MM_NPAR + m] + ez * dev[2 * MM_NPAR + m];
+        REAL dedp = (dxdote + xdotdev) / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
+                    - xdote * edotdev / (nes * sqrt_r2_nes);
         REAL df_m = -dedp / denom;
         df[m] = sign > (REAL)0.0 ? df_m : -df_m;
     }

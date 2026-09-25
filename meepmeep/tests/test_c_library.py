@@ -33,7 +33,7 @@ from meepmeep.numba3d import (solve3d, solve3d_d, solve3d_orbit, solve3d_orbit_d
                               tp_to_tc_gradient_orbit, create_expansion_points,
                               sep, pos, zpos, sep_d, sep_o, sep_od, pos_od, ep_ix,
                               true_anomaly_od)
-from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit, eccentricity_vector
+from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit, eccentricity_vector_d
 
 ROOT = Path(__file__).resolve().parents[2]
 C_DIR = ROOT / 'c'
@@ -108,7 +108,8 @@ def _bind(lib):
         'sep_o': ([D, D, D, D, i_in, d_in, d_in], D),
         'sep_od': ([D, D, D, D, i_in, d_in, d_in, d_in, d_out], D),
         'pos_od': ([D, D, D, D, i_in, d_in, d_in, d_in, DP, DP, DP, d_out, d_out, d_out], None),
-        'true_anomaly_od': ([D] * 8 + [i_in, d_in, d_in, d_in, I, d_out], D),
+        'true_anomaly_od': ([D] * 7 + [d_in, D, i_in, d_in, d_in, d_in, I, d_out], D),
+        'eccentricity_vector_d': ([D, D, D, D, d_out, d_out], None),
     }
     for name, (argtypes, restype) in sig.items():
         fn = getattr(lib, name)
@@ -308,6 +309,17 @@ def test_mean_anomaly_at_transit_matches_numba(lib, orbit):
     np.testing.assert_allclose(lib.mean_anomaly_at_transit(e, w), mean_anomaly_at_transit(e, w), rtol=RTOL, atol=ATOL)
 
 
+@pytest.mark.parametrize('lan', [0.0, 0.3, -2.1])
+def test_eccentricity_vector_d_matches_numba(lib, orbit, lan):
+    """Covers the circular sentinel too (the circular orbit case)."""
+    _, _, i, e, w = orbit
+    r_ev, r_dev = eccentricity_vector_d(i, e, w, lan)
+    ev, dev = np.empty(3), np.full(21, np.nan)
+    lib.eccentricity_vector_d(i, e, w, lan, ev, dev)
+    np.testing.assert_allclose(ev, r_ev, rtol=1e-13, atol=1e-15)
+    np.testing.assert_allclose(dev.reshape(3, 7), r_dev, rtol=1e-13, atol=1e-15)
+
+
 # ---------------------------------------------------------------------------
 # End to end: C placement -> C solve -> C evaluation, against the numba chain
 # ---------------------------------------------------------------------------
@@ -360,16 +372,16 @@ def test_true_anomaly_od_matches_numba(lib, orbit, timing_is_tc):
     rc, rdc = solve3d_orbit_d(ep_times, p, a, i, e, w, lan, NPT)
     if timing_is_tc:
         tp_to_tc_gradient_orbit(rdc, p, e, w)
-    ev = eccentricity_vector(i, e, w, lan)
+    ev, dev = eccentricity_vector_d(i, e, w, lan)
     tpa = -mean_anomaly_at_transit(e, w) / TWO_PI * p
     times = tpa + np.linspace(-2.3 * p, 3.1 * p, 97)
-    r_f, r_df = true_anomaly_od(times, tpa, p, ev[0], ev[1], ev[2], w, dt, ep_table, ep_times, rc, rdc,
+    r_f, r_df = true_anomaly_od(times, tpa, p, ev[0], ev[1], ev[2], w, dev, dt, ep_table, ep_times, rc, rdc,
                                 timing_is_tc)
     table = ep_table.astype(np.int32)
     coeffs, dcoeffs = flat(rc), flat(rdc)
     df = np.empty(7)
     for k, t in enumerate(times):
-        f = lib.true_anomaly_od(t, tpa, p, ev[0], ev[1], ev[2], w, dt, table, ep_times, coeffs, dcoeffs,
-                                int(timing_is_tc), df)
+        f = lib.true_anomaly_od(t, tpa, p, ev[0], ev[1], ev[2], w, flat(dev), dt, table, ep_times, coeffs,
+                                dcoeffs, int(timing_is_tc), df)
         np.testing.assert_allclose(f, r_f[k], rtol=1e-12, atol=1e-12)
         np.testing.assert_allclose(df, r_df[k], rtol=1e-10, atol=1e-10 * np.abs(r_df).max())

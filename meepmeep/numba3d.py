@@ -142,7 +142,8 @@ from .backends.numba.orbit3dd import (
 # --- Dimension-agnostic primitives ------------------------------------
 from .backends.numba.expansion_points import create_expansion_points
 from .backends.numba.utils import (tc_to_tp_gradient, tp_to_tc_gradient,
-                                   tp_to_tc_gradient_orbit)
+                                   tp_to_tc_gradient_orbit,
+                                   eccentricity_vector, eccentricity_vector_d)
 
 __all__ = [
     "bounding_box",
@@ -171,6 +172,8 @@ __all__ = [
     "cos_v_p_angle_ovdp",
     "cos_v_p_angle_ovp",
     "create_expansion_points",
+    "eccentricity_vector",
+    "eccentricity_vector_d",
     "ep_ix",
     "emission_phase_curve",
     "emission_phase_curve_c",

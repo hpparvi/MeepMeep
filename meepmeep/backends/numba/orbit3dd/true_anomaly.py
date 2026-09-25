@@ -17,8 +17,9 @@
 """Multi-expansion-point true-anomaly evaluators with parameter derivatives.
 
 The geometric definition uses the angle between the planet position vector
-and the eccentricity vector. Differentiating that (with the prograde sign
-correction from the mean anomaly) gives a well-defined gradient everywhere except at
+and the eccentricity vector. Differentiating that with respect to both
+vectors (with the prograde sign correction from the mean anomaly) gives a
+well-defined gradient everywhere except at
 the two singular configurations ``edp = +-1`` (planet on the apsidal line).
 At those ep_times the analytic derivative diverges; we set it to zero so
 downstream gradient-based fits don't get a NaN. The circular fast path
@@ -72,7 +73,7 @@ def _circular_w(t, tpa, p, w, timing_is_tc, df):
 
 
 @njit
-def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     """Scalar kernel for :func:`true_anomaly_od`. See that function for documentation."""
     df = zeros(7)
     nes = ex * ex + ey * ey + ez * ez
@@ -112,7 +113,10 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, 
     for k in range(7):
         dxdote = dx[k] * ex + dy[k] * ey + dz[k] * ez
         xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
-        dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
+        xdotdev = x * dev[0, k] + y * dev[1, k] + z * dev[2, k]
+        edotdev = ex * dev[0, k] + ey * dev[1, k] + ez * dev[2, k]
+        dedp = ((dxdote + xdotdev) / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
+                - xdote * edotdev / (nes * sqrt_r2_nes))
         df_k = -dedp / denom
         df[k] = df_k if sign > 0.0 else -df_k
     # Period-folding chain term (see position._pos_ow).
@@ -121,7 +125,7 @@ def _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, 
 
 
 @njit
-def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     """Vector kernel for :func:`true_anomaly_od`. See that function for documentation."""
     n = times.size
     f = zeros(n)
@@ -165,16 +169,18 @@ def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeff
             f[j] = base if sign > 0.0 else 2.0 * pi - base
             # d(arccos(edp))/dtheta = -dedp/sqrt(1 - edp^2)
             denom = sqrt(1.0 - edp * edp)
-            inv_r2 = 1.0 / r2
             for k in range(7):
-                # edp = dot(x, e)/(r |e|). Treat |e| (and ex,ey,ez) as constants
-                # for this routine - they're inputs. d(edp)/dtheta_k
-                # = dot(dx, e)/(r |e|) - dot(x, e) dot(x, dx)/(r^3 |e|)
+                # edp = dot(x, e)/(r |e|), with both x and the eccentricity
+                # vector e depending on the parameters (de = dev[:, k]):
+                # d(edp)/dtheta_k = (dot(dx, e) + dot(x, de))/(r |e|)
+                #                 - dot(x, e) dot(x, dx)/(r^3 |e|) - dot(x, e) dot(e, de)/(r |e|^3)
                 xdote = x * ex + y * ey + z * ez
                 dxdote = dx[k] * ex + dy[k] * ey + dz[k] * ez
                 xdotdx = x * dx[k] + y * dy[k] + z * dz[k]
-                dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
-                # Equivalent: dedp = (dxdote * r2 - xdote * xdotdx * inv_r2 * r2) ... keep clarity.
+                xdotdev = x * dev[0, k] + y * dev[1, k] + z * dev[2, k]
+                edotdev = ex * dev[0, k] + ey * dev[1, k] + ez * dev[2, k]
+                dedp = ((dxdote + xdotdev) / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
+                        - xdote * edotdev / (nes * sqrt_r2_nes))
                 df_k = -dedp / denom
                 df[j, k] = df_k if sign > 0.0 else -df_k
             # Period-folding chain term (see position._pos_ow).
@@ -183,7 +189,7 @@ def true_anomaly_ovd(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeff
 
 
 @njit(parallel=True)
-def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     """Parallel (prange) twin of :func:`true_anomaly_ovd`.
 
     Mirrors the serial vector body (rather than looping the scalar kernel)
@@ -235,7 +241,10 @@ def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coef
                 xdote = x * ex + y * ey + z * ez
                 dxdote = dx[kk] * ex + dy[kk] * ey + dz[kk] * ez
                 xdotdx = x * dx[kk] + y * dy[kk] + z * dz[kk]
-                dedp = dxdote / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
+                xdotdev = x * dev[0, kk] + y * dev[1, kk] + z * dev[2, kk]
+                edotdev = ex * dev[0, kk] + ey * dev[1, kk] + ez * dev[2, kk]
+                dedp = ((dxdote + xdotdev) / sqrt_r2_nes - xdote * xdotdx / (r2 * sqrt_r2_nes)
+                        - xdote * edotdev / (nes * sqrt_r2_nes))
                 df_k = -dedp / denom
                 df[j, kk] = df_k if sign > 0.0 else -df_k
             # Period-folding chain term (see position._pos_ow).
@@ -243,7 +252,7 @@ def true_anomaly_ovdp(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coef
     return f, df
 
 
-def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
     """True anomaly and its orbital-parameter derivatives.
 
     Accepts a scalar time ``t`` or a 1-D array of times and dispatches to the
@@ -272,6 +281,12 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
         Argument of periastron [radians]. Used only by the circular fast path,
         whose transit-centre-basis gradient depends on it through the
         mean anomaly at transit.
+    dev : NDArray, shape (3, 7)
+        Jacobian of ``(ex, ey, ez)`` with respect to ``(tc, p, a, i, e, w, lan)``,
+        from :func:`~meepmeep.numba3d.eccentricity_vector_d`. The
+        eccentricity vector turns with ``w`` and ``lan``, so this term is what
+        cancels the position gradients' ``w`` and ``lan`` dependence. Pass
+        zeros to hold the vector constant. Unused by the circular fast path.
     dt, ep_table, ep_times, coeffs, dcoeffs
         Multi-expansion-point dispatch arrays from :func:`solve3d_orbit_d` /
         :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`.
@@ -289,10 +304,9 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
         for an array ``t``.
     df : NDArray
         Gradient w.r.t. ``(tc, p, a, i, e, w, lan)``. Shape (7,) for a scalar
-        ``t``, (N, 7) for an array ``t``. The ``ex, ey, ez, w`` inputs are
-        treated as known constants - they are functions of the orbital
-        parameters but the dependency is captured implicitly through the
-        geometric chain rule on the position vector.
+        ``t``, (N, 7) for an array ``t``. The eccentricity vector enters
+        through ``dev``, so the gradient is the full derivative when ``dev``
+        comes from :func:`~meepmeep.numba3d.eccentricity_vector_d`.
 
     Notes
     -----
@@ -303,18 +317,21 @@ def true_anomaly_od(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dc
     the mean anomaly at transit taken at ``e = 0`` in its basis transform.
     """
     if isinstance(t, ndarray):
-        return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
-    return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
+        return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
+    return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
 
 
 @overload(true_anomaly_od)
-def _true_anomaly_od_overload(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+def _true_anomaly_od_overload(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs,
+                              timing_is_tc=True):
     if _is_1d_array(t):
-        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
-            return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
+        def impl(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+            return true_anomaly_ovd(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs,
+                                    timing_is_tc)
         return impl
     if isinstance(t, types.Float):
-        def impl(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
-            return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc)
+        def impl(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs, timing_is_tc=True):
+            return _true_anomaly_osd(t, tpa, p, ex, ey, ez, w, dev, dt, ep_table, ep_times, coeffs, dcoeffs,
+                                     timing_is_tc)
         return impl
     return None

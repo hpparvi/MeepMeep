@@ -20,7 +20,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from meepmeep.orbit import Orbit
-from meepmeep.backends.numba.utils import eccentricity_vector
+from meepmeep.backends.numba.utils import eccentricity_vector_d
 from meepmeep.backends.numba.orbit3dd import (
     pos_od,
     vel_od,
@@ -220,10 +220,10 @@ class TestUnderlyingParity:
 
     def test_true_anomaly(self, orbit_deriv):
         o = orbit_deriv
-        ev = eccentricity_vector(o._i, o._e, o._w, o._lan)
+        ev, dev = eccentricity_vector_d(o._i, o._e, o._w, o._lan)
         _, df = o.true_anomaly()
         _, df_r = true_anomaly_od(
-            o.times, o._tp, o._p, ev[0], ev[1], ev[2], o._w,
+            o.times, o._tp, o._p, ev[0], ev[1], ev[2], o._w, dev,
             o._dt, o._ep_table, o._ep_times, o._coeffs, o._dcoeffs,
         )
         assert_allclose(df, df_r, rtol=RTOL_DERIV)
@@ -575,3 +575,59 @@ class TestLightTravelTimeBasis:
             assert ok.mean() >= 0.9, (
                 f"{timing} basis, {name} column: only {ok.mean():.0%} of points "
                 f"within tolerance; max violation {err[~ok].max():.3e}")
+
+
+# ---------------------------------------------------------------------------
+# Full true-anomaly gradient
+# ---------------------------------------------------------------------------
+
+class TestTrueAnomalyFullGradient:
+    """``Orbit.true_anomaly`` differentiates the eccentricity vector too.
+
+    The eccentricity vector is a function of ``(i, e, w, lan)``, so holding it
+    constant loses its rotation with ``w`` and ``lan`` (the ``w`` slot was off
+    by O(1) and the ``lan`` slot, which must vanish, by a few 1e-2). Central
+    differences through a value-mode ``Orbit`` keep the expansion-point grid
+    fixed, because the ``e`` step stays far below the grid-rebuild tolerance.
+    """
+
+    NAMES = ("tc", "p", "a", "i", "e", "w", "lan")
+
+    @staticmethod
+    def _times(p):
+        # Multi-epoch samples around transit plus two phase-curve points. The
+        # offsets keep every sample off an apsis (where the kernel zeroes df) and
+        # off an ep_table bucket edge (a multiple of 1/tres in phase), where a
+        # timing perturbation switches the expansion point and FD sees a jump.
+        off = np.linspace(-0.2, 0.2, 9) + 0.0137
+        return np.sort(np.concatenate([off, 3 * p + off, [0.3137 * p, 2.7337 * p]]))
+
+    @pytest.mark.parametrize("timing", ["tc", "tp"])
+    @pytest.mark.parametrize("pars", [
+        dict(p=3.0, a=8.5, i=np.radians(88.0), e=0.5, w=np.radians(60.0), lan=0.3),
+        dict(p=5.0, a=15.0, i=1.55, e=0.1, w=2.4, lan=-1.1),
+    ], ids=["high_e", "low_e"])
+    def test_matches_finite_differences(self, timing, pars):
+        pars = dict(pars, **{timing: 0.0})
+        times = self._times(pars["p"])
+        o = Orbit(npt=15, derivatives=True)
+        o.set_pars(**pars)
+        o.set_data(times)
+        _, df = o.true_anomaly()
+
+        ov = Orbit(npt=15)
+        ov.set_data(times)
+        keys = (timing,) + self.NAMES[1:]
+        h = 1e-6
+        for k, name in enumerate(keys):
+            pp, pm = dict(pars), dict(pars)
+            pp[name] += h
+            pm[name] -= h
+            ov.set_pars(**pp)
+            fp = ov.true_anomaly()
+            ov.set_pars(**pm)
+            fm = ov.true_anomaly()
+            fd = np.mod(fp - fm + np.pi, 2 * np.pi) - np.pi
+            fd /= 2 * h
+            assert_allclose(df[:, k], fd, rtol=1e-6, atol=1e-6,
+                            err_msg=f"{timing} basis, slot {self.NAMES[k]}")

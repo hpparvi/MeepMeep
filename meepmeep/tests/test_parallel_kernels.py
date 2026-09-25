@@ -39,7 +39,7 @@ from meepmeep.backends.numba.orbit3dd import (
     emission_phase_curve_ovd, emission_phase_curve_ovdp,
     light_travel_time_ovd, light_travel_time_ovdp,
 )
-from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit, eccentricity_vector
+from meepmeep.backends.numba.utils import TWO_PI, mean_anomaly_at_transit, eccentricity_vector, eccentricity_vector_d
 from meepmeep.orbit import Orbit
 
 NPT = 15
@@ -174,8 +174,9 @@ class TestGradientKernelParity:
 
     def test_true_anomaly(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, ev = setup
+        dev = eccentricity_vector_d(PARS["i"], PARS["e"], PARS["w"])[1]
         _compare(true_anomaly_ovd, true_anomaly_ovdp,
-                 (t, tpa, p, ev[0], ev[1], ev[2], PARS["w"], dt, pkt, pts, c, dc))
+                 (t, tpa, p, ev[0], ev[1], ev[2], PARS["w"], dev, dt, pkt, pts, c, dc))
 
     def test_lambert_phase_curve(self, setup):
         t, tpa, p, dt, pkt, pts, c, dc, _ = setup

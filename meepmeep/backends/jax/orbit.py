@@ -152,9 +152,9 @@ class JaxOrbit:
     def true_anomaly(self, times):
         """True anomaly [radians] in ``[0, 2 pi)``.
 
-        Unlike :meth:`meepmeep.orbit.Orbit.true_anomaly` with derivatives, the
-        eccentricity vector is differentiated too, so the gradient is the
-        full derivative of the true anomaly. The eccentricity vector is
+        The eccentricity vector is differentiated too, so the gradient is the
+        full derivative of the true anomaly, as in
+        :meth:`meepmeep.orbit.Orbit.true_anomaly`. The eccentricity vector is
         rotated by ``lan`` together with the positions.
         """
         ex, ey, ez = eccentricity_vector(self.i, self.e, self.w, self.lan)

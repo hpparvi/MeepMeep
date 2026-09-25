@@ -17,7 +17,7 @@
 """Orbital-mechanics utilities: anomaly conversions, transit geometry, and gradient basis transforms."""
 
 from numba import njit
-from numpy import pi, arctan2, sqrt, sin, cos, arccos, mod, copysign, sign, array, arcsin
+from numpy import pi, arctan2, sqrt, sin, cos, arccos, mod, copysign, sign, array, arcsin, zeros
 from numpy.typing import NDArray
 from scipy.constants import G
 
@@ -80,6 +80,66 @@ def eccentricity_vector(i, e, w, lan=0.0):
         return array([c_o*ex0 - s_o*ey0, s_o*ex0 + c_o*ey0, ez])
     else:
         return array([-1.0, 0.0, 0.0])
+
+
+@njit(fastmath=True)
+def eccentricity_vector_d(i, e, w, lan=0.0):
+    """Compute the eccentricity vector and its orbital-parameter Jacobian.
+
+    Parameters
+    ----------
+    i : float
+        Orbital inclination [radians].
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron [radians].
+    lan : float, optional
+        Longitude of the ascending node [radians]. Defaults to 0.0.
+
+    Returns
+    -------
+    ev : NDArray, shape (3,)
+        The eccentricity vector, identical to :func:`eccentricity_vector`.
+    dev : NDArray, shape (3, 7)
+        Partial derivatives of ``ev`` with respect to
+        ``(tc, p, a, i, e, w, lan)``; row ``k`` is component ``k``. The
+        timing, period and ``a`` columns are zero, so the Jacobian is the
+        same in the transit-centre and periastron bases. Zero for the
+        circular sentinel (``e <= 1e-5``).
+
+    Notes
+    -----
+    Pass ``dev`` to :func:`~meepmeep.numba3d.true_anomaly_od` for the full
+    true-anomaly gradient: the eccentricity vector turns with ``w`` and
+    ``lan`` (and tilts with ``i``), which the position gradients alone do
+    not capture.
+    """
+    dev = zeros((3, 7))
+    if e <= 1e-5:
+        return array([-1.0, 0.0, 0.0]), dev
+    ci = cos(i)
+    si = sin(i)
+    cw = cos(w)
+    sw = sin(w)
+    c_o = cos(lan)
+    s_o = sin(lan)
+    ex0 = -e*cw
+    ey0 = -e*sw*ci
+    ez = e*sw*si
+    ex = c_o*ex0 - s_o*ey0
+    ey = s_o*ex0 + c_o*ey0
+    # Pre-rotation partials (d/di, d/de, d/dw) of (ex0, ey0, ez); the lan
+    # rotation acts on the (x, y) rows only.
+    for k, dx0, dy0, dz in ((3, 0.0, e*sw*si, e*sw*ci),
+                            (4, -cw, -sw*ci, sw*si),
+                            (5, e*sw, -e*cw*ci, e*cw*si)):
+        dev[0, k] = c_o*dx0 - s_o*dy0
+        dev[1, k] = s_o*dx0 + c_o*dy0
+        dev[2, k] = dz
+    dev[0, 6] = -ey
+    dev[1, 6] = ex
+    return array([ex, ey, ez]), dev
 
 
 @njit

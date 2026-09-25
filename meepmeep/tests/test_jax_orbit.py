@@ -96,9 +96,9 @@ def test_gradients(name, method, timing):
 @pytest.mark.parametrize("name", ["eccentric", "high_e"])
 @pytest.mark.parametrize("timing", ["tc", "tp"])
 def test_true_anomaly(name, timing):
-    """Values match numba and the exact solution (lan != 0 in both orbits); the
-    gradient matches numba in the (tc|tp, p, a) slots, where numba's constant
-    eccentricity vector makes no difference."""
+    """Values match numba and the exact solution (lan != 0 in both orbits), and the
+    full 7-slot gradient matches numba: both differentiate the eccentricity vector
+    along with the positions."""
     times = _times(name)
     nb = _numba_orbit(name, timing, times, derivatives=True)
     ctor = JaxOrbit.from_tc if timing == "tc" else JaxOrbit.from_tp
@@ -111,10 +111,10 @@ def test_true_anomaly(name, timing):
     # vector that ignores the node would miss by the node angle (0.4 rad here).
     assert np.abs(np.angle(np.exp(1j * (f_nb - exact)))).max() < 1e-2
 
-    def f(t0, p, a):
-        return ctor(t0, p, a, *ORBITS[name][2:], grid=grid).true_anomaly(times)
+    def f(t0, p, a, i, e, w, lan):
+        return ctor(t0, p, a, i, e, w, lan, grid=grid).true_anomaly(times)
 
-    assert_grad_close(jacobian(f, 3, TC, *ORBITS[name][:2]), df_nb[:, :3], rtol=1e-8)
+    assert_grad_close(jacobian(f, 7, TC, *ORBITS[name]), df_nb, rtol=1e-8)
 
 
 def test_mean_anomaly():

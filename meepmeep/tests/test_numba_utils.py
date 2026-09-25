@@ -12,6 +12,7 @@ from numpy.testing import assert_allclose
 
 from meepmeep.backends.numba.utils import (
     eccentricity_vector,
+    eccentricity_vector_d,
     eclipse_time_offset,
     transit_distance_factor,
     i_from_baew,
@@ -73,6 +74,37 @@ class TestEccentricityVector:
         """At i = pi/2 (edge-on), ey vanishes since cos(i) = 0."""
         vec = eccentricity_vector(HALF_PI, 0.5, 0.7)
         assert_allclose(vec[1], 0.0, atol=1e-15)
+
+
+class TestEccentricityVectorD:
+    """Eccentricity vector with its Jacobian in (tc, p, a, i, e, w, lan)."""
+
+    @pytest.mark.parametrize("i, e, w, lan", [(1.2, 0.4, 0.6, 0.0), (1.53, 0.7, 2.9, 0.4),
+                                              (0.5, 0.05, -1.1, -2.0)])
+    def test_value_matches_eccentricity_vector(self, i, e, w, lan):
+        ev, _ = eccentricity_vector_d(i, e, w, lan)
+        assert_allclose(ev, eccentricity_vector(i, e, w, lan), rtol=1e-14, atol=1e-16)
+
+    @pytest.mark.parametrize("i, e, w, lan", [(1.2, 0.4, 0.6, 0.0), (1.53, 0.7, 2.9, 0.4),
+                                              (0.5, 0.05, -1.1, -2.0)])
+    def test_jacobian_matches_finite_differences(self, i, e, w, lan):
+        _, dev = eccentricity_vector_d(i, e, w, lan)
+        assert dev.shape == (3, 7)
+        # The vector does not depend on the timing, the period, or a.
+        assert_allclose(dev[:, :3], 0.0, atol=0.0)
+        h = 1e-6
+        x = np.array([i, e, w, lan])
+        for col, k in zip((3, 4, 5, 6), range(4)):
+            xp, xm = x.copy(), x.copy()
+            xp[k] += h
+            xm[k] -= h
+            fd = (eccentricity_vector(*xp) - eccentricity_vector(*xm)) / (2 * h)
+            assert_allclose(dev[:, col], fd, rtol=1e-8, atol=1e-10, err_msg=f"column {col}")
+
+    def test_circular_sentinel_has_zero_jacobian(self):
+        ev, dev = eccentricity_vector_d(1.5, 1e-7, 0.4, 0.3)
+        assert_allclose(ev, [-1.0, 0.0, 0.0])
+        assert_allclose(dev, 0.0, atol=0.0)
 
 
 # ============================================================

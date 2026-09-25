@@ -172,13 +172,14 @@ class TestSpecial:
         assert_grad_close(jacobian(f, 7, timing, *pars), dval)
 
     def test_true_anomaly(self, name, basis):
-        """numba treats the eccentricity vector as constant; closing over it as numpy constants does the same."""
+        """With dev = 0 numba holds the eccentricity vector constant; closing over it as numpy constants
+        does the same."""
         pars, tpa, dt, ep_table, ep_times, times = _setup(name)
         p, a, i, e, w, lan = pars
         ex, ey, ez = nb_eccentricity_vector(i, e, w, lan)
         coeffs, dcoeffs = _numba_dcoeffs(ep_times, pars, basis)
-        f_nb, df_nb = numba3d.true_anomaly_od(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs,
-                                              basis == "tc")
+        f_nb, df_nb = numba3d.true_anomaly_od(times, tpa, p, ex, ey, ez, w, np.zeros((3, 7)), dt, ep_table, ep_times,
+                                              coeffs, dcoeffs, basis == "tc")
         f_j = jax3d.true_anomaly_o(times, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs)
         assert_allclose(np.asarray(f_j), f_nb, rtol=1e-12, atol=1e-12)
         f = _model(lambda t, tpa_, p_, *rest: jax3d.true_anomaly_o(t, tpa_, p_, ex, ey, ez, w, *rest),

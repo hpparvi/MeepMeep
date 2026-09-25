@@ -32,7 +32,8 @@ from meepmeep.backends.numba.orbit3dd import (solve3d_orbit_d, pos_od, zpos_od,
                                               star_planet_distance_od,
                                               light_travel_time_od)
 from meepmeep.backends.numba.utils import (TWO_PI, mean_anomaly_at_transit,
-                                           eccentricity_vector, tc_to_tp_gradient)
+                                           eccentricity_vector, eccentricity_vector_d,
+                                           tc_to_tp_gradient)
 from meepmeep.tests.opencl_utils import (build, get_queue, has_fp64, upload,
                                          upload_ep_table, output_buffer, read_back)
 
@@ -64,12 +65,14 @@ SCALAR_GRAD_KERNELS = {
     'cos_v_p_angle_od': (
         'cos_v_p_angle_od(vx, vy, vz, t[i], tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, g)',
         ('vx', 'vy', 'vz', 'tpa', 'p', 'dt'), 7),
+    # true_anomaly_od gets its eccentricity vector and Jacobian from the device
+    # eccentricity_vector_d (see ta_od_elements below), which tests both.
     'true_anomaly_od': (
-        'true_anomaly_od(t[i], tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, 1, g)',
-        ('tpa', 'p', 'ex', 'ey', 'ez', 'w', 'dt'), 7),
+        'ta_od_elements(t[i], tpa, p, inc, e, w, lan, dt, ep_table, ep_times, coeffs, dcoeffs, 1, g)',
+        ('tpa', 'p', 'inc', 'e', 'w', 'lan', 'dt'), 7),
     'true_anomaly_od_tp': (
-        'true_anomaly_od(t[i], tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs, dcoeffs, 0, g)',
-        ('tpa', 'p', 'ex', 'ey', 'ez', 'w', 'dt'), 7),
+        'ta_od_elements(t[i], tpa, p, inc, e, w, lan, dt, ep_table, ep_times, coeffs, dcoeffs, 0, g)',
+        ('tpa', 'p', 'inc', 'e', 'w', 'lan', 'dt'), 7),
     'lambert_phase_curve_od': (
         'lambert_phase_curve_od(t[i], ag, k, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, g)',
         ('ag', 'k', 'tpa', 'p', 'dt'), 9),
@@ -97,6 +100,16 @@ def _scalar_grad_kernel_source(name, call, scalar_names, ng):
 
 
 EXTRA_KERNELS = """
+REAL ta_od_elements(REAL t, REAL tpa, REAL p, REAL inc, REAL e, REAL w, REAL lan,
+                    REAL dt, __global const int *ep_table, __global const REAL *ep_times,
+                    __global const REAL *coeffs, __global const REAL *dcoeffs,
+                    int timing_is_tc, REAL *g) {
+    REAL ev[3], dev[21];
+    eccentricity_vector_d(inc, e, w, lan, ev, dev);
+    return true_anomaly_od(t, tpa, p, ev[0], ev[1], ev[2], w, dev, dt, ep_table, ep_times,
+                           coeffs, dcoeffs, timing_is_tc, g);
+}
+
 __kernel void k_pos_od(__global const REAL *t, const REAL tpa, const REAL p,
                        const REAL dt, __global const int *ep_table,
                        __global const REAL *ep_times, __global const REAL *coeffs,
@@ -183,7 +196,8 @@ def extra_pars(orbit, tpa, dt):
     return {'tpa': tpa, 'p': p, 'aa': a, 'inc': i, 'e': e, 'w': w, 'dt': dt,
             'k': 0.1, 'ag': 0.3, 'al': 1.2, 'mq': 1e-3, 'fr': 1e-3, 'off': 0.3,
             'vx': V_FIXED[0], 'vy': V_FIXED[1], 'vz': V_FIXED[2],
-            'ex': ev[0], 'ey': ev[1], 'ez': ev[2]}
+            'ex': ev[0], 'ey': ev[1], 'ez': ev[2], 'lan': 0.0,
+            'dev': eccentricity_vector_d(i, e, w, 0.0)[1]}
 
 
 def scalar_values(name, x):
@@ -225,9 +239,9 @@ NUMBA_REF = {
     'cos_v_p_angle_od': lambda t, s, x: cos_v_p_angle_od(
         np.array(V_FIXED), t, x['tpa'], x['p'], *s),
     'true_anomaly_od': lambda t, s, x: true_anomaly_od(
-        t, x['tpa'], x['p'], x['ex'], x['ey'], x['ez'], x['w'], *s, True),
+        t, x['tpa'], x['p'], x['ex'], x['ey'], x['ez'], x['w'], x['dev'], *s, True),
     'true_anomaly_od_tp': lambda t, s, x: true_anomaly_od(
-        t, x['tpa'], x['p'], x['ex'], x['ey'], x['ez'], x['w'], *s, False),
+        t, x['tpa'], x['p'], x['ex'], x['ey'], x['ez'], x['w'], x['dev'], *s, False),
     'lambert_phase_curve_od': lambda t, s, x: lambert_phase_curve_od(
         t, x['ag'], x['k'], x['tpa'], x['p'], *s),
     'ev_signal_od': lambda t, s, x: ev_signal_od(
@@ -321,12 +335,12 @@ class TestTrueAnomalyBranches:
         orbit = (pars['p'], pars['a'], pars['i'], pars['e'], pars['w'])
         times, tpa, dt, ep_table, ep_times, coeffs, dcoeffs = setup_orbit(orbit)
         x = extra_pars(orbit, tpa, dt)
-        x.update(ex=-1.0, ey=0.0, ez=0.0)
+        assert pars['e'] <= 1e-5  # the device eccentricity_vector_d gives the sentinel
         v_cl, g_cl = run_grad(program, name, times,
                               scalar_values(name, x),
                               ep_table, ep_times, coeffs, dcoeffs, 7)
         v_nb, g_nb = true_anomaly_od(times, tpa, pars['p'], -1.0, 0.0, 0.0,
-                                     pars['w'], dt, ep_table, ep_times,
+                                     pars['w'], np.zeros((3, 7)), dt, ep_table, ep_times,
                                      coeffs, dcoeffs, timing_is_tc)
         assert np.any(g_nb[:, 5] != 0.0) == timing_is_tc
         np.testing.assert_allclose(v_cl, v_nb, rtol=RTOL, atol=ATOL)

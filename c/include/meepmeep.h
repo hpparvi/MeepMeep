@@ -192,6 +192,15 @@ double mean_anomaly_at_transit(double ecc, double w);
 double mean_anomaly_at_transit_with_derivatives(double ecc, double w,
                                                 double *dm_de, double *dm_dw);
 
+/* Eccentricity vector `ev` (3 values) and its Jacobian `dev` (3 x 7,
+   row-major, columns (tc, p, a, i, e, w, lan)) in the observer's frame; the
+   (x, y) rows are rotated by the node `lan`. The circular sentinel
+   (e <= 1e-5) gives ev = (-1, 0, 0) and a zero Jacobian. `dev` is the
+   eccentricity-vector input of `true_anomaly_od`. Port of
+   `meepmeep.numba3d.eccentricity_vector_d`. */
+void eccentricity_vector_d(double inc, double e, double w, double lan,
+                           double *ev, double *dev);
+
 /* Python/NumPy float `%` semantics: the result takes the sign of the divisor,
    so it lands in [0, 2pi). C's fmod takes the sign of the dividend instead.
    The numba solvers wrap the mean anomaly with the NumPy convention.
@@ -791,13 +800,17 @@ double cos_v_p_angle_od(double vx, double vy, double vz, double t, double tpa,
    is near-singular). The gradient buffer is zeroed on entry because the
    early-return paths (the circular fast path leaves the a, i and lan slots
    zero; the edp clamps leave all slots zero) rely on it - the numba original
-   allocates with zeros(7). `timing_is_tc` states the basis of dcoeffs; only
+   allocates with zeros(7). `dev` (3 x 7, row-major) is the Jacobian of the
+   eccentricity vector from `eccentricity_vector_d`; zeros hold the vector
+   constant. It lives in private memory like `df`, so a kernel can compute it
+   on the device. `timing_is_tc` states the basis of dcoeffs; only
    the circular fast path, which does not read dcoeffs, uses it (see
    `_circular_w` in the numba module). Port of `meepmeep.numba3d.true_anomaly_od`. */
 double true_anomaly_od(double t, double tpa, double p, double ex, double ey,
-                       double ez, double w, double dt, const int *ep_table,
-                       const double *ep_times, const double *coeffs,
-                       const double *dcoeffs, int timing_is_tc, double *df);
+                       double ez, double w, const double *dev, double dt,
+                       const int *ep_table, const double *ep_times,
+                       const double *coeffs, const double *dcoeffs,
+                       int timing_is_tc, double *df);
 
 /* Lambertian phase curve and derivatives at any phase.
 

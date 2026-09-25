@@ -131,6 +131,47 @@ MM_INLINE REAL mean_anomaly_at_transit_with_derivatives(REAL ecc, REAL w,
 }
 
 
+/* Eccentricity vector `ev` (3 values) and its Jacobian `dev` (3 x 7,
+   row-major, columns (tc, p, a, i, e, w, lan)) in the observer's frame; the
+   (x, y) rows are rotated by the node `lan`. The circular sentinel
+   (e <= 1e-5) gives ev = (-1, 0, 0) and a zero Jacobian. `dev` is the
+   eccentricity-vector input of `true_anomaly_od`. Port of
+   `meepmeep.numba3d.eccentricity_vector_d`. */
+MM_INLINE void eccentricity_vector_d(REAL inc, REAL e, REAL w, REAL lan,
+                                     REAL *ev, REAL *dev) {
+    for (int m = 0; m < 3 * MM_NPAR; m++)
+        dev[m] = (REAL)0.0;
+    if (e <= (REAL)1e-5) {
+        ev[0] = (REAL)-1.0;
+        ev[1] = (REAL)0.0;
+        ev[2] = (REAL)0.0;
+        return;
+    }
+    REAL ci = cos(inc);
+    REAL si = sin(inc);
+    REAL cw = cos(w);
+    REAL sw = sin(w);
+    REAL c_o = cos(lan);
+    REAL s_o = sin(lan);
+    REAL ex0 = -e * cw;
+    REAL ey0 = -e * sw * ci;
+    ev[0] = c_o * ex0 - s_o * ey0;
+    ev[1] = s_o * ex0 + c_o * ey0;
+    ev[2] = e * sw * si;
+    /* Pre-rotation partials of (ex0, ey0, ez) w.r.t. i, e and w (columns 3-5). */
+    REAL d0[3][3] = {{(REAL)0.0, e * sw * si, e * sw * ci},
+                     {-cw, -sw * ci, sw * si},
+                     {e * sw, -e * cw * ci, e * cw * si}};
+    for (int k = 0; k < 3; k++) {
+        dev[3 + k] = c_o * d0[k][0] - s_o * d0[k][1];
+        dev[MM_NPAR + 3 + k] = s_o * d0[k][0] + c_o * d0[k][1];
+        dev[2 * MM_NPAR + 3 + k] = d0[k][2];
+    }
+    dev[6] = -ev[1];
+    dev[MM_NPAR + 6] = ev[0];
+}
+
+
 /* Python/NumPy float `%` semantics: the result takes the sign of the divisor,
    so it lands in [0, 2pi). C's fmod takes the sign of the dividend instead.
    The numba solvers wrap the mean anomaly with the NumPy convention.

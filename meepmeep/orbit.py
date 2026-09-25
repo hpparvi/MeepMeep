@@ -48,7 +48,7 @@ from numpy import arccos, ndarray, mod, argmin, degrees, linspace, clip, sqrt
 
 from .backends.numba.expansion_points import create_expansion_points
 from .backends.numba.newton.newton import xyz_newton_v, ta_newton_v
-from .backends.numba.utils import (mean_anomaly_at_transit, TWO_PI, eccentricity_vector,
+from .backends.numba.utils import (mean_anomaly_at_transit, TWO_PI, eccentricity_vector, eccentricity_vector_d,
                                    tp_to_tc_gradient_orbit)
 from .backends.numba.orbit3d import (solve3d_orbit, pos_o, cos_alpha_o, vel_o,
                                             true_anomaly_o, rv_o, star_planet_distance_o, ev_signal_o,
@@ -409,11 +409,14 @@ class Orbit:
                                       "reference does not provide parameter derivatives.")
         if exact:
             return ta_newton_v(self.times, self._tc, self._p, self._e, self._w)
-        ev = eccentricity_vector(self._i, self._e, self._w, self._lan)
         if self._derivatives:
+            # The eccentricity vector turns with w and lan, so its Jacobian is
+            # part of the true-anomaly gradient.
+            ev, dev = eccentricity_vector_d(self._i, self._e, self._w, self._lan)
             fn = self._select(true_anomaly_od, true_anomaly_ovdp, self.times, self._PARALLEL_NMIN_GRAD)
-            return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt,
+            return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, dev, self._dt,
                       self._ep_table, self._ep_times, self._coeffs, self._dcoeffs, self._timing == "tc")
+        ev = eccentricity_vector(self._i, self._e, self._w, self._lan)
         fn = self._select(true_anomaly_o, true_anomaly_ovp, self.times, self._PARALLEL_NMIN_VALUE)
         return fn(self.times, self._tp, self._p, ev[0], ev[1], ev[2], self._w, self._dt, self._ep_table,
                   self._ep_times, self._coeffs, )
