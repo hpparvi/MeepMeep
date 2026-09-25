@@ -157,7 +157,7 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     division by a near-zero :math:`|\\mathbf{e}|`. ``utils.eccentricity_vector``
     emits the ``(-1, 0, 0)`` sentinel when ``e < 1e-5``, and the test
     here matches that sentinel. On the fast path the true anomaly equals
-    the mean anomaly, :math:`f = 2\\pi(t - t_\\mathrm{pa})/p` - the same
+    the mean anomaly, :math:`f = 2\\pi(t - t_\\mathrm{pa})/p`, the same
     closed form used by the gradient variant ``true_anomaly_od``, so the
     two stay in exact agreement for circular orbits.
     """

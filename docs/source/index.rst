@@ -68,13 +68,13 @@ Two ways to use MeepMeep
 ------------------------
 
 MeepMeep offers two ways in: a low-level API and a convenience high-level
-API. The high-level classes —
-:class:`~meepmeep.expansion2d.Expansion2D`,
+API. The high-level classes
+(:class:`~meepmeep.expansion2d.Expansion2D`,
 :class:`~meepmeep.expansion3d.Expansion3D`, and
-:class:`~meepmeep.orbit.Orbit` — wrap the orbit math behind a stateful
+:class:`~meepmeep.orbit.Orbit`) wrap the orbit math behind a stateful
 object: instantiate one and bind your observation times, then update the
 orbital parameters inside a fitting loop and read out whichever observable you
-need. The low-level functions cover the same ground more directly — they run
+need. The low-level functions cover the same ground more directly: they run
 from plain Python and inside ``@njit`` code, so they drop straight into a
 custom transit or RV model with minimal overhead. Use a class for the batteries-included workflow; use the low-level
 functions when you want the orbit math to inline into your own hot loop.

@@ -80,7 +80,7 @@ the period ``p``, and a trailing optional expansion-point offset ``te`` (default
    the **transit-centre** time (time of inferior conjunction; the orbital
    element the gradient slot 0 is taken with respect to), given on the
    same time axis as the observation times. ``te`` is the **expansion-point offset**
-   from the transit centre — the time at the *center* of a local Taylor
+   from the transit centre, the time at the *center* of a local Taylor
    expansion (an *expansion point*; see :ref:`taylor_overview`), measured relative to
    ``tc``. The same ``te`` value is the ``solve*`` first argument and the
    optional trailing argument of the direct evaluators, which epoch-fold
@@ -106,7 +106,7 @@ on the caller's behalf). Multi-expansion-point dispatchers always reach them
 through a ``ep_table`` lookup that yields a expansion-point index and a
 centered time.
 
-The 2D module follows the same rule — ``pos`` / ``pos_c``, ``sep`` /
+The 2D module follows the same rule: ``pos`` / ``pos_c``, ``sep`` /
 ``sep_c``.
 
 
@@ -129,7 +129,7 @@ Suffix                      Meaning
                             w.r.t. orbital parameters.
 ==========================  ==============================================
 
-These functions accept an additional argument ``dc`` — a ``(7, D, 5)``
+These functions accept an additional argument ``dc``, a ``(7, D, 5)``
 parameter-derivative tensor produced by
 :func:`~meepmeep.backends.numba.point2dd.solve.solve2d_d` or
 :func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d`.
@@ -143,19 +143,19 @@ counterpart.
 Like their value-only twins (``pos`` / ``sep``), the ``_d`` / ``_cd``
 evaluators accept **either** a scalar time **or** a 1-D array of times and
 dispatch via ``numba.extending.overload`` at compile time (inside ``@njit``)
-or at call time (pure Python) — exactly like the ``_o`` / ``_od`` multi-expansion-point
+or at call time (pure Python), exactly like the ``_o`` / ``_od`` multi-expansion-point
 dispatchers below. A scalar time yields a length-7 gradient; a 1-D array of
 length ``N`` yields results with a leading ``N`` axis (e.g. ``sep_d`` returns
 ``d`` of shape ``(N,)`` and ``dd`` of shape ``(N, 7)``). The array path is the
 one used by the high-level ``Expansion2D`` and ``Expansion3D`` methods.
 
 Internally each dispatcher routes to a kernel with the explicit
-``_s`` / ``_v`` (scalar / vector) suffix — e.g. ``_pos_cd_s`` and ``pos_cd_v``,
+``_s`` / ``_v`` (scalar / vector) suffix, e.g. ``_pos_cd_s`` and ``pos_cd_v``,
 present in both the ``point2dd/`` and ``point3dd/`` packages. The **vector**
 kernels (``_v``) are public and re-exported from :mod:`meepmeep.numba2d` /
 :mod:`meepmeep.numba3d`; call them directly when you want to commit to the
 array path and skip the dispatcher's scalar-or-array type check. The
-**scalar** kernels (``_s``) remain private (leading underscore) — reach for
+**scalar** kernels (``_s``) remain private (leading underscore); reach for
 them only when contributing to MeepMeep itself.
 
 The gradient arithmetic itself lives one level deeper, in a private
@@ -175,7 +175,7 @@ kernels built on intermediate position gradients (the ``_cd_vp`` / ``_d_vp``
 kernels of ``rv``, ``cos_alpha``, ``lambert_phase_curve``, ``ev_signal`` and
 ``emission_phase_curve``) reuse a hoisted scratch buffer in their loops, so
 they have explicit hand-written twins with one scratch buffer per thread. The parallel twins
-pay off only for large time grids — the high-level
+pay off only for large time grids; the high-level
 ``Expansion2D(parallel=True)`` / ``Expansion3D(parallel=True)`` opt-ins
 route large grids to them automatically. The non-derivative 3D radial
 velocity (``rv_c`` / ``rv``) is a single ``inline='always'`` function with
@@ -186,9 +186,9 @@ broadcasting, an array of times.
 Multi-expansion-point dispatcher suffix
 ---------------------------------------
 
-When the workflow needs a whole-orbit dispatcher — for example to
+When the workflow needs a whole-orbit dispatcher (for example to
 evaluate a phase curve or an RV time series across an arbitrary range
-of times — the functions in
+of times), the functions in
 :mod:`~meepmeep.backends.numba.orbit3d` look up the appropriate
 expansion point via ``ep_table`` and delegate to a centered evaluator. The public
 surface is a single overloaded entry point per quantity that accepts
@@ -209,13 +209,13 @@ Examples: :func:`~meepmeep.backends.numba.orbit3d.pos_o`,
 :func:`~meepmeep.backends.numba.orbit3dd.rv_od`.
 
 Internally each dispatcher routes to a kernel with the explicit
-``_os`` / ``_ov`` (scalar / vector) suffix — e.g. ``_pos_os`` and
+``_os`` / ``_ov`` (scalar / vector) suffix, e.g. ``_pos_os`` and
 ``pos_ov`` in the ``orbit3d/`` package, ``_pos_osd`` and ``pos_ovd`` in
 the ``orbit3dd/`` package. The **vector** kernels (``_ov`` values, ``_ovd``
 gradients) are public and re-exported from :mod:`meepmeep.numba3d`; call
 them directly to commit to the array path and skip the dispatcher's
 scalar-or-array type check. The **scalar** kernels (``_os`` / ``_osd``)
-remain private — reach for them only when contributing to MeepMeep itself.
+remain private; reach for them only when contributing to MeepMeep itself.
 
 In ``orbit3dd/`` the gradient arithmetic lives in private *write-into*
 kernels with the ``_ow`` suffix (e.g. ``_pos_ow``, ``_zpos_ow``,

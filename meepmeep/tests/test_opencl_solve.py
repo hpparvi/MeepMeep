@@ -43,8 +43,8 @@ NSETS = 400
 LOCAL_SIZE = 64
 
 # fp64 tracks numba to a few ulp over the whole eccentricity range. fp32 is
-# good to ~1e-6 up to e ~ 0.7 and then degrades sharply -- ~1e-5 by e = 0.85 and
-# ~2.5e-4 by e = 0.95 -- so it gets its own, smaller envelope plus an explicit
+# good to ~1e-6 up to e ~ 0.7 and then degrades sharply (~1e-5 by e = 0.85 and
+# ~2.5e-4 by e = 0.95), so it gets its own, smaller envelope plus an explicit
 # high-e test that pins the degradation instead of hiding it.
 #
 # The degradation is conditioning, not a porting error: it lives in the `e`
@@ -169,8 +169,8 @@ def test_extreme_eccentricity_needs_the_kepler_initial_guess(dim):
     Below e ~ 0.97 the guess is a convergence nicety: Newton starting from
     E0 = M reaches the same root, so no test in the ordinary range can tell
     whether the branch is there (a mutation removing it survives the rest of
-    this module). From e ~ 0.99 it becomes load-bearing -- starting at M
-    diverges outright, leaving a Kepler residual of order 1e18 -- so this is
+    this module). From e ~ 0.99 it becomes load-bearing: starting at M
+    diverges outright, leaving a Kepler residual of order 1e18, so this is
     the band that actually pins it.
 
     fp64 only: fp32 cannot resolve this regime (see the envelope test below).

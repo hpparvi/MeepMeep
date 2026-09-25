@@ -8,8 +8,8 @@
  *  produce the coefficient matrices the point2d/point2dd evaluators consume,
  *  so a caller can solve on the device instead of solving on the host and
  *  uploading. Solving one expansion costs about what solving a thousand does
- *  (the launch dominates), so this pays off for batches of parameter sets --
- *  population samplers -- and not for a single set per likelihood call.
+ *  (the launch dominates), so this pays off for batches of parameter sets
+ *  (population samplers) and not for a single set per likelihood call.
  *
  *  Unlike the evaluators these are NOT named with a trailing dimension digit:
  *  the numba names already carry the dimension, so `solve2d` here is

@@ -118,8 +118,8 @@ def emission_phase_curve_od(t, k, fratio, offset, tpa, p, dt, ep_table, ep_times
     (:func:`emission_phase_curve_ovd`) kernel at compile time (inside
     ``@njit``) or at call time (pure Python).
 
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, k, fratio, offset)`` -
-    length 10.
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, k, fratio, offset)``
+    (length 10).
 
     Parameters
     ----------

@@ -97,7 +97,7 @@ def rv_od(t, k, tpa, p, a, i, e, dt, ep_table, ep_times, coeffs, dcoeffs):
     scalar (:func:`_rv_osd`) or vector (:func:`rv_ovd`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, k)`` - length 8.
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, k)`` (length 8).
 
     Parameters
     ----------

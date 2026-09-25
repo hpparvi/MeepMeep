@@ -5,7 +5,7 @@ their ``_d`` variants) take the transit-centre time ``tc`` as their time
 anchor, plus an optional expansion-point offset ``te`` that has the same meaning and
 value as the ``te`` argument of ``solve2d`` / ``solve3d`` (0.0 = expansion point at
 the transit centre). These tests pin that contract with a transit centre
-far from zero - the configuration in which the historical reading of the
+far from zero, the configuration in which the historical reading of the
 second argument as "the expansion-point time" silently produced wrong orbits.
 """
 import numpy as np

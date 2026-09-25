@@ -89,7 +89,7 @@ def rv_cd_vp(time, k, p, a, i, e, c, dc):
     Explicit twin rather than a dual-decorated shared body: the
     z-velocity gradient scratch is hoisted per thread here
     (``zeros((get_num_threads(), 7))``, indexed with ``get_thread_id()``),
-    while the serial kernel keeps its cheaper single hoisted buffer -
+    while the serial kernel keeps its cheaper single hoisted buffer;
     one shared buffer would be a data race under ``prange``.
     """
     nt = time.size
@@ -260,7 +260,7 @@ def rv_d(time: float | NDArray, k: float, tc: float, p: float, a: float, i: floa
         A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
+        Expansion-point offset from the transit centre [days], the same value that
         was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
 

@@ -46,7 +46,7 @@ to use the low-level API.
   eclipse at z < 0. `i = pi/2` is edge-on.
 - "Projected separation" = sqrt(x^2 + y^2) in stellar radii; this is the
   z/b(t) quantity transit light-curve models consume. It is always
-  non-negative and does NOT encode the transit/eclipse branch - use the
+  non-negative and does NOT encode the transit/eclipse branch; use the
   sign of the z coordinate (`zpos*`) for that.
 - Scalar-or-array dispatch: every evaluator accepts a scalar time or a
   1-D float64 array and returns matching shapes (scalar in -> scalar
@@ -84,7 +84,7 @@ low-level variants) returns analytic gradients alongside values:
   `Orbit`/`*_od` family and the direct single-expansion-point `X_d`
   variants) returns TOTAL period derivatives: the `-epoch*p` term in the
   folded evaluation time contributes `epoch` times the timing column to
-  the `p` column, and the kernels include it - consumers must not add it
+  the `p` column, and the kernels include it; consumers must not add it
   again. For the single-expansion-point direct variants the term inherits
   slot 0's Taylor-truncation accuracy, so its error grows linearly with
   the epoch count; prefer the multi-expansion-point family for long
@@ -126,7 +126,7 @@ x, y, z = o.xyz()              # add , dx, dy, dz when derivatives=True
   kernels (identical results). Worth it for N >= ~1e4 (gradients) /
   ~5e4 (values); 3-8x on a 16-core machine. LEAVE IT OFF when the
   application already parallelises at process level (e.g. one process
-  per MCMC chain) - nested thread pools oversubscribe the machine.
+  per MCMC chain): nested thread pools oversubscribe the machine.
 
 ## High-level API: Expansion2D (single expansion point, near-transit, 2D)
 
@@ -156,17 +156,17 @@ for circular orbits); the geometry methods then return the eclipse's
 contact times. Accuracy degrades away from the expansion point as the fifth
 power of the distance (~1e-5 R_star at +-0.02 p for a hot Jupiter); do not
 use Expansion2D for full-orbit quantities. The contact/duration methods
-return garbage, not NaN, for non-transiting or grazing geometries - check
+return garbage, not NaN, for non-transiting or grazing geometries. Check
 `min_separation()` first.
 `Expansion2D(..., parallel=True)` multi-threads the position/separation
 methods for large grids (>= ~1e4 points in derivative mode, ~1e5 in
-value mode; identical results) - same caveat as Orbit's `parallel` flag
+value mode; identical results), with the same caveat as Orbit's `parallel` flag
 about process-level parallelism.
 
 ## High-level API: Expansion3D (single expansion point, near-transit, 3D)
 
 The 3D counterpart of Expansion2D: one Taylor expansion at a single phase,
-but keeping the full 3D motion - so it exposes the line-of-sight `z`, the
+but keeping the full 3D motion, so it exposes the line-of-sight `z`, the
 velocity vector, radial velocity, phase angle, and the phase-curve
 observables (the `Orbit` quantity set, restricted to a single event
 window). Same construction signature, `tc`-only anchor, and `te` /
@@ -191,7 +191,7 @@ k3.bounding_box(k); k3.min_separation(guess=0.0)
 ```
 
 Gradient widths (derivatives=True): the pure-geometry methods AND
-`radial_velocity(k)` return width 7 (the orbital block only - note `k` is
+`radial_velocity(k)` return width 7 (the orbital block only; note `k` is
 a pure linear scale here and carries NO derivative column, unlike
 `Orbit.radial_velocity`, which returns width 8). `lambert_phase_curve(ag, k)`
 -> 9 `(..., ag, k)`; `ellipsoidal_variation(alpha, mass_ratio)` -> 9
@@ -330,13 +330,13 @@ program = cl.Program(ctx, src + my_kernel_src).build(options=build_options("doub
   numba function (numba inlines that logic) and no such comment. Resolve
   that dotted path for the full docstring (argument semantics, units,
   shapes, gradient ordering), and use the twin itself as the CPU oracle
-  when validating a kernel - fp64 builds agree with numba to ~1e-12.
+  when validating a kernel: fp64 builds agree with numba to ~1e-12.
 - Naming: single-expansion-point functions carry a trailing dimension
   digit replacing the numba package split (`pos_c2`/`pos_c3`,
   `sep_cd2`/`sep_cd3`); the multi-expansion-point `_o`/`_od` evaluators
   and the dimension-agnostic helpers (`lambert_kernel`, `rv_scale`,
-  `ep_ix`, ...) are unsuffixed. Only scalar forms exist - the kernel
-  NDRange supplies the loop - and numba's optional arguments (`te`,
+  `ep_ix`, ...) are unsuffixed. Only scalar forms exist (the kernel
+  NDRange supplies the loop), and numba's optional arguments (`te`,
   `lan`, `timing_is_tc`, and the solvers' `from_periastron`) are
   mandatory (pass `(REAL)0.0` / 0/1).
 - Consumer contract: upload C-contiguous flattened coefficient arrays
@@ -403,7 +403,7 @@ The exact Newton-Raphson reference solvers live in
 deep import): `xyz_newton_v(times, tc, p, a, i, e, w)`,
 `ta_newton_v(times, tc, p, e, w)`, `rv_newton_v(times, k, tc, p, e, w)`.
 These anchor at the TRANSIT centre and are the ground truth the package
-itself is tested against - prefer them as oracles in downstream tests
+itself is tested against. Prefer them as oracles in downstream tests
 (typical agreement: ~1e-3 absolute over a full period at npt=15,
 much better near transit). When finite-difference-testing gradients,
 sample a narrow near-transit window; timing/period perturbations can

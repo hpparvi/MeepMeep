@@ -7,7 +7,7 @@ Orbit class overview
 built for the workflow that dominates exoplanet light-curve and
 radial-velocity work: instantiate the class once, bind the time array
 of your observations with :meth:`~meepmeep.orbit.Orbit.set_data`, and
-then — inside a modelling or fitting loop —
+then, inside a modelling or fitting loop,
 just update the orbital parameters and read out the quantities you
 need. The expensive per-orbit setup happens once; each iteration costs
 one small Taylor solve plus the requested observable.
@@ -59,7 +59,7 @@ at construction time and unpack the extra arrays:
 
    x, y, z, dx, dy, dz = o.xyz()           # values plus (N, 7) gradients
 
-The shape contract is the same for every observable — see
+The shape contract is the same for every observable; see
 :ref:`orbit_derivative_mode` below.
 
 
@@ -168,7 +168,7 @@ available afterwards regardless of which form you used.
 (With ``w = 90`` degrees the transit falls on periastron, :math:`M_\mathrm{tr} = 0`,
 and the two anchors coincide.)
 
-Passing both ``tc`` and ``tp``, or neither, raises ``TypeError`` — the
+Passing both ``tc`` and ``tp``, or neither, raises ``TypeError``; the
 call site is always explicit about which convention it uses. The
 remaining elements (``p, a, i, e, w``, and the optional ``lan``, the
 longitude of the ascending node, default 0.0) are keyword-only too; this
@@ -198,7 +198,7 @@ unconditionally by methods that do not expose ``times`` at all
 :meth:`~meepmeep.orbit.Orbit.light_travel_time`).
 
 You can rebind the grid as often as you like without recomputing the
-Taylor coefficients — :meth:`~meepmeep.orbit.Orbit.set_data` only
+Taylor coefficients: :meth:`~meepmeep.orbit.Orbit.set_data` only
 stores the array.
 
 Inputs, units and conventions
@@ -328,7 +328,7 @@ gradient-returning form. The shape contract is uniform:
 
 The trailing axis ``ndp`` is the number of differentiable parameters.
 The first seven slots are always the orbital block
-``(tc, p, a, i, e, w, lan)`` — with ``tp`` replacing ``tc`` when the orbit
+``(tc, p, a, i, e, w, lan)``, with ``tp`` replacing ``tc`` when the orbit
 is bound by periastron time (see `Convention bridge`_ below); some methods
 append physical extras:
 
@@ -350,7 +350,7 @@ append physical extras:
 
 The ``rstar`` derivative of
 :meth:`~meepmeep.orbit.Orbit.light_travel_time` is intentionally not
-returned — only the 7 orbital derivatives.
+returned; only the 7 orbital derivatives.
 
 For the gradient math (Kepler implicit-differentiation step,
 orbital-plane derivative chain, evaluator-level chain rules) see
@@ -372,6 +372,6 @@ paths, and :meth:`~meepmeep.orbit.Orbit.plot` with ``show_exact=True``.
 If you ever drop down to the Taylor backend directly, note that its
 multi-expansion-point dispatchers
 (:func:`~meepmeep.backends.numba.orbit3d.pos_o` and friends)
-take a ``tpa`` argument that is the periastron-anchored time — not the
+take a ``tpa`` argument that is the periastron-anchored time, not the
 transit-center time. See :ref:`taylor_overview` for the low-level
 convention and :ref:`taylor_two_modes` for when to drop down at all.

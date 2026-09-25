@@ -6,7 +6,7 @@ Expansion3D class overview
 :class:`~meepmeep.expansion3d.Expansion3D` is the 3D counterpart of
 :class:`~meepmeep.expansion2d.Expansion2D`. It builds a *single*
 4th-order Taylor expansion of the planet's trajectory at one chosen phase
-— typically the transit or eclipse centre — but unlike the 2D class it
+(typically the transit or eclipse centre), but unlike the 2D class it
 keeps the full three-dimensional motion, so it exposes the line-of-sight
 :math:`z` coordinate, the velocity vector, the radial velocity, the phase
 angle, and the reflected-light, thermal-emission, and
@@ -24,7 +24,7 @@ the simpler plain-``tc`` time anchor of ``Expansion2D``.
 The trade is the same as for ``Expansion2D``: a single expansion point is
 accurate only in the time window the series covers (a transit, an
 eclipse, a fixed-phase snapshot). For quantities that must be correct at
-*every* phase — a full-orbit RV curve or phase curve — reach for
+*every* phase (a full-orbit RV curve or phase curve), reach for
 :class:`~meepmeep.orbit.Orbit`, which stitches a grid of expansion points
 across the whole period.
 
@@ -80,8 +80,8 @@ Construction
 ------------
 
 :class:`~meepmeep.expansion3d.Expansion3D` takes the same arguments as
-:class:`~meepmeep.expansion2d.Expansion2D` — the six required orbital
-elements plus ``lan``, ``te``, ``derivatives``, and ``parallel``:
+:class:`~meepmeep.expansion2d.Expansion2D` (the six required orbital
+elements plus ``lan``, ``te``, ``derivatives``, and ``parallel``):
 
 =====================    ============================================================
 Argument                 Meaning
@@ -94,7 +94,7 @@ Argument                 Meaning
                          ``te = 0`` (the default) expands the series at the transit
                          centre; use a non-zero offset to centre the expansion at,
                          e.g., the secondary eclipse. Fixed for the lifetime of the
-                         instance — rebinding via
+                         instance; rebinding via
                          :meth:`~meepmeep.expansion3d.Expansion3D.set_pars` reuses it.
 ``derivatives``          If ``True``, every observable also returns analytic
                          parameter derivatives.
@@ -134,40 +134,40 @@ the docstrings, surfaced on the API page; this section is a tour.
 **Geometry (methods, no extra inputs).** All are evaluated at the bound
 times and, in units of the stellar radius:
 
-- :meth:`~meepmeep.expansion3d.Expansion3D.position` — the 3D sky-frame
+- :meth:`~meepmeep.expansion3d.Expansion3D.position`: the 3D sky-frame
   :math:`(x, y, z)` position. ``x``, ``y`` span the sky plane; ``z`` is
   the line of sight, positive toward the observer (transit at
   :math:`z > 0`, secondary eclipse at :math:`z < 0`).
-- :meth:`~meepmeep.expansion3d.Expansion3D.z_position` — the
+- :meth:`~meepmeep.expansion3d.Expansion3D.z_position`: the
   line-of-sight :math:`z` coordinate alone.
-- :meth:`~meepmeep.expansion3d.Expansion3D.projected_separation` — the
+- :meth:`~meepmeep.expansion3d.Expansion3D.projected_separation`: the
   sky-projected separation :math:`d = \sqrt{x^2 + y^2}`, the quantity a
   transit light-curve model consumes directly.
-- :meth:`~meepmeep.expansion3d.Expansion3D.velocity` — the
+- :meth:`~meepmeep.expansion3d.Expansion3D.velocity`: the
   :math:`(v_x, v_y, v_z)` velocity vector [R_star/day].
-- :meth:`~meepmeep.expansion3d.Expansion3D.z_velocity` — the
+- :meth:`~meepmeep.expansion3d.Expansion3D.z_velocity`: the
   line-of-sight velocity component alone.
-- :meth:`~meepmeep.expansion3d.Expansion3D.cos_phase` — the cosine of the
+- :meth:`~meepmeep.expansion3d.Expansion3D.cos_phase`: the cosine of the
   orbital phase angle, :math:`\cos\alpha = -z/r`, in :math:`[-1, 1]`.
 
 **Observables with physical inputs (methods).** These take a few extra
 arguments beyond the bound orbit:
 
-- :meth:`~meepmeep.expansion3d.Expansion3D.radial_velocity` ``(k)`` —
+- :meth:`~meepmeep.expansion3d.Expansion3D.radial_velocity` ``(k)``:
   stellar radial velocity, with ``k`` the RV semi-amplitude; the output
   inherits ``k``'s units.
 - :meth:`~meepmeep.expansion3d.Expansion3D.lambert_phase_curve`
-  ``(ag, k)`` — reflected-light phase curve, as a planet-to-star flux
+  ``(ag, k)``: reflected-light phase curve, as a planet-to-star flux
   ratio, for geometric albedo ``ag`` and radius ratio ``k``. Note the
   order: :meth:`meepmeep.orbit.Orbit.lambert_phase_curve` takes
   ``(k, ag)``, so pass them by keyword when switching classes.
 - :meth:`~meepmeep.expansion3d.Expansion3D.ellipsoidal_variation`
-  ``(alpha, mass_ratio)`` — ellipsoidal-variation signal as a relative
+  ``(alpha, mass_ratio)``: ellipsoidal-variation signal as a relative
   flux variation, for the gravity-darkening coefficient ``alpha`` and the
   planet-to-star mass ratio :math:`M_p/M_\star`; the orbital inclination is
   taken from the bound parameters automatically.
 - :meth:`~meepmeep.expansion3d.Expansion3D.emission_phase_curve`
-  ``(k, fratio, offset)`` — thermal-emission phase curve from a simple
+  ``(k, fratio, offset)``: thermal-emission phase curve from a simple
   cosine model, as a planet-to-star flux ratio: ``fratio`` is the
   dayside-to-nightside flux ratio (the peak-to-peak swing is
   :math:`k^2 f_\mathrm{ratio}`) and ``offset`` the hotspot offset in
@@ -219,7 +219,7 @@ The observables with physical inputs append their extra derivatives
    not 8: ``k`` enters as a pure linear scale, so it carries no separate
    derivative column here. (The whole-orbit
    :meth:`~meepmeep.orbit.Orbit.radial_velocity` does append a ``k``
-   column, giving width 8 — a deliberate difference between the two
+   column, giving width 8, a deliberate difference between the two
    entry points.)
 
 For the gradient math (Kepler implicit-differentiation step,

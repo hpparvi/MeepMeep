@@ -195,7 +195,7 @@ def emission_phase_curve(time: float | NDArray, k: float, fratio: float, offset:
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
+        Expansion-point offset from the transit centre [days], the same value that
         was passed to `solve3d`. Defaults to 0.0, the expansion point at the
         transit centre.
 

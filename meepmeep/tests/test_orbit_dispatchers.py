@@ -145,7 +145,7 @@ class TestNjitDispatch:
             return rv_o(t, k, a["tpa"], p, a_, i_, e_, a["dt"],
                         a["pkt"], a["pts"], a["c"])
 
-        # Numba closes over a["tpa"] etc. — instead, pass everything.
+        # Numba closes over a["tpa"] etc.; instead, pass everything.
         @njit
         def caller_full(t, k_, tpa, p_, a__, i__, e__, dt, pkt, pts, c):
             return rv_o(t, k_, tpa, p_, a__, i__, e__, dt, pkt, pts, c)

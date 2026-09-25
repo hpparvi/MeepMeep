@@ -1,7 +1,7 @@
 """Parity tests for the direct single-expansion-point 3D velocity evaluators.
 
 The direct ``vel`` / ``vel_d`` evaluators are "epoch-fold, then call the
-centered ``vel_c`` / ``vel_cd``" — the absolute observation time is folded
+centered ``vel_c`` / ``vel_cd``": the absolute observation time is folded
 into a single orbital epoch around the expansion point at ``tc + te`` before
 the 4th-order velocity polynomial is evaluated. These tests pin that
 contract three ways:
@@ -85,7 +85,7 @@ class TestVelEpochFolding:
 
     @pytest.mark.parametrize("nepoch", [-3, -1, 1, 4])
     def test_vel_d_periodic(self, coeffs, in_epoch_times, nepoch):
-        """Values and gradients repeat across epochs - except the period
+        """Values and gradients repeat across epochs, except the period
         column, which gains the epoch chain term ``nepoch * d/dtc`` from the
         ``-epoch*p`` dependence of the folded evaluation time."""
         c, dc = coeffs

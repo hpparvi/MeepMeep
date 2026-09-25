@@ -4,8 +4,8 @@ The ``point2d``/``point3d`` value evaluators accept a scalar time or a 1-D
 array of times. These tests pin that the array path returns exactly what a
 loop over scalar calls returns, both from pure Python and from inside an
 ``@njit`` caller (where the dispatch happens at compile time). They guard
-the implementation of the array path - originally NumPy broadcasting, now
-explicit loop kernels - against behavioural drift.
+the implementation of the array path (originally NumPy broadcasting, now
+explicit loop kernels) against behavioural drift.
 """
 import numpy as np
 import pytest

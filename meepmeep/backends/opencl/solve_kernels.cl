@@ -16,7 +16,7 @@
  *  candidate parameter vectors evaluated together.
  *
  *  Input layout. `pars` is the C-contiguous (nsets, 7) array of
- *  (te, p, a, i, e, w, lan) rows -- note the leading `te`, the expansion-point
+ *  (te, p, a, i, e, w, lan) rows. Note the leading `te`, the expansion-point
  *  time relative to the anchor, which is per parameter set rather than a
  *  kernel-wide constant so one launch can solve at different expansion points.
  *

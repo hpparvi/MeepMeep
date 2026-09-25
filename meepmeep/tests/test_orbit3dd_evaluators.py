@@ -627,7 +627,7 @@ class TestLightTravelTime:
         p, e, w = pars["p"], pars["e"], pars["w"]
         _, dltt = light_travel_time_od(times, tc, p, e, w, rstar,
                                           dt, pkt, pts, c, dc)
-        # FD for the (a, i, e, w) slots — these don't require rebuilding the
+        # FD for the (a, i, e, w) slots; these don't require rebuilding the
         # coefficient arrays except via the e, w dependence of to. We FD
         # holding the coefficient arrays fixed (per the package's existing
         # convention for the dcoeffs derivatives): perturb only e and w in
@@ -734,7 +734,7 @@ class TestEVSignalOrbitalGradientRegression:
                 fd = (value(hi) - value(lo)) / (2 * h)
             # A timing-like perturbation can remap isolated samples across an
             # expansion-point lookup boundary, where the FD (not the analytic
-            # column) picks up an O(accuracy)/h artifact -- so require the
+            # column) picks up an O(accuracy)/h artifact, so require the
             # bulk of the points to agree instead of every single one. The
             # bug this guards against broke every point by order unity.
             err = np.abs(dev[:, slot] - fd)

@@ -110,7 +110,7 @@ def lambert_phase_curve_od(t, ag, k, tpa, p, dt, ep_table, ep_times, coeffs, dco
     (:func:`lambert_phase_curve_ovd`) kernel at compile time (inside
     ``@njit``) or at call time (pure Python).
 
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, ag, k)`` - length 9.
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, ag, k)`` (length 9).
 
     Parameters
     ----------

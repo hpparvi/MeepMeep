@@ -120,7 +120,7 @@ def ev_signal_cd_vp(time, alpha, mass_ratio, inc, c, dc):
     Explicit twin rather than a dual-decorated shared body: the
     position-gradient scratch is hoisted per thread here
     (``zeros((get_num_threads(), 7))``, indexed with ``get_thread_id()``),
-    while the serial kernel keeps its cheaper single hoisted buffers -
+    while the serial kernel keeps its cheaper single hoisted buffers;
     a shared buffer would be a data race under ``prange``.
     """
     n = time.size
@@ -282,7 +282,7 @@ def ev_signal_d(time: float | NDArray, alpha: float, mass_ratio: float, inc: flo
         A (7, 3, 5) parameter-derivative tensor produced by `solve3d_d`,
         with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
+        Expansion-point offset from the transit centre [days], the same value that
         was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
 

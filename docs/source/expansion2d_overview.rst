@@ -7,7 +7,7 @@ Expansion2D class overview
 door for transit geometry. Where :class:`~meepmeep.orbit.Orbit` builds a
 grid of expansion points spanning the whole orbit in 3D,
 ``Expansion2D`` builds a *single* 4th-order Taylor expansion of the
-sky-plane trajectory at one chosen phase — typically the transit or eclipse
+sky-plane trajectory at one chosen phase, typically the transit or eclipse
 centre. That is exactly enough for a transit light-curve model, which
 only ever needs the planet's position and its sky-projected separation
 from the star in the narrow time window around conjunction.
@@ -123,7 +123,7 @@ Argument                 Meaning
                          ``te = 0`` (the default) expands the series at the transit
                          centre; use a non-zero offset to centre the expansion at,
                          e.g., the secondary eclipse. The expansion-point time is
-                         fixed for the lifetime of the instance — rebinding via
+                         fixed for the lifetime of the instance; rebinding via
                          :meth:`~meepmeep.expansion2d.Expansion2D.set_pars` reuses it.
 ``derivatives``          If ``True``, the position and separation also return
                          analytic parameter derivatives.
@@ -139,7 +139,7 @@ elements as keyword-only arguments and re-solves the ``(2, 5)``
 coefficient matrix (a new array replaces the old one, so keep no references
 to internal state across calls). ``lan`` is optional and resets to 0 when
 omitted; ``te`` keeps its construction value. The time anchor is always ``tc`` (time of
-inferior conjunction) — there is no ``tp`` alternative, because a single
+inferior conjunction). There is no ``tp`` alternative, because a single
 expansion point carries no periastron-anchored grid to convert to.
 
 .. code-block:: python
@@ -171,7 +171,7 @@ methods. Both expect absolute observation times in days; the
 evaluators epoch-fold around the expansion point internally.
 
 You can rebind the grid as often as you like without recomputing the
-Taylor coefficients — :meth:`~meepmeep.expansion2d.Expansion2D.set_data`
+Taylor coefficients: :meth:`~meepmeep.expansion2d.Expansion2D.set_data`
 only stores the array.
 
 
@@ -187,7 +187,7 @@ lives in the docstrings, surfaced on the API page; this section is a tour.
 :math:`(x, y)` position at the bound times, in units of the stellar
 radius. :meth:`~meepmeep.expansion2d.Expansion2D.projected_separation`
 returns the sky-projected separation between the centers of the star and
-planet, :math:`d = \sqrt{x^2 + y^2}`, in the same units — the quantity a
+planet, :math:`d = \sqrt{x^2 + y^2}`, in the same units, the quantity a
 transit light-curve model consumes directly.
 
 **Transit geometry (methods).** These search the coefficient matrix
@@ -239,7 +239,7 @@ gradient-returning form:
 
 The trailing axis of every gradient is the orbital block
 ``(tc, p, a, i, e, w, lan)``, in that order. There are no method-specific
-extras here — unlike the photometry and RV observables of
+extras here: unlike the photometry and RV observables of
 :class:`~meepmeep.orbit.Orbit`, the 2D position and separation depend
 only on the orbital elements.
 

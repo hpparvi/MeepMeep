@@ -183,7 +183,7 @@ def ev_signal(time: float | NDArray, alpha: float, mass_ratio: float, inc: float
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
+        Expansion-point offset from the transit centre [days], the same value that
         was passed to `solve3d`. Defaults to 0.0, the expansion point at the
         transit centre.
 

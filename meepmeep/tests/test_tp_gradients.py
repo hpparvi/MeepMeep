@@ -68,7 +68,7 @@ def test_tc_to_tp_gradient_closed_form():
 
 def test_tc_to_tp_gradient_spot_check_circular():
     """Independent check: for e=0, w=0 the mean anomaly at transit is pi/2,
-    so the period-row correction factor M_tr/(2 pi) is exactly 0.25 -- a
+    so the period-row correction factor M_tr/(2 pi) is exactly 0.25, a
     hand-derived constant that does not reuse the implementation's formula."""
     rng = np.random.default_rng(1)
     dc = rng.standard_normal((7, 3, 5))
@@ -287,8 +287,8 @@ def test_tp_rv_gradient_vs_finite_difference():
     Unlike the projected separation (whose w- and i-sensitivity vanishes at
     transit), the radial velocity has genuine sensitivity to all of
     (tp, p, a, i, e, w), so this finite-difference check independently
-    validates the e- and w-rows that the tc->tp transform modifies -- the
-    motivating science case. Same near-transit single-expansion-point window as the
+    validates the e- and w-rows that the tc->tp transform modifies (the
+    motivating science case). Same near-transit single-expansion-point window as the
     separation check. The analytic gradient is that of the evaluated
     polynomial, so every column agrees with the finite difference to round-off.
     """

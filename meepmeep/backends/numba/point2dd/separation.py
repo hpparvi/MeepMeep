@@ -191,7 +191,7 @@ def sep_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
         A (7, 2, 5) parameter-derivative tensor produced by `solve2d_d`,
         with the leading axis ordered as `(tc, p, a, i, e, w, lan)`.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
+        Expansion-point offset from the transit centre [days], the same value that
         was passed to `solve2d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
 

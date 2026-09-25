@@ -110,6 +110,8 @@ The Claude Code skill at `.claude/skills/meepmeep/` bundles a snapshot of it as
 
 **Voice and audience.** Documentation prose is targeted at PhD-level astrophysicists who are comfortable with programming. Keep it informal, informative, and to the point. Favour short sentences in introductory text. The headline performance claim is "up to two orders of magnitude faster than per-point Newton-Raphson".
 
+**No em-dashes.** Documentation and docstrings avoid em-dashes (and the spaced ASCII hyphen " - " that stands in for one in docstrings). Use a comma, semicolon, period, a separate sentence, or parentheses instead, whichever reads most naturally. En-dashes in ranges (3–14×), minus signs, and list markers are not affected.
+
 ## Architecture
 
 ### Core Computational Strategy
@@ -642,6 +644,7 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - Optional arguments are typed `type, optional`, with the default stated in the description ("Defaults to 0.0."), not `type, default X`.
   - Units go in square brackets at the end of the description: `[days]`, `[radians]`, `[R_star]`, `[R_star / day]`. The long-form "in units of the stellar radius" is only for the first-use projected-separation sentence (see the terminology section above).
   - Math uses `:math:` / `.. math::`, never `$...$`.
+  - No em-dashes, and no spaced hyphen (" - ") standing in for one: use a comma, semicolon, period, separate sentence, or parentheses (see "Voice and audience").
   - Parameters shared with a sibling function may be grouped without a type (`tpa, p, dt, ep_table, ep_times, coeffs` followed by "See :func:`pos_o`.").
   - Vector, parallel and scalar kernels carry a one-line pointer docstring ("Vector kernel for :func:`X`. See that function for documentation.") instead of repeating the full docstring.
   - Every module has a one-line module docstring after the license header.

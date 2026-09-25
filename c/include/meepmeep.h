@@ -812,7 +812,7 @@ double cos_v_p_angle_od(double vx, double vy, double vz, double t, double tpa,
    argument sits near +-1 and the 1/sqrt(1 - edp^2) gradient denominator
    is near-singular). The gradient buffer is zeroed on entry because the
    early-return paths (the circular fast path leaves the a, i and lan slots
-   zero; the edp clamps leave all slots zero) rely on it - the numba original
+   zero; the edp clamps leave all slots zero) rely on it; the numba original
    allocates with zeros(7). `dev` (3 x 7, row-major) is the Jacobian of the
    eccentricity vector from `eccentricity_vector_d`; zeros hold the vector
    constant. It lives in private memory like `df`, so a kernel can compute it
@@ -879,7 +879,7 @@ double ltt_transit_z_and_d(double tpa, double p, double e, double w, double dt,
    the timing basis of `dcoeffs` (see ltt_transit_z_and_d); the numba
    default is True (pass 1). A kernel evaluating many times may hoist
    ltt_transit_z_and_d host-side or into a pre-pass, as the numba vector
-   kernels do - that is why the helper is public. Port of
+   kernels do; that is why the helper is public. Port of
    `meepmeep.numba3d.light_travel_time_od`. */
 double light_travel_time_od(double t, double tpa, double p, double e, double w,
                             double rstar, double dt, const int *ep_table,

@@ -36,7 +36,7 @@ polynomial itself, :math:`\partial c_n / \partial t_c = -(n+1)\, c_{n+1}`,
 rather than a derivative propagated through Kepler's equation; see
 :ref:`transit-centre-row` for why that distinction matters. This page
 documents how those derivatives are computed, the explicit formulas at
-each stage, and the practical regime in which they are accurate — useful
+each stage, and the practical regime in which they are accurate, useful
 when you are verifying the math, extending the backend with a new
 observable, or debugging a gradient mismatch.
 
@@ -117,7 +117,7 @@ depends on Kepler's equation lives in Layer A and is computed once per
 expansion point; the per-evaluator math in Layer B is just polynomial
 manipulation and one-line chain rules.
 
-* **Layer A — derivative coefficients.** The solvers
+* **Layer A: derivative coefficients.** The solvers
   :func:`~meepmeep.backends.numba.point2dd.solve.solve2d_d` and
   :func:`~meepmeep.backends.numba.point3dd.solve.solve3d_d` produce
   the Taylor coefficient matrix ``c`` of shape ``(D, 5)`` *and* a
@@ -127,12 +127,12 @@ manipulation and one-line chain rules.
   calculus lives here: Kepler's equation, the orbital-plane state, the
   rotation into the sky frame.
 
-* **Layer B — evaluator propagation.** Every ``_d`` evaluator
+* **Layer B: evaluator propagation.** Every ``_d`` evaluator
   (positions, distances, velocities, RVs, phase-curve outputs) takes
   ``c`` and ``dc`` and reduces them to the final quantity together with
   its gradient: the seven orbital slots (the seventh being the longitude of
   the ascending node), followed by the physical inputs of the quantities
-  that have them — ``(ag, k)`` for the Lambert phase curve and
+  that have them: ``(ag, k)`` for the Lambert phase curve and
   ``(alpha, mass_ratio)`` for the ellipsoidal variation (width 9),
   ``(k, fratio, offset)`` for the emission phase curve (width 10), and
   ``k`` for the multi-expansion-point ``rv_od`` (width 8; the
@@ -176,8 +176,8 @@ are rotated by :math:`R(\Omega)`, and the new :math:`\Omega` row is
 line-of-sight :math:`z` row of the :math:`\Omega` derivative is zero).
 
 
-Step 1 — auxiliary partials
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 1: auxiliary partials
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Several auxiliary quantities depend on only one parameter each, so
 their gradient vectors are sparse:
@@ -203,8 +203,8 @@ with one non-zero entry; the surrounding loops therefore mostly carry
 zeros until eccentricity and orientation enter the chain.
 
 
-Step 2 — mean anomaly at transit
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 2: mean anomaly at transit
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The mean anomaly at the moment of inferior conjunction,
 :math:`M_\text{tr}(e, w)`, is non-trivial in :math:`e` and :math:`w`.
@@ -226,8 +226,8 @@ this composite. The solver stores the result in ``doffset[4]`` and
 ``doffset[5]``.
 
 
-Step 3 — mean anomaly and its gradient
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 3: mean anomaly and its gradient
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The mean anomaly at the expansion-point time :math:`t_k` (the solver's ``te``
 argument, a fixed time measured relative to the transit centre; the
@@ -254,8 +254,8 @@ argument, so its row is assembled from the coefficients at the end
 (:ref:`transit-centre-row`).
 
 
-Step 4 — eccentric anomaly via implicit differentiation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 4: eccentric anomaly via implicit differentiation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Kepler's equation
 
@@ -294,8 +294,8 @@ The partials of :math:`\sin E` and :math:`\cos E` then follow trivially
 by the chain rule.
 
 
-Step 5 — orbital-plane position and velocity
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 5: orbital-plane position and velocity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the orbital plane, with :math:`\xi` along the line to periastron
 and :math:`\eta` perpendicular to it,
@@ -315,8 +315,8 @@ each derivative as a sum of product-rule terms and stores the result
 in ``dr[k]``, ``dxi[k]``, ``deta[k]``, ``dv_xi[k]``, ``dv_eta[k]``.
 
 
-Step 6 — higher-order Taylor terms
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 6: higher-order Taylor terms
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The 4th-order Taylor expansion needs position, velocity, acceleration,
 jerk, and snap at the expansion point. Rather than differentiating
@@ -356,8 +356,8 @@ blocks are :math:`\partial r^{-n} / \partial \theta_k =
 computes once per inverse power and reuses.
 
 
-Step 7 — rotation into the sky frame
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 7: rotation into the sky frame
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The 2D sky-plane projection is a constant rotation depending on
 :math:`(i, w)`:
@@ -414,8 +414,8 @@ output ``dcf`` is the tensor whose entries are exactly the right-hand side
 of this boxed identity.
 
 
-Step 8 — longitude of the ascending node
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 8: longitude of the ascending node
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The node is applied last, as described under the parameter table above:
 the six Kepler-parameter rows and the coefficients are rotated by
@@ -426,8 +426,8 @@ line-of-sight row.
 
 .. _transit-centre-row:
 
-Step 9 — the transit-centre row
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 9: the transit-centre row
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Every evaluator computes a polynomial in the elapsed time,
 :math:`P(\tau) = \sum_{n=0}^{4} c_n \tau^n` with
@@ -799,7 +799,7 @@ Numerical regime and pitfalls
 * **Validity window.** Each expansion point's Taylor expansion is accurate within
   a region around the expansion point whose size depends on the orbit; near
   periastron of an eccentric orbit the window is narrowest. The
-  *gradient* is accurate inside the same region — its truncation error
+  *gradient* is accurate inside the same region; its truncation error
   has the same order as the value's.
 
 * **Projected-separation singularity.** The chain rule for
@@ -822,7 +822,7 @@ Numerical regime and pitfalls
   kernels, which keep strict math because their ``arccos`` argument sits near
   :math:`\pm 1`. In practice this yields
   gradients agreeing with finite-difference checks to roughly
-  :math:`10^{-9}` relative error for typical transit parameters — the
+  :math:`10^{-9}` relative error for typical transit parameters, the
   same envelope the value-only evaluators inhabit.
 
 * **Slot-0 convention.** Slot 0 is the partial with respect to the

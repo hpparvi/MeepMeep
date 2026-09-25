@@ -35,8 +35,8 @@ for the solvers (one work item per orbital parameter set); request it by name
 to get launchable solvers, or omit it and drive the ``solve2d``/``solve3d``
 device functions from your own kernel.
 
-Solving on the device pays off for *batches* of parameter sets -- population
-samplers, where the coefficients then never leave the device -- and not for the
+Solving on the device pays off for *batches* of parameter sets (population
+samplers, where the coefficients then never leave the device) and not for the
 single parameter set per likelihood call that ``Orbit`` and ``Expansion2D``
 issue: a solve kernel is launch-bound at these sizes, so solving one expansion
 costs about what solving a thousand does. Expansion-point placement

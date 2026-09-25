@@ -363,7 +363,7 @@ MM_INLINE void solve3d_d(REAL te, REAL p, REAL a, REAL inc, REAL e, REAL w, REAL
     /* Step 8: longitude of the ascending node. Rotates (x, y) only; z is
        unaffected, so the z component of the lan row stays zero. numba gets
        that zero from `zeros((7, 3, 5))`; private memory here is uninitialised,
-       so it must be written explicitly -- reading it otherwise is UB. */
+       so it must be written explicitly; reading it otherwise is UB. */
     REAL cO = cos(lan);
     REAL sO = sin(lan);
     for (int col = 0; col < 5; ++col) {

@@ -201,7 +201,7 @@ def light_travel_time_od(t, tpa, p, e, w, rstar, dt, ep_table, ep_times, coeffs,
 
     where :math:`t_\\mathrm{transit} = t_\\mathrm{pa} + M_\\mathrm{tr}(e, w)\\,p/(2\\pi)`.
 
-    Per spec, the partial derivative w.r.t. ``rstar`` is *not* returned -
+    Per spec, the partial derivative w.r.t. ``rstar`` is *not* returned;
     only the seven orbital derivatives in the canonical
     ``(tc, p, a, i, e, w, lan)`` order. The reference ``z(t_transit)`` and
     its parameter derivatives are computed by :func:`_ltt_transit_z_and_d`,

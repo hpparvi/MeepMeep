@@ -60,7 +60,7 @@ def sep_o(t, tpa, p, dt, ep_table, ep_times, coeffs):
     scalar (:func:`_sep_os`) or vector (:func:`sep_ov`) kernel at compile time
     (inside ``@njit``) or at call time (pure Python).
 
-    Returns :math:`\\sqrt{x^2 + y^2}` [R_star] -
+    Returns :math:`\\sqrt{x^2 + y^2}` [R_star],
     the quantity transit light-curve models consume directly.
 
     Parameters

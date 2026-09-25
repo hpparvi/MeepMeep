@@ -114,8 +114,8 @@ def ev_signal_od(alpha, mass_ratio, inc, t, tpa, p, dt, ep_table, ep_times, coef
 
     Time argument is the 4th positional.
 
-    Derivative ordering: ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)`` -
-    length 9.
+    Derivative ordering: ``(tc, p, a, i, e, w, lan, alpha, mass_ratio)``
+    (length 9).
 
     Parameters
     ----------

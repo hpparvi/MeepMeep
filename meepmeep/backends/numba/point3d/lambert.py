@@ -22,7 +22,7 @@ and its shared phase kernel (:func:`_lambert_kernel`).
 
 The reflected flux uses the *instantaneous* star-planet distance
 ``r = sqrt(x^2 + y^2 + z^2)`` (in stellar radii) for the inverse-square
-illumination, ``F = (k / r)^2 A_g f(alpha)`` - exact for eccentric orbits, not
+illumination, ``F = (k / r)^2 A_g f(alpha)``, exact for eccentric orbits, not
 just the circular case ``r = a``. The distance and the phase-angle cosine
 ``cos alpha = -z / r`` both come from the position evaluated at the expansion
 point, so no semi-major axis argument is needed. The multi-expansion-point
@@ -211,7 +211,7 @@ def lambert_phase_curve(time: float | NDArray, ag: float, k: float, tc: float, p
     c : NDArray
         A (3, 5) coefficient matrix produced by `solve3d`.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
+        Expansion-point offset from the transit centre [days], the same value that
         was passed to `solve3d`. Defaults to 0.0, the expansion point at the
         transit centre.
 

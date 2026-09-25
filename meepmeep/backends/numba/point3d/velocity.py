@@ -179,7 +179,7 @@ def vel(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
         [position, velocity, acceleration/2, jerk/6, snap/24]
         (i.e. already pre-scaled by the factorial of the Taylor order).
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same
+        Expansion-point offset from the transit centre [days], the same
         value that was passed to `solve3d`. Defaults to 0.0, the expansion
         point at the transit centre.
 

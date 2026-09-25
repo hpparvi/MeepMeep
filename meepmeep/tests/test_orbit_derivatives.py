@@ -9,7 +9,7 @@ Two-part strategy:
 2. **Underlying-function parity**: the derivative output of each method
    exactly matches a direct call to the corresponding ``*_od`` routine
    in ``meepmeep.backends.numba.orbit3dd`` using the same
-   ``coeffs/dcoeffs`` arrays — this confirms the wrapper does no
+   ``coeffs/dcoeffs`` arrays. This confirms the wrapper does no
    unintended math.
 
 Plus a handful of edge cases (``true_anomaly(exact=True)`` guard, ``phase``
@@ -428,7 +428,7 @@ class TestTransitCenterTimeDerivative:
         xp, yp, zp = self._orbit({**PARS, "tc": PARS["tc"] + h}, self.TIMES, False).xyz()
         xm, ym, zm = self._orbit({**PARS, "tc": PARS["tc"] - h}, self.TIMES, False).xyz()
         # Tolerance is set above the multi-expansion-point Taylor truncation (the value
-        # model's own accuracy at npt=15) -- the exact d/dtc identity is proved
+        # model's own accuracy at npt=15); the exact d/dtc identity is proved
         # to machine precision in test_numba_solve{2,3}d; this only guards the
         # sign through the full epoch-fold + expansion point-dispatch path.
         assert_allclose(dx[:, 0], (xp - xm) / (2 * h), rtol=5e-3, atol=1e-2)
@@ -474,7 +474,7 @@ class TestPeriodEpochTerm:
     Velocity-based quantities get a looser tolerance (differentiating the
     Taylor series costs roughly an order of magnitude in accuracy).
     ``true_anomaly`` wraps at periastron passages, so isolated
-    samples straddle a moving 2*pi jump under the perturbation - the bulk
+    samples straddle a moving 2*pi jump under the perturbation; the bulk
     criterion absorbs those, as it does the expansion-point-boundary
     remappings of the other quantities.
     """

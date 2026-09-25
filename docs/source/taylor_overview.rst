@@ -4,7 +4,7 @@ Taylor-series backend overview
 ==============================
 
 This page is for users who want to drop below the
-:class:`~meepmeep.orbit.Orbit` class — to compose custom evaluators,
+:class:`~meepmeep.orbit.Orbit` class: to compose custom evaluators,
 work with the per-expansion-point Taylor coefficients directly, or differentiate
 orbit-derived quantities through their own chain rule. It documents
 the low-level backend that :class:`~meepmeep.orbit.Orbit` uses under
@@ -67,7 +67,7 @@ geometry at a fixed phase. See :ref:`taylor_single_ep`.
 around the full orbit, precompute coefficients at each, and dispatch
 arbitrary input times to the appropriate expansion point via a precomputed
 time-to-expansion-point table. This is the natural mode for whole-orbit
-quantities — radial velocity curves, phase curves, ellipsoidal
+quantities: radial velocity curves, phase curves, ellipsoidal
 variation, light travel time. See :ref:`taylor_multi_ep`.
 
 Coordinate system
@@ -77,9 +77,9 @@ All sky-plane and 3D positions are expressed in an observer-centred
 frame in which the star is at the origin and the planet position is
 measured in units of the stellar radius :math:`R_\star`:
 
-* **X-axis** — points to the right along the projected sky plane.
-* **Y-axis** — points upward along the projected sky plane.
-* **Z-axis** — points toward the observer. Positive :math:`z` is in
+* **X-axis**: points to the right along the projected sky plane.
+* **Y-axis**: points upward along the projected sky plane.
+* **Z-axis**: points toward the observer. Positive :math:`z` is in
   front of the star (transit hemisphere); negative :math:`z` is behind
   (eclipse).
 
@@ -220,13 +220,13 @@ helpers that operate directly on a single ``c``. The contact points come
 from a bisection on the projected separation (to 1e-6 d) and the minimum
 from a golden-section search over +-0.01 d around an initial guess:
 
-* ``t14`` / ``t23`` — total (first-to-fourth contact) and full
+* ``t14`` / ``t23``: total (first-to-fourth contact) and full
   (second-to-third contact) durations.
-* ``t12`` / ``t34`` — ingress and egress durations.
-* ``t1`` / ``t4`` — first and fourth contact times.
-* ``find_contact_point`` — generic contact-point solver.
-* ``find_z_min`` — time of minimum projected separation.
-* ``bounding_box`` — the first- and fourth-contact times ``(t1, t4)``, which
+* ``t12`` / ``t34``: ingress and egress durations.
+* ``t1`` / ``t4``: first and fourth contact times.
+* ``find_contact_point``: generic contact-point solver.
+* ``find_z_min``: time of minimum projected separation.
+* ``bounding_box``: the first- and fourth-contact times ``(t1, t4)``, which
   bound the transit in time, relative to the expansion point.
 
 Because they only need one coefficient matrix, they slot naturally
@@ -278,8 +278,8 @@ Multi-expansion-point orbit-spanning evaluation
 
 A single 4th-order Taylor series is only accurate in a small
 neighbourhood of its expansion point. To evaluate the orbit at *any*
-phase — for whole-orbit observables such as RV curves and phase
-curves — MeepMeep distributes :math:`N` expansion points along one orbital period
+phase (for whole-orbit observables such as RV curves and phase
+curves), MeepMeep distributes :math:`N` expansion points along one orbital period
 and stores a separate coefficient matrix at each. Lookups from an
 input time to the relevant expansion point are done by a precomputed time-to-expansion-point
 table.
@@ -287,10 +287,10 @@ table.
 **Expansion point placement strategies** are selectable via the ``quantity``
 keyword of :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`:
 
-* ``'mm'`` — uniform in mean motion (uniform in time).
-* ``'ea'`` — evenly spaced in eccentric anomaly (default; preferred for
+* ``'mm'``: uniform in mean motion (uniform in time).
+* ``'ea'``: evenly spaced in eccentric anomaly (default; preferred for
   moderate to high eccentricity).
-* ``'ta'`` — evenly spaced in true anomaly.
+* ``'ta'``: evenly spaced in true anomaly.
 
 The ``'ea'`` and ``'ta'`` spacing is :math:`2\pi/N` in anomaly with the
 midpoint expansion point pinned at apoastron, which leaves a gap of 1.5
@@ -314,7 +314,7 @@ input automatically; if you hand-roll the expansion-point grid you must enforce
 this contract yourself.
 
 **Time-to-expansion-point dispatch.** Each multi-expansion-point evaluator carries a
-``ep_table`` argument — a precomputed table that maps the position
+``ep_table`` argument, a precomputed table that maps the position
 within one folded period to a expansion-point index in :math:`O(1)`. The dispatch
 helper is
 :func:`~meepmeep.backends.numba.orbit3d.ep_ix`.
@@ -325,14 +325,14 @@ suffix family from the single-expansion-point evaluators. Each quantity exposes 
 single overloaded dispatcher that accepts either a scalar time or a 1-D
 float64 array of times:
 
-* ``*_o`` — orbit-spanning dispatcher; scalar time gives a scalar
+* ``*_o``: orbit-spanning dispatcher; scalar time gives a scalar
   result, a 1-D array gives an array result.
-* ``*_od`` — the same, returning parameter derivatives as well (these
+* ``*_od``: the same, returning parameter derivatives as well (these
   live in the :mod:`~meepmeep.backends.numba.orbit3dd` package; see
   :ref:`taylor_derivatives`).
 
-Internally each dispatcher routes — at compile time inside ``@njit`` or
-at call time in pure Python — to a private scalar kernel (``_X_os``) or a
+Internally each dispatcher routes (at compile time inside ``@njit`` or
+at call time in pure Python) to a private scalar kernel (``_X_os``) or a
 public vector kernel (``X_ov``). The vector kernel and its parallel twin
 (``X_ovp``), together with their gradient counterparts (``X_ovd`` /
 ``X_ovdp``), are part of the public surface and re-exported from
@@ -346,18 +346,18 @@ positions and velocities, the package
 provides higher-level whole-orbit outputs:
 
 * :func:`~meepmeep.backends.numba.orbit3d.true_anomaly_o`,
-  :func:`~meepmeep.backends.numba.orbit3d.cos_alpha_o` —
+  :func:`~meepmeep.backends.numba.orbit3d.cos_alpha_o`:
   phase-angle quantities.
-* :func:`~meepmeep.backends.numba.orbit3d.star_planet_distance_o`
-  — 3D separation.
-* :func:`~meepmeep.backends.numba.orbit3d.lambert_phase_curve_o`
-  — reflected-light phase curve.
-* :func:`~meepmeep.backends.numba.orbit3d.rv_o` — radial
+* :func:`~meepmeep.backends.numba.orbit3d.star_planet_distance_o`:
+  3D separation.
+* :func:`~meepmeep.backends.numba.orbit3d.lambert_phase_curve_o`:
+  reflected-light phase curve.
+* :func:`~meepmeep.backends.numba.orbit3d.rv_o`: radial
   velocity.
-* :func:`~meepmeep.backends.numba.orbit3d.ev_signal_o` —
+* :func:`~meepmeep.backends.numba.orbit3d.ev_signal_o`:
   ellipsoidal-variation signal.
-* :func:`~meepmeep.backends.numba.orbit3d.light_travel_time_o`
-  — light travel time corrections.
+* :func:`~meepmeep.backends.numba.orbit3d.light_travel_time_o`:
+  light travel time corrections.
 
 **Multi-expansion-point quickstart.** Build the per-orbit structures once and
 evaluate at an array of times:
@@ -463,9 +463,9 @@ For **single-expansion-point gradients**, swap
 ``_d`` counterparts. They return a coefficient matrix ``c`` *and* a
 **derivative tensor** ``dc`` of shape ``(7, D, 5)``:
 
-* Axis 0 — orbital parameter index in the canonical order
+* Axis 0: orbital parameter index in the canonical order
   ``(tc, p, a, i, e, w, lan)``.
-* Axes 1, 2 — spatial dimension and Taylor order, matching ``c``.
+* Axes 1, 2: spatial dimension and Taylor order, matching ``c``.
 
 The ``tc`` row is the derivative of the truncated polynomial the
 evaluators compute (``dc[0, :, n] = -(n + 1) c[:, n + 1]``), not of the
@@ -506,5 +506,5 @@ chain rule
    \frac{\partial d}{\partial \theta} =
        \frac{p_x\, \partial p_x/\partial\theta + p_y\, \partial p_y/\partial\theta}{d},
 
-which is well-behaved as long as :math:`d > 0` — the regime of
+which is well-behaved as long as :math:`d > 0`, the regime of
 interest for transit modelling.

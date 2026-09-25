@@ -255,7 +255,7 @@ class TestContracts:
 
     def test_solve3d_orbit_periodic_boundary(self, test_orbital_params):
         """``solve3d_orbit`` copies the first expansion point's coefficients to the last
-        slot — but that's only correct if ``ep_times[-1]`` is the periodic
+        slot, but that's only correct if ``ep_times[-1]`` is the periodic
         image of ``ep_times[0]``. Pin the contract so a future change to
         ``create_expansion_points`` can't silently break the wrap-around."""
         pars = test_orbital_params["eccentric"]

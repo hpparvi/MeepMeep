@@ -144,7 +144,7 @@ def sep(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
     c : NDArray
         A (2, 5) coefficient matrix produced by `solve2d`.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
+        Expansion-point offset from the transit centre [days], the same value that
         was passed to `solve2d`. Defaults to 0.0, the expansion point at the
         transit centre.
 

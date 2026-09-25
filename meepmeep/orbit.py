@@ -677,7 +677,7 @@ class Orbit:
         Lambert kernel
         :math:`f(\\alpha) = (\\sin\\alpha + (\\pi - \\alpha)\\cos\\alpha)/\\pi`,
         using the instantaneous star-planet distance :math:`r(t)` (in
-        stellar radii) for the inverse-square illumination - exact for
+        stellar radii) for the inverse-square illumination; exact for
         eccentric orbits, not just the circular case :math:`r = a`.
 
         Parameters

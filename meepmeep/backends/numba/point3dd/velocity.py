@@ -235,7 +235,7 @@ def vel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
         parameters in the canonical order `(tc, p, a, i, e, w, lan)`; the
         remaining axes mirror the layout of `c`.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same
+        Expansion-point offset from the transit centre [days], the same
         value that was passed to `solve3d`. Defaults to 0.0, the expansion
         point at the transit centre.
 

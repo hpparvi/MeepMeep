@@ -187,7 +187,7 @@ def zvel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, 
         A (7, 3, 5) parameter-derivative tensor produced by
         `solve3d_d`. Only the slice `dc[:, 2, :]` is read.
     te : float, optional
-        Expansion-point offset from the transit centre [days] - the same value that
+        Expansion-point offset from the transit centre [days], the same value that
         was passed to `solve3d_d`. Defaults to 0.0, the expansion point at the
         transit centre.
 

@@ -2,8 +2,8 @@
 
 **Fast Keplerian orbits for exoplanet modelling.**
 
-MeepMeep computes Keplerian orbit quantities — transit geometry, projected
-separations, radial velocities, and phase curves — using 4th-order Taylor
+MeepMeep computes Keplerian orbit quantities (transit geometry, projected
+separations, radial velocities, and phase curves) using 4th-order Taylor
 expansions around a set of expansion points distributed along the orbit. This
 makes it up to two orders of magnitude faster than per-point Newton-Raphson while
 keeping the approximation error well below the photometric noise of current
@@ -63,7 +63,7 @@ x, y, z, dx, dy, dz = o.xyz()           # gradients w.r.t. (tc, p, a, i, e, w, l
 
 - **Units:** times in days, angles in **radians**, lengths in stellar radii
   (`a` is the scaled semi-major axis `a / R_star`).
-- **Parameter order** (solvers and gradients): `(tc, p, a, i, e, w, lan)` —
+- **Parameter order** (solvers and gradients): `(tc, p, a, i, e, w, lan)`:
   transit-centre time, period, scaled semi-major axis, inclination,
   eccentricity, argument of periastron, longitude of the ascending node.
   `lan` is optional and defaults to `0.0`.
@@ -104,7 +104,7 @@ pytest meepmeep/tests/                                   # full suite
 NUMBA_DISABLE_JIT=1 pytest -m "not slow" --cov           # with coverage
 ```
 
-Coverage must run with the JIT disabled — compiled kernels are invisible to
+Coverage must run with the JIT disabled; compiled kernels are invisible to
 the tracer otherwise.
 
 ## Documentation
