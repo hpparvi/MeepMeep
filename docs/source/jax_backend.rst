@@ -198,23 +198,37 @@ Other differences from numba:
 Performance
 -----------
 
-On a CPU, a jitted JAX model runs at about numba speed once the time grid is
-large, and pays a fixed per-call dispatch overhead when it is small. As a
-rough guide, the projected separation over a whole eccentric orbit on a
-laptop (one-off timings of jitted calls, not a maintained benchmark; the
-absolute numbers vary by machine, the ratios much less):
+On a CPU, a jitted JAX model pays a fixed per-call overhead when the time
+grid is small, and matches or beats numba's serial kernels once it is large.
+Numba's parallel kernels (``sep_ovp``, ``sep_ovdp``, or ``Orbit(parallel=True)``)
+stay ahead wherever they pay off. The table times the projected separation
+over a whole eccentric orbit (``e = 0.3``, ``npt = 15``), evaluated from the
+orbital parameters (coefficient solve plus evaluation), with serial / parallel
+numba kernels. It was measured with ``benchmarks/bench_jax_vs_numba.py`` on an
+AMD Ryzen 7 5800X (8 cores, 16 threads) with JAX 0.11.1 (best of repeated
+calls, after compilation). The absolute numbers vary by machine, and so do the
+ratios to a lesser degree. On a MacBook Pro, JAX ran about as fast as here
+while the serial numba kernels were faster (by about 2x for values and 1.5x for
+gradients at 100 000 points), and ``jax.grad`` cost about twice the ``jacfwd``
+time.
 
-=========  ===========  =========  ==================  ==============
-N          numba value  JAX value  numba (N, 7) grad   JAX ``jacfwd``
-=========  ===========  =========  ==================  ==============
-1 000      7 us         25 us      30 us               130 us
-100 000    0.23 ms      0.17 ms    1.5 ms              1.4 ms
-=========  ===========  =========  ==================  ==============
+=========  ==============  =========  ==================  ==============  ==========
+N          numba value     JAX value  numba (N, 7) grad   JAX ``jacfwd``  JAX
+           (serial / par)             (serial / par)                      ``grad``
+=========  ==============  =========  ==================  ==============  ==========
+1 000      9.5 / 29 us     29 us      35 / 68 us          121 us          101 us
+10 000     49 / 47 us      63 us      234 / 113 us        294 us          332 us
+100 000    0.43 / 0.13 ms  0.19 ms    2.2 / 0.43 ms       1.9 ms          3.1 ms
+1 000 000  4.4 / 0.73 ms   1.1 ms     52 / 15 ms          83 ms           113 ms
+=========  ==============  =========  ==================  ==============  ==========
 
-``jax.grad`` of a scalar likelihood cost about twice the ``jacfwd`` time at
-the larger size. So there is no reason to switch a working numba model. The
+``jax.grad`` of a scalar likelihood costs about 1.5 times the ``jacfwd`` time
+at the larger sizes on this machine. So there is no reason to switch a working
+numba model. The
 JAX backend earns its keep in models that are JAX already (numpyro, blackjax,
-jaxoplanet), in ``vmap`` over many parameter sets, and on accelerators.
+jaxoplanet), in ``vmap`` over many parameter sets, and on accelerators; the
+same script runs the JAX columns on a CUDA device with
+``python benchmarks/bench_jax_vs_numba.py cuda``.
 
 
 API

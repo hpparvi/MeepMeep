@@ -307,9 +307,13 @@ dz = jnp.stack(jax.jacfwd(model, argnums=range(6))(*theta), -1)  # (N, 6)
 - `eccentricity_vector(i, e, w, lan)`: pass the node the coefficients
   were solved with (numba and JAX alike), or the true anomaly is off by
   up to `lan`.
-- On CPU a jitted JAX model is about numba speed at 1e5 points and ~4x
-  slower at 1e3 (dispatch overhead); use it for JAX-native models,
-  `vmap` over parameter sets, or accelerators.
+- On CPU a jitted JAX model is ~3x slower than numba at 1e3 points
+  (dispatch overhead) and faster than numba's serial kernels from ~1e5
+  points, but numba's parallel kernels (`sep_ovp`/`sep_ovdp`,
+  `Orbit(parallel=True)`) stay fastest at large N; `jax.grad` costs
+  ~1.5-2x `jacfwd` depending on the machine. Use JAX for JAX-native models,
+  `vmap` over parameter sets, or accelerators (numbers:
+  `benchmarks/bench_jax_vs_numba.py`, measured on a Ryzen 7 5800X).
 
 ## OpenCL backend (device-function source for user kernels)
 
