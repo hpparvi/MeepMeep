@@ -138,7 +138,7 @@ def create_expansion_points(n_ep: int, e: float, quantity: str = 'ea', tres: int
     """Place expansion points along one orbital period and build the time-to-expansion-point table.
 
     An *expansion point* is a point along the orbit that serves as the
-    center of a local 5th-order Taylor expansion of the planet's trajectory
+    center of a local 4th-order Taylor expansion of the planet's trajectory
     in time. This function distributes ``n_ep`` such expansion centers over
     a single period and records where the dispatch should switch from one
     expansion point to the next.

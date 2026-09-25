@@ -54,7 +54,7 @@ class Expansion3D:
 
         The 3D counterpart of :class:`~meepmeep.expansion2d.Expansion2D`. An
         *expansion point* is a point along the orbit that serves as the center
-        of a local 5th-order Taylor expansion of the planet's trajectory in
+        of a local 4th-order Taylor expansion of the planet's trajectory in
         time. This class builds one such expansion at a chosen expansion-point
         time ``te`` and exposes the full single-expansion-point 3D surface from
         the ``point3d`` / ``point3dd`` backends:
@@ -517,7 +517,9 @@ class Expansion3D:
         guess : float, optional
             Initial guess for the time of minimum separation, as an offset
             in days from the expansion point. Defaults to 0.0 (the expansion
-            point itself).
+            point itself). The golden-section search covers only
+            ``guess +- 0.01`` days; a minimum outside that window returns the
+            window edge.
 
         Returns
         -------

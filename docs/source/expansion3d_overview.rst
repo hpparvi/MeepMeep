@@ -5,7 +5,7 @@ Expansion3D class overview
 
 :class:`~meepmeep.expansion3d.Expansion3D` is the 3D counterpart of
 :class:`~meepmeep.expansion2d.Expansion2D`. It builds a *single*
-5th-order Taylor expansion of the planet's trajectory at one chosen phase
+4th-order Taylor expansion of the planet's trajectory at one chosen phase
 — typically the transit or eclipse centre — but unlike the 2D class it
 keeps the full three-dimensional motion, so it exposes the line-of-sight
 :math:`z` coordinate, the velocity vector, the radial velocity, the phase
@@ -61,6 +61,7 @@ and unpack the extra arrays:
 
 .. code-block:: python
 
+   import numpy as np
    from meepmeep.expansion3d import Expansion3D
 
    o = Expansion3D(tc=0.0, p=3.0, a=8.5, i=np.radians(89.0),
@@ -101,15 +102,23 @@ Argument                 Meaning
                          kernels (see `Parallel evaluation`_).
 =====================    ============================================================
 
+The secondary eclipse is at ``te = eclipse_time_offset(p, i, e, w)`` (from
+:func:`~meepmeep.numba3d.eclipse_time_offset`), which is ``p / 2`` only for a
+circular orbit. ``te`` is fixed for the instance, so it does not follow
+``e`` and ``w`` in a fit; keep the eclipse's drift from the expansion point
+well inside the accurate window (see :ref:`taylor_accuracy`).
+
 :meth:`~meepmeep.expansion3d.Expansion3D.set_pars` accepts the orbital
 elements as keyword-only arguments and re-solves the ``(3, 5)``
 coefficient matrix (and, in derivative mode, the ``(7, 3, 5)`` derivative
-tensor) in place. The time anchor is always ``tc`` (time of inferior
+tensor); new arrays replace the old ones. ``lan`` is optional and resets
+to 0 when omitted; ``te`` keeps its construction value. The time anchor is always ``tc`` (time of inferior
 conjunction); there is no ``tp`` alternative, because a single expansion
 point carries no periastron-anchored grid to convert to.
 
-:meth:`~meepmeep.expansion3d.Expansion3D.set_data` binds the 1-D array of
-absolute observation times evaluated by the observable methods; the
+:meth:`~meepmeep.expansion3d.Expansion3D.set_data` binds the 1-D NumPy array
+(or a scalar) of absolute observation times evaluated by the observable
+methods; a Python list fails inside numba, so wrap it in ``np.asarray``. The
 evaluators epoch-fold around the expansion point internally. Rebind the
 grid as often as you like without recomputing the Taylor coefficients.
 
@@ -148,24 +157,33 @@ arguments beyond the bound orbit:
   stellar radial velocity, with ``k`` the RV semi-amplitude; the output
   inherits ``k``'s units.
 - :meth:`~meepmeep.expansion3d.Expansion3D.lambert_phase_curve`
-  ``(ag, k)`` — reflected-light phase curve for geometric albedo ``ag``
-  and radius ratio ``k``.
+  ``(ag, k)`` — reflected-light phase curve, as a planet-to-star flux
+  ratio, for geometric albedo ``ag`` and radius ratio ``k``. Note the
+  order: :meth:`meepmeep.orbit.Orbit.lambert_phase_curve` takes
+  ``(k, ag)``, so pass them by keyword when switching classes.
 - :meth:`~meepmeep.expansion3d.Expansion3D.ellipsoidal_variation`
-  ``(alpha, mass_ratio)`` — ellipsoidal-variation signal; the orbital
-  inclination is taken from the bound parameters automatically.
+  ``(alpha, mass_ratio)`` — ellipsoidal-variation signal as a relative
+  flux variation, for the gravity-darkening coefficient ``alpha`` and the
+  planet-to-star mass ratio :math:`M_p/M_\star`; the orbital inclination is
+  taken from the bound parameters automatically.
 - :meth:`~meepmeep.expansion3d.Expansion3D.emission_phase_curve`
   ``(k, fratio, offset)`` — thermal-emission phase curve from a simple
-  cosine model.
+  cosine model, as a planet-to-star flux ratio: ``fratio`` is the
+  dayside-to-nightside flux ratio (the peak-to-peak swing is
+  :math:`k^2 f_\mathrm{ratio}`) and ``offset`` the hotspot offset in
+  radians.
 
 **Transit geometry (methods).** Identical to
-:class:`~meepmeep.expansion2d.Expansion2D`: these take a planet-to-star
-radius ratio ``k`` and operate on the coefficient matrix directly, so
-they return absolute times in days —
-:meth:`~meepmeep.expansion3d.Expansion3D.duration` (``kind`` in
-``{14, 23, 12, 34}``),
-:meth:`~meepmeep.expansion3d.Expansion3D.contact_point`,
-:meth:`~meepmeep.expansion3d.Expansion3D.bounding_box`, and
-:meth:`~meepmeep.expansion3d.Expansion3D.min_separation`.
+:class:`~meepmeep.expansion2d.Expansion2D` (see its overview for the
+details): :meth:`~meepmeep.expansion3d.Expansion3D.duration`
+``(k, kind=14)`` returns a duration in days (``kind`` in
+``{14, 23, 12, 34}``);
+:meth:`~meepmeep.expansion3d.Expansion3D.contact_point` ``(k, point)`` and
+:meth:`~meepmeep.expansion3d.Expansion3D.bounding_box` ``(k)`` return
+absolute times; and :meth:`~meepmeep.expansion3d.Expansion3D.min_separation`
+``(guess=0.0)`` takes no ``k``, searches a fixed +-0.01 d window around
+``guess`` (an offset from the expansion point), and returns
+``(t_min, z_min)`` with ``t_min`` absolute.
 
 
 .. _expansion3d_derivative_mode:

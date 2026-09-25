@@ -11,8 +11,15 @@ function names, signatures, and per-function semantics. See
 routines together and :doc:`../naming_conventions` for the suffix
 grammar that explains how the names are constructed.
 
-Every function listed here is :func:`numba.njit`-compiled and operates
-on NumPy arrays. Per-function detail (parameters, shapes, units,
+Every function listed here operates on NumPy arrays and can be called
+both from plain Python and from inside a user :func:`numba.njit` kernel.
+The solvers, the geometric utilities and ``rv``/``rv_c`` are jitted
+functions. The evaluators (``pos``, ``sep_d``, ``pos_o``, ...) are plain
+Python dispatchers registered with :func:`numba.extending.overload`: in
+Python they pick the scalar or vector kernel at call time, inside
+``@njit`` at compile time. :func:`~meepmeep.numba3d.create_expansion_points`
+is plain Python (it uses scipy) and is not callable from ``@njit``.
+Per-function detail (parameters, shapes, units,
 mathematical notes) lives in the source docstrings and is rendered
 below via ``autosummary``.
 
@@ -42,16 +49,16 @@ parameter-derivative tensor.
    solve3d_d
 
 
-Two-dimensional position and distance
--------------------------------------
+Two-dimensional position and separation
+---------------------------------------
 
 Single-expansion-point evaluators for the sky-plane :math:`(x, y)` position and the
-projected planet-star distance :math:`d = \sqrt{x^2 + y^2}`. Each
+projected separation :math:`d = \sqrt{x^2 + y^2}`. Each
 function operates on one ``(2, 5)`` coefficient matrix from
 :func:`~meepmeep.numba2d.solve2d` and is
-sufficient for transit light-curve modelling. The whole-orbit
-dispatchers that batch these calls across a expansion-point grid live in
-:ref:`api.lowlevel.orbit_dispatchers`.
+sufficient for transit light-curve modelling. There is no 2D whole-orbit
+evaluator; the whole-orbit dispatchers in
+:ref:`api.lowlevel.orbit_dispatchers` batch the 3D evaluators below.
 
 .. currentmodule:: meepmeep.numba2d
 
@@ -76,8 +83,8 @@ Parameter-derivative variants:
    sep_cd
 
 
-Three-dimensional position and distance
----------------------------------------
+Three-dimensional position and separation
+-----------------------------------------
 
 Single-expansion-point evaluators that additionally return the line-of-sight
 coordinate :math:`z`. Each function operates on one ``(3, 5)``
@@ -126,6 +133,7 @@ coefficient matrices used by the position evaluators.
    :toctree: generated
 
    vel_c
+   vel
    zvel_c
    zvel
    rv_c
@@ -139,6 +147,7 @@ Parameter-derivative variants:
    :toctree: generated
 
    vel_cd
+   vel_d
    zvel_cd
    zvel_d
    rv_cd
@@ -192,8 +201,9 @@ Parameter-derivative variants:
 Geometric utilities
 -------------------
 
-Contact points, durations, and bounding boxes derived analytically from a
-coefficient matrix.
+Contact points, durations, bounding boxes, and the minimum projected
+separation, found numerically from a coefficient matrix (bisection for the
+contact points, golden-section search for the minimum).
 
 .. currentmodule:: meepmeep.numba2d
 
@@ -210,8 +220,42 @@ coefficient matrix.
    t23
    t34
 
-The 3D module :mod:`meepmeep.numba3d` also exposes the
-same set of helpers operating on ``(3, 5)`` coefficient matrices.
+The 3D module :mod:`meepmeep.numba3d` exposes the same set of helpers,
+operating on ``(3, 5)`` coefficient matrices:
+
+.. currentmodule:: meepmeep.numba3d
+
+.. autosummary::
+   :toctree: generated
+
+   find_contact_point
+   find_z_min
+   bounding_box
+   t1
+   t4
+   t12
+   t14
+   t23
+   t34
+
+None of these signal failure. For a geometry where the planet does not
+transit, or only grazes the star, the contact-point search still returns
+a number, and the durations built from it are meaningless (``t23`` of a
+grazing transit can even come out longer than ``t14``). Check the impact
+parameter first, for example with :func:`find_z_min`.
+
+
+Vector and parallel kernels
+---------------------------
+
+Every evaluator on this page also has public vector kernels that skip the
+scalar-or-array check: ``X_v`` / ``X_vp`` for the single-expansion-point
+evaluators (serial / multi-threaded), and ``X_ov`` / ``X_ovp`` and
+``X_ovd`` / ``X_ovdp`` for the whole-orbit value and gradient dispatchers.
+They take the same arguments as the dispatcher, with a 1-D array of times
+and every optional argument (such as ``te``) passed explicitly, and they are
+not listed individually. :doc:`../naming_conventions` explains the suffixes
+and when the parallel twins pay off.
 
 
 .. _api.lowlevel.orbit_dispatchers:
@@ -221,10 +265,18 @@ Whole-orbit dispatchers (multi-expansion-point)
 
 Whole-orbit evaluators that use a precomputed time-to-expansion-point table
 (``ep_table``) to dispatch each input time to the appropriate expansion point and
-delegate to the centered single-expansion-point evaluators above. Each name is a
-single overloaded dispatcher that accepts either a scalar time or a
-1-D float64 array of times; the ``_o`` suffix denotes the forward
-dispatcher and ``_od`` its gradient-returning counterpart.
+delegate to the centered single-expansion-point evaluators above. Each ``_o``
+name is a single overloaded dispatcher that accepts either a scalar time or a
+1-D float64 array of times, and ``_od`` is its gradient-returning
+counterpart. Most take the time first, ``X_o(t, tpa, p, dt, ep_table,
+ep_times, coeffs)``; four put extra inputs around it:
+``ev_signal_o(alpha, mass_ratio, inc, t, ...)``,
+``cos_v_p_angle_o(v, t, ...)``,
+``true_anomaly_o(t, tpa, p, ex, ey, ez, w, ...)`` and
+``light_travel_time_o(t, tpa, p, e, w, rstar, ...)``. The orbit-setup
+routines listed first are ordinary jitted functions: :func:`~meepmeep.numba3d.solve3d_orbit` builds the coefficient
+stack and :func:`~meepmeep.numba3d.ep_ix` maps one scalar time to its
+expansion point.
 
 .. currentmodule:: meepmeep.numba3d
 
@@ -236,7 +288,7 @@ Orbit setup:
    solve3d_orbit
    ep_ix
 
-Positions and distances:
+Positions, separation and distance:
 
 .. autosummary::
    :toctree: generated
@@ -278,10 +330,10 @@ Light travel time:
 Whole-orbit dispatchers with parameter derivatives
 --------------------------------------------------
 
-Gradient-returning counterparts of the orbit dispatchers above. Every
-function accepts an additional ``dcoeffs`` tensor of shape
-``(N, 7, D, 5)`` (expansion point, parameter, dimension, Taylor order) produced by
-:func:`~meepmeep.numba3d.solve3d_orbit_d`.
+Gradient-returning counterparts of the orbit dispatchers above. Each ``_od``
+dispatcher accepts an additional ``dcoeffs`` tensor of shape
+``(N, 7, 3, 5)`` (expansion point, parameter, dimension, Taylor order) produced by
+:func:`~meepmeep.numba3d.solve3d_orbit_d`, which is listed first.
 
 .. currentmodule:: meepmeep.numba3d
 
@@ -304,6 +356,32 @@ function accepts an additional ``dcoeffs`` tensor of shape
    rv_od
    light_travel_time_od
 
+Orbit geometry helpers: the mean anomaly at transit, which converts the
+transit-centre time to the periastron anchor ``tpa`` the dispatchers take
+(``tpa = tc - M_tr p / 2 pi``); the time of the secondary eclipse relative to
+the transit, the ``te`` of an eclipse expansion; and the eccentricity vector
+and its Jacobian, which :func:`~meepmeep.numba3d.true_anomaly_od` takes.
+
+.. autosummary::
+   :toctree: generated
+
+   mean_anomaly_at_transit
+   eclipse_time_offset
+   eccentricity_vector
+   eccentricity_vector_d
+
+The solvers return gradients in the transit-centre basis
+``(tc, p, a, i, e, w, lan)`` (single expansion point) or in the periastron
+basis ``(tp, p, a, i, e, w, lan)`` (:func:`~meepmeep.numba3d.solve3d_orbit_d`).
+These convert between the two:
+
+.. autosummary::
+   :toctree: generated
+
+   tc_to_tp_gradient
+   tp_to_tc_gradient
+   tp_to_tc_gradient_orbit
+
 
 Expansion point grid construction
 ---------------------------------
@@ -318,6 +396,7 @@ dispatchers are built once per orbit by
    :toctree: generated
 
    create_expansion_points
+   expansion_table_size
 
 The two anomaly helpers below are not part of the aggregator surface
 but remain available at their source path.

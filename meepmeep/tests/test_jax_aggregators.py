@@ -15,7 +15,7 @@ import jax.numpy as jnp  # noqa: E402
 
 from meepmeep import jax2d, jax3d, numba2d, numba3d  # noqa: E402
 
-JAX_ONLY = {"JaxOrbit", "ea_from_ma", "eccentricity_vector", "mean_anomaly_at_transit"}
+JAX_ONLY = {"JaxOrbit", "ea_from_ma"}
 
 
 @pytest.fixture(params=[(jax2d, numba2d), (jax3d, numba3d)], ids=["jax2d", "jax3d"])

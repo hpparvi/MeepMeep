@@ -19,7 +19,7 @@
 The functions in this package evaluate orbital quantities (3D position,
 line-of-sight position, sky-projected separation, velocity, line-of-sight
 velocity, radial velocity) and transit geometry (contact points, durations,
-minimum separation) from a single 5th-order Taylor expansion around one
+minimum separation) from a single 4th-order Taylor expansion around one
 expansion point. The code is organised one module per physical quantity to mirror the
 ``orbit3d`` package layout, plus a ``solve`` module and a ``util`` module.
 

@@ -36,6 +36,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   against drift and checks the library against numba through `ctypes`.
 
 ### Changed
+- `numba3d` exports `mean_anomaly_at_transit` (as `jax3d` already did), which
+  converts the transit-centre time to the periastron anchor `tpa` that the
+  whole-orbit dispatchers take, so the multi-expansion-point workflow no
+  longer needs a deep import.
+- `numba3d` and `jax3d` export `eclipse_time_offset`, the time of the
+  secondary eclipse relative to the transit, which is the `te` of an
+  eclipse-centred `Expansion2D`/`Expansion3D`.
+- The documentation calls the expansion 4th-order (a degree-four polynomial
+  in time with five terms, position through snap) instead of 5th-order.
 - The OpenCL sources are now written against `MM_GLOBAL`, `MM_INLINE` and
   `REAL` macros defined at the top of `common.cl`, so the same files compile
   as OpenCL C and as C99. On the device they expand to `__global` and
@@ -76,8 +85,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `true_anomaly_o`/`_od` and `Orbit.true_anomaly` were wrong (by up to the
   node angle) whenever `lan != 0`. It takes an optional `lan`, and `Orbit`
   passes it.
-
-### Removed
 - `Orbit(derivatives=True).true_anomaly()` returned wrong `w` and `lan`
   gradients for eccentric orbits (the `w` slot off by O(1), a non-zero `lan`
   slot where the true anomaly does not depend on the node). `true_anomaly_od`
@@ -87,6 +94,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `(3, 7)`, after `w`; pass zeros for the old constant-vector behaviour. The
   new `eccentricity_vector_d` (numba, OpenCL and C) returns the vector and its
   Jacobian, and `numba3d` now exports it together with `eccentricity_vector`.
+
+### Removed
 - The JAX prototype modules `meepmeep.backends.jax.ea` and
   `meepmeep.backends.jax.ts2d` (`solve_xy_p5`, `solve_xy_p5_d`, `xy_t15_d`,
   `pd_t15_d`), superseded by the JAX backend above.

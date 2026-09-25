@@ -40,7 +40,7 @@ from meepmeep.orbit import Orbit
 
 NPT = 15
 NTIMES = 200
-# Tolerance for full-period comparisons. With npt=15 expansion points and a 5th-order
+# Tolerance for full-period comparisons. With npt=15 expansion points and a 4th-order
 # Taylor expansion, the worst-case error away from expansion points is ~1e-4 in
 # (R_star) units. Tightening would require more expansion points; this matches the
 # package's documented accuracy regime.

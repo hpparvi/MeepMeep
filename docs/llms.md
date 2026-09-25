@@ -1,9 +1,10 @@
 # MeepMeep: API cheatsheet for LLM agents
 
 MeepMeep computes Keplerian orbit quantities for exoplanet modelling
-(transit geometry, radial velocities, phase curves) using 5th-order Taylor
-expansions around expansion points, roughly an order of magnitude faster than
-per-point Newton-Raphson. Optional analytic gradients with respect to the
+(transit geometry, radial velocities, phase curves) using 4th-order Taylor
+expansions around expansion points, up to two orders of magnitude faster than
+per-point Newton-Raphson (~100x for a single near-event expansion, ~15-50x
+across the whole orbit). Optional analytic gradients with respect to the
 orbital parameters make it suitable for gradient-based fitting (HMC,
 optimisers). All hot paths are Numba-jitted and callable from user `@njit`
 code. Method: Parviainen & Korth (2020), MNRAS 499, 3356.
@@ -112,9 +113,15 @@ x, y, z = o.xyz()              # add , dx, dy, dz when derivatives=True
   `light_travel_time(rstar)` (rstar in solar radii, result in days,
   zero-referenced at primary transit), `plot()`.
 - `npt` is the expansion point count; raise it (e.g. 25) for high-e orbits if more
-  accuracy is needed. The expansion-point grid auto-adapts to the bound
-  eccentricity. Expected accuracy regime at npt=15: ~1e-4 R_star
-  worst-case position error over a full period.
+  accuracy is needed. The expansion-point grid is rebuilt for max(e, 0.2)
+  whenever that drifts more than 0.05 from the grid's eccentricity (the
+  value jumps by the truncation error there; keep it in mind when
+  finite-differencing in e). Measured worst-case position error over a full
+  period at npt=15 ('ea', p=3 d, a=8.5): ~1e-4 R_star at e=0.1, ~1e-3 at
+  e=0 and e=0.5, ~2e-3 at e=0.7, ~2e-2 at e=0.9; every +10 in npt gains
+  ~10x (npt=35: 2e-4 at e=0.9). The time-to-expansion-point table is sized
+  automatically (`create_expansion_points(..., tres=None)`); an explicit
+  small `tres` stalls the high-e accuracy.
 - `parallel=True` routes large-array evaluations to multi-threaded
   kernels (identical results). Worth it for N >= ~1e4 (gradients) /
   ~5e4 (values); 3-8x on a 16-core machine. LEAVE IT OFF when the
@@ -142,8 +149,15 @@ k2.min_separation(guess=0.0)    # (t_min, z_min); guess is an offset in
 
 `set_pars(...)` (keyword-only) rebinds the orbital elements; the expansion point
 offset `te` (expansion point at `tc + te`) is a construction-time
-constant that `set_pars` keeps. Accuracy degrades away
-from the transit; do not use Expansion2D for full-orbit quantities.
+constant that `set_pars` keeps (`lan`, in contrast, resets to 0 when
+omitted). For the secondary eclipse pass
+`te=eclipse_time_offset(p, i, e, w)` (from `meepmeep.numba3d`; `p/2` only
+for circular orbits); the geometry methods then return the eclipse's
+contact times. Accuracy degrades away from the expansion point as the fifth
+power of the distance (~1e-5 R_star at +-0.02 p for a hot Jupiter); do not
+use Expansion2D for full-orbit quantities. The contact/duration methods
+return garbage, not NaN, for non-transiting or grazing geometries - check
+`min_separation()` first.
 `Expansion2D(..., parallel=True)` multi-threads the position/separation
 methods for large grids (>= ~1e4 points in derivative mode, ~1e5 in
 value mode; identical results) - same caveat as Orbit's `parallel` flag
@@ -214,8 +228,8 @@ single-expansion-point family, velocity now ships both a centered (`vel_c`/
 
 ```python
 import numpy as np
-from meepmeep.numba3d import create_expansion_points, solve3d_orbit, pos_o, sep_o
-from meepmeep.backends.numba.utils import mean_anomaly_at_transit  # sanctioned deep import
+from meepmeep.numba3d import (create_expansion_points, solve3d_orbit, pos_o, sep_o,
+                              mean_anomaly_at_transit)
 
 ep_times, _, dt, ep_table = create_expansion_points(npt, max(e, 0.2), "ea")
 coeffs = solve3d_orbit(ep_times, p, a, i, e, w, lan, npt=npt)
@@ -224,12 +238,19 @@ tpa = tc - mean_anomaly_at_transit(e, w) / (2.0 * np.pi) * p
 x, y, z = pos_o(times, tpa, p, dt, ep_table, ep_times, coeffs)
 ```
 
-Gradient counterparts: `solve3d_orbit_d` -> `(coeffs, dcoeffs)`, then
+Gradient counterparts: `solve3d_orbit_d` -> `(coeffs, dcoeffs)` in the
+PERIASTRON basis; `tp_to_tc_gradient_orbit(dcoeffs, p, e, w)` converts in
+place to the transit-centre basis. Then
 `pos_od(times, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs)` etc.
 Available `_o`/`_od` quantities: `pos`, `zpos`, `sep`, `vel`, `zvel`,
 `rv`, `true_anomaly`, `cos_alpha` (phase-angle cosine), `cos_v_p_angle`
 (angle to a fixed vector), `star_planet_distance`, `lambert_phase_curve`,
-`ev_signal`, `light_travel_time`.
+`ev_signal`, `emission_phase_curve`, `light_travel_time`.
+`true_anomaly_od(t, tpa, p, ex, ey, ez, w, dev, ...)` takes the eccentricity
+vector AND its (3, 7) Jacobian: `(ex, ey, ez), dev =
+eccentricity_vector_d(i, e, w, lan)`. Passing zeros for `dev` gives wrong
+`w`/`lan` slots. `numba3d` also exports `mean_anomaly_at_transit`,
+`eclipse_time_offset`, `eccentricity_vector` and the basis transforms.
 
 Vector / parallel kernels (public, optional). Every scalar-or-array
 dispatcher also exposes the kernels it routes to, so you can commit to the
@@ -239,16 +260,18 @@ array path and skip the type check: single-expansion-point `X_v` / `X_vp`
 The `_vp` / `_ovp` / `_ovdp` twins multi-thread the sample loop and pay off
 only for large time grids (same thresholds as `Orbit`/`Expansion2D`'s
 `parallel=True`). The scalar kernels remain private. The non-derivative 3D
-radial velocity (`rv_c`/`rv`) is scalar-inline only and has no single-expansion-point
-vector kernel.
+radial velocity (`rv_c`/`rv`) is one inline function with no `_v`/`_vp`
+kernel; it accepts a scalar or (by NumPy broadcasting) an array of times.
 
 ## JAX backend (optional; gradients by autodiff)
 
 `meepmeep.jax2d` / `meepmeep.jax3d` mirror `numba2d` / `numba3d`: same
 names, same argument order, element-wise (scalar or array times), fully
 traceable (`jit`, `vmap`, `grad`, GPU). Requires
-`jax.config.update("jax_enable_x64", True)` before any JAX call; the
-solvers raise otherwise.
+`jax.config.update("jax_enable_x64", True)` before any JAX call. The
+solvers and the direct / whole-orbit evaluators raise at trace time
+otherwise; the centered `_c` evaluators and `create_expansion_points` do
+not check and silently compute in float32.
 
 - ONLY VALUE FUNCTIONS EXIST. No `_d`/`_cd`/`_od`, no `solve*_d`, no
   `_v`/`_vp`/`_ov*` kernels, no `tc_to_tp_gradient`. Differentiate a
@@ -266,12 +289,15 @@ def model(tc, p, a, i, e, w):
 dz = jnp.stack(jax.jacfwd(model, argnums=range(6))(*theta), -1)  # (N, 6)
 ```
 
-- `JaxOrbit.from_tc(tc, p, a, i, e, w, lan=0.0, grid=None)` / `from_tp`
+- `JaxOrbit.from_tc(tc, p, a, i, e, w, lan=0.0, *, npt=15, ep_placement='ea', tres=None, grid=None)` / `from_tp`
   is the pytree counterpart of `Orbit`; methods take `times` explicitly
   (`orbit.projected_separation(times)`, `orbit.xyz(times)`, ...). Default
   grid: placed for `stop_gradient(max(e, 0.2))`, no hysteresis.
 - `create_expansion_points` is closed-form: it runs under `jit` with a
-  traced `e` (`n_ep`, `quantity`, `tres` must be Python values).
+  traced `e` (`n_ep`, `quantity`, `tres` must be Python values). The default
+  table size is numba's, computed on the host; with a traced `e` it is sized
+  for e = 0.9 (the same as numba up to 0.9), so pass `tres` under `jit` for
+  e above 0.9.
 - `solve3d_orbit` has no `npt`; solvers accept an array of `te`.
 - Contact points / durations / `find_z_min` are differentiable
   (implicit-function JVPs); numba has no gradients for them.
@@ -285,8 +311,11 @@ dz = jnp.stack(jax.jacfwd(model, argnums=range(6))(*theta), -1)  # (N, 6)
 ## OpenCL backend (device-function source for user kernels)
 
 `meepmeep.backends.opencl` ships the evaluators as OpenCL C DEVICE
-FUNCTIONS - no `__kernel` entry points. You write the kernel; MeepMeep
-provides the functions it calls:
+FUNCTIONS. You write the kernel; MeepMeep provides the functions it
+calls. The one exception is the opt-in `solve_kernels.cl`, which holds
+batched `__kernel` solvers (see below). `read_kernel_source(...)` of any
+other file gives device functions only, while `read_full_source()`
+includes the solve kernels too:
 
 ```python
 from meepmeep.backends.opencl import read_kernel_source, read_full_source, build_options
@@ -294,8 +323,11 @@ src = read_kernel_source("point2dd.cl")   # dependencies (common.cl, point2d.cl)
 program = cl.Program(ctx, src + my_kernel_src).build(options=build_options("double"))
 ```
 
-- NUMBA TWIN CONVENTION: the comment above every device function names
-  its numba counterpart ("Port of `meepmeep.numba3d.sep_cd`"). Resolve
+- NUMBA TWIN CONVENTION: the comment above every device function with a
+  numba counterpart names it ("Port of `meepmeep.numba3d.sep_cd`", or "Port
+  of the numba helper `_rv_cd_w`" for private kernels). The internal
+  helpers `taylor5`, `taylor5_dot`, `mm_mod_two_pi` and `ep_lookup` have no
+  numba function (numba inlines that logic) and no such comment. Resolve
   that dotted path for the full docstring (argument semantics, units,
   shapes, gradient ordering), and use the twin itself as the CPU oracle
   when validating a kernel - fp64 builds agree with numba to ~1e-12.
@@ -305,7 +337,8 @@ program = cl.Program(ctx, src + my_kernel_src).build(options=build_options("doub
   and the dimension-agnostic helpers (`lambert_kernel`, `rv_scale`,
   `ep_ix`, ...) are unsuffixed. Only scalar forms exist - the kernel
   NDRange supplies the loop - and numba's optional arguments (`te`,
-  `lan`, `timing_is_tc`) are mandatory (pass `(REAL)0.0` / 0/1).
+  `lan`, `timing_is_tc`, and the solvers' `from_periastron`) are
+  mandatory (pass `(REAL)0.0` / 0/1).
 - Consumer contract: upload C-contiguous flattened coefficient arrays
   (`ascontiguousarray(c).ravel()`); cast `ep_table` to int32; NEVER add
   `-cl-fast-relaxed-math` (breaks the ~1e-12 numba parity); in fp32
@@ -330,10 +363,13 @@ CMake (`cmake -S c -B c/build && cmake --build c/build`); it is NOT a
 Python extension and `pip install meepmeep` does not build it. Same
 function names and layouts as the OpenCL backend with `double` for `REAL`
 and plain pointers for `__global`. It adds what a self-contained library
-needs: `create_expansion_points(n_ep, e, MM_EP_EA, tres, ep_times,
-change_times, &dt, ep_table)` returning an `mm_status` code,
-`solve3d_orbit(_d)`, and in-place `tc_to_tp_gradient` /
-`tp_to_tc_gradient` / `tp_to_tc_gradient_orbit`. Pipeline and conventions:
+needs: `expansion_table_size(n_ep, e, MM_EP_EA, &tres)` (the numba
+default table size; allocate `ep_table` with it) and
+`create_expansion_points(n_ep, e, MM_EP_EA, tres, ep_times,
+change_times, &dt, ep_table)`, both returning an `mm_status` code,
+`solve3d_orbit(_d)`, and in-place `tc_to_tp_gradient(dc, block, p, e, w)` /
+`tp_to_tc_gradient` (`block` = doubles per parameter row: 10 in 2D, 15 in
+3D) / `tp_to_tc_gradient_orbit(dcoeffs, npt, p, e, w)`. Pipeline and conventions:
 `c/include/meepmeep.h`, `c/examples/transit.c`, `docs/source/c_library.rst`.
 Never build it with `-ffast-math`.
 

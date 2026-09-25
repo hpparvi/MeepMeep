@@ -31,6 +31,12 @@ Stem                      Quantity
 ``lambert_phase_curve``   Lambertian reflected-light phase-curve flux (3D only).
 ``ev_signal``             Ellipsoidal-variation (tidal) flux signal (3D only).
 ``emission_phase_curve``  Cosine thermal-emission phase-curve flux (3D only).
+``star_planet_distance``  3D star-planet distance :math:`r` (whole-orbit only).
+``true_anomaly``          True anomaly (whole-orbit only).
+``cos_v_p_angle``         Cosine of the angle between the planet's position
+                          and a fixed reference vector (whole-orbit only).
+``light_travel_time``     Light-travel-time delay relative to the transit
+                          (whole-orbit only).
 ========================  ====================================================
 
 Examples: :func:`~meepmeep.backends.numba.point2d.position.pos` returns
@@ -50,7 +56,10 @@ function name. Both ``meepmeep.backends.numba.point2d.position`` and
 ``meepmeep.backends.numba.point3d.position`` therefore expose a function
 called ``pos``; the 3D package additionally exposes ``zpos``, etc.
 
-The 2D evaluators are roughly 30 percent cheaper per call and are
+The 2D evaluators skip the line-of-sight row. That makes 2D positions
+cheaper (about 20 percent in value mode, several times with gradients),
+while the solvers and the projected separation cost the same in both,
+because the 3D separation never evaluates :math:`z` either. 2D is
 sufficient for transit modelling; switch to 3D whenever the
 line-of-sight :math:`z` is needed (eclipses, light travel time,
 phase curves, radial velocities).
@@ -161,14 +170,17 @@ Each vector kernel also has a public *parallel twin* with a trailing ``p``
 (``pos_c_vp``, ``sep_d_vp``, ...), compiled with ``parallel=True`` and a
 ``prange`` sample loop. Scratch-free kernels are dual-decorated from a
 single shared (private) body (``prange`` compiles as a plain ``range`` in
-the serial compilation, so the serial kernel is unchanged); the rv gradient
-kernels, whose loops reuse a hoisted scratch buffer, have explicit
-hand-written twins with one scratch buffer per thread. The parallel twins
+the serial compilation, so the serial kernel is unchanged). The 3D gradient
+kernels built on intermediate position gradients (the ``_cd_vp`` / ``_d_vp``
+kernels of ``rv``, ``cos_alpha``, ``lambert_phase_curve``, ``ev_signal`` and
+``emission_phase_curve``) reuse a hoisted scratch buffer in their loops, so
+they have explicit hand-written twins with one scratch buffer per thread. The parallel twins
 pay off only for large time grids — the high-level
 ``Expansion2D(parallel=True)`` / ``Expansion3D(parallel=True)`` opt-ins
 route large grids to them automatically. The non-derivative 3D radial
-velocity (``rv_c`` / ``rv``) is scalar-inline only and has no
-single-expansion-point vector kernel.
+velocity (``rv_c`` / ``rv``) is a single ``inline='always'`` function with
+no ``_v`` / ``_vp`` kernel; it takes a scalar or, through NumPy
+broadcasting, an array of times.
 
 
 Multi-expansion-point dispatcher suffix
@@ -216,7 +228,14 @@ the hot vector loops run without per-sample allocations.
 Every vector kernel also has a public *parallel twin* with a trailing ``p``
 (``X_ovp`` in ``orbit3d/``, ``X_ovdp`` in ``orbit3dd/``), living in the
 same quantity module as its serial counterpart and compiled with
-``parallel=True`` and a ``prange`` sample loop but otherwise identical.
+``parallel=True`` and a ``prange`` sample loop. The orbit twins are
+written out by hand rather than dual-decorated. Most mirror the serial loop
+line for line; the ten gradient twins whose loops reuse a scratch buffer
+for intermediate gradients (``star_planet_distance``, ``cos_alpha``,
+``cos_v_p_angle``, ``rv``, ``lambert_phase_curve``, ``ev_signal``,
+``emission_phase_curve``, ``true_anomaly``, ``light_travel_time``, ...)
+hoist one buffer per thread instead, as a shared buffer would be a data
+race under ``prange``.
 The scalar-or-array dispatchers route to the serial kernels; the parallel
 twins are reached either directly or through the ``Orbit(parallel=True)``
 opt-in, which switches to them only above a per-family minimum array size
@@ -236,19 +255,44 @@ Module naming
 
 The same suffix rules apply at the module level:
 
-================  ========================================================
-Module suffix     Contents
-================  ========================================================
-``solve*``        Coefficient solvers (build ``c`` from orbital elements).
-``position*``     Position / separation evaluators.
-``velocity*``     Velocity / line-of-sight velocity evaluators.
-``util*``         Geometric helpers (contact points, bounding box, durations).
-``orbit*``        Multi-expansion-point dispatchers spanning a full orbit.
-*name*\ ``d``     Same module, parameter-derivative variants.
-================  ========================================================
+Each quantity has its own module, named after the quantity, inside a
+package that encodes the dimension and the derivative mode:
 
-So ``point3dd/position.py`` is read as "3D position evaluators, with derivatives",
-and the ``orbit3dd/`` package as "orbit-spanning 3D dispatchers, with derivatives".
+============================  ===============================================
+Package                       Contents
+============================  ===============================================
+``point2d`` / ``point3d``     Single-expansion-point evaluators, 2D / 3D.
+``point2dd`` / ``point3dd``   The same, with parameter derivatives.
+``orbit3d`` / ``orbit3dd``    Multi-expansion-point dispatchers spanning a
+                              full orbit (3D only), without / with
+                              derivatives.
+============================  ===============================================
+
+=========================  ==================================================
+Module                     Contents
+=========================  ==================================================
+``solve.py``               Coefficient solvers (build ``c`` from orbital
+                           elements).
+``position.py``            Positions (``pos``).
+``separation.py``          Projected separation (``sep``).
+``zposition.py``           Line-of-sight coordinate (``zpos``).
+``velocity.py``            Velocity vector (``vel``).
+``zvelocity.py``           Line-of-sight velocity (``zvel``).
+``radial_velocity.py``     Radial velocity (``rv``).
+``cos_phase_angle.py``     Phase-angle cosine (``cos_alpha``).
+``lambert.py``             Lambertian phase curve.
+``ev_signal.py``           Ellipsoidal variation.
+``emission.py``            Thermal-emission phase curve.
+``util.py``                Geometric helpers (contact points, bounding box,
+                           durations, minimum separation); non-derivative
+                           packages only.
+=========================  ==================================================
+
+The ``orbit3d`` packages add the whole-orbit-only quantities
+(``star_planet_distance.py``, ``true_anomaly.py``, ``projected_angle.py``,
+``light_travel_time.py``). So ``point3dd/position.py`` is read as "3D
+position evaluators, with derivatives", and the ``orbit3dd/`` package as
+"orbit-spanning 3D dispatchers, with derivatives".
 
 
 JAX backend

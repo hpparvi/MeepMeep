@@ -60,7 +60,7 @@ def pos_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     This is the "centered" variant of `pos`: it assumes the caller has
     already subtracted the expansion time `te` (and any epoch offset) so
     that `time` is a small displacement around the expansion point. Each spatial
-    coordinate is evaluated as a 5th-order polynomial using Horner's
+    coordinate is evaluated as a 4th-order polynomial using Horner's
     scheme.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
@@ -150,7 +150,7 @@ def pos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
     This is the "direct" variant of the 3D position evaluator: it
     accepts an absolute observation time `time`, folds it back into a
     single orbital epoch around the expansion point `te`, and then
-    evaluates the 5th-order Taylor polynomial stored in `c` using
+    evaluates the 4th-order Taylor polynomial stored in `c` using
     Horner's scheme via the centered kernel.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the

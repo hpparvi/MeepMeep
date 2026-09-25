@@ -41,7 +41,7 @@ class Expansion2D:
         """High-level wrapper over the single-expansion-point 2D Taylor evaluators.
 
         An *expansion point* is a point along the orbit that serves as the
-        center of a local 5th-order Taylor expansion of the planet's
+        center of a local 4th-order Taylor expansion of the planet's
         trajectory in time. This class builds one such expansion at a chosen
         expansion-point time ``te`` and exposes the sky-plane (x, y)
         position, the sky-projected separation between the centers of the
@@ -286,6 +286,8 @@ class Expansion2D:
         guess : float, optional
             Initial guess for the time of minimum separation, as an offset
             in days from the expansion point. Defaults to 0.0 (the expansion point itself).
+            The golden-section search covers only ``guess +- 0.01`` days; a
+            minimum outside that window returns the window edge.
 
         Returns
         -------

@@ -146,35 +146,35 @@ def eccentricity_vector_d(i, e, w, lan=0.0):
 def eclipse_time_offset(p, i, e, w):
     """Calculate the time offset of the secondary eclipse relative to the primary transit.
 
-        For eccentric orbits, the secondary eclipse does not occur at exactly 0.5 phase.
-        This function computes the exact time offset using Keplerian dynamics,
-        accounting for the non-uniform orbital velocity of the planet.
+    For eccentric orbits, the secondary eclipse does not occur at exactly 0.5 phase.
+    This function computes the exact time offset using Keplerian dynamics,
+    accounting for the non-uniform orbital velocity of the planet.
 
-        Parameters
-        ----------
-        p : float
-            Orbital period in units of time (e.g., days).
-        i : float
-            Orbital inclination in radians. Note: While 'i' is an input, it is
-            not explicitly used in the calculation as the center of eclipse
-            depends primarily on the longitudinal geometry (e, w).
-        e : float
-            Orbital eccentricity (0 <= e < 1).
-        w : float
-            Argument of periastron in radians.
+    Parameters
+    ----------
+    p : float
+        Orbital period in units of time (e.g., days).
+    i : float
+        Orbital inclination in radians. Note: While 'i' is an input, it is
+        not explicitly used in the calculation as the center of eclipse
+        depends primarily on the longitudinal geometry (e, w).
+    e : float
+        Orbital eccentricity (0 <= e < 1).
+    w : float
+        Argument of periastron in radians.
 
-        Returns
-        -------
-        offset : float
-            The time elapsed between the primary transit center and the
-            secondary eclipse center, in the same units as `p`.
-            The result is bounded between [0, p].
+    Returns
+    -------
+    offset : float
+        The time elapsed between the primary transit center and the
+        secondary eclipse center, in the same units as `p`.
+        The result is bounded between [0, p].
 
-        Notes
-        -----
-        The function solves Kepler's equation for both the transit and eclipse
-        positions. The transit center is assumed to occur at a true anomaly of
-        f = pi/2 - w.
+    Notes
+    -----
+    The function solves Kepler's equation for both the transit and eclipse
+    positions. The transit center is assumed to occur at a true anomaly of
+    f = pi/2 - w.
     """
     etr = arctan2(sqrt(1. - e**2) * sin(HALF_PI - w), e + cos(HALF_PI - w))
     eec = arctan2(sqrt(1. - e**2) * sin(HALF_PI + pi - w), e + cos(HALF_PI + pi - w))
@@ -502,7 +502,7 @@ def tp_to_tc_gradient_orbit(dcoeffs, p, e, w):
     Whole-orbit counterpart of :func:`tp_to_tc_gradient`, applying the same
     closed-form chain rule to each of the ``npt`` expansion-point blocks
     produced by
-    :func:`~meepmeep.backends.numba.orbit3dd.solve3d_orbit_d`. Unlike the
+    :func:`~meepmeep.numba3d.solve3d_orbit_d`. Unlike the
     single-block transform, this one **overwrites its argument** and returns
     nothing.
 
@@ -518,7 +518,7 @@ def tp_to_tc_gradient_orbit(dcoeffs, p, e, w):
 
     Parameters
     ----------
-    dcoeffs : NDArray, shape (npt, 7, D, 5)
+    dcoeffs : NDArray, shape (npt, 7, 3, 5)
         Parameter-derivative tensors in the periastron basis
         ``(tp, p, a, i, e, w, lan)``. Overwritten in place with the
         transit-centre basis ``(tc, p, a, i, e, w, lan)``.

@@ -612,7 +612,7 @@ class TestLightTravelTime:
                                           pars["w"], rstar, dt, pkt, pts, c)
             ltt_ref = eclipse_light_travel_time(pars["p"], pars["a"], pars["i"],
                                                 pars["e"], pars["w"], rstar)
-            # Taylor truncation floor for the 15-expansion point, 5th-order expansion
+            # Taylor truncation floor for the 15-expansion point, 4th-order expansion
             # is ~1e-3 in R_star × s × rstar ≈ 3e-8 days. Allow a bit more.
             assert_allclose(ltt_ec, ltt_ref, atol=1e-7,
                             err_msg=f"{case_name}: LTT@eclipse vs reference")

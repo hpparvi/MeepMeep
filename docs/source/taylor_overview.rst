@@ -11,8 +11,10 @@ the low-level backend that :class:`~meepmeep.orbit.Orbit` uses under
 the hood.
 
 Mechanically, the backend approximates each Keplerian orbit as a set
-of 5th-order Taylor expansions of the planet's trajectory, anchored at
-one or more *expansion points* along the orbit. The Taylor coefficients are
+of 4th-order Taylor expansions of the planet's trajectory, anchored at
+one or more *expansion points* along the orbit. Each expansion is a
+polynomial of degree four in time, with five terms: position, velocity,
+acceleration, jerk and snap. The Taylor coefficients are
 computed analytically; from them, positions, sky-projected
 separations, the line-of-sight coordinate, velocities, contact points
 and durations all reduce to fast Horner-scheme polynomial evaluations.
@@ -20,7 +22,7 @@ and durations all reduce to fast Horner-scheme polynomial evaluations.
 .. admonition:: What is an expansion point?
 
    An **expansion point** is a point along the orbit that serves as the *center* of
-   a local 5th-order Taylor expansion of the planet's trajectory in
+   a local 4th-order Taylor expansion of the planet's trajectory in
    time. Each expansion point carries its own ``(D, 5)`` coefficient matrix, and
    the expansion is most accurate close to the expansion point, degrading as you
    move away from it.
@@ -55,7 +57,7 @@ the evaluators are dispatched.
 **Single-expansion-point evaluation.** Build one set of Taylor coefficients at a
 chosen phase (typically the transit center for a transit model, or the
 secondary-eclipse center for an eclipse model) and evaluate positions
-or projected distance in the time window where the series is
+or the projected separation in the time window where the series is
 accurate. This is the natural mode for transit and eclipse light-curve
 codes, for contact-point and duration calculations via
 :mod:`~meepmeep.backends.numba.point2d.util`, and for inspecting orbit
@@ -81,8 +83,9 @@ measured in units of the stellar radius :math:`R_\star`:
   front of the star (transit hemisphere); negative :math:`z` is behind
   (eclipse).
 
-The "projected" or "sky-plane" distance used throughout the code is the
-Euclidean norm
+The projected separation used throughout the code (the sky-projected
+separation between the centers of the star and planet, in units of the
+stellar radius) is the Euclidean norm
 
 .. math::
 
@@ -95,10 +98,10 @@ the line-of-sight depth (transit vs. eclipse) lives in :math:`z`, not
 in :math:`d`.
 
 The 2D evaluators in
-:mod:`~meepmeep.backends.numba.point2d.position` compute only
-:math:`(x, y)` and :math:`d`, which is sufficient for transit
-modelling. The 3D evaluators in
-:mod:`~meepmeep.backends.numba.point3d.position` additionally compute
+:mod:`~meepmeep.backends.numba.point2d` compute only
+:math:`(x, y)` (``position``) and :math:`d` (``separation``), which is
+sufficient for transit modelling. The 3D evaluators in
+:mod:`~meepmeep.backends.numba.point3d` additionally compute
 :math:`z`, which is needed for eclipses, light travel time, phase
 curves, and radial velocities.
 
@@ -196,11 +199,13 @@ variants and the choice belongs entirely in this single-expansion-point mode:
   :func:`~meepmeep.backends.numba.point3d.zposition.zpos_c`,
   :func:`~meepmeep.backends.numba.point3d.velocity.vel_c`.
 
-* **Direct** variants (no ``c`` suffix) accept an absolute time
-  together with the expansion-point time ``te`` and ``p`` and epoch-fold internally via
-  ``epoch = floor((t - te + p/2) / p)`` so the residual lies in
-  :math:`[-p/2,\, p/2)`. Use them when callers prefer to hand in raw
-  observation times.
+* **Direct** variants (no ``c`` suffix) take an absolute time ``t``, the
+  transit-centre time ``tc``, the period ``p`` and the expansion-point
+  offset ``te`` (signature ``X(t, tc, p, c, te=0.0)``). They epoch-fold
+  around the expansion point at ``tc + te`` via
+  ``epoch = floor((t - tc - te + p/2) / p)`` and evaluate at
+  ``t - (tc + te + epoch p)``, which lies in :math:`[-p/2,\, p/2)`. Use
+  them when callers prefer to hand in raw observation times.
   Examples: :func:`~meepmeep.backends.numba.point2d.position.pos`,
   :func:`~meepmeep.backends.numba.point2d.separation.sep`,
   :func:`~meepmeep.backends.numba.point3d.position.pos`,
@@ -210,17 +215,19 @@ variants and the choice belongs entirely in this single-expansion-point mode:
 
 **Geometric helpers.** The
 :mod:`~meepmeep.backends.numba.point2d.util` and
-:mod:`~meepmeep.backends.numba.point3d.util` modules supply analytic
-helpers that operate directly on a single ``c``:
+:mod:`~meepmeep.backends.numba.point3d.util` modules supply numerical
+helpers that operate directly on a single ``c``. The contact points come
+from a bisection on the projected separation (to 1e-6 d) and the minimum
+from a golden-section search over +-0.01 d around an initial guess:
 
-* ``t14`` / ``t23`` — full (first-to-fourth contact) and total
+* ``t14`` / ``t23`` — total (first-to-fourth contact) and full
   (second-to-third contact) durations.
 * ``t12`` / ``t34`` — ingress and egress durations.
 * ``t1`` / ``t4`` — first and fourth contact times.
 * ``find_contact_point`` — generic contact-point solver.
 * ``find_z_min`` — time of minimum projected separation.
-* ``bounding_box`` — axis-aligned bounding box of the orbit segment
-  spanned by the expansion point.
+* ``bounding_box`` — the first- and fourth-contact times ``(t1, t4)``, which
+  bound the transit in time, relative to the expansion point.
 
 Because they only need one coefficient matrix, they slot naturally
 into single-expansion-point pipelines such as transit duration calculators.
@@ -269,7 +276,7 @@ See :ref:`taylor_derivatives` for the gradient conventions.
 Multi-expansion-point orbit-spanning evaluation
 -----------------------------------------------
 
-A single 5th-order Taylor series is only accurate in a small
+A single 4th-order Taylor series is only accurate in a small
 neighbourhood of its expansion point. To evaluate the orbit at *any*
 phase — for whole-orbit observables such as RV curves and phase
 curves — MeepMeep distributes :math:`N` expansion points along one orbital period
@@ -281,9 +288,15 @@ table.
 keyword of :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points`:
 
 * ``'mm'`` — uniform in mean motion (uniform in time).
-* ``'ea'`` — uniform in eccentric anomaly (default; preferred for
+* ``'ea'`` — evenly spaced in eccentric anomaly (default; preferred for
   moderate to high eccentricity).
-* ``'ta'`` — uniform in true anomaly.
+* ``'ta'`` — evenly spaced in true anomaly.
+
+The ``'ea'`` and ``'ta'`` spacing is :math:`2\pi/N` in anomaly with the
+midpoint expansion point pinned at apoastron, which leaves a gap of 1.5
+spacings on either side of it; that expansion point sits where the planet
+moves slowest and its wider region costs no accuracy. So neither grid
+reduces exactly to ``'mm'`` at zero eccentricity.
 
 The eccentric-anomaly placement clusters expansion points near periastron, where
 the orbital motion is fast and the validity window of each Taylor
@@ -294,8 +307,8 @@ series is shortest.
 :func:`~meepmeep.backends.numba.point3d.solve.solve3d` once per expansion point
 and returns an ``(N, 3, 5)`` array. The function expects the *last*
 expansion-point time to be the periodic image of the first (i.e. one period
-later); when this is true it copies the first expansion point's coefficients into
-the last slot instead of recomputing them.
+later) and always copies the first expansion point's coefficients into
+the last slot instead of computing them; it does not check the grid.
 :func:`~meepmeep.backends.numba.expansion_points.create_expansion_points` produces compliant
 input automatically; if you hand-roll the expansion-point grid you must enforce
 this contract yourself.
@@ -353,7 +366,7 @@ evaluate at an array of times:
 
    import numpy as np
    from meepmeep.numba3d import create_expansion_points, solve3d_orbit, pos_o
-   from meepmeep.backends.numba.utils import mean_anomaly_at_transit
+   from meepmeep.numba3d import mean_anomaly_at_transit
 
    # Orbital parameters (tc is the transit-center time, the high-level convention)
    tc, p, a, i, e, w = 0.0, 3.0, 8.5, np.radians(89.0), 0.1, np.radians(90.0)
@@ -375,6 +388,59 @@ evaluate at an array of times:
    # array of times and returns the (x, y, z) sky-frame coordinates.
    times = np.linspace(0.0, p, 2001)
    xs, ys, zs = pos_o(times, tpa, p, dt, ep_table, ep_times, coeffs)
+
+
+.. _taylor_accuracy:
+
+Accuracy
+--------
+
+The truncation error of one expansion grows as the fifth power of the
+distance from its expansion point: every doubling of the window costs a
+factor of about 30. The maximum position error against the exact
+Newton-Raphson orbit, for one expansion at the transit centre and a window of
+:math:`\pm\Delta t` around it (:math:`i = 88^\circ`, :math:`w = 60^\circ`):
+
+==============================  ==========  ==========  ==========  ==========
+Orbit                           0.01 p      0.02 p      0.05 p      0.1 p
+==============================  ==========  ==========  ==========  ==========
+p = 0.8 d, a = 3.5, e = 0       3e-8        9e-7        9e-5        3e-3
+p = 3 d, a = 8.5, e = 0.1       3e-7        8e-6        8e-4        3e-2
+p = 10 d, a = 20, e = 0.3       6e-6        2e-4        2e-2        0.6
+==============================  ==========  ==========  ==========  ==========
+
+The errors are in stellar radii. A transit lasts a few percent of the
+period, so one expansion covers it with errors well below any photometric
+precision; phase curves and RV curves need the multi-expansion-point grid.
+For that grid, the maximum position error over the whole orbit, and the
+maximum RV error as a fraction of the semi-amplitude, for ``'ea'``
+placement (:math:`p = 3` d, :math:`a = 8.5`):
+
+=====  ============  ============  ============  ============  ============
+npt    e = 0         e = 0.1       e = 0.5       e = 0.7       e = 0.9
+=====  ============  ============  ============  ============  ============
+15     2e-3 / 2e-3   1e-4 / 2e-4   1e-3 / 3e-3   2e-3 / 8e-3   2e-2 / 1e-1
+25     2e-4 / 2e-4   1e-5 / 2e-5   1e-4 / 3e-4   1e-4 / 1e-3   1e-3 / 1e-2
+35     3e-5 / 5e-5   2e-6 / 5e-6   2e-5 / 9e-5   3e-5 / 3e-4   2e-4 / 4e-3
+=====  ============  ============  ============  ============  ============
+
+Raise ``npt`` for eccentric orbits: the error falls by about an order of
+magnitude for every ten more expansion points. Near-circular orbits are
+less accurate than mildly eccentric ones, because
+:class:`~meepmeep.orbit.Orbit` builds the grid for ``max(e, 0.2)`` and its
+spacing is then not uniform in time. The numbers come from single orbits
+and are a guide, not a guarantee; the test suites compare every evaluator
+with the Newton-Raphson references in ``meepmeep.backends.numba.newton.newton``.
+
+The time-to-expansion-point table matters here too. Each of its bins maps
+to one expansion point, so the bins must be narrower than the regions they
+resolve, and near periastron at high eccentricity those regions shrink to
+a fraction of a percent of the period.
+:func:`~meepmeep.numba3d.create_expansion_points` therefore sizes the
+table, by default, at eight bins per narrowest region
+(:func:`~meepmeep.numba3d.expansion_table_size`,
+at least 200 bins); a table that is too coarse stalls the error, at
+0.1 R_star for :math:`e = 0.9` with 200 bins, whatever ``npt`` is.
 
 
 .. _taylor_derivatives:
@@ -411,9 +477,15 @@ Every gradient-returning evaluator
 (e.g. :func:`~meepmeep.backends.numba.point3dd.position.pos_d`,
 :func:`~meepmeep.backends.numba.point3dd.separation.sep_d`,
 :func:`~meepmeep.backends.numba.point3dd.velocity.vel_d`) accepts
-both ``c`` and ``dc`` and returns the value alongside a length-7
-gradient vector. The naming convention is ``_d`` for direct (absolute-
-time) variants and ``_cd`` for centered ones.
+both ``c`` and ``dc`` and returns each value alongside its gradient
+(``pos_d`` and ``vel_d`` return three values and three gradients). The
+gradient has the seven orbital slots, followed by the physical extras of
+the quantities that have them: ``(ag, k)`` for the Lambert phase curve and
+``(alpha, mass_ratio)`` for the ellipsoidal variation (width 9), and
+``(k, fratio, offset)`` for the emission phase curve (width 10). The
+single-expansion-point ``rv_d`` stays at 7; the multi-expansion-point
+``rv_od`` appends ``k`` (width 8). The naming convention is ``_d`` for
+direct (absolute-time) variants and ``_cd`` for centered ones.
 
 For **multi-expansion-point gradients**, the assembly side becomes
 :func:`~meepmeep.backends.numba.orbit3dd.solve3d_orbit_d`, which

@@ -101,7 +101,7 @@ class Orbit:
         ``(tc, p, a, i, e, w, lan)`` followed by per-method physical extras
         (e.g. ``k`` for :meth:`radial_velocity`; ``ag, k`` for
         :meth:`lambert_phase_curve`; ``k, fratio, offset`` for
-        :meth:`emission_phase_curve`; ``alpha, mass_ratio, inc`` for
+        :meth:`emission_phase_curve`; ``alpha, mass_ratio`` for
         :meth:`ellipsoidal_variation`; see the underlying ``*_od`` routines
         in :mod:`meepmeep.backends.numba.orbit3dd` for the full
         signatures).
@@ -189,7 +189,8 @@ class Orbit:
     (periastron anchor). Every dispatcher call uses ``self._tp``;
     ``self._tc`` is used only by the Newton-Raphson diagnostic paths
     (:meth:`_xyz_error`, :meth:`_cos_phase_error`, :meth:`mean_anomaly`,
-    :meth:`true_anomaly(exact=True)`) and by :meth:`plot(show_exact=True)`.
+    :meth:`true_anomaly` with ``exact=True``) and by :meth:`plot` with
+    ``show_exact=True``.
     """
 
     # The expansion-point grid is built for max(e, _EP_GRID_E_FLOOR): near-circular

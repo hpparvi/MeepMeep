@@ -142,7 +142,7 @@ from .backends.numba.orbit3dd import (
 # --- Dimension-agnostic primitives ------------------------------------
 from .backends.numba.expansion_points import create_expansion_points, expansion_table_size
 from .backends.numba.utils import (tc_to_tp_gradient, tp_to_tc_gradient,
-                                   tp_to_tc_gradient_orbit,
+                                   tp_to_tc_gradient_orbit, mean_anomaly_at_transit, eclipse_time_offset,
                                    eccentricity_vector, eccentricity_vector_d)
 
 __all__ = [
@@ -174,6 +174,7 @@ __all__ = [
     "create_expansion_points",
     "eccentricity_vector",
     "eccentricity_vector_d",
+    "eclipse_time_offset",
     "ep_ix",
     "emission_phase_curve",
     "emission_phase_curve_c",
@@ -238,6 +239,7 @@ __all__ = [
     "light_travel_time_ovd",
     "light_travel_time_ovdp",
     "light_travel_time_ovp",
+    "mean_anomaly_at_transit",
     "pos",
     "pos_c",
     "pos_c_v",

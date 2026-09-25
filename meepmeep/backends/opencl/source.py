@@ -126,7 +126,7 @@ def read_kernel_source(*names: str) -> str:
     Parameters
     ----------
     names : str
-        Names from :data:`SOURCE_FILES`.
+        Names from ``SOURCE_FILES``.
 
     Returns
     -------

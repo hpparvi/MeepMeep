@@ -82,7 +82,7 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
 
     Centered velocity companion to `position.pos_cd`. The velocity
     components are obtained by analytically differentiating the
-    5th-order position polynomials, yielding 4th-order polynomials in
+    4th-order position polynomials, yielding 3rd-order polynomials in
     `time` that are evaluated using Horner's scheme. The same
     differentiation is applied to the parameter-derivative
     coefficients so the result is the velocity together with its seven
@@ -135,8 +135,8 @@ def vel_cd(time: float | NDArray, c: NDArray, dc: NDArray):
     `dc[k, d, 1..4]` are the chain-rule factors from differentiating
     `c[d, n] * time^n` (and likewise the derivative coefficients) with
     respect to `time`. Differentiation drops the truncation order by
-    one, so the velocity polynomials are 4th order even though the
-    underlying position expansion is 5th order.
+    one, so the velocity polynomials are 3rd order even though the
+    underlying position expansion is 4th order.
     """
     if isinstance(time, ndarray):
         return vel_cd_v(time, c, dc)
@@ -202,7 +202,7 @@ def vel_d(time: float | NDArray, tc: float, p: float, c: NDArray, dc: NDArray, t
 
     Direct counterpart of the centered `vel_cd`: it accepts an absolute
     observation time `time`, folds it back into a single orbital epoch
-    around the expansion point `te`, and then evaluates the 4th-order
+    around the expansion point `te`, and then evaluates the 3rd-order
     velocity polynomials (and their parameter-derivative companions)
     using Horner's scheme via the centered kernel. The epoch bin is
     selected, not differentiated, so the gradient matches the centered

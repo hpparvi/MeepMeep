@@ -3,9 +3,9 @@
 **Fast Keplerian orbits for exoplanet modelling.**
 
 MeepMeep computes Keplerian orbit quantities — transit geometry, projected
-separations, radial velocities, and phase curves — using 5th-order Taylor
+separations, radial velocities, and phase curves — using 4th-order Taylor
 expansions around a set of expansion points distributed along the orbit. This
-makes it 2-3 orders of magnitude faster than standard Newton-Raphson approaches while
+makes it up to two orders of magnitude faster than per-point Newton-Raphson while
 keeping the approximation error well below the photometric noise of current
 instruments. Optional analytic gradients with respect to the orbital
 parameters make it suitable for gradient-based inference (HMC, optimisers).
@@ -21,6 +21,10 @@ The method is described in
 ```bash
 pip install meepmeep
 ```
+
+The optional backends have their own extras: `pip install "meepmeep[jax]"`
+for the JAX backend and `pip install "meepmeep[opencl]"` for running the
+OpenCL device functions. MeepMeep needs Python 3.10 or newer.
 
 For a development checkout:
 
@@ -73,7 +77,9 @@ x, y, z, dx, dy, dz = o.xyz()           # gradients w.r.t. (tc, p, a, i, e, w, l
 | --- | --- |
 | `meepmeep.Orbit` | 3D, multi-expansion-point orbit; any orbital phase |
 | `meepmeep.Expansion2D` / `Expansion3D` | single-expansion-point, transit-window evaluators |
-| `meepmeep.numba2d` / `meepmeep.numba3d` | low-level `@njit` Taylor primitives |
+| `meepmeep.numba2d` / `meepmeep.numba3d` | low-level Taylor primitives, callable from Python and from `@njit` code |
+| `meepmeep.jax2d` / `meepmeep.jax3d` | the same value functions in JAX, with gradients from autodiff; `JaxOrbit` |
+| `meepmeep.backends.opencl` | the evaluators and solvers as OpenCL C device functions for your own kernels |
 
 ## C library
 

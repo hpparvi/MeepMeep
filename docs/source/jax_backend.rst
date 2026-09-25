@@ -6,9 +6,13 @@ JAX backend
 The JAX backend is a port of the numba evaluators to JAX. It covers the
 coefficient solvers, the single- and multi-expansion-point evaluators, the
 transit-geometry utilities, expansion-point placement and the exact
-Newton-Raphson references. Everything traces, so a model built on it can be
-``jit``-compiled, ``vmap``-ed over parameter sets, run on a GPU, and
-differentiated with ``jax.grad`` or ``jax.jacfwd``.
+Newton-Raphson references. The references live in
+``meepmeep.backends.jax.newton`` (``ea_newton``, ``ta_newton``,
+``xyz_newton``, ``z_newton``, ``rv_newton``, ...), outside the two
+aggregators, as their numba twins do; only
+:func:`~meepmeep.jax3d.ea_from_ma` is exported. Everything traces, so a model
+built on it can be ``jit``-compiled, ``vmap``-ed over parameter sets, run on
+a GPU, and differentiated with ``jax.grad`` or ``jax.jacfwd``.
 
 The difference from the numba backend is where the gradients come from.
 Numba ships hand-derived ``_d``/``_od`` kernels. The JAX backend ships only
@@ -41,7 +45,10 @@ any JAX computation:
    import jax
    jax.config.update("jax_enable_x64", True)
 
-The solvers and evaluators raise a ``RuntimeError`` at trace time otherwise.
+Otherwise the solvers and the direct and whole-orbit evaluators raise a
+``RuntimeError`` at trace time. The centered ``_c`` evaluators and
+:func:`~meepmeep.jax3d.create_expansion_points` do not check, and silently
+compute in float32.
 
 
 High level: ``JaxOrbit``
@@ -78,6 +85,51 @@ points sit at fixed phases, as in numba. Pass ``grid=`` (the tuple from
 :func:`~meepmeep.jax3d.create_expansion_points`, or from the numba version) to
 pin the grid yourself. One thing ``JaxOrbit`` does not do is the numba class's
 hysteresis: the grid follows ``e`` on every call.
+
+The methods mirror :class:`~meepmeep.orbit.Orbit`, with the times as the
+first argument:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 50
+
+   * - ``JaxOrbit``
+     - ``Orbit``
+   * - ``xyz(times)``, ``vxyz(times)``, ``star_planet_distance(times)``,
+       ``cos_phase(times)``, ``phase(times)``, ``theta(times)``,
+       ``mean_anomaly(times)``, ``true_anomaly(times)``
+     - the same names without ``times`` (``xyz`` and
+       ``star_planet_distance`` take an optional ``times``)
+   * - ``projected_separation(times)``
+     - none; use :func:`~meepmeep.numba3d.sep_o`
+   * - ``radial_velocity(times, k)``
+     - ``radial_velocity(k)``
+   * - ``lambert_phase_curve(times, k, ag)``
+     - ``lambert_phase_curve(k, ag, times=None)``
+   * - ``emission_phase_curve(times, k, fratio, offset)``
+     - ``emission_phase_curve(k, fratio, offset, times=None)``
+   * - ``ellipsoidal_variation(times, alpha, mass_ratio)``
+     - ``ellipsoidal_variation(alpha, mass_ratio, times=None)``
+   * - ``light_travel_time(times, rstar)``
+     - ``light_travel_time(rstar)``
+
+``JaxOrbit`` has no ``plot`` and no Newton-Raphson ``exact`` switch, and its
+methods return values only; take gradients with ``jax.grad`` or
+``jax.jacfwd`` of whatever function uses them.
+
+Because a ``JaxOrbit`` is built inside the traced function, ``jax.vmap``
+evaluates many parameter sets in one call:
+
+.. code-block:: python
+
+   def model(theta):
+       tc, p, a, i, e, w = theta
+       return JaxOrbit.from_tc(tc, p, a, i, e, w).projected_separation(times)
+
+   thetas = jnp.array([[0.0, 3.0, 8.5, 1.54, 0.1, 0.5],
+                       [0.001, 3.0, 9.0, 1.53, 0.3, 1.0]])   # (n_sets, 6)
+   z = jax.jit(jax.vmap(model))(thetas)                      # (n_sets, N)
+   dz = jax.jit(jax.vmap(jax.jacfwd(model)))(thetas)         # (n_sets, N, 6)
 
 
 Low level: ``jax2d`` and ``jax3d``
@@ -124,9 +176,23 @@ Other differences from numba:
   replicate the numba search loops, and they are differentiable. Their
   derivatives come from the implicit function theorem at the found point, not
   from differentiating the iteration.
+- Four functions carry a ``custom_jvp`` rule instead of being
+  differentiated through their code: :func:`~meepmeep.jax3d.ea_from_ma`
+  (Kepler's equation, by implicit differentiation at the converged
+  :math:`E`), ``lambert_kernel`` (finite at full phase),
+  :func:`~meepmeep.jax3d.find_contact_point` and
+  :func:`~meepmeep.jax3d.find_z_min` (implicit function theorem at the found
+  point). Everything else is plain autodiff.
+- The orbital-mechanics utilities beyond the exported ones
+  (``i_from_baew``, ``as_from_rhop``, ``d_from_pkaiews``,
+  ``impact_parameter``, ``transit_distance_factor``, ...) live in
+  ``meepmeep.backends.jax.utils``, with the same signatures as their numba
+  twins in ``meepmeep.backends.numba.utils``.
 - :func:`~meepmeep.jax3d.true_anomaly_o` follows the gradient wherever the
   eccentricity vector came from. Build it from traced ``(i, e, w, lan)`` for
-  the full derivative. numba's ``true_anomaly_od`` holds it constant.
+  the full derivative. numba's ``true_anomaly_od`` takes the vector's Jacobian
+  explicitly (``dev`` from :func:`~meepmeep.numba3d.eccentricity_vector_d`), so
+  the two agree when both differentiate it.
 
 
 Performance
@@ -135,7 +201,8 @@ Performance
 On a CPU, a jitted JAX model runs at about numba speed once the time grid is
 large, and pays a fixed per-call dispatch overhead when it is small. As a
 rough guide, the projected separation over a whole eccentric orbit on a
-laptop:
+laptop (one-off timings of jitted calls, not a maintained benchmark; the
+absolute numbers vary by machine, the ratios much less):
 
 =========  ===========  =========  ==================  ==============
 N          numba value  JAX value  numba (N, 7) grad   JAX ``jacfwd``
@@ -172,6 +239,7 @@ The full public surface of the two aggregators.
    create_expansion_points
    ea_from_ma
    eccentricity_vector
+   eclipse_time_offset
    emission_phase_curve
    emission_phase_curve_c
    emission_phase_curve_o
@@ -179,6 +247,7 @@ The full public surface of the two aggregators.
    ev_signal
    ev_signal_c
    ev_signal_o
+   expansion_table_size
    find_contact_point
    find_z_min
    lambert_phase_curve
@@ -220,6 +289,17 @@ The full public surface of the two aggregators.
 .. autosummary::
    :toctree: api/generated
 
+   bounding_box
+   find_contact_point
+   find_z_min
    pos
    pos_c
+   sep
+   sep_c
    solve2d
+   t1
+   t12
+   t14
+   t23
+   t34
+   t4

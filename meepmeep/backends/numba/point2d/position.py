@@ -140,7 +140,7 @@ def pos(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
 
     This is the "direct" variant of the 2D position evaluator: it accepts an
     absolute observation time, folds it back into a single orbital epoch
-    around the expansion point `te`, and then evaluates the 5th-order Taylor
+    around the expansion point `te`, and then evaluates the 4th-order Taylor
     polynomial stored in `c` using Horner's scheme.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the

@@ -20,7 +20,9 @@ Building
    cmake --install c/build --prefix "$HOME/.local"
 
 The install places ``meepmeep.h`` under ``include/`` and ``libmeepmeep``
-under ``lib/``; link with ``-lmeepmeep -lm``. ``BUILD_SHARED_LIBS=OFF``
+under the platform's library directory (CMake's ``GNUInstallDirs``: ``lib/``
+on most systems, ``lib64/`` on RHEL-family Linux); link with
+``-lmeepmeep -lm``. ``BUILD_SHARED_LIBS=OFF``
 gives a static library and ``MEEPMEEP_BUILD_EXAMPLES=ON`` also builds
 ``c/examples/transit.c``. Never add ``-ffast-math``: the numba kernels that
 are deliberately compiled without fastmath (``true_anomaly``, ``rv``) rely on
@@ -48,13 +50,33 @@ the pieces that stay host-side for OpenCL:
   ``'ea'`` and ``'ta'`` strategies (``MM_EP_MM``, ``MM_EP_EA``,
   ``MM_EP_TA``). The anomaly-uniform strategies solve for the phases with a
   transcription of scipy's ``brentq``, so the placement agrees with the
-  Python side to the root-finder tolerance. Returns an ``mm_status`` code;
-  ``mm_status_string`` describes it.
+  Python side to the root-finder tolerance. Size the time-to-expansion-point
+  table with ``expansion_table_size``, which returns the size the Python side
+  uses by default (eight bins per narrowest expansion-point region, at least
+  200); a coarser table limits the accuracy at high eccentricity. Both return
+  an ``mm_status`` code; ``mm_status_string`` describes it:
+
+  ==============================  ========================================
+  Code                            Meaning
+  ==============================  ========================================
+  ``MM_OK`` (0)                   Success.
+  ``MM_ERR_N_EP`` (1)             ``n_ep`` must be odd and at least 3.
+  ``MM_ERR_QUANTITY`` (2)         Unknown placement strategy.
+  ``MM_ERR_TRES`` (3)             ``tres`` must be positive.
+  ``MM_ERR_ECCENTRICITY`` (4)     ``e`` must satisfy ``0 <= e < 1``.
+  ``MM_ERR_BRACKET`` (5)          The root bracket lost its sign change.
+  ``MM_ERR_NO_CONVERGENCE`` (6)   The root finder hit its iteration cap.
+  ==============================  ========================================
+
 - ``solve3d_orbit`` and ``solve3d_orbit_d``: the coefficient stacks for every
   expansion point of one orbit.
 - ``tc_to_tp_gradient``, ``tp_to_tc_gradient`` and
   ``tp_to_tc_gradient_orbit``: the gradient basis transforms, working in
   place where numba returns a copy.
+
+Shared with OpenCL but worth knowing in C: ``mean_anomaly_at_transit`` (for
+the periastron anchor ``tpa``) and ``eccentricity_vector_d``, whose ``dev``
+output is the extra input of ``true_anomaly_od``.
 
 Not included: the Newton-Raphson reference solvers, the contact-point,
 duration and ``find_z_min`` helpers, and anything from the :class:`~meepmeep.orbit.Orbit`
@@ -70,9 +92,11 @@ its gradient (``c/examples/transit.c`` is the complete program):
 
    #include "meepmeep.h"
 
+   int tres;
+   expansion_table_size(NPT, e, MM_EP_EA, &tres);   /* the numba default */
    double ep_times[NPT], change_times[NPT - 1], dt;
-   int ep_table[TRES];
-   int status = create_expansion_points(NPT, e, MM_EP_EA, TRES,
+   int *ep_table = malloc(tres * sizeof(int));
+   int status = create_expansion_points(NPT, e, MM_EP_EA, tres,
                                         ep_times, change_times, &dt, ep_table);
    if (status != MM_OK) { /* mm_status_string(status) */ }
 
@@ -80,7 +104,8 @@ its gradient (``c/examples/transit.c`` is the complete program):
    solve3d_orbit_d(ep_times, NPT, p, a, inc, e, w, lan, coeffs, dcoeffs);
    tp_to_tc_gradient_orbit(dcoeffs, NPT, p, e, w);   /* (tc, p, a, i, e, w, lan) */
 
-   double tpa = tc - mean_anomaly_at_transit(e, w) / (2 * M_PI) * p;
+   const double two_pi = 6.28318530717958647693;   /* M_PI is not C99 */
+   double tpa = tc - mean_anomaly_at_transit(e, w) / two_pi * p;
    double dz[MM_NPAR];
    double z = sep_od(t, tpa, p, dt, ep_table, ep_times, coeffs, dcoeffs, dz);
 
@@ -94,8 +119,11 @@ Conventions
 - Names mirror ``meepmeep.numba2d`` / ``meepmeep.numba3d`` with the OpenCL
   adjustments described in :ref:`naming-opencl`: a trailing dimension digit
   on the single-expansion-point functions, scalar forms only, and no
-  optional arguments (pass ``te = 0.0``, ``lan = 0.0``, ``timing_is_tc = 1``
-  explicitly). Symbols are not prefixed.
+  optional arguments (pass ``te = 0.0``, ``lan = 0.0``, ``timing_is_tc = 1``,
+  and the solvers' ``from_periastron = 0`` explicitly). Symbols are not
+  prefixed, and the internal helpers (``taylor5``, ``ep_lookup``,
+  ``mm_mod_two_pi``, ``lambert_kernel``, ``rv_scale``, ...) are exported
+  too, so avoid those names in code that links the library.
 - Coefficient arrays are the C-contiguous flattenings of the numba arrays:
   ``c`` is ``(D, 5)`` with row ``d`` at ``c + 5 * d``; ``dc`` is ``(7, D, 5)``
   with parameter block ``m`` at ``dc + 5 * D * m``; ``coeffs`` is
@@ -105,7 +133,11 @@ Conventions
   inputs append their derivatives (``rv_od`` is 8 wide, the Lambert and
   ellipsoidal-variation functions 9, emission 10).
 - ``solve3d_orbit_d`` returns the periastron basis ``(tp, p, a, i, e, w, lan)``;
-  apply ``tp_to_tc_gradient_orbit`` for the transit-centre basis.
+  apply ``tp_to_tc_gradient_orbit`` for the transit-centre basis. The basis
+  transforms work in place. The single-block ``tc_to_tp_gradient`` /
+  ``tp_to_tc_gradient`` take an extra ``block`` argument after ``dc``: the
+  number of doubles per parameter row, 10 for a 2D ``(7, 2, 5)`` block and
+  15 for a 3D ``(7, 3, 5)`` one.
 - ``ep_table`` is an ``int`` array.
 
 Keeping the two targets in sync

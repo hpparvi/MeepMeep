@@ -77,7 +77,7 @@
 #define LTT_DAYS_PER_RSUN ((REAL)2.685885891543453e-05)
 
 
-/* Evaluate a 5th-order Taylor polynomial with Horner's scheme.
+/* Evaluate a 4th-order Taylor polynomial with Horner's scheme.
 
    `cf` points at five contiguous coefficients ordered [position, velocity,
    acceleration/2, jerk/6, snap/24] (pre-scaled by the factorial, so this is
@@ -97,7 +97,7 @@ MM_INLINE REAL taylor5_dot(REAL t, MM_GLOBAL const REAL *cf) {
 
 /* Mean anomaly at the moment of primary transit.
 
-   Port of `backends.numba.utils.mean_anomaly_at_transit`. */
+   Port of `meepmeep.numba3d.mean_anomaly_at_transit`. */
 MM_INLINE REAL mean_anomaly_at_transit(REAL ecc, REAL w) {
     REAL m = atan2(sqrt((REAL)1.0 - ecc * ecc) * sin(HALF_PI_R - w),
                    ecc + cos(HALF_PI_R - w));
@@ -110,7 +110,7 @@ MM_INLINE REAL mean_anomaly_at_transit(REAL ecc, REAL w) {
 
    The value is returned; the derivatives are written into `dm_de` and
    `dm_dw`. Port of
-   `backends.numba.utils.mean_anomaly_at_transit_with_derivatives`. */
+   `meepmeep.backends.numba.utils.mean_anomaly_at_transit_with_derivatives`. */
 MM_INLINE REAL mean_anomaly_at_transit_with_derivatives(REAL ecc, REAL w,
                                                      REAL *dm_de, REAL *dm_dw) {
     REAL sqe2 = sqrt((REAL)1.0 - ecc * ecc);

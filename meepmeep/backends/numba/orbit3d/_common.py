@@ -75,7 +75,7 @@ def solve3d_orbit(ep_times, p, a, i, e, w, lan=0.0, npt=15):
     Notes
     -----
     If you hand-roll ``ep_times`` you must enforce the periodic-image
-    contract yourself; ``expansion points.create_expansion_points`` does this automatically.
+    contract yourself; ``create_expansion_points`` does this automatically.
     """
     coeffs = zeros((npt, 3, 5))
     to = mean_anomaly_at_transit(e, w) / (2 * pi) * p

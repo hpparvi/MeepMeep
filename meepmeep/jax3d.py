@@ -61,7 +61,7 @@ from .backends.jax.orbit3d import (
 )
 from .backends.jax.expansion_points import create_expansion_points, expansion_table_size
 from .backends.jax.newton import ea_from_ma
-from .backends.jax.utils import mean_anomaly_at_transit, eccentricity_vector
+from .backends.jax.utils import mean_anomaly_at_transit, eccentricity_vector, eclipse_time_offset
 from .backends.jax.orbit import JaxOrbit
 
 __all__ = [
@@ -74,6 +74,7 @@ __all__ = [
     "create_expansion_points",
     "ea_from_ma",
     "eccentricity_vector",
+    "eclipse_time_offset",
     "emission_phase_curve",
     "emission_phase_curve_c",
     "emission_phase_curve_o",

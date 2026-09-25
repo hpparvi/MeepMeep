@@ -116,7 +116,7 @@ The Claude Code skill at `.claude/skills/meepmeep/` bundles a snapshot of it as
 
 MeepMeep uses two parallel implementations:
 
-1. **Fast Taylor Series Approximations**: 5th-order Taylor expansions computed at expansion points distributed along the orbit
+1. **Fast Taylor Series Approximations**: 4th-order Taylor expansions computed at expansion points distributed along the orbit
 2. **Exact Newton-Raphson Methods**: Reference implementations for validation and error analysis
 
 The Taylor series approach trades exact precision for speed by pre-computing coefficients at expansion points and interpolating between them.
@@ -133,7 +133,9 @@ meepmeep/
 ├── numba3d.py             # Public low-level 3D Taylor API: single-expansion-point 3D
 │                          # Taylor evaluators, multi-expansion-point orbit-spanning
 │                          # routines, and dimension-agnostic primitives
-│                          # (expansion points, Newton solvers, orbital-mechanics utils).
+│                          # (expansion points, gradient basis transforms, M_tr and
+│                          # the eccentricity vector; the Newton solvers stay in
+│                          # backends/numba/newton).
 ├── jax2d.py / jax3d.py    # Public JAX twins of numba2d / numba3d (backends/jax/),
 │                          # plus JaxOrbit and the model-building helpers.
 ├── version.py             # Reads version dynamically via importlib.metadata
@@ -260,21 +262,24 @@ aggregator's `__all__` as well.
 
 `numba2d` covers the 2D Taylor surface only. `numba3d` covers the 3D
 Taylor surface, the multi-expansion-point orbit-spanning routines from
-`orbit3d`/`orbit3dd`, and the dimension-agnostic primitives (expansion points,
-Newton solvers, orbital-mechanics utilities). 2D users who need
+`orbit3d`/`orbit3dd`, and the dimension-agnostic primitives
+(`create_expansion_points`, the gradient basis transforms,
+`mean_anomaly_at_transit`, `eccentricity_vector(_d)`). The Newton-Raphson
+reference solvers are not exported: import them from
+`meepmeep.backends.numba.newton.newton`. 2D users who need
 dimension-agnostic primitives import them from
 `meepmeep.backends.numba.{expansion_points,newton.newton,utils}`.
 
 ### Key Concepts
 
-**Expansion point Points**: An expansion point is a point along the orbit that serves as the *center* of a local 5th-order
+**Expansion point Points**: An expansion point is a point along the orbit that serves as the *center* of a local 4th-order
 Taylor expansion (not a spline-style segment *boundary* — those are the `change_times` returned by
 `create_expansion_points`). The orbit is divided into segments with expansion points placed according to one of three strategies:
 - `'mm'`: Mean motion (uniform time distribution)
 - `'ea'`: Eccentric anomaly (default, better for eccentric orbits)
 - `'ta'`: True anomaly
 
-**Taylor Expansion**: At each expansion point, position is expanded as a 5th-order Taylor series in time. The `_coeffs` 
+**Taylor Expansion**: At each expansion point, position is expanded as a 4th-order Taylor series in time. The `_coeffs` 
 array stores position, velocity, acceleration, jerk, and snap at each expansion point.
 
 **Time-to-Expansion point Table** (`ep_table`): Maps normalized time to the appropriate expansion point segment for fast lookups during evaluation. Used by `ep_ix` in `backends/numba/orbit3d/_common.py` to dispatch a time to its expansion point.
@@ -439,11 +444,14 @@ aggregators imports it.
   `true_anomaly_o` uses the double-`where` trick around `arccos`.
 - **Placement** (`expansion_points.py`) is closed-form (`t = (E - e sin E)/2pi`,
   with E from the true anomaly for `'ta'`), so the grid is traceable in `e`; the
-  table uses numba's sequential rule via `lax.scan` and is int32. `JaxOrbit`
+  table maps each bin to the region containing its centre (`jnp.searchsorted`,
+  int32), with numba's default size computed on the host (static shape; a
+  traced `e` is sized for e = 0.9, which equals numba's size up to 0.9). `JaxOrbit`
   builds it for `stop_gradient(max(e, 0.2))` without numba's hysteresis.
 - **Deliberate deviations from numba** (each documented where it lives):
-  `true_anomaly_o` differentiates the eccentricity vector if the caller traces
-  it; `solve3d_orbit` has no `npt`; `JaxOrbit` takes times explicitly.
+  `solve3d_orbit` has no `npt`; `JaxOrbit` takes times explicitly.
+  (`true_anomaly_o` differentiates the eccentricity vector if the caller traces
+  it; numba's `true_anomaly_od` gets the same term from its `dev` argument.)
 - **Tests** (`test_jax_*.py`, helpers in `tests/jax_utils.py`, which enables x64)
   skip without jax. They compare values with the numba dispatchers and
   `jax.jacfwd` Jacobians with the numba `_d`/`_od` kernels over multi-epoch
@@ -475,6 +483,7 @@ nothing in `meepmeep/` imports it. Precision is fixed to double.
   twins by name: `create_expansion_points` (returns an `mm_status` code;
   the `'ea'`/`'ta'` roots come from a transcription of scipy's `brentq`
   with its default tolerances, so the placements agree to ~1e-12 in phase),
+  `expansion_table_size` (the default table size, for allocating `ep_table`),
   `solve3d_orbit`, `solve3d_orbit_d`, and the gradient basis transforms,
   which work *in place* where numba returns a copy. When a numba twin
   changes, port the change here as well.
@@ -595,16 +604,18 @@ whether the loop needs intermediate scratch:
   twice (`X_v = njit(fastmath=True)(_X_v_body)`;
   `X_vp = njit(fastmath=True, parallel=True)(_X_v_body)`). `prange`
   compiles as a plain `range` without `parallel=True`, so the serial kernel
-  is unchanged and the math exists once. All single-expansion-point kernels except the
-  rv gradients qualify.
+  is unchanged and the math exists once. All single-expansion-point kernels qualify
+  except the 3D gradient kernels built on intermediate position gradients
+  (`rv`, `cos_alpha`, `lambert_phase_curve`, `ev_signal`, `emission_phase_curve`).
 - **Scratch-using loops** (reuse an intermediate-gradient buffer across
   samples): *explicit twins* — the serial kernel keeps its single hoisted
   buffer (cheapest), and the hand-written twin hoists one buffer per thread
   (`zeros((get_num_threads(), 7))`, indexed with `get_thread_id()`); a
   shared buffer would be a data race under `prange`, and putting per-thread
-  indexing in a shared body costs the serial path ~5%. This covers the
-  single-expansion-point rv gradient kernels and the derived multi-expansion-point gradient
-  kernels.
+  indexing in a shared body costs the serial path ~5%. This covers those
+  single-expansion-point gradient kernels (`rv`, `cos_alpha`,
+  `lambert_phase_curve`, `ev_signal`, `emission_phase_curve`) and the derived
+  multi-expansion-point gradient kernels.
 
 The scalar-or-array dispatchers route to the serial kernels; callers reach the
 parallel twins either directly (they are public) or via the
@@ -643,6 +654,11 @@ Note on Numba `cache=True` callers: after introducing or modifying a dispatcher,
   - `zvel_c`, `zvel`: line-of-sight velocity component
   - `rv_c`, `rv`: radial velocity
   - `cos_alpha_c`, `cos_alpha`: cosine of the orbital phase angle (star-planet-observer)
+  - `lambert_phase_curve_c`, `lambert_phase_curve`: Lambertian reflected-light phase curve
+  - `ev_signal_c`, `ev_signal`: ellipsoidal-variation signal
+  - `emission_phase_curve_c`, `emission_phase_curve`: thermal-emission phase curve
+  - Whole-orbit-only stems (`_o`/`_od` families): `star_planet_distance`,
+    `true_anomaly`, `cos_v_p_angle`, `light_travel_time`
   - `_c` suffix: centered (time argument is relative to the expansion point)
   - `_d` suffix: direct evaluator with parameter derivatives
   - `_cd` suffix: centered evaluator with parameter derivatives

@@ -5,7 +5,7 @@ MeepMeep is an extremely fast Keplerian orbit evaluator for exoplanet
 light-curve and radial-velocity modelling. It computes sky-projected
 planet-star separations, phase curves, RV signals, and other quantities
 used in exoplanet research up to two orders of magnitude faster than
-per-point Newton-Raphson.
+per-point Newton-Raphson method.
 
 For every supported quantity it can also return the partial derivatives
 with respect to the orbital parameters (and any other inputs), which feed
@@ -38,8 +38,11 @@ mode:
    cd meepmeep
    pip install -e .
 
-MeepMeep runs on Python 3 and depends only on NumPy, Numba, SciPy, and
-Matplotlib, all pulled in automatically.
+MeepMeep needs Python 3.10 or newer and depends only on NumPy, Numba
+(0.59 to 0.63), SciPy, and Matplotlib, all pulled in automatically. The
+optional backends have their own extras: ``pip install "meepmeep[jax]"``
+for the JAX backend and ``pip install "meepmeep[opencl]"`` for the OpenCL
+device functions.
 
 
 Quickstart
@@ -69,11 +72,11 @@ API. The high-level classes —
 :class:`~meepmeep.expansion2d.Expansion2D`,
 :class:`~meepmeep.expansion3d.Expansion3D`, and
 :class:`~meepmeep.orbit.Orbit` — wrap the orbit math behind a stateful
-object: instantiate one with your observation times, then update the orbital
-parameters inside a fitting loop and read out whichever observable you need.
-The low-level functions cover the same ground more directly — they are all
-numba-jitted and drop straight into a custom transit or RV model with minimal
-overhead. Use a class for the batteries-included workflow; use the low-level
+object: instantiate one and bind your observation times, then update the
+orbital parameters inside a fitting loop and read out whichever observable you
+need. The low-level functions cover the same ground more directly — they run
+from plain Python and inside ``@njit`` code, so they drop straight into a
+custom transit or RV model with minimal overhead. Use a class for the batteries-included workflow; use the low-level
 functions when you want the orbit math to inline into your own hot loop.
 
 Both paths expose the same derivative mode: analytic gradients of every
@@ -88,7 +91,9 @@ keeps the full 3D motion of that single expansion, adding the line-of-sight
 coordinate, velocity, radial velocity, phase angle, and phase-curve
 observables within the event window. :class:`~meepmeep.orbit.Orbit` spans
 the whole orbit in 3D and adds those same dynamical and photometric
-quantities at *any* orbital phase, plus light travel time. The pages below
+quantities at *any* orbital phase, plus light travel time. (Its one gap is
+the projected separation: at arbitrary phase that comes from the low-level
+:func:`~meepmeep.numba3d.sep_o`.) The pages below
 introduce ``Expansion2D`` first, then ``Expansion3D``, then ``Orbit``, then
 map the low-level Taylor-series backend they all use under the hood.
 
@@ -127,6 +132,12 @@ map the low-level Taylor-series backend they all use under the hood.
    :caption: JAX backend
 
    jax_backend
+
+.. toctree::
+   :maxdepth: 2
+   :caption: OpenCL backend
+
+   opencl_backend
 
 .. toctree::
    :maxdepth: 2

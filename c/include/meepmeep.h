@@ -180,7 +180,7 @@ void tp_to_tc_gradient_orbit(double *dcoeffs, int npt, double p, double e,
 /* BEGIN GENERATED PROTOTYPES -- edit c/tools/generate_header.py, not this block. */
 
 /* ---- common.cl ----------------------------------------------------------- */
-/* Evaluate a 5th-order Taylor polynomial with Horner's scheme.
+/* Evaluate a 4th-order Taylor polynomial with Horner's scheme.
 
    `cf` points at five contiguous coefficients ordered [position, velocity,
    acceleration/2, jerk/6, snap/24] (pre-scaled by the factorial, so this is
@@ -194,14 +194,14 @@ double taylor5_dot(double t, const double *cf);
 
 /* Mean anomaly at the moment of primary transit.
 
-   Port of `backends.numba.utils.mean_anomaly_at_transit`. */
+   Port of `meepmeep.numba3d.mean_anomaly_at_transit`. */
 double mean_anomaly_at_transit(double ecc, double w);
 
 /* Mean anomaly at transit and its derivatives w.r.t. e and w.
 
    The value is returned; the derivatives are written into `dm_de` and
    `dm_dw`. Port of
-   `backends.numba.utils.mean_anomaly_at_transit_with_derivatives`. */
+   `meepmeep.backends.numba.utils.mean_anomaly_at_transit_with_derivatives`. */
 double mean_anomaly_at_transit_with_derivatives(double ecc, double w,
                                                 double *dm_de, double *dm_dw);
 
@@ -633,7 +633,7 @@ int ep_lookup(double tc, double p, double dt, const int *ep_table);
 
 /* Expansion-point index for an absolute time.
 
-   Port of `backends.numba.orbit3d._common.ep_ix`. */
+   Port of `meepmeep.numba3d.ep_ix`. */
 int ep_ix(double t, double tpa, double p, double dt, const int *ep_table);
 
 /* Planet (x, y, z) position at any orbital phase.

@@ -59,8 +59,8 @@ def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
 
     Centered velocity companion to `position.pos_c`. Each velocity
     component is obtained by analytically differentiating the
-    corresponding 5th-order position polynomial; the resulting
-    polynomial is 4th-order in `time` and is evaluated using Horner's
+    corresponding 4th-order position polynomial; the resulting
+    polynomial is 3rd-order in `time` and is evaluated using Horner's
     scheme.
 
     Accepts a scalar time or a 1-D array of times and dispatches to the
@@ -95,8 +95,8 @@ def vel_c(time: float | NDArray, c: NDArray) -> tuple[float | NDArray, float | N
     The pre-factors `1, 2, 3, 4` in front of `c[d, 1..4]` are the
     chain-rule factors from differentiating `c[d, n] * time^n` with
     respect to `time`. Because the polynomial loses one order under
-    differentiation, the velocity is a 4th-order Taylor approximation
-    even though the underlying position expansion is 5th order.
+    differentiation, the velocity is a 3rd-order Taylor approximation
+    even though the underlying position expansion is 4th order.
     """
     if isinstance(time, ndarray):
         return vel_c_v(time, c)
@@ -151,8 +151,8 @@ def vel(time: float | NDArray, tc: float, p: float, c: NDArray, te: float = 0.0)
 
     Direct counterpart of the centered `vel_c`: it accepts an absolute
     observation time `time`, folds it back into a single orbital epoch
-    around the expansion point `te`, and then evaluates the 4th-order
-    velocity polynomials (the analytic derivatives of the 5th-order
+    around the expansion point `te`, and then evaluates the 3rd-order
+    velocity polynomials (the analytic derivatives of the 4th-order
     position expansion stored in `c`) using Horner's scheme via the
     centered kernel.
 

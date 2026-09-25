@@ -42,7 +42,7 @@ MM_INLINE int ep_lookup(REAL tc, REAL p, REAL dt, MM_GLOBAL const int *ep_table)
 
 /* Expansion-point index for an absolute time.
 
-   Port of `backends.numba.orbit3d._common.ep_ix`. */
+   Port of `meepmeep.numba3d.ep_ix`. */
 MM_INLINE int ep_ix(REAL t, REAL tpa, REAL p, REAL dt, MM_GLOBAL const int *ep_table) {
     REAL epoch = floor((t - tpa) / p);
     return ep_lookup(t - tpa - epoch * p, p, dt, ep_table);
