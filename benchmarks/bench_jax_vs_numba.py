@@ -17,20 +17,27 @@ recommend:
 - JAX jacfwd               : jit(jacfwd(model)) -> (N, 7)
 - JAX grad                 : jit(grad(scalar likelihood))
 
-Before timing, the JAX model is checked against numba (values to 1e-10,
-gradients to 1e-8 relative). Times are the best over repeated batches of calls,
+Before timing, the JAX model is checked against numba (float64: values to
+1e-10, gradients to 1e-8 relative; float32: values to 1e-4 of the signal
+scale, gradients to 2e-3) and its outputs are checked to be in the requested
+dtype. Times are the best over repeated batches of calls,
 after compilation; JAX calls end with block_until_ready().
 
 Usage (from the repository root):
 
     python benchmarks/bench_jax_vs_numba.py cpu
     python benchmarks/bench_jax_vs_numba.py cuda     # numba columns stay on the CPU
+    python benchmarks/bench_jax_vs_numba.py cuda --precision single
 """
+import argparse
 import os
-import sys
 
-platform = sys.argv[1] if len(sys.argv) > 1 else "cpu"
-os.environ["JAX_PLATFORMS"] = platform
+parser = argparse.ArgumentParser(description="JAX-vs-numba evaluation benchmark.")
+parser.add_argument("platform", nargs="?", default="cpu", help="JAX platform: cpu or cuda.")
+parser.add_argument("--precision", choices=("double", "single"), default="double",
+                    help="JAX working precision; the numba columns are always float64.")
+ARGS = parser.parse_args()
+os.environ["JAX_PLATFORMS"] = ARGS.platform
 
 import platform  # noqa: E402
 import subprocess  # noqa: E402
@@ -41,6 +48,8 @@ import jax  # noqa: E402
 
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp  # noqa: E402
+
+JDTYPE = jnp.float64 if ARGS.precision == "double" else jnp.float32
 
 from meepmeep import numba3d as nb  # noqa: E402
 from meepmeep import jax3d as jx  # noqa: E402
@@ -91,28 +100,35 @@ def run(N, parallel=False):
         return nb.sep_ovdp(times, tpa, P, dt, ep_table, ep_times, c, dc)
 
     # JAX: the same model, grid held out of the differentiated arguments
-    t_j = jnp.asarray(times)
-    ep_j, table_j = jnp.asarray(ep_times), jnp.asarray(ep_table.astype(np.int32))
-    z_obs = jnp.asarray(nb_value()) + 1e-3
+    t_j = jnp.asarray(times, JDTYPE)
+    ep_j, table_j = jnp.asarray(ep_times, JDTYPE), jnp.asarray(ep_table.astype(np.int32))
+    dt_j = jnp.asarray(dt, JDTYPE)
+    z_obs = jnp.asarray(nb_value() + 1e-3, JDTYPE)
 
     def model(theta):
         tc, p, a, i, e, w, lan = theta
         tpa = tc - jx.mean_anomaly_at_transit(e, w) / (2 * jnp.pi) * p
         c = jx.solve3d_orbit(ep_j, p, a, i, e, w, lan)
-        return jx.sep_o(t_j, tpa, p, dt, table_j, ep_j, c)
+        return jx.sep_o(t_j, tpa, p, dt_j, table_j, ep_j, c)
 
     def loglike(theta):
         return -0.5 * jnp.sum((model(theta) - z_obs) ** 2)
 
-    theta = jnp.asarray(THETA)
+    theta = jnp.asarray(THETA, JDTYPE)
     f_val = jax.jit(model)
     f_jac = jax.jit(jax.jacfwd(model))
     f_grad = jax.jit(jax.grad(loglike))
 
-    # Parity: the JAX model reproduces numba (values and the (N, 7) gradient).
+    # Parity: the JAX model reproduces numba (values and the (N, 7) gradient) in the requested dtype.
     z_nb, dz_nb = nb_grad()
-    assert np.allclose(np.asarray(f_val(theta)), z_nb, rtol=0, atol=1e-10)
-    assert np.allclose(np.asarray(f_jac(theta)), dz_nb, rtol=1e-8, atol=1e-8 * np.abs(dz_nb).max())
+    z_j, dz_j = f_val(theta), f_jac(theta)
+    assert z_j.dtype == dz_j.dtype == JDTYPE, f"promotion leak: JAX ran in {z_j.dtype}, not {JDTYPE.__name__}"
+    if ARGS.precision == "double":
+        assert np.allclose(np.asarray(z_j), z_nb, rtol=0, atol=1e-10)
+        assert np.allclose(np.asarray(dz_j), dz_nb, rtol=1e-8, atol=1e-8 * np.abs(dz_nb).max())
+    else:
+        assert np.allclose(np.asarray(z_j), z_nb, rtol=0, atol=1e-4 * np.abs(z_nb).max())
+        assert np.allclose(np.asarray(dz_j), dz_nb, rtol=2e-3, atol=2e-3 * np.abs(dz_nb).max())
 
     if parallel:
         return {"numba par value": best(nb_value_par), "numba par grad": best(nb_grad_par)}
@@ -147,7 +163,7 @@ def fmt(t):
 if __name__ == "__main__":
     dev = jax.devices()[0]
     print(f"JAX {jax.__version__} on {dev.platform}: {dev.device_kind}; numba on {cpu_model()} "
-          f"({os.cpu_count()} logical CPUs); e = {E}, npt = {NPT}")
+          f"({os.cpu_count()} logical CPUs); e = {E}, npt = {NPT}; JAX precision = {ARGS.precision}")
     cols = ["numba value", "numba par value", "JAX value", "numba grad", "numba par grad", "JAX jacfwd",
             "JAX grad"]
     print(f"{'N':>9}  " + "  ".join(f"{c:>15}" for c in cols))

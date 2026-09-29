@@ -2,7 +2,8 @@
 
 Importing this module requires jax, so every test module must guard with
 ``pytest.importorskip("jax")`` *before* importing from here. Importing it
-switches JAX to double precision, which the backend requires.
+switches JAX to double precision, which the float64 parity suites need (the
+backend itself follows the input dtypes).
 
 The JAX backend has no hand-written gradient kernels; its gradients are
 autodiff through the value code. The suites therefore compare JAX values

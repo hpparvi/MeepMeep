@@ -31,15 +31,14 @@ gives a stack of coefficient matrices without ``vmap``.
 
 import jax.numpy as jnp
 
-from ._common import TWO_PI, require_x64
+from ._common import TWO_PI, working_dtype
 from .newton import ea_from_ma
 from .utils import mean_anomaly_at_transit
 
 
 def _solve(te, p, a, i, e, w, lan, ndim):
     """Coefficient matrices of shape ``te.shape + (ndim, 5)``; see :func:`solve3d`."""
-    require_x64()
-    te = jnp.asarray(te, dtype=float)
+    te = jnp.asarray(te, dtype=working_dtype(te, p, a, i, e, w, lan))
 
     # Analytic differentiation of Keplerian motion
     # --------------------------------------------

@@ -40,7 +40,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ._common import TWO_PI
+from ._common import TWO_PI, working_dtype
 
 # Mirrors meepmeep.backends.numba.expansion_points: bins eight times narrower than
 # the narrowest region of the placement for max(e, 0.9), between 200 and 2**20.
@@ -104,9 +104,11 @@ def create_expansion_points(n_ep: int, e, quantity: str = 'ea', tres: int | None
     Returns
     -------
     ep_times : NDArray, shape (n_ep,)
-        Expansion-point phases from periastron in ``[0, 1]``.
+        Expansion-point phases from periastron in ``[0, 1]``, in the dtype of
+        ``e`` (the default float for a Python ``e``).
     change_times : NDArray, shape (n_ep - 1,)
-        Phases at which the dispatch switches to the next expansion point.
+        Phases at which the dispatch switches to the next expansion point, in
+        the same dtype as ``ep_times``.
     dt : float
         Table bin width, ``1 / tres``.
     ep_table : NDArray of int, shape (tres,)
@@ -132,21 +134,26 @@ def create_expansion_points(n_ep: int, e, quantity: str = 'ea', tres: int | None
     if n_ep % 2 != 1:
         raise ValueError("Number of expansion points should be odd.")
 
+    # Array constructors are strongly typed to the global default dtype, so they
+    # take the working dtype explicitly: otherwise a float32 e would get a float64
+    # grid, which would promote every computation that uses it.
+    dtype = working_dtype(e)
     half = n_ep // 2
     if quantity == 'mm':
-        ep_times = jnp.linspace(0.0, 1.0, n_ep)
+        ep_times = jnp.linspace(0.0, 1.0, n_ep, dtype=dtype)
         change_times = 0.5 * (ep_times[:-1] + ep_times[1:])
     else:
-        e = jnp.asarray(e, dtype=float)
+        e = jnp.asarray(e, dtype=dtype)
         ep_sep = TWO_PI / n_ep
-        lower = _time_from_anomaly(jnp.arange(1, half) * ep_sep, e, quantity)
-        ep_times = jnp.concatenate([jnp.zeros(1), lower, jnp.full(1, 0.5), 1.0 - lower[::-1], jnp.ones(1)])
-        lower_ct = _time_from_anomaly((jnp.arange(half) + 0.5) * ep_sep, e, quantity)
+        lower = _time_from_anomaly(jnp.arange(1, half, dtype=dtype) * ep_sep, e, quantity)
+        ep_times = jnp.concatenate([jnp.zeros(1, dtype), lower, jnp.full(1, 0.5, dtype), 1.0 - lower[::-1],
+                                    jnp.ones(1, dtype)])
+        lower_ct = _time_from_anomaly((jnp.arange(half, dtype=dtype) + 0.5) * ep_sep, e, quantity)
         change_times = jnp.concatenate([lower_ct, 1.0 - lower_ct[::-1]])
 
     if tres is None:
         tres = expansion_table_size(n_ep, e, quantity)
     dt = 1.0 / tres
-    centres = (jnp.arange(tres) + 0.5) * dt
+    centres = (jnp.arange(tres, dtype=dtype) + 0.5) * dt
     ep_table = jnp.searchsorted(change_times, centres, side='left').astype(jnp.int32)
     return ep_times, change_times, dt, ep_table

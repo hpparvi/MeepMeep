@@ -33,22 +33,59 @@ Install JAX with the optional dependency group:
    :depth: 1
 
 
-Double precision
-----------------
+Precision
+---------
 
-The backend needs 64-bit floats. Absolute times in transit work are BJDs
-around 2.4e6, where a float32 ulp is a quarter of a day. Turn it on before
-any JAX computation:
+The backend computes in the floating dtype of its inputs, following JAX's
+promotion rules. Float32 arrays in give float32 out, and Python floats adopt
+the dtype of the arrays they are mixed with. An explicit float64 array (a
+NumPy array, say) promotes the whole computation to float64. Half precision
+raises a ``TypeError``.
+
+Float64 is the reference: it agrees with the numba backend to round-off.
+Enable it before any JAX computation:
 
 .. code-block:: python
 
    import jax
    jax.config.update("jax_enable_x64", True)
 
-Otherwise the solvers and the direct and whole-orbit evaluators raise a
-``RuntimeError`` at trace time. The centered ``_c`` evaluators and
-:func:`~meepmeep.jax3d.create_expansion_points` do not check, and silently
-compute in float32.
+Float32 is for consumer GPUs, where it runs many times faster than float64,
+and for float32 JAX pipelines. It works with x64 off (everything is float32)
+and with x64 on (pass float32 arrays). Two things to know.
+
+**Shift the times first.** Absolute times in transit work are BJDs around
+2.46e6, where a float32 ulp is a quarter of a day. The information is lost at
+the cast, so subtract a reference epoch in float64 on the host, then cast:
+
+.. code-block:: python
+
+   import numpy as np
+   import jax.numpy as jnp
+   from meepmeep.jax3d import JaxOrbit
+
+   t0 = 2460000.0                                   # near the middle of the data
+   times = jnp.asarray(bjd - t0, jnp.float32)       # bjd: a float64 NumPy array
+   orbit = JaxOrbit.from_tc(*(jnp.float32(v) for v in (tc - t0, p, a, i, e, w)))
+
+Resolution still falls with distance from ``t0``. 500 days away a float32
+ulp is 3e-5 d (2.6 s), about 6e-4 R_star of motion for a 3-day orbit at
+a = 10, or tens of ppm near ingress. Keep ``t0`` central and spans to a few
+hundred days for precise photometry. The timing parameter follows the same
+rule: an absolute Python-float ``tc`` or ``tp`` passed with float32 parameters
+is stored in float32 (rounded by up to 0.25 d), whatever the dtype of the
+times. Shift it by ``t0``, or pass it as ``np.float64`` to make the whole orbit
+float64. Likewise, a float64 NumPy time array mixed into float32 inputs
+promotes the computation to float64, and so does a numba-built grid passed
+straight to the ``*_o`` functions: cast ``ep_times`` and ``dt`` to float32
+first (``JaxOrbit`` casts its grid for you).
+
+**Expect five to six significant digits.** On identical inputs, float32
+values agree with numba to 1e-5 of the signal scale up to e = 0.7 (5e-5 at
+e = 0.9), gradients to 1e-4 (5e-4), and the true anomaly to 1e-4 rad. The
+Kepler solver stops at a 1e-6 step in float32 (numba's 1e-13 in float64).
+The contact-point and minimum-separation searches keep their 1e-6 and 1e-7
+day brackets, which float32 resolves near the expansion point.
 
 
 High level: ``JaxOrbit``
@@ -228,7 +265,8 @@ numba model. The
 JAX backend earns its keep in models that are JAX already (numpyro, blackjax,
 jaxoplanet), in ``vmap`` over many parameter sets, and on accelerators; the
 same script runs the JAX columns on a CUDA device with
-``python benchmarks/bench_jax_vs_numba.py cuda``.
+``python benchmarks/bench_jax_vs_numba.py cuda``, and in float32 with
+``--precision single``.
 
 
 API

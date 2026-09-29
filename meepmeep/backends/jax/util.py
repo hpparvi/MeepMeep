@@ -36,7 +36,7 @@ import jax
 import jax.numpy as jnp
 from jax import lax
 
-from ._common import horner
+from ._common import horner, working_dtype
 from .point3d import sep_c
 
 
@@ -51,6 +51,10 @@ def _contact_setup(point):
 
 
 def _contact_bisect(k, point, c):
+    # The loop state is seeded from c, so cast both to the working dtype: a k wider
+    # than c must widen the primal too, or the custom_jvp tangent's dtype mismatches.
+    dtype = working_dtype(k, c)
+    k, c = jnp.asarray(k, dtype=dtype), jnp.asarray(c, dtype=dtype)
     s, z0, zk = _contact_setup(point)
     zt = z0 + zk * k
     speed = jnp.sqrt(c[0, 1] ** 2 + c[1, 1] ** 2)
@@ -156,7 +160,7 @@ def t4(k, c):
 def _golden_section(tc, c):
     r = 0.61803399
     cc = 1.0 - r
-    tc = jnp.asarray(tc, dtype=float)
+    tc = jnp.asarray(tc, dtype=working_dtype(tc, c))
     x0, x3 = tc - 0.01, tc + 0.01
     x1 = tc
     x2 = tc + cc * (x3 - tc)

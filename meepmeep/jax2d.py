@@ -23,9 +23,10 @@ traceable (``jit``, ``vmap``, ``grad``). There are no gradient (``_d``,
 ``_cd``) or vector (``_v``, ``_vp``) variants; differentiate a function
 that calls :func:`solve2d` and an evaluator instead.
 
-Requires double precision: call ``jax.config.update('jax_enable_x64', True)``
-before any JAX computation. For 3D and multi-expansion-point routines see
-:mod:`meepmeep.jax3d`.
+Computes in the floating dtype of the inputs: float64 (enable
+``jax.config.update('jax_enable_x64', True)``) or float32. See the JAX
+backend docs for the float32 time-origin requirement. For 3D and
+multi-expansion-point routines see :mod:`meepmeep.jax3d`.
 """
 
 from .backends.jax.point2d import pos_c, pos, sep_c, sep

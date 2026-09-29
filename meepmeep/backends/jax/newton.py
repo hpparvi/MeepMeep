@@ -32,29 +32,38 @@ import jax.numpy as jnp
 from jax import lax
 
 from .utils import mean_anomaly, ta_from_ea, eclipse_time_offset, z_from_ta
+from ._common import EA_TOLERANCE, working_dtype
 
 LTT_DAYS_PER_RSUN = 2.685885891543453e-05
 
 
 def _ea_newton_loop(ma, ecc):
-    """Newton iteration of the numba ``ea_from_ma``: same start, tolerance and iteration cap."""
-    ma, ecc = jnp.broadcast_arrays(jnp.asarray(ma, dtype=float), jnp.asarray(ecc, dtype=float))
+    """Newton iteration of the numba ``ea_from_ma``: same start and iteration cap.
+
+    The convergence threshold depends on the working dtype (``EA_TOLERANCE``):
+    numba's 1e-13 in float64 and 1e-6 in float32. Returns the eccentric anomaly
+    and the number of Newton steps each element took.
+    """
+    dtype = working_dtype(ma, ecc)
+    tol = EA_TOLERANCE[dtype]
+    ma, ecc = jnp.broadcast_arrays(jnp.asarray(ma, dtype=dtype), jnp.asarray(ecc, dtype=dtype))
     ea0 = jnp.where(ecc > 0.8, jnp.pi, ma)
 
     def cond(state):
         _, dea, j = state
-        return jnp.any((jnp.abs(dea) >= 1e-13) & (j < 50))
+        return jnp.any((jnp.abs(dea) >= tol) & (j < 50))
 
     def body(state):
         ea, dea, j = state
-        active = (jnp.abs(dea) >= 1e-13) & (j < 50)
+        active = (jnp.abs(dea) >= tol) & (j < 50)
         step = -(ea - ecc * jnp.sin(ea) - ma) / (1.0 - ecc * jnp.cos(ea))
         return (jnp.where(active, ea + step, ea),
                 jnp.where(active, step, dea),
                 jnp.where(active, j + 1, j))
 
     state = (ea0, jnp.full_like(ea0, jnp.inf), jnp.zeros(ea0.shape, jnp.int32))
-    return lax.while_loop(cond, body, state)[0]
+    ea, _, steps = lax.while_loop(cond, body, state)
+    return ea, steps
 
 
 @jax.custom_jvp
@@ -75,18 +84,19 @@ def ea_from_ma(ma, ecc):
 
     Notes
     -----
-    Every element iterates on its own until its Newton step drops below
-    1e-13 or 50 steps have been taken, exactly as the numba solver does; the
-    array form only masks the elements that have already converged.
+    Every element iterates on its own until its Newton step drops below the
+    working dtype's tolerance (1e-13 in float64, as in the numba solver, and
+    1e-6 in float32) or 50 steps have been taken; the array form only masks
+    the elements that have already converged.
     """
-    return _ea_newton_loop(ma, ecc)
+    return _ea_newton_loop(ma, ecc)[0]
 
 
 @ea_from_ma.defjvp
 def _ea_from_ma_jvp(primals, tangents):
     ma, ecc = primals
     dma, decc = tangents
-    ea = _ea_newton_loop(ma, ecc)
+    ea = _ea_newton_loop(ma, ecc)[0]
     denom = 1.0 - ecc * jnp.cos(ea)
     return ea, (dma + jnp.sin(ea) * decc) / denom
 

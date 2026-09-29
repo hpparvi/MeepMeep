@@ -270,11 +270,17 @@ kernel; it accepts a scalar or (by NumPy broadcasting) an array of times.
 
 `meepmeep.jax2d` / `meepmeep.jax3d` mirror `numba2d` / `numba3d`: same
 names, same argument order, element-wise (scalar or array times), fully
-traceable (`jit`, `vmap`, `grad`, GPU). Requires
-`jax.config.update("jax_enable_x64", True)` before any JAX call. The
-solvers and the direct / whole-orbit evaluators raise at trace time
-otherwise; the centered `_c` evaluators and `create_expansion_points` do
-not check and silently compute in float32.
+traceable (`jit`, `vmap`, `grad`, GPU). Precision follows the input dtypes. float64 (enable
+`jax.config.update("jax_enable_x64", True)`) agrees with numba to round-off;
+float32 (x64 off, or float32 arrays with x64 on) is for consumer GPUs and
+float32 pipelines, with five to six significant digits. In float32, subtract
+a reference epoch from BJD times in float64 on the host before casting (a
+float32 ulp at BJD 2.46e6 is 0.25 d); this includes `tc`/`tp`, since an
+absolute Python-float `tc` with float32 parameters is itself rounded to
+float32 whatever the dtype of the times. A float64 NumPy array mixed into
+float32 inputs promotes everything to float64, including a numba-built
+`ep_times`/`dt` passed straight to the `*_o` functions (`JaxOrbit` casts its
+grid); float16/bfloat16 raise `TypeError`.
 
 - ONLY VALUE FUNCTIONS EXIST. No `_d`/`_cd`/`_od`, no `solve*_d`, no
   `_v`/`_vp`/`_ov*` kernels, no `tc_to_tp_gradient`. Differentiate a

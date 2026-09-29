@@ -38,7 +38,7 @@ import jax
 import jax.numpy as jnp
 from jax import Array
 
-from ._common import TWO_PI
+from ._common import TWO_PI, working_dtype
 from .expansion_points import create_expansion_points
 from .solve import solve3d_orbit
 from .utils import mean_anomaly_at_transit, eccentricity_vector
@@ -54,6 +54,12 @@ class JaxOrbit:
     Build instances with ``from_tc`` or ``from_tp``. All fields are
     pytree leaves, so an orbit can be passed through ``jit``, ``vmap``
     (e.g. over a batch of parameter sets) and ``grad``.
+
+    Every floating field is held in the working dtype of the orbital parameters
+    (float32 or float64, see the JAX backend docs), and a supplied grid is
+    cast to it. A Python-float ``tc``/``tp`` adopts that dtype, so with
+    float32 parameters pass it relative to a reference epoch (or as
+    ``np.float64`` for a float64 orbit).
 
     Attributes
     ----------
@@ -84,6 +90,11 @@ class JaxOrbit:
 
     @classmethod
     def _build(cls, tc, tp, p, a, i, e, w, lan, npt, ep_placement, tres, grid):
+        # Every field, the grid included, is cast to the parameters' working dtype:
+        # a float64 grid (e.g. from the numba create_expansion_points) must not
+        # promote a float32 orbit back to float64.
+        dtype = working_dtype(tc, tp, p, a, i, e, w, lan)
+        tc, tp, p, a, i, e, w, lan = (jnp.asarray(v, dtype=dtype) for v in (tc, tp, p, a, i, e, w, lan))
         if grid is None:
             # Like meepmeep.Orbit, place the grid for max(e, 0.2): near-circular orbits
             # keep a mild periastron clustering. The placement is held fixed under
@@ -91,9 +102,10 @@ class JaxOrbit:
             e_grid = jax.lax.stop_gradient(jnp.maximum(e, EP_GRID_E_FLOOR))
             grid = create_expansion_points(npt, e_grid, ep_placement, tres)
         ep_times, _, dt, ep_table = grid
+        ep_times = jnp.asarray(ep_times, dtype=dtype)
+        dt = jnp.asarray(dt, dtype=dtype)
         coeffs = solve3d_orbit(ep_times, p, a, i, e, w, lan)
-        return cls(*[jnp.asarray(v, dtype=float) for v in (tc, tp, p, a, i, e, w, lan, ep_times, dt)],
-                   jnp.asarray(ep_table), coeffs)
+        return cls(tc, tp, p, a, i, e, w, lan, ep_times, dt, jnp.asarray(ep_table), coeffs)
 
     @classmethod
     def from_tc(cls, tc, p, a, i, e, w, lan=0.0, *, npt: int = 15, ep_placement: str = 'ea',
@@ -179,13 +191,20 @@ class JaxOrbit:
         """Cosine of the star-planet-observer phase angle."""
         return o3.cos_alpha_o(times, *self._grid())
 
+    def _clipped_cos_phase(self, times):
+        """Cosine of the phase angle, clipped away from +-1 to keep the ``arccos`` gradient finite."""
+        ca = self.cos_phase(times)
+        # The numba Orbit clips at 1e-15, which rounds to exactly 1 in float32.
+        eps = max(1e-15, float(jnp.finfo(ca.dtype).eps))
+        return jnp.clip(ca, -1.0 + eps, 1.0 - eps)
+
     def phase(self, times):
         """Phase angle [radians]; zero at full phase (secondary eclipse)."""
-        return jnp.arccos(jnp.clip(self.cos_phase(times), -1.0 + 1e-15, 1.0 - 1e-15))
+        return jnp.arccos(self._clipped_cos_phase(times))
 
     def theta(self, times):
         """Supplement of the phase angle, ``pi - phase`` [radians]."""
-        return jnp.arccos(-jnp.clip(self.cos_phase(times), -1.0 + 1e-15, 1.0 - 1e-15))
+        return jnp.arccos(-self._clipped_cos_phase(times))
 
     def star_planet_distance(self, times):
         """3D star-planet distance [R_star]."""

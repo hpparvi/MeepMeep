@@ -231,4 +231,5 @@ projected separation over a whole eccentric orbit, values and `(N, 7)`
 gradients, numba serial and parallel kernels against jitted JAX `jit`,
 `jacfwd` and `grad`). Run it from the repository root with
 `python benchmarks/bench_jax_vs_numba.py cpu`, or `cuda` for the JAX columns on
-a GPU.
+a GPU. Add `--precision single` to run the JAX columns in float32 (the numba
+columns are always float64).

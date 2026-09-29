@@ -206,7 +206,7 @@ meepmeep/
     │                        # (the *_od / *_osd / *_ovd families).
     ├── jax/               # JAX backend: the numba value surface, element-wise, with
     │   │                  # gradients from autodiff (see "JAX Backend" below)
-    │   ├── _common.py     # require_x64, Horner rows, epoch fold, ep_lookup
+    │   ├── _common.py     # working_dtype, EA_TOLERANCE, Horner rows, epoch fold, ep_lookup
     │   ├── utils.py       # orbital-mechanics utilities (eccentricity_vector takes lan)
     │   ├── newton.py      # ea_from_ma (while_loop + custom_jvp), exact references
     │   ├── expansion_points.py  # closed-form placement, traceable in e
@@ -432,12 +432,23 @@ aggregators imports it.
 - **No vector/parallel kernels or dispatchers.** Every function is element-wise
   (`c[..., row, col]` indexing), so scalars, arrays and `vmap` all work; the
   multi-expansion-point path gathers `coeffs[ix]` per time.
-- **Double precision is mandatory**: `require_x64()` (in `_common.py`) runs at
-  trace time in the solvers and the fold/lookup helpers and raises otherwise.
+- **Precision follows the inputs**: `working_dtype(*args)` (in `_common.py`)
+  promotes the arguments with `jnp.result_type` at trace time (Python scalars
+  are weak, so float32 arrays stay float32; an explicit float64 array
+  promotes) and raises `TypeError` for anything but float32/float64. Every
+  forced cast goes through it, and array constructors (`zeros`, `arange`,
+  `linspace`) take its dtype explicitly: they are strongly typed to the global
+  default and would silently promote a float32 computation. `JaxOrbit` casts
+  a supplied grid to the parameters' dtype. The Kepler tolerance is per dtype
+  (`EA_TOLERANCE`: numba's 1e-13 in float64, the OpenCL fp32 1e-6 in
+  float32). float32 callers shift BJD times by a reference epoch host-side,
+  as for OpenCL. `test_jax_single_precision.py` pins dtype propagation over
+  the whole public surface and float32 accuracy against numba.
 - **Iterations and autodiff.** Anything iterative runs in `lax.while_loop`
   (not reverse-differentiable) wrapped in a `custom_jvp` whose rule uses the
-  implicit function theorem at the converged point: `ea_from_ma` (same start,
-  tolerance and cap as numba), the contact-point bisection, and `find_z_min`
+  implicit function theorem at the converged point: `ea_from_ma` (same start
+  and cap as numba, and numba's tolerance in float64), the contact-point
+  bisection, and `find_z_min`
   (stationarity of the *squared* separation, finite at b = 0). The loops
   replicate numba step by step, so values agree to round-off.
 - **NaN-safe branches.** A masked `jnp.where` branch still propagates NaN
@@ -520,7 +531,7 @@ To add a new quantity:
 4. Decorate with `@njit(fastmath=True)`
 5. If the new function is intended for public use, add its name — and the names of its public vector/parallel kernels (`X_v`/`X_vp`, or `X_ov`/`X_ovp`/`X_ovd`/`X_ovdp` for multi-expansion-point) — to the corresponding aggregator's `__all__` and its `from ... import ...` block (`meepmeep/numba2d.py` for 2D quantities, `meepmeep/numba3d.py` for 3D quantities and multi-expansion-point routines). The scalar (`_X_s`/`_X_os`/`_X_osd`), write-into (`_X_..._w`/`_X_ow`), and dual-decoration body (`_X_v_body`) kernels stay private and are not exported.
 6. If the quantity belongs in the OpenCL/C surface too, port the scalar kernel to the matching `.cl` file using `MM_INLINE`/`MM_GLOBAL`/`REAL` (no OpenCL-only builtins), give it a "Port of `meepmeep.numbaXd.X`" comment (the generated C header reuses it), regenerate the header with `python c/tools/generate_header.py`, add an OpenCL parity test with a test-only `__kernel` wrapper, and mutation-test it. The C suite then covers it through the same source text.
-7. Port the value evaluators (`X_c`/`X`, and `X_o` for multi-expansion-point) to the matching `backends/jax/` module as element-wise JAX functions with the same names and argument order, and export them from `meepmeep/jax2d.py`/`jax3d.py` (`test_jax_aggregators.py` fails on a numba value function without a JAX port). Add no gradient code: extend the `test_jax_*` parity suites so `jax.jacfwd` is checked against the new numba `_d`/`_od` kernel, and mutation-test the port.
+7. Port the value evaluators (`X_c`/`X`, and `X_o` for multi-expansion-point) to the matching `backends/jax/` module as element-wise JAX functions with the same names and argument order, and export them from `meepmeep/jax2d.py`/`jax3d.py` (`test_jax_aggregators.py` fails on a numba value function without a JAX port). Add no gradient code: extend the `test_jax_*` parity suites so `jax.jacfwd` is checked against the new numba `_d`/`_od` kernel, and mutation-test the port. Also add a float32 call for it to `CALLS_2D`/`CALLS_3D` in `test_jax_single_precision.py`; the completeness test fails otherwise.
 
 The single-expansion-point evaluators are organised into per-dimension packages:
 `point2d/`/`point2dd/` for 2D and `point3d/`/`point3dd/` for 3D, where the

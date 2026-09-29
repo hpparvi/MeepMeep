@@ -12,7 +12,6 @@ import jax.numpy as jnp  # noqa: E402
 
 from meepmeep.backends.jax.newton import ea_from_ma  # noqa: E402
 from meepmeep.backends.jax.solve import solve2d, solve3d, solve3d_orbit  # noqa: E402
-from meepmeep.backends.jax._common import require_x64  # noqa: E402
 from meepmeep.backends.numba.newton.newton import ea_from_ma as nb_ea_from_ma  # noqa: E402
 from meepmeep.numba2d import solve2d as nb_solve2d, solve2d_d as nb_solve2d_d  # noqa: E402
 from meepmeep.numba3d import (solve3d as nb_solve3d, solve3d_d as nb_solve3d_d,  # noqa: E402
@@ -93,12 +92,3 @@ def test_solve3d_orbit_matches_numba(name, placement):
     assert actual.shape == (15, 3, 5)
     assert_allclose(actual, expected, rtol=1e-12, atol=1e-13 * np.abs(expected).max())
 
-
-def test_require_x64_raises_in_single_precision():
-    jax.config.update("jax_enable_x64", False)
-    try:
-        with pytest.raises(RuntimeError, match="double precision"):
-            require_x64()
-    finally:
-        jax.config.update("jax_enable_x64", True)
-    require_x64()

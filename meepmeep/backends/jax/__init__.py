@@ -25,5 +25,6 @@ rather than from hand-derived ``_d`` kernels.
 Import the public surface from :mod:`meepmeep.jax2d` and
 :mod:`meepmeep.jax3d`; the module layout here is implementation detail.
 The backend needs ``jax`` (the optional ``jax`` dependency group) and
-double precision (``jax.config.update('jax_enable_x64', True)``).
+computes in the floating dtype of its inputs, float32 or float64 (see
+``_common.working_dtype``).
 """

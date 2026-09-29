@@ -46,7 +46,7 @@ arguments, as numba does, so the expansion points stay at fixed phases.
 
 import jax.numpy as jnp
 
-from ._common import TWO_PI, ep_lookup
+from ._common import TWO_PI, ep_lookup, working_dtype
 from .point3d import (pos_c, zpos_c, sep_c, vel_c, zvel_c, cos_alpha_c, lambert_phase_curve_c,
                       ev_signal_c, emission_phase_curve_c, _rv_scale)
 from .newton import LTT_DAYS_PER_RSUN
@@ -74,7 +74,7 @@ def ep_ix(t, tpa, p, dt, ep_table):
     ix : int or NDArray of int
         Index into ``coeffs`` / ``ep_times``.
     """
-    t = jnp.asarray(t, dtype=float)
+    t = jnp.asarray(t, dtype=working_dtype(t, tpa, p, dt))
     epoch = jnp.floor((t - tpa) / p)
     tf = t - tpa - epoch * p
     return jnp.take(ep_table, jnp.floor(tf / (dt * p)).astype(jnp.int32), mode='clip')
@@ -156,7 +156,7 @@ def cos_v_p_angle_o(v, t, tpa, p, dt, ep_table, ep_times, coeffs):
 
     See :func:`pos_o` for the shared arguments.
     """
-    v = jnp.asarray(v, dtype=float)
+    v = jnp.asarray(v, dtype=working_dtype(v, tpa, p, dt, ep_times, coeffs))
     inv_nv = 1.0 / jnp.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
     x, y, z = pos_o(t, tpa, p, dt, ep_table, ep_times, coeffs)
     return (x * v[0] + y * v[1] + z * v[2]) * inv_nv / jnp.sqrt(x * x + y * y + z * z)
@@ -226,7 +226,7 @@ def true_anomaly_o(t, tpa, p, ex, ey, ez, w, dt, ep_table, ep_times, coeffs):
     ``arccos`` is guarded, so exactly aligned positions (``f = 0`` or
     ``pi``) give a zero gradient instead of NaN.
     """
-    t = jnp.asarray(t, dtype=float)
+    t = jnp.asarray(t, dtype=working_dtype(t, tpa, p, ex, ey, ez, dt, ep_times, coeffs))
     nes = ex * ex + ey * ey + ez * ez
     circular = (ex <= -0.9999) & (nes > 0.99)
 
