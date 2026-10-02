@@ -39,8 +39,9 @@ mode:
    cd meepmeep
    pip install -e .
 
-MeepMeep needs Python 3.10 or newer and depends only on NumPy, Numba
-(0.59 to 0.63), SciPy, and Matplotlib, all pulled in automatically. The
+MeepMeep needs Python 3.10 or newer and depends only on NumPy (2.0 or
+newer), Numba (0.60 or newer), SciPy, and Matplotlib, all pulled in
+automatically. The
 optional backends have their own extras: ``pip install "meepmeep[jax]"``
 for the experimental JAX backend and ``pip install "meepmeep[opencl]"`` for the OpenCL
 device functions.

@@ -4,6 +4,13 @@ All notable changes to MeepMeep are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-10-02
+
+### Changed
+- Removed the upper bound on the numba version (previously `<0.64`).
+- NumPy 2.0 or newer is now required. This raises the minimum numba to 0.60,
+  the first release that supports NumPy 2.
+
 ## [1.2.0] - 2026-10-02
 
 ### Added

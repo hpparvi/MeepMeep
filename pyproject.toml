@@ -16,8 +16,8 @@ classifiers=[
 ]
 keywords = ['astronomy',  'astrophysics',  'exoplanets']
 dependencies = [
-    "numpy>=1.24",
-    "numba>=0.59,<0.64",
+    "numpy>=2.0",
+    "numba>=0.60",
     "scipy>=1.10",
     "matplotlib>=3.7",
 ]
