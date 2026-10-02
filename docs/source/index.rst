@@ -26,9 +26,17 @@ expressed as a short polynomial in time.
 Installation
 ------------
 
+MeepMeep is available from PyPI
+
 .. code-block:: bash
 
    pip install meepmeep
+
+and from conda-forge
+
+.. code-block:: bash
+
+   conda install -c conda-forge meepmeep
 
 For a development checkout, clone the repository and install in editable
 mode:
@@ -42,9 +50,10 @@ mode:
 MeepMeep needs Python 3.10 or newer and depends only on NumPy (2.0 or
 newer), Numba (0.60 or newer), SciPy, and Matplotlib, all pulled in
 automatically. The
-optional backends have their own extras: ``pip install "meepmeep[jax]"``
+optional backends have their own pip extras: ``pip install "meepmeep[jax]"``
 for the experimental JAX backend and ``pip install "meepmeep[opencl]"`` for the OpenCL
-device functions.
+device functions. Conda has no extras, so there install ``jax`` or
+``pyopencl`` from conda-forge alongside MeepMeep.
 
 
 Quickstart

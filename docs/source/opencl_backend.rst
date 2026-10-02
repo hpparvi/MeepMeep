@@ -17,6 +17,9 @@ the source does not:
 
    pip install "meepmeep[opencl]"
 
+With conda, install ``pyopencl`` from conda-forge alongside MeepMeep
+(``conda install -c conda-forge meepmeep pyopencl``).
+
 The same ``.cl`` files also compile as plain C99, which is how the C library
 is built (see :doc:`c_library`).
 

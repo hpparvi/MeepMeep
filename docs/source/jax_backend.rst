@@ -33,6 +33,9 @@ Install JAX with the optional dependency group:
 
    pip install "meepmeep[jax]"
 
+With conda, install ``jax`` from conda-forge alongside MeepMeep
+(``conda install -c conda-forge meepmeep jax``).
+
 .. contents::
    :local:
    :depth: 1

@@ -18,13 +18,23 @@ The method is described in
 
 ## Installation
 
+MeepMeep is available from PyPI
+
 ```bash
 pip install meepmeep
 ```
 
-The optional backends have their own extras: `pip install "meepmeep[jax]"`
+and from conda-forge
+
+```bash
+conda install -c conda-forge meepmeep
+```
+
+The optional backends have their own pip extras: `pip install "meepmeep[jax]"`
 for the experimental JAX backend and `pip install "meepmeep[opencl]"` for running the
-OpenCL device functions. MeepMeep needs Python 3.10 or newer.
+OpenCL device functions. Conda has no extras, so there install `jax` or
+`pyopencl` from conda-forge alongside MeepMeep. MeepMeep needs Python 3.10 or
+newer.
 
 For a development checkout:
 
