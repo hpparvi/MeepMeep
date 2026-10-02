@@ -3,6 +3,11 @@
 JAX backend
 ===========
 
+.. warning::
+
+   The JAX backend is experimental. Its API and behaviour may still change
+   between releases.
+
 The JAX backend is a port of the numba evaluators to JAX. It covers the
 coefficient solvers, the single- and multi-expansion-point evaluators, the
 transit-geometry utilities, expansion-point placement and the exact

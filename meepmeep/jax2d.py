@@ -23,6 +23,8 @@ traceable (``jit``, ``vmap``, ``grad``). There are no gradient (``_d``,
 ``_cd``) or vector (``_v``, ``_vp``) variants; differentiate a function
 that calls :func:`solve2d` and an evaluator instead.
 
+Experimental: the API and behaviour may still change between releases.
+
 Computes in the floating dtype of the inputs: float64 (enable
 ``jax.config.update('jax_enable_x64', True)``) or float32. See the JAX
 backend docs for the float32 time-origin requirement. For 3D and

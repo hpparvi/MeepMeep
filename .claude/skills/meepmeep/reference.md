@@ -266,7 +266,9 @@ only for large time grids (same thresholds as `Orbit`/`Expansion2D`'s
 radial velocity (`rv_c`/`rv`) is one inline function with no `_v`/`_vp`
 kernel; it accepts a scalar or (by NumPy broadcasting) an array of times.
 
-## JAX backend (optional; gradients by autodiff)
+## JAX backend (optional, experimental; gradients by autodiff)
+
+Experimental: the API and behaviour may still change between releases.
 
 `meepmeep.jax2d` / `meepmeep.jax3d` mirror `numba2d` / `numba3d`: same
 names, same argument order, element-wise (scalar or array times), fully

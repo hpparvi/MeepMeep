@@ -22,9 +22,11 @@ The whole `meepmeep` package is undergoing a major refactor to improve clarity a
 usability. **Breaking API changes are acceptable when justified by clarity or
 usability** — do not preserve backward compatibility for its own sake; choose the
 cleaner design and update every call site. The only stability contract is the public
-aggregator surface (`meepmeep.numba2d` / `meepmeep.numba3d` and their JAX twins
-`meepmeep.jax2d` / `meepmeep.jax3d`, via their `__all__`); everything under `backends/`
-is implementation detail and may be restructured freely.
+aggregator surface (`meepmeep.numba2d` / `meepmeep.numba3d`, via their `__all__`).
+Their JAX twins `meepmeep.jax2d` / `meepmeep.jax3d` are experimental and exempt: their
+API and behaviour may still change between releases (the docs, README and changelog
+say so), though they keep mirroring the numba names and argument order. Everything
+under `backends/` is implementation detail and may be restructured freely.
 
 ## Building and Testing
 
@@ -420,6 +422,12 @@ orders match `numba2d` / `numba3d` (`test_jax_aggregators.py` enforces both the
 name mirroring and that every numba value function has a port). `jax` is the
 optional `jax` dependency group; nothing outside `backends/jax/` and the two
 aggregators imports it.
+
+**Experimental.** The JAX backend is outside the stability contract (see
+"Project status" above) and is labelled experimental in the docs (a warning
+box on `jax_backend.rst`), the README, the changelog, `llms.md` and the
+`jax2d`/`jax3d` module docstrings. Keep those labels consistent until it is
+declared stable, and remove them all together when it is.
 
 - **No gradient code.** There are no `_d`/`_cd`/`_od` variants, no `solve*_d`, and
   no basis transforms: gradients are autodiff through `solve + evaluator`, and the

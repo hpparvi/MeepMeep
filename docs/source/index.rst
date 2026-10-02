@@ -12,7 +12,8 @@ with respect to the orbital parameters (and any other inputs), which feed
 directly into gradient-based optimisers and MCMC samplers. The gradients are
 computed analytically, without JAX or other automatic-differentiation tools;
 the code is pure Numba-jitted Python. A JAX port of the evaluators, with
-gradients from autodiff instead, is available as an optional backend.
+gradients from autodiff instead, is available as an optional, experimental
+backend that may still change.
 
 MeepMeep's speed comes from the Taylor-series approach presented in
 `Parviainen and Korth (2020) <https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P/abstract>`_.
@@ -41,7 +42,7 @@ mode:
 MeepMeep needs Python 3.10 or newer and depends only on NumPy, Numba
 (0.59 to 0.63), SciPy, and Matplotlib, all pulled in automatically. The
 optional backends have their own extras: ``pip install "meepmeep[jax]"``
-for the JAX backend and ``pip install "meepmeep[opencl]"`` for the OpenCL
+for the experimental JAX backend and ``pip install "meepmeep[opencl]"`` for the OpenCL
 device functions.
 
 

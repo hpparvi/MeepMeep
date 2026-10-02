@@ -23,7 +23,7 @@ pip install meepmeep
 ```
 
 The optional backends have their own extras: `pip install "meepmeep[jax]"`
-for the JAX backend and `pip install "meepmeep[opencl]"` for running the
+for the experimental JAX backend and `pip install "meepmeep[opencl]"` for running the
 OpenCL device functions. MeepMeep needs Python 3.10 or newer.
 
 For a development checkout:
@@ -78,7 +78,7 @@ x, y, z, dx, dy, dz = o.xyz()           # gradients w.r.t. (tc, p, a, i, e, w, l
 | `meepmeep.Orbit` | 3D, multi-expansion-point orbit; any orbital phase |
 | `meepmeep.Expansion2D` / `Expansion3D` | single-expansion-point, transit-window evaluators |
 | `meepmeep.numba2d` / `meepmeep.numba3d` | low-level Taylor primitives, callable from Python and from `@njit` code |
-| `meepmeep.jax2d` / `meepmeep.jax3d` | the same value functions in JAX, with gradients from autodiff; `JaxOrbit` |
+| `meepmeep.jax2d` / `meepmeep.jax3d` | experimental: the same value functions in JAX, with gradients from autodiff; `JaxOrbit`. May still change |
 | `meepmeep.backends.opencl` | the evaluators and solvers as OpenCL C device functions for your own kernels |
 
 ## C library

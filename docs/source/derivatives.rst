@@ -12,7 +12,7 @@ hand-derived analytic gradients shipped as sibling routines next to
 each evaluator. Each ``_d`` call costs only a few times what the
 value-only call costs, the gradient is exact up to floating-point
 error, and the result drops straight into a fitter or sampler. (The
-optional JAX backend, :doc:`jax_backend`, ports the value evaluators to JAX
+optional, experimental JAX backend, :doc:`jax_backend`, ports the value evaluators to JAX
 and gets the same gradients from autodiff instead; the test suites pin the
 two together at round-off.)
 
