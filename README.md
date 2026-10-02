@@ -59,28 +59,6 @@ o.set_data(times)
 x, y, z, dx, dy, dz = o.xyz()           # gradients w.r.t. (tc, p, a, i, e, w, lan), shape (N, 7)
 ```
 
-## Conventions
-
-- **Units:** times in days, angles in **radians**, lengths in stellar radii
-  (`a` is the scaled semi-major axis `a / R_star`).
-- **Parameter order** (solvers and gradients): `(tc, p, a, i, e, w, lan)`:
-  transit-centre time, period, scaled semi-major axis, inclination,
-  eccentricity, argument of periastron, longitude of the ascending node.
-  `lan` is optional and defaults to `0.0`.
-- **Coordinates:** `x, y` span the sky plane; `z` is the line of sight,
-  **positive toward the observer**. Transit occurs at `z > 0`, secondary
-  eclipse at `z < 0`; `i = pi/2` is edge-on.
-
-## Public API
-
-| Import | Purpose |
-| --- | --- |
-| `meepmeep.Orbit` | 3D, multi-expansion-point orbit; any orbital phase |
-| `meepmeep.Expansion2D` / `Expansion3D` | single-expansion-point, transit-window evaluators |
-| `meepmeep.numba2d` / `meepmeep.numba3d` | low-level Taylor primitives, callable from Python and from `@njit` code |
-| `meepmeep.jax2d` / `meepmeep.jax3d` | experimental: the same value functions in JAX, with gradients from autodiff; `JaxOrbit`. May still change |
-| `meepmeep.backends.opencl` | the evaluators and solvers as OpenCL C device functions for your own kernels |
-
 ## C library
 
 The evaluators are also available as a plain C99 library built from the
@@ -95,25 +73,6 @@ cmake --install c/build --prefix "$HOME/.local"   # meepmeep.h + libmeepmeep
 ```
 
 See `docs/source/c_library.rst` and `c/examples/transit.c`.
-
-## Testing
-
-```bash
-pip install -e ".[test]"
-pytest meepmeep/tests/                                   # full suite
-NUMBA_DISABLE_JIT=1 pytest -m "not slow" --cov           # with coverage
-```
-
-Coverage must run with the JIT disabled; compiled kernels are invisible to
-the tracer otherwise.
-
-## Documentation
-
-Full documentation is built with Sphinx from `docs/source/`:
-
-```bash
-cd docs && make html      # output in docs/build/html/
-```
 
 ## Citing
 
@@ -134,6 +93,14 @@ Parviainen and Korth (2020):
        adsurl = {https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P},
 }
 ```
+
+## AI/LLM use disclaimer and policy
+
+MeepMeep is based on code originally used in PyTransit starting from 2019, and published in 
+[Parviainen & Korth (2020)]({https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P). The original codebase was
+written without the assistance of AI/LLM, but the recent development (mid-2026 onwards) has been assisted by LLMs
+(mainly Claude Code using the Opus and Fable models). Contributions co-developed with LLMs are welcome, but must be
+backed-up by a human author (that is, purely agentic contributions without human oversight are not allowed).
 
 ## License
 
