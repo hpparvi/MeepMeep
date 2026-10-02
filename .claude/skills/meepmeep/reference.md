@@ -17,9 +17,7 @@ conventions and pitfalls that are not obvious from any single docstring.
 
 ## Stability contract and imports
 
-Import ONLY from these entry points; everything under
-`meepmeep.backends/` is implementation detail and may be restructured
-without notice:
+The recommended (and stable) entry points:
 
 ```python
 from meepmeep import Orbit, Expansion2D, Expansion3D, eclipse_light_travel_time  # high-level
@@ -27,8 +25,16 @@ from meepmeep.expansion2d import Expansion2D          # high-level, single expan
 from meepmeep.expansion3d import Expansion3D          # high-level, single expansion point, 3D
 import meepmeep.numba2d as mm2                         # low-level 2D primitives
 import meepmeep.numba3d as mm3                         # low-level 3D + multi-expansion-point + utils
-import meepmeep.jax2d, meepmeep.jax3d                  # optional JAX twins (pip install "meepmeep[jax]")
+import meepmeep.jax2d, meepmeep.jax3d                  # optional, experimental JAX twins (pip install "meepmeep[jax]")
 ```
+
+Deep imports are allowed and stable too. Public names (no leading
+underscore) in the modules under `meepmeep.backends.numba` and
+`meepmeep.backends.opencl` keep their module paths; a move or rename is
+announced as a breaking change in the changelog. Underscore-prefixed
+names are private. `meepmeep.backends.jax.*` belongs to the experimental
+JAX backend and may still change. The aggregators remain the simpler
+choice, since they gather each surface into one namespace.
 
 The low-level functions are plain `@njit` functions / Numba overload
 dispatchers: they can be called from Python or from inside user `@njit`
@@ -414,8 +420,8 @@ Never build it with `-ffast-math`.
 ## Validation and testing
 
 The exact Newton-Raphson reference solvers live in
-`meepmeep.backends.numba.newton.newton` (this is the one sanctioned
-deep import): `xyz_newton_v(times, tc, p, a, i, e, w)`,
+`meepmeep.backends.numba.newton.newton` (not re-exported by the
+aggregators; import them from there): `xyz_newton_v(times, tc, p, a, i, e, w)`,
 `ta_newton_v(times, tc, p, e, w)`, `rv_newton_v(times, k, tc, p, e, w)`.
 These anchor at the TRANSIT centre and are the ground truth the package
 itself is tested against. Prefer them as oracles in downstream tests

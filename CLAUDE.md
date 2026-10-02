@@ -21,12 +21,16 @@ Reference notebooks live in `notebooks/` and rendered docs source in `docs/`.
 The whole `meepmeep` package is undergoing a major refactor to improve clarity and
 usability. **Breaking API changes are acceptable when justified by clarity or
 usability** — do not preserve backward compatibility for its own sake; choose the
-cleaner design and update every call site. The only stability contract is the public
-aggregator surface (`meepmeep.numba2d` / `meepmeep.numba3d`, via their `__all__`).
-Their JAX twins `meepmeep.jax2d` / `meepmeep.jax3d` are experimental and exempt: their
-API and behaviour may still change between releases (the docs, README and changelog
-say so), though they keep mirroring the numba names and argument order. Everything
-under `backends/` is implementation detail and may be restructured freely.
+cleaner design and update every call site. The stability contract covers the public
+aggregator surface (`meepmeep.numba2d` / `meepmeep.numba3d`, via their `__all__`) and,
+because deep imports are allowed, the public names (no leading underscore) of the
+modules under `meepmeep.backends.numba` and `meepmeep.backends.opencl`. Moving or
+renaming such a module or function is a breaking change: acceptable when justified,
+as above, but record it under a **Breaking** note in `CHANGELOG.md`. Leading-underscore
+names stay private and may change freely. The JAX twins `meepmeep.jax2d` /
+`meepmeep.jax3d`, and everything under `backends/jax/`, are experimental and exempt:
+their API and behaviour may still change between releases (the docs, README and
+changelog say so), though they keep mirroring the numba names and argument order.
 
 ## Building and Testing
 
@@ -69,7 +73,8 @@ When finite-difference-testing parameter derivatives, sample a narrow near-trans
 orbit: perturbing timing/period shifts the periastron anchor and can remap a sampled time across an expansion point boundary,
 giving O(1) FD error at isolated points. For exactness, prefer parity against the `*_od` routines.
 
-**Relocating/renaming backend modules** (common during the refactor): use `git mv` to
+**Relocating/renaming backend modules** (a breaking change for deep importers, see
+"Project status": record it in `CHANGELOG.md`): use `git mv` to
 preserve history; when a module changes package depth, adjust the relative-import dot
 count (escaping imports lose/gain one dot per level crossed, intra-subtree imports are
 unchanged); purge stale Numba caches
@@ -251,13 +256,15 @@ reads it back at runtime through `importlib.metadata`.
 
 ### Public low-level API
 
-`meepmeep.numba2d` and `meepmeep.numba3d` are the canonical public
-entry points for the low-level Numba primitives. User `@njit` kernels
-and direct (non-jitted) callers should import from these modules
-rather than reaching into `meepmeep.backends.numba.*` directly. The
-layout under `backends/numba/` is implementation detail and may be
-restructured without notice; the aggregator modules are the
-stability contract.
+`meepmeep.numba2d` and `meepmeep.numba3d` are the recommended entry
+points for the low-level Numba primitives: they gather the surface into
+two flat namespaces, callable from user `@njit` kernels and from plain
+Python. Deep imports from `meepmeep.backends.numba.*` are also allowed
+and stable (see "Project status"): the public names of every module
+under `backends/numba/` are part of the contract, so moving or renaming
+a module, or a public function in it, is a breaking change. Private
+names (leading underscore: the `_s` scalar, `_w`/`_ow` write-into and
+`_v_body` kernels, helpers) are not.
 
 Each aggregator re-exports source names verbatim (no aliases, no
 renames) and declares an explicit `__all__`. When adding a new public

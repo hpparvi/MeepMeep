@@ -94,13 +94,18 @@ Parviainen and Korth (2020):
 }
 ```
 
-## AI/LLM use disclaimer and policy
+## Generative AI policy
 
-MeepMeep is based on code originally used in PyTransit starting from 2019, and published in 
-[Parviainen & Korth (2020)]({https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P). The original codebase was
-written without the assistance of AI/LLM, but the recent development (mid-2026 onwards) has been assisted by LLMs
-(mainly Claude Code using the Opus and Fable models). Contributions co-developed with LLMs are welcome, but must be
-backed-up by a human author (that is, purely agentic contributions without human oversight are not allowed).
+MeepMeep grew out of code written for PyTransit from 2019 onwards and
+published in
+[Parviainen & Korth (2020)](https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.3356P).
+That original code was written without AI or LLM assistance. Development
+since mid-2026 has been assisted by LLMs, mainly Claude Code with the Opus
+and Fable models.
+
+Contributions developed with LLMs are welcome, but each one needs a human
+author who oversees the work and takes responsibility for it. Purely agentic
+contributions, made without human oversight, are not accepted.
 
 ## License
 
